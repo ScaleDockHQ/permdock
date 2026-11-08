@@ -1,12 +1,23 @@
 import type { PermDock } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
-import type { SnapshotGrant } from "./snapshot-types.ts";
+import type { ResourceNode } from "./permission-types.ts";
+import type { Scope } from "./scopes.ts";
+import type { ExpandedSnapshot, SnapshotGrant } from "./snapshot-types.ts";
 import type { Delegation } from "./subject.ts";
 
+import { compact } from "./compact.ts";
 import { coveredByDelegation, readOnlyActorRefuses } from "./delegation.ts";
+import { expandedViewOf } from "./expanded-view.ts";
+import { getResource } from "./permission-registry.ts";
 import { resolveScope, scopeList, tenantOf } from "./scopes.ts";
 import { expandSnapshot } from "./snapshot-compact.ts";
-import { isMembershipExpired, nowSeconds } from "./tenancy.ts";
+import {
+  isMembershipExpired,
+  nowSeconds,
+  partitionsOf,
+  relatesTo,
+  scopeField,
+} from "./tenancy.ts";
 import { isActive, readWireValidity } from "./validity.ts";
 
 function delegationMayCover(
@@ -57,6 +68,24 @@ function withinDelegation(
   );
 }
 
+/** One instance's expanded snapshot, its grants indexed by permission key. */
+type UseView = {
+  readonly snapshot: ExpandedSnapshot;
+  readonly byPermission: ReadonlyMap<string, readonly SnapshotGrant[]>;
+};
+
+function buildView(permdock: PermDock): UseView {
+  const snapshot =
+    expandedViewOf(permdock)?.() ?? expandSnapshot(permdock.snapshot());
+  const byPermission = new Map<string, SnapshotGrant[]>();
+  for (const grant of snapshot.grants) {
+    const list = byPermission.get(grant.permission) ?? [];
+    list.push(grant);
+    byPermission.set(grant.permission, list);
+  }
+  return { snapshot, byPermission };
+}
+
 /**
  * Whether the subject's delegation, its delegated ceiling and a read-only actor
  * leave `permission` within reach, whatever the grants say. A hint, never a
@@ -81,35 +110,54 @@ export function delegationAllows(
  * skills, never a decision; the call itself is decided in full.
  */
 export function mayUse(permdock: PermDock, permission: Permission): boolean {
-  try {
-    const snapshot = expandSnapshot(permdock.snapshot());
-    if (!withinDelegation(permdock, permission, snapshot.delegated)) {
+  return mayUseOf(permdock)(permission);
+}
+
+/**
+ * `mayUse` for one instance, reading the instance snapshot on the first call
+ * only: a tool listing asks once per tool.
+ */
+export function mayUseOf(
+  permdock: PermDock,
+): (permission: Permission) => boolean {
+  let view: UseView | undefined;
+  return (permission) => {
+    try {
+      view ??= buildView(permdock);
+      return mayUseIn(permdock, permission, view);
+    } catch {
       return false;
     }
-    const tenant = permdock.subject.principal?.tenant;
-    const scopes = scopeList(snapshot.scopes);
-    const grants = snapshot.grants.filter((grant) => {
-      if (grant.permission !== permission.key) {
-        return false;
-      }
-      const owner =
-        grant.membership === undefined
-          ? undefined
-          : tenantOf(grant.membership, scopes);
-      // A tenant the subject does not hold is not "no tenant".
-      return (
-        owner === undefined ||
-        (permdock.subject.principal?.unheldTenant === undefined &&
-          (tenant === undefined || owner === tenant))
-      );
-    });
-    if (grants.some(blocksEveryRow)) {
-      return false;
-    }
-    return grants.some((grant) => grant.effect === "allow");
-  } catch {
+  };
+}
+
+function mayUseIn(
+  permdock: PermDock,
+  permission: Permission,
+  view: UseView,
+): boolean {
+  const { snapshot, byPermission } = view;
+  if (!withinDelegation(permdock, permission, snapshot.delegated)) {
     return false;
   }
+  const tenant = permdock.subject.principal?.tenant;
+  const scopes = scopeList(snapshot.scopes);
+  const grants = (byPermission.get(permission.key) ?? []).filter((grant) => {
+    const owner =
+      grant.membership === undefined
+        ? undefined
+        : tenantOf(grant.membership, scopes);
+    // A tenant the subject does not hold is not "no tenant".
+    return (
+      owner === undefined ||
+      (permdock.subject.principal?.unheldTenant === undefined &&
+        (tenant === undefined || owner === tenant))
+    );
+  });
+  if (grants.some(blocksEveryRow)) {
+    return false;
+  }
+  return grants.some((grant) => grant.effect === "allow");
 }
 
 function isConditioned(grant: SnapshotGrant): boolean {
@@ -183,6 +231,138 @@ export function permittedIds(
       }
     }
     return [...allowed].filter((id) => !denied.has(id)).toSorted();
+  } catch {
+    return [];
+  }
+}
+
+export type PermittedScopeIdsOptions = {
+  /**
+   * The tenant the instances lie in. Defaults to the active tenant; with none,
+   * every tenant the subject holds.
+   */
+  readonly tenant?: string;
+  /**
+   * The scope whose instances to list. Defaults to the outermost scope the
+   * permission's resource is partitioned by, else the first scope.
+   */
+  readonly scope?: string;
+  /** As `PermittedIdsOptions.conditioned`. */
+  readonly conditioned?: boolean;
+};
+
+/** The resource node of `permission`; none on an instance built from a snapshot. */
+function nodeOf(
+  permdock: PermDock,
+  permission: Permission,
+): ResourceNode | undefined {
+  try {
+    return getResource(permdock.permissions, permission.resource);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The scope a listing of `permission` reads, and the scopes it resolves
+ * against.
+ */
+function listingScope(
+  permdock: PermDock,
+  permission: Permission,
+  scope: string | undefined,
+): { readonly name: string; readonly scopes: readonly Scope[] } | undefined {
+  const scopes = scopeList(
+    expandSnapshot(permdock.snapshot({ tenants: "all" })).scopes,
+  );
+  if (scope !== undefined) {
+    const name = resolveScope(scopes, scope);
+    return name === undefined ? undefined : { name, scopes };
+  }
+  const node = nodeOf(permdock, permission);
+  const name =
+    (node === undefined ? undefined : partitionsOf(node, scopes)[0]) ??
+    scopes[0]?.name;
+  return name === undefined ? undefined : { name, scopes };
+}
+
+/**
+ * The instances of one scope, within one tenant, in which the subject holds
+ * `permission`: `permittedIds` for the scope the permission's resource lies in,
+ * the in-process mirror of the SQL `permitted_<scope>_id_array`. A listing,
+ * never a decision.
+ */
+export function permittedScopeIds(
+  permdock: PermDock,
+  permission: Permission,
+  options: PermittedScopeIdsOptions = {},
+): readonly string[] {
+  try {
+    const listing = listingScope(permdock, permission, options.scope);
+    if (listing === undefined) {
+      return [];
+    }
+    return permittedIds(
+      permdock,
+      permission,
+      listing.name,
+      compact({
+        within: options.tenant ?? permdock.subject.principal?.tenant,
+        conditioned: options.conditioned,
+      }),
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Whether the rows of `permission`'s resource are the instances of `scope`
+ * (`relations: { self: { field: 'id', memberOf: <scope> } }`), so an id alone
+ * names the instance a grant is held on.
+ */
+function idsAreInstances(
+  scope: string,
+  scopes: readonly Scope[],
+  node: ResourceNode | undefined,
+): boolean {
+  if (node === undefined) {
+    return false;
+  }
+  const field = scopeField(node, scope, scopes);
+  return (
+    field !== undefined &&
+    field === (node.id ?? "id") &&
+    relatesTo(node, field, scope, scopes)
+  );
+}
+
+/**
+ * The ids, in the order given and each once, that name an instance of the
+ * permission's scope on which the subject holds it, without loading rows. A
+ * resource whose id is not a scope instance keeps nothing: its rows decide, so
+ * use `filter` or `decideEach` with them. By default only grants with no row
+ * condition count. A listing, never a decision.
+ */
+export function filterIds(
+  permdock: PermDock,
+  permission: Permission,
+  ids: readonly string[],
+): readonly string[] {
+  if (ids.length === 0) {
+    return [];
+  }
+  try {
+    const listing = listingScope(permdock, permission, undefined);
+    const node = nodeOf(permdock, permission);
+    if (
+      listing === undefined ||
+      !idsAreInstances(listing.name, listing.scopes, node)
+    ) {
+      return [];
+    }
+    const held = new Set(permittedIds(permdock, permission, listing.name));
+    return [...new Set(ids)].filter((id) => held.has(id));
   } catch {
     return [];
   }

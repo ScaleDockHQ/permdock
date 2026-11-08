@@ -57,10 +57,10 @@ begin
     end if;
     if exists (
       select 1 from ${perms} c
-      where c.tenant_id is not distinct from v.tenant_id and c.scope = v.scope and c.scope_id is not distinct from v.scope_id and c.role = v.role
+      where (v.tenant_id is null and c.tenant_id is null or c.tenant_id = v.tenant_id) and c.scope = v.scope and (v.scope_id is null and c.scope_id is null or c.scope_id = v.scope_id) and c.role = v.role
     ) or exists (
       select 1 from ${includes} c
-      where c.tenant_id is not distinct from v.tenant_id and c.scope = v.scope and c.scope_id is not distinct from v.scope_id and c.role = v.role
+      where (v.tenant_id is null and c.tenant_id is null or c.tenant_id = v.tenant_id) and c.scope = v.scope and (v.scope_id is null and c.scope_id is null or c.scope_id = v.scope_id) and c.role = v.role
     ) then
       v_present := v_present + 1;
       continue;

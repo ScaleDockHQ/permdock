@@ -33,10 +33,10 @@ begin
   end if;
   select array_agg(c.permission) into v_deny
   from "permdock".custom_role_permissions c
-  where c.tenant_id is not distinct from v_tenant and c.scope = v_scope and c.scope_id is not distinct from v_scope_id and c.role = v_key and c.effect = 'deny';
+  where (v_tenant is null and c.tenant_id is null or c.tenant_id = v_tenant) and c.scope = v_scope and (v_scope_id is null and c.scope_id is null or c.scope_id = v_scope_id) and c.role = v_key and c.effect = 'deny';
   select array_agg(c.include_role) into v_include
   from "permdock".custom_role_includes c
-  where c.tenant_id is not distinct from v_tenant and c.scope = v_scope and c.scope_id is not distinct from v_scope_id and c.role = v_key;
+  where (v_tenant is null and c.tenant_id is null or c.tenant_id = v_tenant) and c.scope = v_scope and (v_scope_id is null and c.scope_id is null or c.scope_id = v_scope_id) and c.role = v_key;
   perform "permdock".permdock_replace_custom_role_grants(v_tenant, v_scope, v_scope_id, v_key, p_permissions, v_deny, v_include);
   perform "better_supabase"."audit_event_trusted"(event_type => 'permdock.custom_role.replaced', target_type => 'role', record_id => p_role_id::text, tenant => v_tenant, metadata => jsonb_build_object('operation', 'replace', 'role', v_key, 'permissions', p_permissions), "actor_kind" => 'user');
 end;
@@ -79,10 +79,10 @@ begin
   end if;
   select array_agg(c.permission) into v_deny
   from "permdock".custom_role_permissions c
-  where c.tenant_id is not distinct from v_tenant and c.scope = v_scope and c.scope_id is not distinct from v_scope_id and c.role = v_key and c.effect = 'deny';
+  where (v_tenant is null and c.tenant_id is null or c.tenant_id = v_tenant) and c.scope = v_scope and (v_scope_id is null and c.scope_id is null or c.scope_id = v_scope_id) and c.role = v_key and c.effect = 'deny';
   select array_agg(c.include_role) into v_include
   from "permdock".custom_role_includes c
-  where c.tenant_id is not distinct from v_tenant and c.scope = v_scope and c.scope_id is not distinct from v_scope_id and c.role = v_key;
+  where (v_tenant is null and c.tenant_id is null or c.tenant_id = v_tenant) and c.scope = v_scope and (v_scope_id is null and c.scope_id is null or c.scope_id = v_scope_id) and c.role = v_key;
   perform "permdock".permdock_trusted_replace_custom_role_grants(v_tenant, v_scope, v_scope_id, v_key, p_permissions, v_deny, v_include);
   perform "better_supabase"."audit_event_trusted"(event_type => 'permdock.custom_role.replaced', target_type => 'role', record_id => p_role_id::text, tenant => v_tenant, metadata => jsonb_build_object('operation', 'replace', 'role', v_key, 'permissions', p_permissions), "actor_kind" => 'user');
 end;
@@ -117,9 +117,9 @@ begin
       and not (r."name"::text = any(array['owner']::text[]))
   ) v
   join "permdock".custom_role_permissions c
-    on c.tenant_id is not distinct from v.tenant_id
+    on (v.tenant_id is null and c.tenant_id is null or c.tenant_id = v.tenant_id)
     and c.scope = v.scope
-    and c.scope_id is not distinct from v.scope_id
+    and (v.scope_id is null and c.scope_id is null or c.scope_id = v.scope_id)
     and c.role = v.role
   where c.effect = 'allow'
     and (case c.permission when 'file.read' then 'doc.read' else c.permission end) = any(array['doc.read', 'doc.update']::text[])

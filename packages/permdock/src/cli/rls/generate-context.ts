@@ -28,6 +28,7 @@ import { levelNames } from "../../core/policy.ts";
 import { resolveScope, scopeChain, scopeList } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { listPermissions } from "../../index.ts";
+import { AUTHZ_TOPIC } from "../../supabase/authz-topic.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { configError, describeError } from "../core/errors.ts";
@@ -431,6 +432,14 @@ export function buildContext(
     return { refusal: describeError(cause) };
   }
   const tableless = tablelessResources(rls?.tables);
+  const hook = input.config.supabase?.hook;
+  const hookBroadcast =
+    input.dialect === "supabase" &&
+    hook !== undefined &&
+    hook.version !== false &&
+    hook.broadcast !== false
+      ? (hook.broadcast?.topic ?? AUTHZ_TOPIC)
+      : undefined;
   let ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes,
@@ -479,6 +488,9 @@ export function buildContext(
             ...(rls?.customRoleWrites?.audit === undefined
               ? {}
               : { audit: rls.customRoleWrites.audit }),
+            ...(hookBroadcast === undefined
+              ? {}
+              : { broadcast: { topic: hookBroadcast } }),
           },
         }
       : {}),

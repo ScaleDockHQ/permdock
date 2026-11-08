@@ -8,6 +8,7 @@ import type {
   RlsMemberships,
 } from "../types.ts";
 import type { HelperScope, RolePermission } from "./helpers.ts";
+import type { PgNode } from "./import-nodes.ts";
 
 import { isSqlFunctionField } from "../../conditions/ast.ts";
 import { quoteSqlLiteral } from "../../core/sql.ts";
@@ -31,6 +32,7 @@ import {
   nodeStmt,
   operatorName,
   scalarSubselect,
+  stringVal,
   unwrap,
 } from "./import-nodes.ts";
 
@@ -113,9 +115,42 @@ function helperKey(call: unknown): string | undefined {
   return typeof key === "string" ? key : undefined;
 }
 
+/**
+ * The `SubLink` of `col in (select …)`, or the same shape read from the
+ * generated `col = any(array(select …))`, whose index-friendly form parses as
+ * an `A_Expr` over an `ARRAY_SUBLINK`.
+ */
+function anySubLink(value: unknown): PgNode | undefined {
+  const node = asNode(unwrap(value));
+  const plain = asNode(node?.["SubLink"]);
+  if (plain !== undefined) {
+    return plain;
+  }
+  const expr = asNode(node?.["A_Expr"]);
+  const name = expr?.["name"];
+  const op =
+    Array.isArray(name) && name.length === 1 ? stringVal(name[0]) : undefined;
+  const array = asNode(asNode(unwrap(expr?.["rexpr"]))?.["SubLink"]);
+  const arrayKind = array?.["subLinkType"];
+  if (
+    expr === undefined ||
+    op !== "=" ||
+    array === undefined ||
+    (expr["kind"] !== "AEXPR_OP_ANY" && expr["kind"] !== 2) ||
+    (arrayKind !== "ARRAY_SUBLINK" && arrayKind !== 6)
+  ) {
+    return undefined;
+  }
+  return {
+    subLinkType: "ANY_SUBLINK",
+    testexpr: expr["lexpr"],
+    subselect: array["subselect"],
+  };
+}
+
 function helperCall(value: unknown): HelperCall | undefined {
   const node = asNode(unwrap(value));
-  const sub = asNode(node?.["SubLink"]);
+  const sub = anySubLink(value);
   if (sub === undefined) {
     const scope = helperScope(funcName(node));
     const key = helperKey(node);
@@ -152,7 +187,7 @@ const MEMBER = /^member_([a-z][a-z0-9_]*)_ids$/u;
 function memberCall(
   value: unknown,
 ): { readonly scope: string; readonly column: string } | undefined {
-  const sub = asNode(asNode(unwrap(value))?.["SubLink"]);
+  const sub = anySubLink(value);
   const kind = sub?.["subLinkType"];
   if (sub === undefined || (kind !== "ANY_SUBLINK" && kind !== 2)) {
     return undefined;
@@ -192,7 +227,7 @@ function setFunctionCall(
       readonly args: readonly SqlFunctionArg[];
     }
   | undefined {
-  const sub = asNode(asNode(unwrap(value))?.["SubLink"]);
+  const sub = anySubLink(value);
   const kind = sub?.["subLinkType"];
   if (sub === undefined || (kind !== "ANY_SUBLINK" && kind !== 2)) {
     return undefined;

@@ -1,6 +1,6 @@
 Index Scan using item_pkey on item  (cost=…) (actual time=… rows=1 loops=1)
   Index Cond: (id = '00000000-0000-4000-8002-000000000000'::uuid)
-  Filter: (hashed SubPlan 1)
-  SubPlan 1
+  Filter: ("orgId" = ANY ($0))
+  InitPlan 1 (returns $0)
     ->  ProjectSet  (cost=…) (actual time=… rows=1 loops=1)
           ->  Result  (cost=…) (actual time=… rows=1 loops=1)

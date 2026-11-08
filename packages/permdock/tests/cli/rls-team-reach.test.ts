@@ -90,7 +90,7 @@ export const policy = definePolicy(permissions, {
           `("teamId" = any (array(select (e #>> '{}') from jsonb_array_elements(case when jsonb_typeof(((select auth.jwt()) -> 'team_ids')) = 'array'`,
         );
         expect(sql).toContain(
-          `"orgId" in (select "permdock".permitted_tenant_ids('job.read'))`,
+          `"orgId" = any(array(select "permdock".permitted_tenant_ids('job.read')))`,
         );
       },
     );

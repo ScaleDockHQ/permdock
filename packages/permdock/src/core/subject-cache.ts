@@ -16,6 +16,12 @@ export type SubjectRecord = {
   readonly customRoles: readonly CustomRole[];
   readonly authzVersion?: number;
   /**
+   * The custom-role version of each tenant the user holds a custom role in,
+   * read with the record. A cached record answers a read at a tenant version
+   * only while the two are equal, so an edit of a role is never served stale.
+   */
+  readonly customRolesVersions?: Readonly<Record<string, number>>;
+  /**
    * The token claims the hook adds besides the memberships: `team_ids` and each
    * `supabase.hook.claims` entry.
    */
@@ -34,11 +40,14 @@ export type SubjectCache = {
    * resolved), only a record at exactly that version answers, and a record
    * below it is dropped. With none, a record answers while it is younger than
    * the cache's staleness window and at the version the cache's `VersionCache`
-   * holds.
+   * holds. With `roles`, the custom-role version read for each tenant, a record
+   * whose version for any of them differs is not served either, and a record
+   * below one is dropped.
    */
   record: (
     id: string,
     version: number | undefined,
+    roles?: Readonly<Record<string, number>>,
   ) => SubjectRecord | null | Promise<SubjectRecord | null>;
   /**
    * Stores a record a source read. A record whose `authzVersion` is below the
@@ -145,6 +154,7 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
     };
   }
   const version = value["authzVersion"];
+  const rolesVersions = rolesVersionsOf(value["customRolesVersions"]);
   return compact<SubjectRecord>({
     id: value["id"],
     active: true,
@@ -160,10 +170,51 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
       typeof version === "number" && Number.isFinite(version)
         ? version
         : undefined,
+    customRolesVersions:
+      rolesVersions === undefined || Object.keys(rolesVersions).length === 0
+        ? undefined
+        : rolesVersions,
     claims:
       isRecord(value["claims"]) && Object.keys(value["claims"]).length > 0
         ? value["claims"]
         : undefined,
+  });
+}
+
+function rolesVersionsOf(
+  value: unknown,
+): Readonly<Record<string, number>> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const versions: Record<string, number> = {};
+  for (const [tenant, version] of Object.entries(value)) {
+    const number = typeof version === "string" ? Number(version) : version;
+    if (typeof number === "number" && Number.isSafeInteger(number)) {
+      versions[tenant] = number;
+    }
+  }
+  return versions;
+}
+
+/** Whether `record` holds exactly the custom-role versions in `roles`. */
+function rolesMatch(
+  record: SubjectRecord,
+  roles: Readonly<Record<string, number>>,
+): boolean {
+  return Object.entries(roles).every(
+    ([tenant, current]) => record.customRolesVersions?.[tenant] === current,
+  );
+}
+
+/** Whether `record` is below a version in `roles`, or has none for the tenant. */
+function rolesBehind(
+  record: SubjectRecord,
+  roles: Readonly<Record<string, number>>,
+): boolean {
+  return Object.entries(roles).some(([tenant, current]) => {
+    const held = record.customRolesVersions?.[tenant];
+    return held === undefined || held < current;
   });
 }
 
@@ -208,7 +259,7 @@ export function memorySubjectCache(
   };
   return Object.freeze({
     name: "memory",
-    record(id, version) {
+    record(id, version, roles) {
       const entry = entries.get(id);
       if (entry === undefined) {
         return null;
@@ -216,6 +267,12 @@ export function memorySubjectCache(
       const held = entry.record.authzVersion;
       if (version !== undefined) {
         if (held === version) {
+          if (roles !== undefined && !rolesMatch(entry.record, roles)) {
+            if (rolesBehind(entry.record, roles)) {
+              entries.delete(id);
+            }
+            return null;
+          }
           store(entry);
           return entry.record;
         }

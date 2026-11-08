@@ -12,6 +12,7 @@ import type { VersionCache } from "../../src/core/version-cache.ts";
 
 import { memoryApprovalStore } from "../../src/approvals/store.ts";
 import { authorizer } from "../../src/better-supabase/index.ts";
+import { canonicalJson } from "../../src/core/canonical-json.ts";
 import {
   allow,
   definePermissions,
@@ -292,6 +293,103 @@ describe(authorizer, () => {
     ]);
     // A read and a delete in ORG, and a read in OTHER.
     expect(loads).toBe(3);
+  });
+
+  describe("claims key", () => {
+    const counted = () => {
+      let reads = 0;
+      const held = claims();
+      const watched = Object.defineProperty({ ...held }, "sub", {
+        enumerable: true,
+        get() {
+          reads += 1;
+          return USER;
+        },
+      });
+      return { watched, reads: () => reads };
+    };
+    const batchOf = (size: number) => {
+      const { watched, reads } = counted();
+      const requests = Array.from({ length: size }, () =>
+        request(quote.read, { claims: watched, tenant: ORG, properties: row }),
+      );
+      return pd.evaluations?.(requests).then(() => reads());
+    };
+
+    it("reads the claims once for a batch that shares one claims object", async () => {
+      const one = await batchOf(1);
+      const fifty = await batchOf(50);
+      expect(fifty).toBeLessThanOrEqual((one ?? 0) + 2);
+    });
+
+    it("reads the claims once per request scope through the runtime memo", async () => {
+      const { watched, reads } = counted();
+      const answers = new Map<string, Promise<unknown>>();
+      const memo = {
+        once<T>(key: string, load: () => Promise<T>): Promise<T> {
+          if (!answers.has(key)) answers.set(key, load());
+          // SAFETY: every key is written once above with the promise of a load of the same T.
+          return answers.get(key) as Promise<T>;
+        },
+      };
+      const check = () =>
+        pd.evaluate(
+          request(quote.read, {
+            claims: watched,
+            tenant: ORG,
+            properties: row,
+          }),
+          { memo },
+        );
+      await check();
+      const first = reads();
+      for (let index = 0; index < 20; index += 1) await check();
+      expect(reads()).toBeLessThanOrEqual(first + 2);
+    });
+
+    it("keeps the memo key the canonical JSON of claims, tenant and intent", async () => {
+      const keys: string[] = [];
+      const memo = {
+        once<T>(key: string, load: () => Promise<T>): Promise<T> {
+          keys.push(key);
+          return load();
+        },
+      };
+      const held = claims();
+      await pd.evaluate(
+        request(quote.read, { claims: held, tenant: ORG, properties: row }),
+        { memo },
+      );
+      await pd.evaluate(request(quote.read, { tenant: ORG, properties: row }), {
+        memo,
+      });
+      expect(keys).toStrictEqual([
+        `permdock:authorizer:${canonicalJson([held, ORG, "read"])}`,
+        `permdock:authorizer:${canonicalJson([null, ORG, "read"])}`,
+      ]);
+    });
+
+    it("keys a later call on the claims as they are then", async () => {
+      const held = claims();
+      const memo = () => {
+        const answers = new Map<string, Promise<unknown>>();
+        return {
+          once<T>(key: string, load: () => Promise<T>): Promise<T> {
+            if (!answers.has(key)) answers.set(key, load());
+            // SAFETY: every key is written once above with the promise of a load of the same T.
+            return answers.get(key) as Promise<T>;
+          },
+        };
+      };
+      const ask = () =>
+        pd.evaluate(
+          request(quote.read, { claims: held, tenant: ORG, properties: row }),
+          { memo: memo() },
+        );
+      expect(await ask()).toStrictEqual({ outcome: "granted" });
+      held.memberships = [];
+      expect(await ask()).toMatchObject({ outcome: "denied" });
+    });
   });
 
   describe("intent and versions", () => {

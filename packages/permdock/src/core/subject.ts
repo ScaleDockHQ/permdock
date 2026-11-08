@@ -186,6 +186,12 @@ export type Principal = {
   readonly membershipsTruncated?: boolean;
   /** The authorization version the token was minted at (`authz_ver`). */
   readonly authzVersion?: number;
+  /**
+   * The custom-role version of the token's active tenant when it was minted
+   * (`custom_roles_ver`): one counter per tenant that every edit of a custom
+   * role raises.
+   */
+  readonly customRolesVersion?: number;
   readonly tenant?: string;
   /**
    * Set by core when a requested tenant is not one the subject holds: the

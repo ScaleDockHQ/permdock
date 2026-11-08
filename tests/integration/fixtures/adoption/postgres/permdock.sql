@@ -86,12 +86,43 @@ $$;
 revoke execute on function "permdock".permitted_tenant_ids(text) from public, anonymous;
 grant execute on function "permdock".permitted_tenant_ids(text) to authenticated;
 
+-- tenant ids a grant key reaches, as one array, for `<column> = any(...)`
+create or replace function "permdock".permitted_tenant_id_array(p_grant text)
+returns uuid[]
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select coalesce(array_agg(i), '{}'::uuid[]) from "permdock".permitted_tenant_ids(p_grant) i
+$$;
+revoke execute on function "permdock".permitted_tenant_id_array(text) from public, anonymous;
+grant execute on function "permdock".permitted_tenant_id_array(text) to authenticated;
+-- whether a grant key reaches one tenant
+create or replace function "permdock".permdock_tenant_has(p_grant text, p_tenant uuid)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select p_tenant = any("permdock".permitted_tenant_id_array(p_grant))
+$$;
+revoke execute on function "permdock".permdock_tenant_has(text, uuid) from public, anonymous;
+grant execute on function "permdock".permdock_tenant_has(text, uuid) to authenticated;
+
 create or replace function "permdock".member_tenant_ids()
 returns setof uuid
 language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select distinct (m ->> 'id')::uuid
@@ -143,12 +174,29 @@ $$;
 revoke execute on function "permdock".permitted_team_ids(text) from public, anonymous;
 grant execute on function "permdock".permitted_team_ids(text) to authenticated;
 
+-- team ids a grant key reaches, as one array, for `<column> = any(...)`
+create or replace function "permdock".permitted_team_id_array(p_grant text)
+returns uuid[]
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select coalesce(array_agg(i), '{}'::uuid[]) from "permdock".permitted_team_ids(p_grant) i
+$$;
+revoke execute on function "permdock".permitted_team_id_array(text) from public, anonymous;
+grant execute on function "permdock".permitted_team_id_array(text) to authenticated;
+
 create or replace function "permdock".member_team_ids()
 returns setof uuid
 language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select distinct (m ->> 'id')::uuid

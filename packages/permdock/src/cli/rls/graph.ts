@@ -365,6 +365,9 @@ function closureObjectsSql(
   const literal = quoteLiteral(name);
   const idType = idTypeOf(ctx, name);
   const ancestor = idType === "text" ? "ancestor" : `ancestor::${idType}`;
+  // The array is cast, not the column, so the primary key and the parent index apply.
+  const typed = (array: string): string =>
+    idType === "text" ? array : `${array}::${idType}[]`;
   const restrictedChanged =
     restricted === undefined
       ? ""
@@ -393,7 +396,7 @@ begin
   with recursive walk(start, next, path) as (
     select t.${id}, t.${up}, array[t.${id}::text]
     from ${table} t
-    where t.${id}::text = any(p_ids)
+    where t.${id} = any(${typed("p_ids")})
     union all
     select walk.start, t.${up}, walk.path || t.${id}::text
     from walk join ${table} t on t.${id} = walk.next
@@ -410,7 +413,7 @@ begin
   with recursive down(id, level) as (
     select t.${id}, 0
     from ${table} t
-    where t.${id}::text = any(p_ids) or t.${up}::text = any(p_ids)
+    where t.${id} = any(${typed("p_ids")}) or t.${up} = any(${typed("p_ids")})
     union
     select t.${id}, down.level + 1
     from down join ${table} t on t.${up} = down.id
@@ -424,7 +427,7 @@ begin
   with recursive walk(descendant, ancestor, parent, depth, stop) as (
     select t.${id}::text, t.${id}, t.${up}, 0, ${stop}
     from ${table} t
-    where t.${id}::text = any(v_affected)
+    where t.${id} = any(${typed("v_affected")})
     union all
     select walk.descendant, p.${id}, p.${up}, walk.depth + 1, ${stopParent}
     from walk join ${table} p on p.${id} = walk.parent

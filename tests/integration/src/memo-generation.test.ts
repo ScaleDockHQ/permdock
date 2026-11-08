@@ -63,8 +63,8 @@ begin
         p_grant,
         coalesce((select auth.jwt()) ->> 'authz_ver', ''),
         coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
-        statement_timestamp()::text,
-        md5(coalesce((select auth.jwt())::text, ''))
+        coalesce((select auth.jwt()) ->> 'session_id', ''),
+        statement_timestamp()::text
       )),
       'ids', to_jsonb(array[p_fake]::text[])
     )::text,

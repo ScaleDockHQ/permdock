@@ -12,6 +12,7 @@ import {
   grantPermissionSql,
   keptRowSql,
 } from "../sql/active.ts";
+import { tenantTypeOf } from "../sql/columns.ts";
 import { memberRoleOf, scopeSources, scopeTable } from "../sql/names.ts";
 import {
   qualified,
@@ -28,7 +29,7 @@ import {
   subjectClaimJsonSql,
   subjectIdSql,
 } from "../sql/subject.ts";
-import { customArraysQuery, customKeysQuery } from "./custom-roles.ts";
+import { customKeysArrayQuery, customKeysQuery } from "./custom-roles.ts";
 import {
   activeTenant,
   andLine,
@@ -351,18 +352,18 @@ function tableBranch(
     branch === "declared"
       ? `  select${role.lateral ? " distinct" : ""} ${memberColumn(column)}::${type}${set ? ", rp.grant_key" : ""}`
       : shared
-        ? `  select ${memberColumn(column)}::${type} as id, pdk_e.allow, pdk_e.deny, pdk_e.incl`
+        ? `  select ${memberColumn(column)}::${type} as id, pdk_e.keys`
         : `  select ${memberColumn(column)}::${type}, ck.grant_key`,
     `  from ${quoteQualified(table.table)} m${role.join}`,
     ...checks.joins,
     ...(shared
       ? [
-          `  cross join lateral (${customArraysQuery(ctx, probeOf(scope, column, tenantColumn, role.sql))}) pdk_e`,
+          `  cross join lateral (${customKeysArrayQuery(ctx, probeOf(ctx, scope, column, tenantColumn, role.sql))}) pdk_e`,
         ]
       : []),
     ...(branch === "custom" && set && custom !== undefined
       ? [
-          `  cross join lateral (${customKeysQuery(ctx, probeOf(scope, column, tenantColumn, role.sql))}) ck(grant_key)`,
+          `  cross join lateral (${customKeysQuery(ctx, probeOf(ctx, scope, column, tenantColumn, role.sql))}) ck(grant_key)`,
         ]
       : []),
     ...(branch === "declared"
@@ -386,6 +387,7 @@ function tableBranch(
 }
 
 function probeOf(
+  ctx: RlsSqlContext,
   scope: string,
   column: string,
   tenantColumn: string | undefined,
@@ -394,7 +396,7 @@ function probeOf(
   return {
     scope,
     role: roleSql,
-    tenant: `${memberColumn(tenantColumn ?? column)}::text`,
+    tenant: `(${memberColumn(tenantColumn ?? column)})::${tenantTypeOf(ctx)}`,
     instance: `${memberColumn(column)}::text`,
   };
 }
@@ -456,31 +458,22 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
   if (set) {
     return [...branches, held].join("\n  union\n");
   }
-  return withCustomKeys(ctx, scope, held, branches);
+  return withCustomKeys(held, branches, "p_grant");
 }
 
 /**
  * The branches of a body asked by one grant key, with the custom roles' branch
- * as a join over `pdk_m` (one row per membership, with its probed entries) and
- * `pdk_k` (the keys of each distinct set of entries, one `permdock_custom_keys`
- * call per set, however many tenants share it).
+ * over `pdk_m`: one row per membership with the compiled keys of its role.
  */
 function withCustomKeys(
-  ctx: RlsSqlContext,
-  scope: string,
   members: string,
   declared: readonly string[],
+  grant: string,
 ): string {
   const held = `  select pdk_m.id from pdk_m
-  join pdk_k on pdk_k.allow = pdk_m.allow and pdk_k.deny = pdk_m.deny and pdk_k.incl = pdk_m.incl`;
+  where ${grant} = any(pdk_m.keys)`;
   return `  with pdk_m as (
 ${members}
-  ),
-  pdk_k as materialized (
-    select a.allow, a.deny, a.incl
-    from (select distinct pdk_m.allow, pdk_m.deny, pdk_m.incl from pdk_m) a
-    cross join lateral ${qualified(ctx, CUSTOM_ROLES.keys)}(a.allow, a.deny, a.incl, ${quoteLiteral(scope)}) k(grant_key)
-    where k.grant_key = p_grant
   )
 ${[...declared, held].join("\n  union\n")}`;
 }
@@ -777,8 +770,8 @@ function memoDiscriminatorSql(user: string, key: string): string {
       ${key},
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
       coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
-      statement_timestamp()::text,
-      md5(coalesce((select auth.jwt())::text, ''))
+      coalesce((select auth.jwt()) ->> 'session_id', ''),
+      statement_timestamp()::text
     ))`;
 }
 
@@ -925,7 +918,7 @@ ${rpJoin(ctx, scope, "r.role", set, "  ")}  where ${signedIn(ctx)}
   const keys = customKeysQuery(ctx, {
     scope,
     role: "r.role",
-    tenant: `(${tenant})::text`,
+    tenant: `(${tenant})::${tenantTypeOf(ctx)}`,
     instance: "(ms.id)::text",
   });
   if (set) {
@@ -942,23 +935,22 @@ ${rows}
       subjectIdSql(ctx),
     );
   }
-  const arrays = customArraysQuery(ctx, {
+  const arrays = customKeysArrayQuery(ctx, {
     scope,
     role: "r.role",
-    tenant: `(${tenant})::text`,
+    tenant: `(${tenant})::${tenantTypeOf(ctx)}`,
     instance: "(ms.id)::text",
   });
   return sourcesBodyOf(
     withCustomKeys(
-      ctx,
-      scope,
-      `  select (ms.id)::${type} as id, pdk_e.allow, pdk_e.deny, pdk_e.incl
+      `  select (ms.id)::${type} as id, pdk_e.keys
 ${rows}
   cross join lateral (${arrays}) pdk_e
   where ${signedIn(ctx)}
     and ms.scope = ${quoteLiteral(scope)}
     and not (r.role = any(${sqlTextArray(custom.declared)}))${narrow}${sourceFilters(ctx, scope, subjectIdSql(ctx), grantPermissionSql("p_grant"), sourcesKeep(sources))}`,
       [declared],
+      "p_grant",
     ),
     sources,
     subjectIdSql(ctx),

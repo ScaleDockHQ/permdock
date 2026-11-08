@@ -19,7 +19,7 @@ import { freezeDeep } from "../core/freeze.ts";
 import { readMemberships } from "../core/read-memberships.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { validateRecord } from "../core/thenable.ts";
-import { supabaseTenantClaim } from "./budget.ts";
+import { CUSTOM_ROLES_VERSION_CLAIM, supabaseTenantClaim } from "./budget.ts";
 
 const REGISTERED: ReadonlySet<string> = new Set([
   "sub",
@@ -438,6 +438,7 @@ function mapClaims(
   const include = new Set(options.include ?? []);
   const tenantValue = claimAt(claims, tenantClaim);
   const version = claimAt(claims, "authz_ver");
+  const rolesVersion = claimAt(claims, CUSTOM_ROLES_VERSION_CLAIM);
   const tenant = typeof tenantValue === "string" ? tenantValue : undefined;
   const { memberships, dropped } = readMemberships(
     claimAt(claims, membershipsClaim),
@@ -462,6 +463,10 @@ function mapClaims(
     authzVersion:
       typeof version === "number" && Number.isInteger(version)
         ? version
+        : undefined,
+    customRolesVersion:
+      typeof rolesVersion === "number" && Number.isInteger(rolesVersion)
+        ? rolesVersion
         : undefined,
     issuer: typeof claims["iss"] === "string" ? claims["iss"] : undefined,
     assurance:

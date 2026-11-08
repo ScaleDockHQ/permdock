@@ -31,6 +31,7 @@ import {
 import { capabilitiesSql } from "./capabilities.ts";
 import { customRoleByIdSql } from "./custom-role-by-id.ts";
 import { customRoleCascadeSql } from "./custom-role-cascade.ts";
+import { customRoleCompiledSql } from "./custom-role-compiled.ts";
 import { customRoleNameGuardSql } from "./custom-role-guard.ts";
 import { customRoleWritesSql } from "./custom-role-writes.ts";
 import { customRolesSql, roleReadersSql } from "./custom-roles.ts";
@@ -50,6 +51,7 @@ import {
   memberRolesFunction,
 } from "./helper-members.ts";
 import { memoGenerationSql } from "./memo-generation.ts";
+import { setHelpersSql } from "./set-helpers.ts";
 import { tokenScopeAllowsCall, tokenScopeAllowsSql } from "./token-scopes.ts";
 
 /** `'global'` or a scope name. */
@@ -92,7 +94,7 @@ export function accessSql(
   if (ctx.reuseMemo === true && memoizes(ctx)) {
     return `${quoteIdent(column)} in (${memoHitList(scope, key, `${fn}(${key})`, `${subjectIdSql(ctx)}::text`, ctx.memo, scopeTypeOf(ctx, scope))})`;
   }
-  return `${quoteIdent(column)} in (select ${fn}(${key}))`;
+  return `${quoteIdent(column)} = any(array(select ${fn}(${key})))`;
 }
 
 /**
@@ -118,7 +120,7 @@ ${helperFunction(
   sqlBody(
     `  select p.${quoteIdent(via.id)}
   from ${quoteQualified(via.table)} p
-  where p.${quoteIdent(via.column)} in (select ${qualified(ctx, permittedIdsHelper(via.scope))}(p_grant))`,
+  where p.${quoteIdent(via.column)} = any(array(select ${qualified(ctx, permittedIdsHelper(via.scope))}(p_grant)))`,
   ),
   anonExecute,
 )}`,
@@ -139,6 +141,7 @@ create or replace function ${fn}()
 returns uuid
 language sql
 stable
+parallel safe
 set search_path = ''
 as $$
   select nullif(
@@ -447,6 +450,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   if (custom !== "") {
     chunks.push(custom);
   }
+  const compiled = customRoleCompiledSql(ctx);
+  if (compiled !== "") {
+    chunks.push(compiled);
+  }
   const memoGeneration = memoGenerationSql(ctx, memoReadsSql(ctx));
   if (memoGeneration !== "") {
     chunks.push(memoGeneration);
@@ -476,6 +483,7 @@ revoke all on table ${ur} from anon, authenticated, public;`);
         anon,
       ),
     );
+    chunks.push(setHelpersSql(ctx, scope.name, anon));
     chunks.push(memberFunction(ctx, scope.name, type, anon));
     if (ctx.roleMemberScopes?.includes(scope.name) === true) {
       chunks.push(memberRolesFunction(ctx, scope.name, type, anon));

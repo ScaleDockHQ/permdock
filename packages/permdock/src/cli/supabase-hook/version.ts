@@ -448,16 +448,16 @@ function roleKeyHolders(parts: Parts): readonly RoleKeyHolder[] {
 }
 
 /**
- * The bump for one roles table: unchanged keys and ids return early, else every
- * holder of `old` is bumped.
+ * The holders of the roles rows in `source`, a relation of the roles table's
+ * columns (`permdock_old`, `permdock_new` or a difference of the two).
  */
-function holderSelect(holder: RoleKeyHolder, row: "old" | "new"): string {
+function holderSelect(holder: RoleKeyHolder, source: string): string {
   const held = holder.through.match
-    .map(([ref, id]) => `h.${quoteIdent(ref)} = ${row}.${quoteIdent(id)}`)
+    .map(([ref, id]) => `h.${quoteIdent(ref)} = r.${quoteIdent(id)}`)
     .join(" and ");
   return holder.userThrough === undefined
-    ? `select h.${quoteIdent(holder.user)}::uuid as user_id from ${quoteQualified(holder.table)} h where ${held}`
-    : `select u.${quoteIdent(holder.userThrough.key)}::uuid as user_id from ${quoteQualified(holder.table)} h join ${quoteQualified(holder.userThrough.table)} u on u.${quoteIdent(holder.userThrough.id)} = h.${quoteIdent(holder.user)} where ${held}`;
+    ? `select h.${quoteIdent(holder.user)}::uuid as user_id from ${quoteQualified(holder.table)} h join ${source} r on ${held}`
+    : `select u.${quoteIdent(holder.userThrough.key)}::uuid as user_id from ${quoteQualified(holder.table)} h join ${quoteQualified(holder.userThrough.table)} u on u.${quoteIdent(holder.userThrough.id)} = h.${quoteIdent(holder.user)} join ${source} r on ${held}`;
 }
 
 function bumpHolders(
@@ -476,8 +476,10 @@ ${indent}on conflict (user_id) do update set version = v.version + 1;`;
 }
 
 /**
- * An insert bumps the new holder, a delete the old one, and an update that
- * moves the row both. An update that changes no key returns without a write.
+ * An insert bumps the new holders, a delete the old ones, and an update the
+ * holders of every row whose key or ids differ between `permdock_old` and
+ * `permdock_new`: a row that kept them is in both and bumps no one, so an edit
+ * to another column writes nothing.
  */
 function roleKeysBumpSql(
   holders: readonly RoleKeyHolder[],
@@ -491,23 +493,19 @@ function roleKeysBumpSql(
         ...holder.through.match.map(([, id]) => id),
       ]),
     ),
-  ];
-  const unchanged = columns
-    .map(
-      (column) =>
-        `new.${quoteIdent(column)} is not distinct from old.${quoteIdent(column)}`,
-    )
-    .join(`\n${indent}    and `);
-  const oldRows = holders.map((holder) => holderSelect(holder, "old"));
-  const newRows = holders.map((holder) => holderSelect(holder, "new"));
+  ]
+    .map(quoteIdent)
+    .join(", ");
+  const changed = (from: string, other: string): string =>
+    `(select ${columns} from ${from} except select ${columns} from ${other})`;
+  const rows = (source: string): string[] =>
+    holders.map((holder) => holderSelect(holder, source));
   return `${indent}if tg_op = 'INSERT' then
-${bumpHolders(newRows, versionTable, `${indent}  `)}
+${bumpHolders(rows("permdock_new"), versionTable, `${indent}  `)}
 ${indent}elsif tg_op = 'DELETE' then
-${bumpHolders(oldRows, versionTable, `${indent}  `)}
-${indent}elsif ${unchanged} then
-${indent}  return null;
+${bumpHolders(rows("permdock_old"), versionTable, `${indent}  `)}
 ${indent}else
-${bumpHolders([...oldRows, ...newRows], versionTable, `${indent}  `)}
+${bumpHolders([...rows(changed("permdock_old", "permdock_new")), ...rows(changed("permdock_new", "permdock_old"))], versionTable, `${indent}  `)}
 ${indent}end if;`;
 }
 
@@ -551,9 +549,7 @@ ${roleKeysBumpSql(group.holders, versionTable, "    ")}
     .map(([, group]) => {
       const target = quoteQualified(group.table);
       return `drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${target};
-create trigger ${quoteIdent(VERSION_TRIGGER)}
-  after insert or update or delete on ${target}
-  for each row execute function ${bump}();`;
+${statementTriggers(target, `${bump}()`)}`;
     })
     .join("\n");
   return `

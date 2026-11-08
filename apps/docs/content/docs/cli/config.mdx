@@ -85,13 +85,13 @@ export default defineConfig({
 });
 ```
 
-| Checked                                                                                                      | Against                                           |
-| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
-| Keys of `rls.tables`, entries of `powersync.resources`, `resource` in `powersync.tables.*.follow`            | Resource names                                    |
-| Keys of `rls.scopeTypes`, `rls.memberships.scopes`, `rls.suspension.scopes`; `rls.storage.buckets.<b>.scope` | Scope names, plus the `tenant` and `team` aliases |
-| `{placeholder}` segments in `rls.realtime.topics` keys                                                       | Scope names                                       |
-| Keys of `rls.actions`, `powersync.action`                                                                    | Action names                                      |
-| String entries of the `keep` lists, `rls.customRoleWrites.requires`                                          | Permission keys                                   |
+| Checked                                                                                                                    | Against                                           |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Keys of `rls.tables`, `powersync.memberLevel`, entries of `powersync.resources`, `resource` in `powersync.tables.*.follow` | Resource names                                    |
+| Keys of `rls.scopeTypes`, `rls.memberships.scopes`, `rls.suspension.scopes`; `rls.storage.buckets.<b>.scope`               | Scope names, plus the `tenant` and `team` aliases |
+| `{placeholder}` segments in `rls.realtime.topics` keys                                                                     | Scope names                                       |
+| Keys of `rls.actions`, `powersync.action`                                                                                  | Action names                                      |
+| String entries of the `keep` lists, `rls.customRoleWrites.requires`                                                        | Permission keys                                   |
 
 `permissions` and `operations` take the imported value too. The CLI reads a value from the relative import of the config file that exports it as `policy`, `permissions` or `operations` (or default), so every command, `--watch` included, reads that module; a value no relative import exports exits `2` with `config_invalid`. A path keeps working and checks nothing at compile time. [PD077](/docs/cli/doctor#pd077-config-names-the-policy-does-not-declare) reports the same names at run time for either form.
 
@@ -180,6 +180,7 @@ Every key PermDock reads, with the kinds of value it accepts. The command page o
 | `powersync.action`        | a string                                      | [powersync](/docs/cli/powersync)                                               |
 | `powersync.manifest`      | a string                                      | [powersync](/docs/cli/powersync)                                               |
 | `powersync.tables`        | an object                                     | [powersync](/docs/cli/powersync#tables-that-are-not-resources)                 |
+| `powersync.memberLevel`   | an object                                     | [powersync](/docs/cli/powersync#per-member-level)                              |
 | `doctor.sensitiveActions` | an array                                      | [doctor](/docs/cli/doctor)                                                     |
 | `doctor.memberships`      | a string                                      | [doctor](/docs/cli/doctor)                                                     |
 | `doctor.credentials`      | a string                                      | [doctor](/docs/cli/doctor)                                                     |

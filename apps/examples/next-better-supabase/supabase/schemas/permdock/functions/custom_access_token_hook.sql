@@ -102,7 +102,7 @@ declare
   extra jsonb;
   ver bigint;
 begin
-  claims := claims - 'attrs' - 'datetime_preferences' - 'features';
+  claims := claims - 'attrs' - 'custom_roles_ver' - 'datetime_preferences' - 'features';
   active := claims -> 'app_metadata' ->> 'tenant_id';
   -- one statement reads the roles, the memberships and the authorization version; the budget counts every slice
   with pdk_roles as (
@@ -116,7 +116,7 @@ begin
       from "permdock".memberships_for(uid) e
     ),
     pdk_fixed as (
-      select used + octet_length(pdk_roles.held::text) + octet_length(pdk_version.ver::text) as bytes from pdk_roles, pdk_version
+      select used + octet_length(pdk_roles.held::text) + octet_length(case jsonb_array_length(pdk_roles.held) when 0 then '' when 1 then (pdk_roles.held -> 0)::text else pdk_roles.held::text end) + coalesce(octet_length(to_jsonb(active)::text), 0) + 20 + octet_length(pdk_version.ver::text) as bytes from pdk_roles, pdk_version
     ),
     pdk_ranked as (
       select x.entry, x.root_id is not distinct from active as current,
@@ -135,7 +135,7 @@ begin
     (select pdk_roles.held from pdk_roles),
     coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
     truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
-    active is not null and coalesce((select bool_or(k.current) from pdk_kept k), false),
+    active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),
     (select bytes from pdk_fixed),
     (select pdk_version.ver from pdk_version)
   into held, kept, truncated, in_active, used, ver;
@@ -153,6 +153,7 @@ begin
   end if;
   if in_active then
     claims := jsonb_set(claims, '{tenant_id}', to_jsonb(active));
+    claims := jsonb_set(claims, '{custom_roles_ver}', to_jsonb("permdock".custom_roles_version_for(active::uuid)));
   end if;
   extra := "public"."datetime_preference_claims"(uid);
   if extra is not null then
@@ -300,6 +301,7 @@ declare
   held jsonb;
   memberships jsonb;
   custom jsonb := '[]'::jsonb;
+  custom_versions jsonb := '{}'::jsonb;
   ver bigint;
   claims jsonb := '{}'::jsonb;
   extra jsonb;
@@ -317,39 +319,41 @@ begin
       'tenant', c.tenant_id::text,
       'scope', c.scope,
       'id', c.scope_id,
-      'grants', (
-        select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
-            'permission', p.permission,
-            'effect', p.effect,
-            'level', to_jsonb(p) ->> 'level'
-          )) order by p.permission, p.effect), '[]'::jsonb)
-        from "permdock".custom_role_permissions p
-        where p.tenant_id is not distinct from c.tenant_id and p.scope = c.scope and p.scope_id is not distinct from c.scope_id and p.role = c.role
-      ),
-      'includes', (
-        select jsonb_agg(p.include_role order by p.include_role)
-        from "permdock".custom_role_includes p
-        where p.tenant_id is not distinct from c.tenant_id and p.scope = c.scope and p.scope_id is not distinct from c.scope_id and p.role = c.role
-      )
+      'grants', c.grants,
+      'includes', case when cardinality(c.includes) > 0 then to_jsonb(c.includes) end
     )) order by c.tenant_id::text, c.scope, c.scope_id, c.role), '[]'::jsonb)
     into custom
     from (
-      select tenant_id, scope, scope_id, role from "permdock".custom_role_permissions
-      union
-      select tenant_id, scope, scope_id, role from "permdock".custom_role_includes
-    ) c
-    where (c.scope = 'global' and c.tenant_id is null and held ? c.role)
-      or exists (
-        select 1
+      select distinct c.tenant_id, c.scope, c.scope_id, c.role, c.grants, c.includes
+      from (
+        select m ->> 'scope' as scope, m ->> 'id' as id,
+          case when m ->> 'scope' = 'organization' then m ->> 'id' else m -> 'within' ->> 'organization' end as tenant,
+          r.role
         from jsonb_array_elements(memberships) m
-        where m -> 'roles' ? c.role
-          and m ->> 'scope' = c.scope
-          and (
-            (c.tenant_id is null and c.scope_id is null)
-            or c.tenant_id::text = case when m ->> 'scope' = 'organization' then m ->> 'id' else m -> 'within' ->> 'organization' end
-          )
-          and (c.scope_id is null or c.scope_id = m ->> 'id')
-      );
+        cross join lateral jsonb_array_elements_text(case when jsonb_typeof(m -> 'roles') = 'array' then m -> 'roles' else '[]'::jsonb end) r(role)
+      ) h
+      cross join lateral (
+        select t.tenant_id, t.scope, t.scope_id, t.role, t.grants, t.includes from "permdock".custom_role_compiled t
+        where t.scope = h.scope and t.role = h.role
+          and (t.tenant_id is null and t.scope_id is null or t.tenant_id = h.tenant::uuid)
+          and (t.scope_id is null or t.scope_id = h.id)
+      ) c
+      union
+      select t.tenant_id, t.scope, t.scope_id, t.role, t.grants, t.includes from "permdock".custom_role_compiled t
+      where t.scope = 'global' and t.tenant_id is null and t.role in (select jsonb_array_elements_text(held))
+    ) c;
+  -- the custom-role version of each tenant where a held role is a custom one, so a cached record is served only at the version it was read at
+  select coalesce(jsonb_object_agg(v.tenant, "permdock".custom_roles_version_for(v.tenant::uuid)), '{}'::jsonb)
+    into custom_versions
+    from (
+      select distinct case when m ->> 'scope' = 'organization' then m ->> 'id' else m -> 'within' ->> 'organization' end as tenant
+      from jsonb_array_elements(memberships) m
+      where exists (
+        select 1 from jsonb_array_elements_text(case when jsonb_typeof(m -> 'roles') = 'array' then m -> 'roles' else '[]'::jsonb end) r(role)
+        where r.role in (select k ->> 'name' from jsonb_array_elements(custom) k)
+      )
+    ) v
+    where v.tenant is not null;
   select v.version into ver from "permdock"."permdock_authz_version" v where v.user_id = uid;
   ver := coalesce(ver, 0);
   extra := "public"."datetime_preference_claims"(uid);
@@ -367,6 +371,7 @@ begin
     'roles', held,
     'memberships', memberships,
     'customRoles', custom,
+    'customRolesVersions', case when custom_versions = '{}'::jsonb then null else custom_versions end,
     'authzVersion', ver
   ));
 end;
@@ -415,6 +420,19 @@ end;
 $$;
 revoke execute on function "permdock".authz_version_for(uuid) from public, anon, authenticated;
 
+-- the custom-role version of p_tenant: its own counter plus the counter of the shared and platform roles; no client role may execute it
+create or replace function "permdock".custom_roles_version_for(p_tenant uuid)
+returns bigint
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(sum(v.version), 0)::bigint from "permdock".custom_role_version v
+  where v.tenant_id = p_tenant or v.tenant_id is null
+$$;
+revoke execute on function "permdock".custom_roles_version_for(uuid) from public, anon, authenticated;
+
 -- the live memberships of one scope instance, for a backend that lists members over PostgREST; no client role may execute it
 create or replace function "permdock".members_of(p_scope text, p_id text)
 returns jsonb
@@ -457,6 +475,7 @@ revoke all on function "public"."datetime_preference_claims"(uuid) from public, 
 grant execute on function "public"."datetime_preference_claims"(uuid) to supabase_auth_admin;
 revoke all on function "public"."feature_claims"(uuid) from public, anon, authenticated;
 grant execute on function "public"."feature_claims"(uuid) to supabase_auth_admin;
+grant execute on function "permdock".custom_roles_version_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".memberships_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".global_roles_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".member_organization_ids_for(uuid) to supabase_auth_admin;

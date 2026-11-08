@@ -71,6 +71,7 @@ export function heldRoles(
     declared,
     env.customRoles,
     subject.principal?.tenant,
+    env.customLookup,
   );
   if (subject.principal !== null && global.unknown.length > 0) {
     // SAFETY: emitSafe passes these listeners only the AuthEvent literal below.
@@ -91,6 +92,7 @@ export function heldRoles(
       declared,
       env.customRoles,
       tenantOf(membership, scopes),
+      env.customLookup,
     );
     for (const name of expanded.roles) {
       matching.add(name);

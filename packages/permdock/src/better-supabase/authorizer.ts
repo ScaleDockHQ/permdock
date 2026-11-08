@@ -261,6 +261,28 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
       runtime?.versions,
     );
   };
+  /**
+   * The canonical text of a claims object, kept for one request scope (the
+   * runtime memo) or one batch, so a scope that checks the same claims object
+   * again does not serialise its memberships again. Never kept across scopes.
+   */
+  const claimsTexts = new WeakMap<object, Map<object, string>>();
+  const claimsText = (claims: unknown, scope: object | undefined): string => {
+    if (scope === undefined || !isRecord(claims)) {
+      return canonicalJson(claims ?? null);
+    }
+    let texts = claimsTexts.get(scope);
+    if (texts === undefined) {
+      texts = new Map();
+      claimsTexts.set(scope, texts);
+    }
+    let text = texts.get(claims);
+    if (text === undefined) {
+      text = canonicalJson(claims);
+      texts.set(claims, text);
+    }
+    return text;
+  };
   const scoped = (
     claims: unknown,
     tenant: string | null,
@@ -268,7 +290,7 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
     runtime: AuthorizerRuntime<AnyVersionCache> | undefined,
     batch?: Map<string, Promise<PermDock<V>>>,
   ): Promise<PermDock<V>> => {
-    const key = `permdock:authorizer:${canonicalJson([claims ?? null, tenant, intent])}`;
+    const key = `permdock:authorizer:[${claimsText(claims, runtime?.memo ?? batch)},${canonicalJson(tenant)},${canonicalJson(intent)}]`;
     const build = (): Promise<PermDock<V>> =>
       instanceFor(claims, tenant, intent, runtime);
     if (runtime?.memo !== undefined) return runtime.memo.once(key, build);

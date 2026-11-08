@@ -116,6 +116,13 @@ describe(definePermDock, () => {
       expect(log).toStrictEqual(["a", "b"]);
     });
 
+    it("answers the same bound definition for the same client", () => {
+      const app = definePermDock(policy, { sources: sourcesFor([]) });
+      const a: Client = { name: "a" };
+      expect(app.forClient(a)).toBe(app.forClient(a));
+      expect(app.forClient(a)).not.toBe(app.forClient({ name: "a" }));
+    });
+
     it("binds memberships, keeps the caches and still builds instances", async () => {
       const instances = instanceCache();
       const app = definePermDock(policy, {

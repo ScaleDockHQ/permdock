@@ -6,7 +6,8 @@
   "scripts": {
     "gen:check": "permdock collect --check --cwd fixtures/posts",
     "lint": "oxlint --disable-nested-config --type-aware",
-    "test:integration": "prisma generate && vitest run",
+    "rls-bench": "vitest run --project plan-gate",
+    "test:integration": "prisma generate && vitest run --project integration --project rls-bench",
     "typecheck": "tsc --noEmit",
     "typegen": "prisma generate"
   },

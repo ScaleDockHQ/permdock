@@ -95,17 +95,16 @@ describe("membership sources through a roles table", () => {
 
   it("bumps the global and the membership holders of a renamed key from one trigger", () => {
     const { sql } = supabaseHookSql(scopes, config);
-    expect(sql).toContain('elsif new."key" is not distinct from old."key"');
-    expect(sql).toContain('and new."id" is not distinct from old."id" then');
     expect(sql).toContain(
-      `select h."user_id"::uuid as user_id from "public"."organization_users" h where h."role_id" = new."id"`,
+      'select "key", "id" from permdock_old except select "key", "id" from permdock_new',
     );
     expect(sql).toContain(
-      `select h."user_id"::uuid as user_id from "public"."organization_users" h where h."role_id" = old."id"`,
+      `select h."user_id"::uuid as user_id from "public"."organization_users" h join permdock_new r on h."role_id" = r."id"`,
     );
-    expect(
-      sql.match(/after insert or update or delete on "public"\."roles"/gu),
-    ).toHaveLength(1);
+    expect(sql).toContain(
+      `select h."user_id"::uuid as user_id from "public"."organization_users" h join permdock_old r on h."role_id" = r."id"`,
+    );
+    expect(sql.match(/after update on "public"\."roles"/gu)).toHaveLength(1);
   });
 
   it("bumps the holders of a role set row matched on every column", () => {
@@ -129,10 +128,10 @@ describe("membership sources through a roles table", () => {
       },
     });
     expect(sql).toContain(
-      'select h."user_id"::uuid as user_id from "public"."organization_users" h where h."organization_id" = old."organization_id" and h."user_id" = old."user_id"',
+      'select h."user_id"::uuid as user_id from "public"."organization_users" h join permdock_old r on h."organization_id" = r."organization_id" and h."user_id" = r."user_id"',
     );
-    expect(sql).toContain(
-      'and new."organization_id" is not distinct from old."organization_id"',
+    expect(sql).toMatch(
+      /select [^;]*"organization_id"[^;]* from permdock_old except select [^;]* from permdock_new/u,
     );
   });
 
@@ -153,10 +152,10 @@ describe("membership sources through a roles table", () => {
       `if tg_table_schema = 'public' and tg_table_name = 'roles' then`,
     );
     expect(sql).toContain(
-      'create trigger "permdock_authz_version"\n  after insert or update or delete on "public"."platform_roles"',
+      'create trigger "permdock_authz_version_update"\n  after update on "public"."platform_roles"',
     );
     expect(sql).toContain(
-      'create trigger "permdock_authz_version"\n  after insert or update or delete on "public"."roles"',
+      'create trigger "permdock_authz_version_update"\n  after update on "public"."roles"',
     );
   });
 
@@ -172,7 +171,7 @@ describe("membership sources through a roles table", () => {
       sql.indexOf("elsif tg_op = 'DELETE'"),
     );
     expect(
-      inserted.match(/from "public"\."organization_users" h where/gu),
+      inserted.match(/from "public"\."organization_users" h join/gu),
     ).toHaveLength(1);
   });
 

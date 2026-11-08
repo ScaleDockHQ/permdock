@@ -1,0 +1,877 @@
+{
+  "node": "v24.20.0",
+  "platform": "darwin-arm64",
+  "recordedAt": "2026-11-08T05:06:04.742Z",
+  "quick": false,
+  "toolCount": 300,
+  "filterRows": 100000,
+  "decideIds": 1000,
+  "capMs": 5000,
+  "note": "filter100k, mayUse300 and decideIds1000 stop at capMs and state how many rows, tools or ids they covered. A measurement whose first call took over 10 s runs once (runs: 1). medianMs per call; keys are memberships (m), roles per membership (r) and custom roles per tenant (c). Cells missing from the file were not reached.",
+  "cells": {
+    "m1-r1-c0": {
+      "instanceBuild": {
+        "medianMs": 0.007,
+        "runs": 200
+      },
+      "can": {
+        "medianMs": 0.018,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 321.508
+      },
+      "where": {
+        "medianMs": 0.117,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 1.018
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 13.118
+      },
+      "snapshotFor": {
+        "medianMs": 0.593,
+        "runs": 200
+      },
+      "snapshotBytes": 3633
+    },
+    "m1-r1-c50": {
+      "instanceBuild": {
+        "medianMs": 1.831,
+        "runs": 80
+      },
+      "can": {
+        "medianMs": 0.003,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 236.195
+      },
+      "where": {
+        "medianMs": 0.144,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.682
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 10.568
+      },
+      "snapshotFor": {
+        "medianMs": 2.486,
+        "runs": 60
+      },
+      "snapshotBytes": 3278
+    },
+    "m1-r1-c500": {
+      "instanceBuild": {
+        "medianMs": 18.348,
+        "runs": 9
+      },
+      "can": {
+        "medianMs": 0.003,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 218.177
+      },
+      "where": {
+        "medianMs": 0.275,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.963
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 10.764
+      },
+      "snapshotFor": {
+        "medianMs": 19.645,
+        "runs": 8
+      },
+      "snapshotBytes": 3278
+    },
+    "m1-r5-c0": {
+      "instanceBuild": {
+        "medianMs": 0.005,
+        "runs": 200
+      },
+      "can": {
+        "medianMs": 0.012,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 542.563
+      },
+      "where": {
+        "medianMs": 0.102,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.371
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 11.346
+      },
+      "snapshotFor": {
+        "medianMs": 1.011,
+        "runs": 146
+      },
+      "snapshotBytes": 16049
+    },
+    "m1-r5-c50": {
+      "instanceBuild": {
+        "medianMs": 1.815,
+        "runs": 81
+      },
+      "can": {
+        "medianMs": 0.01,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 485.172
+      },
+      "where": {
+        "medianMs": 0.121,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.405
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 10.524
+      },
+      "snapshotFor": {
+        "medianMs": 4.847,
+        "runs": 31
+      },
+      "snapshotBytes": 15836
+    },
+    "m1-r5-c500": {
+      "instanceBuild": {
+        "medianMs": 18.517,
+        "runs": 9
+      },
+      "can": {
+        "medianMs": 0.01,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 485.047
+      },
+      "where": {
+        "medianMs": 0.283,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.724
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 10.822
+      },
+      "snapshotFor": {
+        "medianMs": 38.97,
+        "runs": 4
+      },
+      "snapshotBytes": 16455
+    },
+    "m1-r20-c0": {
+      "instanceBuild": {
+        "medianMs": 0.005,
+        "runs": 200
+      },
+      "can": {
+        "medianMs": 0.022,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 1391.304
+      },
+      "where": {
+        "medianMs": 0.123,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.548
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 18.45
+      },
+      "snapshotFor": {
+        "medianMs": 3.274,
+        "runs": 46
+      },
+      "snapshotBytes": 67184
+    },
+    "m1-r20-c50": {
+      "instanceBuild": {
+        "medianMs": 1.79,
+        "runs": 82
+      },
+      "can": {
+        "medianMs": 0.021,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 1350.859
+      },
+      "where": {
+        "medianMs": 0.144,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.464
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 17.97
+      },
+      "snapshotFor": {
+        "medianMs": 6.977,
+        "runs": 22
+      },
+      "snapshotBytes": 67107
+    },
+    "m1-r20-c500": {
+      "instanceBuild": {
+        "medianMs": 18.186,
+        "runs": 9
+      },
+      "can": {
+        "medianMs": 0.021,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 1336.715
+      },
+      "where": {
+        "medianMs": 0.304,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.799
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 18.141
+      },
+      "snapshotFor": {
+        "medianMs": 40.407,
+        "runs": 4
+      },
+      "snapshotBytes": 70207
+    },
+    "m12-r1-c0": {
+      "instanceBuild": {
+        "medianMs": 0.022,
+        "runs": 200
+      },
+      "can": {
+        "medianMs": 0.008,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 398.543
+      },
+      "where": {
+        "medianMs": 0.133,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.394
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 8.111
+      },
+      "snapshotFor": {
+        "medianMs": 1.094,
+        "runs": 135
+      },
+      "snapshotBytes": 8837
+    },
+    "m12-r1-c50": {
+      "instanceBuild": {
+        "medianMs": 21.703,
+        "runs": 7
+      },
+      "can": {
+        "medianMs": 0.003,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 260.4
+      },
+      "where": {
+        "medianMs": 0.389,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.934
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 11.211
+      },
+      "snapshotFor": {
+        "medianMs": 23.968,
+        "runs": 7
+      },
+      "snapshotBytes": 12705
+    },
+    "m12-r1-c500": {
+      "instanceBuild": {
+        "medianMs": 221.689,
+        "runs": 3
+      },
+      "can": {
+        "medianMs": 0.003,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 258.681
+      },
+      "where": {
+        "medianMs": 2.47,
+        "runs": 59
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 5.406
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 11.571
+      },
+      "snapshotFor": {
+        "medianMs": 229.538,
+        "runs": 1
+      },
+      "snapshotBytes": 12705
+    },
+    "m12-r5-c0": {
+      "instanceBuild": {
+        "medianMs": 0.022,
+        "runs": 200
+      },
+      "can": {
+        "medianMs": 0.011,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 851.58
+      },
+      "where": {
+        "medianMs": 0.165,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 0.707
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 11.601
+      },
+      "snapshotFor": {
+        "medianMs": 3.787,
+        "runs": 40
+      },
+      "snapshotBytes": 43201
+    },
+    "m12-r5-c50": {
+      "instanceBuild": {
+        "medianMs": 22.142,
+        "runs": 7
+      },
+      "can": {
+        "medianMs": 0.01,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 736.482
+      },
+      "where": {
+        "medianMs": 0.426,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 1.313
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 10.603
+      },
+      "snapshotFor": {
+        "medianMs": 29.164,
+        "runs": 6
+      },
+      "snapshotBytes": 46995
+    },
+    "m12-r5-c500": {
+      "instanceBuild": {
+        "medianMs": 220.131,
+        "runs": 3
+      },
+      "can": {
+        "medianMs": 0.011,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 724.104
+      },
+      "where": {
+        "medianMs": 2.548,
+        "runs": 58
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 5.716
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 11.49
+      },
+      "snapshotFor": {
+        "medianMs": 249.305,
+        "runs": 1
+      },
+      "snapshotBytes": 47614
+    },
+    "m12-r20-c0": {
+      "instanceBuild": {
+        "medianMs": 0.033,
+        "runs": 200
+      },
+      "can": {
+        "medianMs": 0.024,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 2527.779
+      },
+      "where": {
+        "medianMs": 0.266,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 1.83
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 23.7
+      },
+      "snapshotFor": {
+        "medianMs": 21.942,
+        "runs": 7
+      },
+      "snapshotBytes": 215221
+    },
+    "m12-r20-c50": {
+      "instanceBuild": {
+        "medianMs": 22.334,
+        "runs": 7
+      },
+      "can": {
+        "medianMs": 0.025,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 2427.57
+      },
+      "where": {
+        "medianMs": 0.545,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 2.733
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 23.404
+      },
+      "snapshotFor": {
+        "medianMs": 46.059,
+        "runs": 4
+      },
+      "snapshotBytes": 218277
+    },
+    "m12-r20-c500": {
+      "instanceBuild": {
+        "medianMs": 220.197,
+        "runs": 3
+      },
+      "can": {
+        "medianMs": 0.024,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 2402.159
+      },
+      "where": {
+        "medianMs": 2.539,
+        "runs": 58
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 6.61
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 22.853
+      },
+      "snapshotFor": {
+        "medianMs": 267.385,
+        "runs": 1
+      },
+      "snapshotBytes": 221377
+    },
+    "m150-r1-c0": {
+      "instanceBuild": {
+        "medianMs": 1.435,
+        "runs": 102
+      },
+      "can": {
+        "medianMs": 0.015,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 1584.688
+      },
+      "where": {
+        "medianMs": 0.578,
+        "runs": 200
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 1.628
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 16.831
+      },
+      "snapshotFor": {
+        "medianMs": 7.595,
+        "runs": 20
+      },
+      "snapshotBytes": 76441
+    },
+    "m150-r1-c50": {
+      "instanceBuild": {
+        "medianMs": 277.914,
+        "runs": 3
+      },
+      "can": {
+        "medianMs": 0.008,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 809.613
+      },
+      "where": {
+        "medianMs": 4.259,
+        "runs": 35
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 9.106
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 22.802
+      },
+      "snapshotFor": {
+        "medianMs": 308.246,
+        "runs": 1
+      },
+      "snapshotBytes": 134123
+    },
+    "m150-r1-c500": {
+      "skipped": "memberships × custom roles over 20000: one probe of this size ran longer than 100 minutes without finishing"
+    },
+    "m150-r5-c0": {
+      "instanceBuild": {
+        "medianMs": 1.442,
+        "runs": 103
+      },
+      "can": {
+        "medianMs": 0.022,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 4676.926
+      },
+      "where": {
+        "medianMs": 0.921,
+        "runs": 159
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 5.704
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 23.049
+      },
+      "snapshotFor": {
+        "medianMs": 39.986,
+        "runs": 4
+      },
+      "snapshotBytes": 395397
+    },
+    "m150-r5-c50": {
+      "instanceBuild": {
+        "medianMs": 277.196,
+        "runs": 3
+      },
+      "can": {
+        "medianMs": 0.02,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 3732.248
+      },
+      "where": {
+        "medianMs": 4.898,
+        "runs": 32
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 12.309
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 20.384
+      },
+      "snapshotFor": {
+        "medianMs": 342.318,
+        "runs": 1
+      },
+      "snapshotBytes": 451051
+    },
+    "m150-r5-c500": {
+      "skipped": "memberships × custom roles over 20000: one probe of this size ran longer than 100 minutes without finishing"
+    },
+    "m150-r20-c0": {
+      "instanceBuild": {
+        "medianMs": 1.595,
+        "runs": 94
+      },
+      "can": {
+        "medianMs": 0.048,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 35000,
+        "totalMs": 5745.688
+      },
+      "where": {
+        "medianMs": 2.303,
+        "runs": 63
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 21.572
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 57.088
+      },
+      "snapshotFor": {
+        "medianMs": 247.914,
+        "runs": 1
+      },
+      "snapshotBytes": 2112627
+    },
+    "m150-r20-c50": {
+      "instanceBuild": {
+        "medianMs": 277.42,
+        "runs": 3
+      },
+      "can": {
+        "medianMs": 0.047,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 35000,
+        "totalMs": 5574.071
+      },
+      "where": {
+        "medianMs": 6.354,
+        "runs": 25
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 29.08
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 48.682
+      },
+      "snapshotFor": {
+        "medianMs": 537.2,
+        "runs": 1
+      },
+      "snapshotBytes": 2159353
+    },
+    "m150-r20-c500": {
+      "skipped": "memberships × custom roles over 20000: one probe of this size ran longer than 100 minutes without finishing"
+    },
+    "m500-r1-c0": {
+      "instanceBuild": {
+        "medianMs": 16.825,
+        "runs": 9
+      },
+      "can": {
+        "medianMs": 0.034,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 100000,
+        "totalMs": 4979.958
+      },
+      "where": {
+        "medianMs": 1.805,
+        "runs": 82
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 4.72
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 35.558
+      },
+      "snapshotFor": {
+        "medianMs": 24.502,
+        "runs": 7
+      },
+      "snapshotBytes": 251441
+    },
+    "m500-r1-c50": {
+      "skipped": "memberships × custom roles over 20000: one probe of this size ran longer than 100 minutes without finishing"
+    },
+    "m500-r1-c500": {
+      "skipped": "memberships × custom roles over 20000: one probe of this size ran longer than 100 minutes without finishing"
+    },
+    "m500-r5-c0": {
+      "instanceBuild": {
+        "medianMs": 16.745,
+        "runs": 10
+      },
+      "can": {
+        "medianMs": 0.049,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 35000,
+        "totalMs": 5235.077
+      },
+      "where": {
+        "medianMs": 3.097,
+        "runs": 47
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 16.754
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 51.124
+      },
+      "snapshotFor": {
+        "medianMs": 129.643,
+        "runs": 2
+      },
+      "snapshotBytes": 1312097
+    },
+    "m500-r5-c50": {
+      "skipped": "memberships × custom roles over 20000: one probe of this size ran longer than 100 minutes without finishing"
+    },
+    "m500-r5-c500": {
+      "skipped": "memberships × custom roles over 20000: one probe of this size ran longer than 100 minutes without finishing"
+    },
+    "m500-r20-c0": {
+      "instanceBuild": {
+        "medianMs": 16.036,
+        "runs": 10
+      },
+      "can": {
+        "medianMs": 0.114,
+        "runs": 200
+      },
+      "filter100k": {
+        "measured": 10000,
+        "totalMs": 5611.109
+      },
+      "where": {
+        "medianMs": 7.941,
+        "runs": 19
+      },
+      "mayUse300": {
+        "measured": 300,
+        "totalMs": 72.033
+      },
+      "decideIds1000": {
+        "measured": 1000,
+        "totalMs": 115.313
+      },
+      "snapshotFor": {
+        "medianMs": 847.442,
+        "runs": 1
+      },
+      "snapshotBytes": 7025577
+    },
+    "m500-r20-c50": {
+      "skipped": "memberships × custom roles over 20000: one probe of this size ran longer than 100 minutes without finishing"
+    },
+    "m500-r20-c500": {
+      "skipped": "memberships × custom roles over 20000: one probe of this size ran longer than 100 minutes without finishing"
+    }
+  }
+}

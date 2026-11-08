@@ -1,0 +1,531 @@
+{
+  "sample": "next",
+  "how": "next build && next start (production, not dev); agent-browser vitals/eval/react renders; DEMO_LATENCY_MS=0",
+  "rerun": "see scripts/next-baseline.ts header",
+  "caveats": [
+    "/_next/mcp exists only under next dev, so get_routes/get_errors/get_compilation_issues ran against next dev, never against next start.",
+    "INP is the worst interaction duration from a PerformanceObserver event entry (16 ms is the observer's lower bound), not the web-vitals INP script.",
+    "ttfb, lcp, fcp are agent-browser vitals; cold = first load of the route after server start, warm = median of runs 2..N.",
+    "Sizes are bytes: html* from the navigation entry, rscPayloadBytes = sum of self.__next_f script payloads in the HTML, snapshotBytes = the permdock Snapshot JSON inside the flight data.",
+    "Server read time comes from the DataSource element (Loaded.tookMs); with DEMO_LATENCY_MS=0 the in-memory store reports 0 ms.",
+    "Re-recorded on perf/scale-100k: page routes only; the approve, delete and offline entries keep the figures recorded on main at 305c65b because the agent-browser daemon returned EOF during those steps."
+  ],
+  "notMeasured": [
+    "Store is in memory (src/lib/store.ts); the seed is DEMO_SEED_QUOTES (src/lib/seed-scale.ts), so there is no separate seed script to run against a database.",
+    "100k: approve and delete recorded no fetches and the URL did not change (the agent-browser daemon returned EOF during the 100k list/portal loads); treat the 100k approve/delete figures as not measured.",
+    "Offline state: badge appears after navigation while offline; only presence and wall time are recorded."
+  ],
+  "seeds": {
+    "1000": {
+      "seedQuotes": 1000,
+      "measuredAt": "2026-11-08T06:40:24.000Z",
+      "runsPerRoute": 5,
+      "routes": {
+        "quotes-list": {
+          "user": "Olivia",
+          "coldTtfbMs": 2.6,
+          "coldLcpMs": 20,
+          "warmTtfbMs": 1.3,
+          "warmLcpMs": 24,
+          "warmFcpMs": 24,
+          "cls": 0,
+          "loadMs": 99.19999992847443,
+          "htmlDecodedBytes": 4892258,
+          "htmlEncodedBytes": 124721,
+          "rscPayloadBytes": 3255452,
+          "snapshotBytes": 2036,
+          "domNodes": 9154,
+          "heapMB": 64.7,
+          "serverReads": ["Quotes read in 0 ms at 06:24:45 UTC"]
+        },
+        "quote-detail": {
+          "user": "Olivia",
+          "coldTtfbMs": 1.6,
+          "coldLcpMs": 28,
+          "warmTtfbMs": 1.5,
+          "warmLcpMs": 40,
+          "warmFcpMs": 40,
+          "cls": 0,
+          "loadMs": 18.800000071525574,
+          "htmlDecodedBytes": 78482,
+          "htmlEncodedBytes": 17347,
+          "rscPayloadBytes": 59764,
+          "snapshotBytes": 2036,
+          "domNodes": 143,
+          "heapMB": 45.1,
+          "serverReads": ["Quote read in 0 ms at 06:24:46 UTC"]
+        },
+        "members": {
+          "user": "Olivia",
+          "coldTtfbMs": 1.4,
+          "coldLcpMs": 28,
+          "warmTtfbMs": 1.5,
+          "warmLcpMs": 20,
+          "warmFcpMs": 20,
+          "cls": 0,
+          "loadMs": 20.200000047683716,
+          "htmlDecodedBytes": 276346,
+          "htmlEncodedBytes": 20124,
+          "rscPayloadBytes": 265368,
+          "snapshotBytes": 2036,
+          "domNodes": 948,
+          "heapMB": 51.2,
+          "serverReads": ["Members read in 0 ms at 06:24:45 UTC"]
+        },
+        "forbidden": {
+          "user": "Max",
+          "coldTtfbMs": 5.5,
+          "coldLcpMs": 44,
+          "warmTtfbMs": 1.7,
+          "warmLcpMs": 32,
+          "warmFcpMs": 16,
+          "cls": 0,
+          "loadMs": 14.300000071525574,
+          "htmlDecodedBytes": 53880,
+          "htmlEncodedBytes": 13777,
+          "rscPayloadBytes": 43689,
+          "snapshotBytes": 1343,
+          "domNodes": 53,
+          "heapMB": 51.4,
+          "serverReads": []
+        },
+        "unauthorized": {
+          "user": null,
+          "coldTtfbMs": 1.4,
+          "coldLcpMs": 48,
+          "warmTtfbMs": 1.7,
+          "warmLcpMs": 40,
+          "warmFcpMs": 32,
+          "cls": 0,
+          "loadMs": 13.699999928474426,
+          "htmlDecodedBytes": 50643,
+          "htmlEncodedBytes": 13050,
+          "rscPayloadBytes": 41043,
+          "snapshotBytes": 574,
+          "domNodes": 53,
+          "heapMB": 49.2,
+          "serverReads": []
+        },
+        "portal-quotes": {
+          "user": "Carol",
+          "coldTtfbMs": 1.5,
+          "coldLcpMs": 24,
+          "warmTtfbMs": 1.8,
+          "warmLcpMs": 20,
+          "warmFcpMs": 20,
+          "cls": 0,
+          "loadMs": 43.799999952316284,
+          "htmlDecodedBytes": 1678098,
+          "htmlEncodedBytes": 52221,
+          "rscPayloadBytes": 1121687,
+          "snapshotBytes": 1536,
+          "domNodes": 3098,
+          "heapMB": 72.6,
+          "serverReads": ["Quotes read in 0 ms at 06:24:45 UTC"]
+        },
+        "approve": {
+          "label": "click Approve",
+          "commandWallMs": 244,
+          "inpMs": 16,
+          "renders": {
+            "total": 334,
+            "mounts": 88,
+            "reRenders": 246
+          },
+          "fetches": [
+            {
+              "url": "/acme/quotes/q-s0000001",
+              "serverMs": 10,
+              "totalMs": 14,
+              "encodedBytes": 9798,
+              "decodedBytes": 27167
+            },
+            {
+              "url": "/acme/quotes?_rsc=APnDd_8uLeGiK-nv",
+              "serverMs": 2,
+              "totalMs": 5,
+              "encodedBytes": 228,
+              "decodedBytes": 314
+            },
+            {
+              "url": "/acme?_rsc=APnDd_8uLeGiK-nv",
+              "serverMs": 2,
+              "totalMs": 5,
+              "encodedBytes": 213,
+              "decodedBytes": 262
+            },
+            {
+              "url": "/acme/members?_rsc=APnDd_8uLeGiK-nv",
+              "serverMs": 3,
+              "totalMs": 6,
+              "encodedBytes": 229,
+              "decodedBytes": 315
+            },
+            {
+              "url": "/globex?_rsc=APnDd_8uLeGiK-nv",
+              "serverMs": 4,
+              "totalMs": 6,
+              "encodedBytes": 213,
+              "decodedBytes": 262
+            },
+            {
+              "url": "/?_rsc=APnDd_8uLeGiK-nv",
+              "serverMs": 2,
+              "totalMs": 4,
+              "encodedBytes": 168,
+              "decodedBytes": 169
+            },
+            {
+              "url": "/acme/quotes?_rsc=0QU_70MMI4mgxH1Y",
+              "serverMs": 2,
+              "totalMs": 4,
+              "encodedBytes": 2224,
+              "decodedBytes": 7297
+            },
+            {
+              "url": "/acme/quotes?_rsc=E7spiTPx81lrsu8X",
+              "serverMs": 2,
+              "totalMs": 4,
+              "encodedBytes": 2872,
+              "decodedBytes": 9434
+            },
+            {
+              "url": "/acme/members?_rsc=eL1S6bU0wW_fDTl-",
+              "serverMs": 2,
+              "totalMs": 4,
+              "encodedBytes": 3229,
+              "decodedBytes": 11356
+            },
+            {
+              "url": "/acme?_rsc=xadsLBS42_u7mPY0",
+              "serverMs": 2,
+              "totalMs": 31,
+              "encodedBytes": 3767,
+              "decodedBytes": 14792
+            },
+            {
+              "url": "/globex?_rsc=xadsLBS42_u7mPY0",
+              "serverMs": 1,
+              "totalMs": 30,
+              "encodedBytes": 3767,
+              "decodedBytes": 14792
+            },
+            {
+              "url": "/?_rsc=SOODQj8s8FtUEaPG",
+              "serverMs": 2,
+              "totalMs": 34,
+              "encodedBytes": 3660,
+              "decodedBytes": 21662
+            },
+            {
+              "url": "/acme/quotes?_rsc=PyL5PjfgCzxItob-",
+              "serverMs": 66,
+              "totalMs": 552,
+              "encodedBytes": 640015,
+              "decodedBytes": 1458376
+            },
+            {
+              "url": "/acme/members?_rsc=0Y0LU3mJDMQqGU47",
+              "serverMs": 133,
+              "totalMs": 196,
+              "encodedBytes": 37789,
+              "decodedBytes": 101414
+            },
+            {
+              "url": "/globex?_rsc=0uv3B0PYNJxdM5Hs",
+              "serverMs": 134,
+              "totalMs": 170,
+              "encodedBytes": 7383,
+              "decodedBytes": 18603
+            }
+          ],
+          "serverReads": ["Quote read in 0 ms at 17:39:16 UTC"],
+          "urlAfter": "/acme/quotes/q-s0000001"
+        },
+        "delete": {
+          "label": "click Delete quote",
+          "commandWallMs": 208,
+          "inpMs": 16,
+          "renders": {
+            "total": 893,
+            "mounts": 289,
+            "reRenders": 604
+          },
+          "fetches": [
+            {
+              "url": "/globex?_rsc=-RzwJSbO80cf5cLG",
+              "serverMs": 50,
+              "totalMs": 170,
+              "encodedBytes": 7384,
+              "decodedBytes": 18603
+            },
+            {
+              "url": "/acme/quotes?_rsc=yApFErC3eHWozwLe",
+              "serverMs": 114,
+              "totalMs": 1842,
+              "encodedBytes": 640015,
+              "decodedBytes": 1458376
+            },
+            {
+              "url": "/acme/members?_rsc=XMi1n7loBUscL26x",
+              "serverMs": 116,
+              "totalMs": 242,
+              "encodedBytes": 37785,
+              "decodedBytes": 101414
+            },
+            {
+              "url": "/acme?_rsc=8qhEzdHIFKleBCtb",
+              "serverMs": 7,
+              "totalMs": 14,
+              "encodedBytes": 213,
+              "decodedBytes": 262
+            },
+            {
+              "url": "/globex?_rsc=8qhEzdHIFKleBCtb",
+              "serverMs": 9,
+              "totalMs": 19,
+              "encodedBytes": 213,
+              "decodedBytes": 262
+            },
+            {
+              "url": "/?_rsc=8qhEzdHIFKleBCtb",
+              "serverMs": 13,
+              "totalMs": 21,
+              "encodedBytes": 168,
+              "decodedBytes": 169
+            },
+            {
+              "url": "/acme/members?_rsc=8qhEzdHIFKleBCtb",
+              "serverMs": 5,
+              "totalMs": 7,
+              "encodedBytes": 229,
+              "decodedBytes": 315
+            },
+            {
+              "url": "/acme/quotes?_rsc=DlPFVWMLzKkHJJjf",
+              "serverMs": 2,
+              "totalMs": 3,
+              "encodedBytes": 2224,
+              "decodedBytes": 7297
+            },
+            {
+              "url": "/acme/quotes?_rsc=xDVL7BTIAOvgSrXY",
+              "serverMs": 2,
+              "totalMs": 3,
+              "encodedBytes": 2872,
+              "decodedBytes": 9434
+            },
+            {
+              "url": "/acme/members?_rsc=Wy5GKu4P1N2hJQ5j",
+              "serverMs": 1,
+              "totalMs": 3,
+              "encodedBytes": 3229,
+              "decodedBytes": 11356
+            },
+            {
+              "url": "/acme?_rsc=MLq9ihjqSnoUJZEU",
+              "serverMs": 1,
+              "totalMs": 4,
+              "encodedBytes": 3767,
+              "decodedBytes": 14792
+            },
+            {
+              "url": "/?_rsc=VOQmSKEZSDd4lDEi",
+              "serverMs": 2,
+              "totalMs": 17,
+              "encodedBytes": 3660,
+              "decodedBytes": 21662
+            },
+            {
+              "url": "/acme/members?_rsc=bkzIZkjvFa9lR3CM",
+              "serverMs": 13,
+              "totalMs": 236,
+              "encodedBytes": 37792,
+              "decodedBytes": 101414
+            },
+            {
+              "url": "/globex?_rsc=5hkTHCMf_Y--NZRd",
+              "serverMs": 35,
+              "totalMs": 70,
+              "encodedBytes": 7384,
+              "decodedBytes": 18603
+            }
+          ],
+          "serverReads": ["Quote read in 0 ms at 17:39:18 UTC"],
+          "urlAfter": "/acme/quotes"
+        },
+        "offline": {
+          "badge": true,
+          "title": "PermDock on Next.js 16.4",
+          "navLinks": 6,
+          "wallMs": 1761
+        }
+      }
+    },
+    "100000": {
+      "seedQuotes": 100000,
+      "measuredAt": "2026-11-08T06:40:24.000Z",
+      "runsPerRoute": 3,
+      "routes": {
+        "quotes-list": {
+          "user": "Olivia",
+          "coldLcpMs": null,
+          "warmTtfbMs": 3.4,
+          "warmLcpMs": 332,
+          "warmFcpMs": 332,
+          "cls": 0,
+          "loadMs": 26771,
+          "htmlDecodedBytes": 481537976,
+          "htmlEncodedBytes": 10184001,
+          "rscPayloadBytes": 319873271,
+          "snapshotBytes": 2036,
+          "domNodes": 900154,
+          "heapMB": 6098,
+          "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"]
+        },
+        "quote-detail": {
+          "user": "Olivia",
+          "coldTtfbMs": 3.7,
+          "coldLcpMs": 372,
+          "warmTtfbMs": 1.7,
+          "warmLcpMs": 24,
+          "warmFcpMs": 24,
+          "cls": 0,
+          "loadMs": 18.5,
+          "htmlDecodedBytes": 78482,
+          "htmlEncodedBytes": 17344,
+          "rscPayloadBytes": 59764,
+          "snapshotBytes": 2036,
+          "domNodes": 143,
+          "heapMB": 3066.7,
+          "serverReads": ["Quote read in 0 ms at 06:28:02 UTC"]
+        },
+        "members": {
+          "user": "Olivia",
+          "coldTtfbMs": 1.6,
+          "coldLcpMs": 16,
+          "warmTtfbMs": 1.8,
+          "warmLcpMs": 56,
+          "warmFcpMs": 56,
+          "cls": 0,
+          "loadMs": 445,
+          "htmlDecodedBytes": 20376646,
+          "htmlEncodedBytes": 318559,
+          "rscPayloadBytes": 20365668,
+          "snapshotBytes": 2036,
+          "domNodes": 80148,
+          "heapMB": 3344.3,
+          "serverReads": ["Members read in 0 ms at 06:27:40 UTC"]
+        },
+        "forbidden": {
+          "user": "Max",
+          "coldTtfbMs": 4035.9,
+          "coldLcpMs": 4080,
+          "warmTtfbMs": 1.6,
+          "warmLcpMs": 48,
+          "warmFcpMs": 24,
+          "cls": 0,
+          "loadMs": 15.399999976158142,
+          "htmlDecodedBytes": 53880,
+          "htmlEncodedBytes": 13775,
+          "rscPayloadBytes": 43689,
+          "snapshotBytes": 1343,
+          "domNodes": 53,
+          "heapMB": 2647.4,
+          "serverReads": []
+        },
+        "unauthorized": {
+          "user": null,
+          "coldTtfbMs": 1.4,
+          "coldLcpMs": 48,
+          "warmTtfbMs": 1.4,
+          "warmLcpMs": 48,
+          "warmFcpMs": 24,
+          "cls": 0,
+          "loadMs": 13.299999952316284,
+          "htmlDecodedBytes": 50643,
+          "htmlEncodedBytes": 13051,
+          "rscPayloadBytes": 41043,
+          "snapshotBytes": 574,
+          "domNodes": 53,
+          "heapMB": 2039.6,
+          "serverReads": []
+        },
+        "portal-quotes": {
+          "user": "Carol",
+          "coldTtfbMs": 2.1,
+          "coldLcpMs": 132,
+          "warmTtfbMs": 1.9,
+          "warmLcpMs": 964,
+          "warmFcpMs": 964,
+          "cls": 0,
+          "loadMs": 5207.100000023842,
+          "htmlDecodedBytes": 161328199,
+          "htmlEncodedBytes": 3403332,
+          "rscPayloadBytes": 107154146,
+          "snapshotBytes": 1536,
+          "domNodes": 300098,
+          "heapMB": 3334.4,
+          "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"]
+        },
+        "approve": {
+          "label": "click Approve",
+          "commandWallMs": 111,
+          "inpMs": 16,
+          "renders": {
+            "total": 54,
+            "mounts": 25,
+            "reRenders": 29
+          },
+          "fetches": [],
+          "serverReads": ["Quote read in 0 ms at 17:41:30 UTC"],
+          "urlAfter": "/acme/quotes/q-s0000001"
+        },
+        "delete": {
+          "label": "click Delete quote",
+          "commandWallMs": 104,
+          "inpMs": 16,
+          "renders": {
+            "total": 384,
+            "mounts": 125,
+            "reRenders": 259
+          },
+          "fetches": [],
+          "serverReads": ["Quote read in 0 ms at 17:44:32 UTC"],
+          "urlAfter": "/acme/quotes/q-s0000003"
+        },
+        "offline": {
+          "badge": true,
+          "title": "PermDock on Next.js 16.4",
+          "navLinks": 6,
+          "wallMs": 2827
+        }
+      }
+    }
+  },
+  "devPass": {
+    "server": "next dev (copy of the sample, port 3486), seed 1000, users Olivia/Max/Carol/signed out over 8 routes",
+    "get_routes": [
+      "/",
+      "/[org]",
+      "/[org]/members",
+      "/[org]/quotes",
+      "/[org]/quotes/[id]",
+      "/[org]/settings",
+      "/api/health",
+      "/api/permdock",
+      "/api/session",
+      "/portal/[org]",
+      "/portal/[org]/quotes/[id]"
+    ],
+    "get_compilation_issues": [],
+    "get_errors": {
+      "file": "perf/raw/dev-pass-get-errors.txt",
+      "findings": [
+        "/[org]/members (every user): 'Only plain objects can be passed to Client Components from Server Components' for the permission prop of Protected in src/app/[org]/members/page.tsx and src/features/member/components/role-button.tsx, plus a hydration mismatch.",
+        "Recoverable hydration mismatch on nearly every staff route in dev (/acme, /acme/quotes, /acme/quotes/[id], /acme/settings, /globex/quotes); possibly from the react-devtools init script, not confirmed.",
+        "/acme/quotes/q-101 as Max: runtime 'quote.delete requires human approval'; as Carol: 'quote.delete denied for subject carol' (thrown by DeleteZone, handled by its boundary)."
+      ]
+    }
+  }
+}

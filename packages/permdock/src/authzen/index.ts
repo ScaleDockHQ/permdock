@@ -40,5 +40,7 @@ export type {
   AuthzenPermDock,
   AuthzenPermDockOptions,
   AuthzenResourceAdapter,
+  AuthzenResourcePage,
+  AuthzenResourceQuery,
   AuthzenSubjectRecord,
 } from "./types.ts";

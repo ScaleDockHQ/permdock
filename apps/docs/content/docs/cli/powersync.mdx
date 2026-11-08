@@ -56,7 +56,7 @@ streams:
 | `--fixtures`     | a path   | `rls.fixtures`, else `rls.fixtures.json` | `verify`: the [`rls verify`](/docs/cli/rls) fixtures                                                                                                          |
 | `--policy`       | a module | `policy` in the config                   | The module exporting `policy`                                                                                                                                 |
 
-`powersync` also takes `resources` (the only resources that get a stream; a helper does not add one), `action` (default `read`), `manifest` (a path; none by default) and `tables` ([tables that are not resources](#tables-that-are-not-resources)).
+`powersync` also takes `resources` (the only resources that get a stream; a helper does not add one), `action` (default `read`), `manifest` (a path; none by default), `tables` ([tables that are not resources](#tables-that-are-not-resources)) and `memberLevel` ([per-member level](#per-member-level)).
 
 ## Tier column plus role assignments
 
@@ -134,6 +134,39 @@ alter publication powersync add table permdock.custom_role_includes, permdock.cu
 ```
 
 `permdock.user_roles` shares its name with `public.user_roles`, so it syncs as the device table `permdock_user_roles`.
+
+## Per-member level
+
+Without `memberLevel`, every member of a tenant syncs every row their grants reach in it. For a tenant with 1M jobs that is 1M rows on each device. `powersync.memberLevel` narrows a resource's stream by a column on the member's membership row:
+
+```ts
+// permdock.config.ts
+export default {
+  powersync: {
+    resources: ["job"],
+    memberLevel: { job: { table: "tenant_users", column: "job_level" } },
+  },
+};
+```
+
+The resource declares the levels in code, as for [custom roles](/docs/concepts/custom-roles):
+
+```ts
+job: resource(Job, {
+  levels: { own: { owner_id: principal.id }, team: inTeam },
+});
+```
+
+| `tenant_users.job_level` | Rows the device syncs                         |
+| ------------------------ | --------------------------------------------- |
+| `null` or `all`          | Every row the grants reach in the tenant      |
+| `own`                    | The rows the `own` level's condition reaches  |
+| `team`                   | The rows the `team` level's condition reaches |
+| Any other value          | None                                          |
+
+Each query of the stream gets one alternative per value, so the stream holds the union of the rows the member's level reaches. The `table` is the tenant scope's membership table: the one `rls.memberships` maps, or a membership source. Its `disabledAt` filter applies. A level the stream cannot express, such as an opaque condition, syncs nothing and `generate` warns. A resource that declares neither `own` nor `team` gets no stream.
+
+The narrowing is deliberate under-sync: `can()` on the device still decides, and the app reads the rows outside the level from the server. `generate` writes the warning, and `verify` treats a granted row that no stream syncs as a note for that permission, whatever role the subject holds.
 
 ## Local snapshot rows
 

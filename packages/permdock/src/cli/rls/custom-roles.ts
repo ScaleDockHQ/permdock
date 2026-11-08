@@ -77,6 +77,9 @@ alter table ${table} add constraint ${quoteIdent(`${name}_shape`)} check (
 );
 ${index}
   on ${table} (${unique}) nulls not distinct;
+-- the probe's equality columns lead, so one range scan reads a role's rows whatever its instance pin
+create index if not exists ${quoteIdent(`${name}_probe_idx`)}
+  on ${table} (tenant_id, scope, role) include (scope_id, ${column}${name === CUSTOM_ROLES.permissions ? ", effect" : ""}${leveled ? ", level" : ""});
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table ${table} add column if not exists id bigint generated always as identity primary key;
 alter table ${table} enable row level security;
@@ -464,7 +467,7 @@ end;`;
           and m.permission = any(${sqlTextArray(manage)})
           and ${qualified(ctx, HELPERS.has)}(m.grant_key)
       )`;
-    const match = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role`;
+    const match = `(p_tenant is null and c.tenant_id is null or c.tenant_id = p_tenant) and c.scope = p_scope and (p_scope_id is null and c.scope_id is null or c.scope_id = p_scope_id) and c.role = p_role`;
     const allowEntryOf = `c.${allowEntry(ctx)}`;
     const checked = (gate: string): string => `begin
   if p_role = any(${sqlTextArray(custom.declared)}) then
@@ -530,15 +533,15 @@ revoke execute on function ${trusted}(${signature}) from public, anon, authentic
  * rows when a shared role has the name.
  */
 export function storedTenant(ctx: RlsSqlContext): string {
-  return `case when ${qualified(ctx, CUSTOM_ROLES.shared)}(p_scope, p_role) then c.tenant_id is null else c.tenant_id is not distinct from p_tenant end`;
+  return `case when ${qualified(ctx, CUSTOM_ROLES.shared)}(p_scope, p_role) then c.tenant_id is null else (p_tenant is null and c.tenant_id is null or c.tenant_id = p_tenant) end`;
 }
 
 type CustomRoleProbe = {
   readonly scope: string;
   readonly role: string;
   /**
-   * A SQL text the role's tenant is compared with; `undefined` for a platform
-   * role.
+   * A SQL expression of the tenant column's type, so the column is compared
+   * uncast and the unique index applies; `undefined` for a platform role.
    */
   readonly tenant: string | undefined;
   /**
@@ -549,47 +552,37 @@ type CustomRoleProbe = {
 };
 
 /**
- * One probe of one custom role: its allow entries, its deny entries and the
- * roles it includes, as three sorted arrays in one row. One probe of
- * `custom_role_permissions` serves the allows and the denies, and one
- * `permdock_is_shared_role()` call per membership replaces the three the array
- * subselects made. A platform role (`tenant` undefined) has no tenant.
+ * The compiled row of one custom role, as a `select` of its `grant_keys`:
+ * `custom_role_compiled` holds one row per role and instance pin, so a probe is
+ * an index read and never resolves the role. A role pinned to the membership's
+ * instance wins over the same role with no pin; a shared role of that name wins
+ * over the tenant's. A platform role (`tenant` undefined) has no tenant.
  */
-export function customArraysQuery(
+export function customKeysArrayQuery(
   ctx: RlsSqlContext,
   input: CustomRoleProbe,
 ): string {
   const scope = quoteLiteral(input.scope);
-  const tenantMatch = (alias: string): string =>
+  const tenantMatch =
     input.tenant === undefined
-      ? `${alias}.tenant_id is null`
-      : `case when pdk_s.shared then ${alias}.tenant_id is null else ${alias}.tenant_id::text = ${input.tenant} end`;
-  const match = (alias: string): string =>
-    [
-      tenantMatch(alias),
-      `${alias}.scope = ${scope}`,
-      input.instance === undefined
-        ? `${alias}.scope_id is null`
-        : `(${alias}.scope_id is null or ${alias}.scope_id = ${input.instance})`,
-      `${alias}.role = ${input.role}`,
-    ].join(" and ");
+      ? "c.tenant_id is null"
+      : `(not pdk_s.shared and c.tenant_id = ${input.tenant} or pdk_s.shared and c.tenant_id is null)`;
+  const instance =
+    input.instance === undefined
+      ? "c.scope_id is null"
+      : `(c.scope_id is null or c.scope_id = ${input.instance})`;
   const shared =
     input.tenant === undefined
       ? "(select false as shared)"
       : `(select ${qualified(ctx, CUSTOM_ROLES.shared)}(${scope}, ${input.role}) as shared offset 0)`;
-  const entry = `c.${allowEntry(ctx)}`;
-  return `select p.allow, p.deny, i.incl
+  return `select c.grant_keys as keys
         from ${shared} pdk_s
         cross join lateral (
-          select array(select i.include_role from ${qualified(ctx, CUSTOM_ROLES.includes)} i where ${match("i")} order by 1) as incl
-        ) i
-        cross join lateral (
-          select
-            coalesce(array_agg(${entry} order by ${entry}) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
-            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
-          from ${qualified(ctx, CUSTOM_ROLES.permissions)} c
-          where ${match("c")}
-        ) p`;
+          select c.grant_keys from ${qualified(ctx, CUSTOM_ROLES.compiled)} c
+          where ${tenantMatch} and c.scope = ${scope} and ${instance} and c.role = ${input.role}
+          order by c.scope_id nulls last
+          limit 1
+        ) c`;
 }
 
 /**
@@ -601,8 +594,8 @@ export function customKeysQuery(
   input: CustomRoleProbe,
 ): string {
   return `select k.grant_key
-      from (${customArraysQuery(ctx, input)}) pdk_e
-      cross join lateral ${qualified(ctx, CUSTOM_ROLES.keys)}(pdk_e.allow, pdk_e.deny, pdk_e.incl, ${quoteLiteral(input.scope)}) k(grant_key)`;
+      from (${customKeysArrayQuery(ctx, input)}) pdk_e
+      cross join lateral unnest(pdk_e.keys) k(grant_key)`;
 }
 
 /**

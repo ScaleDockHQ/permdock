@@ -48,6 +48,7 @@ import {
   normalizeOAuthScopes,
 } from "./policy-delegation.ts";
 import { POLICY_X, canonicalPolicy } from "./policy-fingerprint.ts";
+import { buildResolveIndex } from "./resolve-index.ts";
 import { defineScopes } from "./scopes.ts";
 import { sha256Digest } from "./sha256.ts";
 import { listRoles } from "./vocabulary.ts";
@@ -88,7 +89,12 @@ export function indexPolicy(
   for (const bucket of byKey.values()) {
     Object.freeze(bucket);
   }
-  return freezeDeep({ declaredRoles, supports, grantsByKey: byKey });
+  return freezeDeep({
+    declaredRoles,
+    supports,
+    grantsByKey: byKey,
+    resolve: buildResolveIndex(roles, listed, vocabulary),
+  });
 }
 
 export { requiresApproval } from "./approval-required.ts";

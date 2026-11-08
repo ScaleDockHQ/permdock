@@ -18,6 +18,7 @@ import { membershipSourcesOf } from "../sql/sources.ts";
 import { tableNames } from "../sql/tables.ts";
 import { claimRecorder, claimsIn } from "./claims.ts";
 import { customRoleItems } from "./levels.ts";
+import { memberLevelOf } from "./member-level.ts";
 import { CUSTOM_ROLE, bare, fromTable, renames } from "./names.ts";
 import {
   accessSql,
@@ -138,6 +139,19 @@ function planWith(
     const source = tableFor(resource, tableNames(config.rls?.tables));
     const table = bare(source, ctx.dialect);
     const { id } = node;
+    const spec = config.powersync?.memberLevel?.[resource];
+    const narrowed =
+      spec === undefined
+        ? undefined
+        : memberLevelOf(ctx, resource, key, table, spec);
+    if (narrowed !== undefined && "omitted" in narrowed) {
+      omitted.push({ resource, reason: narrowed.omitted });
+      continue;
+    }
+    if (narrowed !== undefined) {
+      warnings.push(...narrowed.warnings);
+      unsynced.push({ permission: key, role: "anyone" });
+    }
     const queries = new Set<string>();
     const compile = (
       label: string,
@@ -177,7 +191,11 @@ function planWith(
           : [...new Set([id, ...item.grant.fields])]
               .map((field) => ctx.dialect.column(table, field))
               .join(", ");
-      for (const clauses of product([access, where])) {
+      for (const clauses of product([
+        access,
+        where,
+        ...(narrowed === undefined ? [] : [narrowed.alternatives]),
+      ])) {
         queries.add(
           `SELECT ${columns} FROM ${fromTable(source, ctx.dialect)}${clauses.length === 0 ? "" : ` WHERE ${clauses.join(" AND ")}`}`,
         );

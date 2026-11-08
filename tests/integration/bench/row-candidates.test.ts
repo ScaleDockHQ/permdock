@@ -179,11 +179,10 @@ describe("permitted_<resource>_rows narrowed to candidate ids, and the row-value
       "select count(*) from permdock.permitted_item_rows('item.read')",
     );
     expect(full.item.seq).toBeGreaterThan(0);
-    // The full helper passes each item's space id to permitted_space_rows,
-    // which reads space by primary key. A sequential scan of space is not
-    // required, and would read rows the items do not name.
-    expect(full.space.seq).toBe(0);
-    expect(full.space.idx).toBeGreaterThan(0);
+    // The full helper reads the inherited rows as one set, the way the table's
+    // policy does, so space is scanned once and not once per item through
+    // permitted_<resource>_match.
+    expect(full.space.seq).toBeLessThanOrEqual(1);
     const narrowed = await scansOf(
       MEMBER,
       "select count(*) from permdock.permitted_item_rows('item.read', $1::uuid[])",

@@ -78,7 +78,7 @@ describe("rls.tables via", () => {
       /grant execute on function "?permdock"?\.permitted_environment_ids\(text\) to authenticated/u,
     );
     expect(sql).toMatch(
-      /"environment_id" in \(select "?permdock"?\.permitted_environment_ids\('deploy\.read'\)\)/u,
+      /"environment_id" = any\(array\(select "?permdock"?\.permitted_environment_ids\('deploy\.read'\)\)\)/u,
     );
   });
 

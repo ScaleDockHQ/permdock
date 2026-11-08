@@ -197,7 +197,7 @@ grant execute on function ${fn}() to anon, authenticated;`
 grant execute on function ${fn}() to authenticated;`;
   return `create or replace function ${fn}()
 returns setof ${type}
-${functionBody(keyed)}
+${functionBody(keyed, true, true)}
 ${grants}`;
 }
 
@@ -221,7 +221,7 @@ grant execute on function ${fn}(text[]) to anon, authenticated;`
 grant execute on function ${fn}(text[]) to authenticated;`;
   return `create or replace function ${fn}(p_roles text[])
 returns setof ${type}
-${functionBody(body)}
+${functionBody(body, true, true)}
 ${grants}`;
 }
 

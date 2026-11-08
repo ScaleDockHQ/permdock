@@ -24,12 +24,24 @@ const ROWS = {
   ],
 };
 
-function fake(stdout: string, seen: string[][] = []): CliExec {
+/** The same answer for both advisor types, unless `performance` is given. */
+function fake(
+  stdout: string,
+  seen: string[][] = [],
+  performance?: string,
+): CliExec {
   return (command, args, options) => {
     seen.push([command, ...args, String(options.env["PATH"])]);
-    return { status: 0, stdout, stderr: "" };
+    const type = args[args.indexOf("--type") + 1];
+    return {
+      status: 0,
+      stdout: type === "performance" ? (performance ?? stdout) : stdout,
+      stderr: "",
+    };
   };
 }
+
+const NO_ROWS = JSON.stringify({ results: [] });
 
 describe("rls verify --advisors", () => {
   it("runs the security advisors on --db-url and maps lints to doctor codes", async () => {
@@ -39,7 +51,7 @@ describe("rls verify --advisors", () => {
       db: "postgresql://localhost/postgres",
       json: false,
       env: { PATH: "/usr/bin" },
-      exec: fake(JSON.stringify(ROWS), seen),
+      exec: fake(JSON.stringify(ROWS), seen, NO_ROWS),
     });
     expect(seen[0]?.slice(0, -1)).toStrictEqual([
       "supabase",
@@ -60,13 +72,78 @@ describe("rls verify --advisors", () => {
     expect(result.output).toContain("1 finding(s) at WARN or above");
   });
 
+  it("also runs the performance advisors and maps their lints to doctor codes", async () => {
+    const seen: string[][] = [];
+    const performance = JSON.stringify({
+      results: [
+        {
+          name: "multiple_permissive_policies",
+          level: "WARN",
+          detail: "Table `public.jobs` has multiple permissive policies",
+          remediation: "https://supabase.com/docs",
+          cacheKey: "multiple_permissive_policies_public_jobs",
+        },
+        {
+          name: "unindexed_foreign_keys",
+          level: "INFO",
+          detail: "Table `public.job_parties` has an unindexed foreign key",
+          remediation: "https://supabase.com/docs",
+          cacheKey: "unindexed_foreign_keys_public_job_parties",
+        },
+      ],
+    });
+    const result = await runRlsAdvisors({
+      cwd: "/app",
+      json: true,
+      env: {},
+      exec: fake(NO_ROWS, seen, performance),
+    });
+    expect(seen.map((call) => call[call.indexOf("--type") + 1])).toStrictEqual([
+      "security",
+      "performance",
+    ]);
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.output)).toMatchObject({
+      warnings: 1,
+      findings: [
+        { name: "multiple_permissive_policies", code: "PD104" },
+        { name: "unindexed_foreign_keys", code: "PD105" },
+      ],
+    });
+  });
+
+  it("lists a lint that both types report once", async () => {
+    const result = await runRlsAdvisors({
+      cwd: "/app",
+      json: true,
+      env: {},
+      exec: fake(JSON.stringify(ROWS)),
+    });
+    expect(JSON.parse(result.output)).toMatchObject({ warnings: 1 });
+    expect(JSON.parse(result.output).findings).toHaveLength(2);
+  });
+
+  it("stops with the CLI's error when the performance run fails", async () => {
+    const result = await runRlsAdvisors({
+      cwd: "/app",
+      json: false,
+      env: {},
+      exec: fake(NO_ROWS, [], "not json"),
+    });
+    expect(result.code).toBe(2);
+  });
+
   it("checks the local stack without --db-url and passes on INFO rows only", async () => {
     const seen: string[][] = [];
     const result = await runRlsAdvisors({
       cwd: "/app",
       json: true,
       env: {},
-      exec: fake(JSON.stringify({ results: ROWS.results.slice(1) }), seen),
+      exec: fake(
+        JSON.stringify({ results: ROWS.results.slice(1) }),
+        seen,
+        NO_ROWS,
+      ),
     });
     expect(seen[0]).toContain("--local");
     expect(result.code).toBe(0);

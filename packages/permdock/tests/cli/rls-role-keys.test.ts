@@ -117,24 +117,22 @@ describe("custom roles in the helpers", () => {
   it("matches the tenant of a role held on a sub-scope by the tenant column", () => {
     const ids = grantBodies(nested({})).ids("team").sql;
     expect(ids).toContain(
-      `case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = m."org_id"::text end`,
+      `(not pdk_s.shared and c.tenant_id = (m."org_id")::uuid or pdk_s.shared and c.tenant_id is null)`,
     );
     expect(ids).toContain(`c.scope_id = m."team_id"::text`);
     const listed = grantBodies({ ...nested({}), grantSet: true }).ids(
       "team",
     ).sql;
-    expect(listed).toContain(`c.tenant_id::text = m."org_id"::text`);
+    expect(listed).toContain(`c.tenant_id = (m."org_id")::uuid`);
   });
 
   const custom = { declared: ["admin"], assignable: [] };
 
-  it("reads the keys of each distinct set of entries once when one grant key is asked", () => {
+  it("reads one compiled row per membership when one grant key is asked", () => {
     const ids = grantBodies(ctx({ customRoles: custom })).ids("org").sql;
     expect(ids).toContain("with pdk_m as (");
-    expect(ids).toContain("pdk_k as materialized (");
-    expect(ids).toContain(
-      "permdock_custom_keys(a.allow, a.deny, a.incl, 'org')",
-    );
+    expect(ids).toContain("where p_grant = any(pdk_m.keys)");
+    expect(ids).not.toContain("permdock_custom_keys");
     expect(ids.match(/permdock_is_shared_role\(/gu)).toHaveLength(1);
   });
 
@@ -144,9 +142,7 @@ describe("custom roles in the helpers", () => {
       grantSet: true,
     }).ids("org").sql;
     expect(ids).not.toContain("with pdk_m as (");
-    expect(ids).toContain(
-      "permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'org')",
-    );
+    expect(ids).toContain("unnest(pdk_e.keys)");
     expect(ids).toContain(") ck(grant_key)");
   });
 });

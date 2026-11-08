@@ -92,7 +92,9 @@ describe("assignment triggers", () => {
     expect(sql).toContain(
       `when new."organization_id"::text is null then "permdock".permdock_can_assign_custom_role(null, 'global', null, v_role)`,
     );
-    expect(sql).toContain("c.tenant_id is not distinct from p_tenant");
+    expect(sql).toContain(
+      "(p_tenant is null and c.tenant_id is null or c.tenant_id = p_tenant)",
+    );
     expect(sql).not.toContain("permdock_can_assign_custom_role_for");
   });
 

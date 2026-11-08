@@ -13,6 +13,7 @@ import type {
   ResourceNode,
 } from "./permission-types.ts";
 import type { POLICY_X } from "./policy-fingerprint.ts";
+import type { ResolveIndex } from "./resolve-index.ts";
 import type { Scope, PolicyScopesInput, ScopeNames } from "./scopes.ts";
 import type { Principal, Actor, Delegation } from "./subject.ts";
 import type { Instant } from "./time.ts";
@@ -638,6 +639,8 @@ export type PolicyIndex = {
   readonly supports: readonly SupportSpec[];
   /** The grants `grantList` returns, by permission key, in the same order. */
   readonly grantsByKey: ReadonlyMap<string, readonly Grant[]>;
+  /** What custom-role resolution shares: ceilings and grants by role. */
+  readonly resolve: ResolveIndex;
 };
 
 export type GrantCondition<T, K extends PermissionKind> = K extends "collection"

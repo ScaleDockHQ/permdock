@@ -6,6 +6,7 @@ import type {
   DeriveOptions,
   PermDock,
   SimulateOptions,
+  WhereOptions,
   WhereResult,
 } from "../core/permdock.ts";
 import type { Permission, PermissionTree } from "../core/permission-types.ts";
@@ -131,7 +132,10 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
    * the local condition when local grants exist); otherwise the local `where`,
    * or an always-false `partial` result.
    */
-  readonly where: (permission: Permission) => Promise<WhereResult>;
+  readonly where: (
+    permission: Permission,
+    options?: WhereOptions,
+  ) => Promise<WhereResult>;
   readonly can: (
     permission: Permission,
     data?: unknown,

@@ -83,7 +83,7 @@ Every entry has a page under [`apps/docs/content/docs/adapters`](./apps/docs/con
 
 - Node.js 24 or later (`.node-version` pins 24, which CI runs).
 - pnpm 12.14.0 exactly: `devEngines` fails any other version.
-- Docker, only for `pnpm test:integration`.
+- Docker, only for `pnpm test:integration` and `pnpm rls-bench`.
 - Bun on `PATH`, only for `pnpm test:runtimes`.
 
 ### First run
@@ -118,10 +118,12 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm build`                           | `turbo run build` (tsdown for `permdock`, `next build` for the apps)                                                                                        |
 | `pnpm check`                           | The fast gate: `format:check`, `lint` and `typecheck`                                                                                                       |
-| `pnpm verify`                          | Every CI gate: `format:check`, `lint:root` and `boundaries`, then one cached `turbo run` of the rest                                                        |
+| `pnpm verify`                          | Every CI gate: `format:check`, `lint:root` and `boundaries`, then cached `turbo run`s of the rest, `runtime:perf` last                                      |
 | `pnpm test`                            | Vitest unit and type tests across the workspace                                                                                                             |
 | `pnpm test:integration`                | Postgres via testcontainers: RLS parity and providers                                                                                                       |
 | `pnpm test:runtimes`                   | The WinterTC app on Bun, Deno and workerd                                                                                                                   |
+| `pnpm rls-bench`                       | Plan shapes of the generated policies on the 1k scale fixture: index use, one helper call per statement, ceilings (Docker)                                  |
+| `pnpm runtime:perf`                    | The quick runtime and token matrix against `scripts/runtime-perf.json`, failing 10% above it                                                                |
 | `pnpm size`                            | Per-entry min+gzip against the recorded baseline                                                                                                            |
 | `pnpm gen:check` / `pnpm doctor`       | Generated catalogs and SQL are current; `permdock doctor` (and `better-supabase doctor`) in every example                                                   |
 | `pnpm check:publish`                   | publint and arethetypeswrong on the published package                                                                                                       |

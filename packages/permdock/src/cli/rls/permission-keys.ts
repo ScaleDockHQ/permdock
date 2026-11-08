@@ -61,7 +61,7 @@ export function requiresSql(
     ...(resource === undefined ? [] : partitionsOf(resource, ctx.scopes)).map(
       (scope) => {
         const field = scopeField(resource, scope, ctx.scopes) ?? scope;
-        return `${quoteIdent(field)} in (select ${qualified(ctx, checkName(permittedByPermissionHelper(scope)))}(${literal}))`;
+        return `${quoteIdent(field)} = any(array(select ${qualified(ctx, checkName(permittedByPermissionHelper(scope)))}(${literal})))`;
       },
     ),
   ];

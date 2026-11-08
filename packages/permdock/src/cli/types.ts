@@ -1176,6 +1176,23 @@ export type PowerSyncConfig = {
    * reads, or both.
    */
   readonly tables?: Readonly<Record<string, PowerSyncTable>>;
+  /**
+   * Per resource, the membership column that narrows what a device syncs: a
+   * member with no value or `all` syncs the tenant's rows, `own` the rows of
+   * the resource's `own` level, `team` those of its `team` level. A resource
+   * without an entry syncs the tenant's rows to every member.
+   */
+  readonly memberLevel?: Readonly<Record<string, PowerSyncMemberLevel>>;
+};
+
+export type PowerSyncMemberLevel = {
+  /**
+   * `table` or `schema.table` of the tenant scope's membership table, as
+   * `rls.memberships` or a membership source names it.
+   */
+  readonly table: string;
+  /** The text column on that table holding `own`, `team` or `all`. */
+  readonly column: string;
 };
 
 export type PowerSyncTable = {

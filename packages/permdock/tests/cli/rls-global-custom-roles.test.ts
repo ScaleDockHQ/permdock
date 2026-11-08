@@ -41,8 +41,9 @@ describe("platform custom roles in SQL", () => {
       "and not (ur.role::text = any(array['admin', 'support']::text[]))",
     );
     expect(sql).toContain(
-      "permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global')",
+      "c.scope = 'global' and c.scope_id is null and c.role = ur.role::text",
     );
+    expect(sql).toContain("unnest(pdk_e.keys)");
     expect(sql).not.toContain("where rp.scope <> 'global'");
   });
 
@@ -113,5 +114,25 @@ describe("platform custom roles in SQL", () => {
     });
     expect(sql).not.toContain("role_grants");
     expect(sql).not.toContain("permdock_custom_keys");
+  });
+
+  it("builds the realtime.send call at run time, so the function lints where the stack has no realtime.send", () => {
+    const sql = helpersSql(
+      {
+        ...base,
+        authorize: "database",
+        customRoles: {
+          declared: ["admin"],
+          assignable: [],
+          broadcast: { topic: "better_supabase:authz" },
+        },
+      },
+      [],
+      { userRoles: true },
+    );
+    expect(sql).toContain(
+      "execute pg_catalog.format('select %s($1, $2, $3, true)', pg_catalog.to_regprocedure('realtime.send(jsonb, text, text, boolean)')::oid::regproc) using",
+    );
+    expect(sql).not.toContain("perform realtime.send(");
   });
 });

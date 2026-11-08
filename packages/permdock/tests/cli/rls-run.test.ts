@@ -440,9 +440,12 @@ export const policy = definePolicy(permissions, {
         }),
       );
       expect(seen[0]).toContain("postgresql://localhost/postgres");
+      expect(
+        seen.map((call) => call[call.indexOf("--type") + 1]),
+      ).toStrictEqual(["security", "performance"]);
       expect(result).toMatchObject({
         code: 0,
-        output: "supabase db advisors: no security findings",
+        output: "supabase db advisors: no security or performance findings",
       });
     });
 

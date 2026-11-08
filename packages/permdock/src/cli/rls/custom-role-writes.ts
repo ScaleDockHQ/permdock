@@ -112,7 +112,7 @@ ${raiseSql("    ", "42501", `'permdock: the caller may not manage roles in ' || 
       ? `,
     reach (grant_key, level) as (values ${reachRows})`
       : "";
-  const match = `${storedTenant(ctx)} and c.scope = p_scope and c.scope_id is not distinct from p_scope_id`;
+  const match = `${storedTenant(ctx)} and c.scope = p_scope and (p_scope_id is null and c.scope_id is null or c.scope_id = p_scope_id)`;
   const memberOf = `p_tenant::text in ${members(root)}
       or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${members(scope)}`))}`;
   return {
@@ -230,7 +230,7 @@ export function customRoleWritesSql(
     ...renames.map(([former]) => former),
   ]);
   const caller = callerFunctionsSql(ctx, custom, root, levelReach, false);
-  const match = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id`;
+  const match = `(p_tenant is null and c.tenant_id is null or c.tenant_id = p_tenant) and c.scope = p_scope and (p_scope_id is null and c.scope_id is null or c.scope_id = p_scope_id)`;
   const scopes = sqlTextArray(ctx.scopes.map((scope) => scope.name));
   const roleName = (param: string): string =>
     `coalesce(${param}, '') = '' or ${param} = any(${sqlTextArray(custom.declared)})`;

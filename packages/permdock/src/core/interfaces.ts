@@ -130,6 +130,8 @@ export type VersionQuery = {
   readonly roles?: readonly string[];
   readonly memberships?: readonly Membership[];
   readonly authzVersion?: number;
+  /** The custom-role version the token claims for its active tenant. */
+  readonly customRolesVersion?: number;
   /** When the token was issued, in seconds since the epoch (`iat`). */
   readonly issuedAt?: number;
 };
@@ -161,6 +163,18 @@ export type MembershipSource = {
     readonly scope: string;
     readonly id: string;
   }) => MemberEntry[] | Promise<MemberEntry[]>;
+  /**
+   * The custom-role version of one tenant, raised by every edit of a custom
+   * role in it (and of a shared or platform role). A token that holds a custom
+   * role is current while its `customRolesVersion` has reached this and its
+   * `authzVersion` has reached `version`; without this method, or without the
+   * claim, such a token is read live. `undefined` when the version cannot be
+   * read.
+   */
+  customRolesVersion?: (
+    query: { readonly id: string; readonly tenant: string },
+    context?: VersionContext,
+  ) => number | undefined | Promise<number | undefined>;
   /**
    * The principal's current authorization version, bumped on every membership
    * change. A token whose `authzVersion` is behind it is stale for the policy's

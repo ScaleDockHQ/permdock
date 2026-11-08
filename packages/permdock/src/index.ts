@@ -271,7 +271,10 @@ export type {
 export type { PermDockOverrides, PermDockWrap } from "./core/wrap.ts";
 export type { RequestContext } from "./core/request-context.ts";
 export { mayAccess } from "./core/may-access.ts";
-export type { PermittedIdsOptions } from "./core/may-use.ts";
+export type {
+  PermittedIdsOptions,
+  PermittedScopeIdsOptions,
+} from "./core/may-use.ts";
 export {
   customRoleClaim,
   parseCustomRoleEntry,
@@ -308,6 +311,7 @@ export type {
   SimulateOptions,
   UncheckedData,
   SnapshotOptions,
+  WhereOptions,
   WhereResult,
 } from "./core/permdock.ts";
 export { definePermissions } from "./core/permissions.ts";

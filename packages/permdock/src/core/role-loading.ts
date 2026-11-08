@@ -1,3 +1,4 @@
+import type { CustomRoleNames, ExpandedRoleNames } from "./custom-roles.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type {
   CustomRoleSource,
@@ -7,7 +8,7 @@ import type {
 import type { CustomRole, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
-import { isCustomRoleName } from "./custom-roles.ts";
+import { isCustomRoleName, isKnownCustomRole } from "./custom-roles.ts";
 import { sourceName } from "./source-name.ts";
 import { isThenable } from "./thenable.ts";
 
@@ -181,13 +182,40 @@ export function expandRoleNames(
   declared: ReadonlySet<string>,
   custom: readonly CustomRole[],
   tenant: string | undefined,
-): { readonly roles: readonly string[]; readonly unknown: readonly string[] } {
+  lookup?: CustomRoleNames,
+): ExpandedRoleNames {
+  if (lookup === undefined) {
+    return expandUncached(names, declared, (name) =>
+      isCustomRoleName(name, custom, tenant),
+    );
+  }
+  let byTenant = lookup.expanded.get(names);
+  if (byTenant === undefined) {
+    byTenant = new Map();
+    lookup.expanded.set(names, byTenant);
+  }
+  const known = byTenant.get(tenant);
+  if (known !== undefined) {
+    return known;
+  }
+  const made = expandUncached(names, declared, (name) =>
+    isKnownCustomRole(lookup, name, tenant),
+  );
+  byTenant.set(tenant, made);
+  return made;
+}
+
+function expandUncached(
+  names: readonly string[],
+  declared: ReadonlySet<string>,
+  isCustom: (name: string) => boolean,
+): ExpandedRoleNames {
   const resolved = new Set<string>();
   const unknown: string[] = [];
   for (const name of names) {
     if (declared.has(name)) {
       resolved.add(name);
-    } else if (!isCustomRoleName(name, custom, tenant)) {
+    } else if (!isCustom(name)) {
       unknown.push(name);
     }
   }

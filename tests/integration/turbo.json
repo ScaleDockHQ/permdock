@@ -3,6 +3,14 @@
   "extends": ["//"],
   "tags": ["test"],
   "tasks": {
+    "test:integration": {
+      "env": [
+        "PERMDOCK_SCALE",
+        "PERMDOCK_SCALE_TIER",
+        "PERMDOCK_SCALE_TIMEOUT_MS",
+        "PERMDOCK_SCALE_WRITE"
+      ]
+    },
     "typecheck": {
       "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
     },

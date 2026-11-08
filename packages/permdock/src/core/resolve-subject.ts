@@ -1,6 +1,11 @@
 import type { AppDataSchema } from "./app-data.ts";
 import type { AuthEvent } from "./event-types.ts";
-import type { MembershipSource, SourceMemo } from "./interfaces.ts";
+import type { RolesVersionCheck } from "./freshness.ts";
+import type {
+  MembershipSource,
+  SourceMemo,
+  VersionContext,
+} from "./interfaces.ts";
 import type { PermDockOptions } from "./permdock.ts";
 import type { Policy } from "./policy-types.ts";
 import type {
@@ -16,7 +21,7 @@ import { compact } from "./compact.ts";
 import { contactMemberships, isContact } from "./contact.ts";
 import { sanitizeContext } from "./fields.ts";
 import { freezeCopy } from "./freeze.ts";
-import { rereadStale, staleness } from "./freshness.ts";
+import { rereadStale, staleness, versionQuery } from "./freshness.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { expandOAuthScopes } from "./oauth-scopes.ts";
 import { policyX } from "./policy-fingerprint.ts";
@@ -55,12 +60,79 @@ function heldTenantOf(principal: Principal): string | undefined {
 }
 
 /** A token role the policy does not declare. A custom role is one. */
-function undeclaredRole(policy: Policy, principal: Principal): boolean {
+export function undeclaredRole(
+  policy: { readonly roles: readonly { readonly name: string }[] },
+  principal: Principal,
+): boolean {
   const declared = new Set(policy.roles.map((binding) => binding.name));
   return [
     ...(principal.roles ?? []),
     ...(principal.memberships ?? []).flatMap((membership) => membership.roles),
   ].some((name) => name !== "" && !declared.has(name));
+}
+
+function isVersion(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+/**
+ * The tenant's custom-role version a token that holds a custom role is checked
+ * against.
+ */
+function rolesCheckOf(
+  source: MembershipSource,
+  principal: Principal,
+  tenant: string,
+  context: VersionContext,
+  known: number | undefined,
+): RolesVersionCheck | undefined {
+  const claimed = principal.customRolesVersion;
+  if (typeof claimed !== "number") {
+    return undefined;
+  }
+  return {
+    claimed,
+    read: () =>
+      isVersion(known)
+        ? known
+        : source.customRolesVersion?.({ id: principal.id, tenant }, context),
+  };
+}
+
+/**
+ * A claims-first source reading a truncated token's subject learns the user
+ * version and the tenant's custom-role version first, so a source that caches
+ * subjects keys the read by them instead of reading the database every time. A
+ * version that cannot be read changes nothing: the read follows either way.
+ */
+function primeVersions(
+  source: MembershipSource,
+  principal: Principal,
+  issuedAt: number | undefined,
+  options: PermDockOptions,
+  memo: SourceMemo,
+): Promise<unknown> | undefined {
+  if (source.claimsFirst !== true) {
+    return undefined;
+  }
+  const context: VersionContext = { memo, intent: options.intent ?? "write" };
+  const reads: unknown[] = [];
+  try {
+    reads.push(source.version?.(versionQuery(principal, issuedAt), context));
+    if (options.tenant !== undefined) {
+      reads.push(
+        source.customRolesVersion?.(
+          { id: principal.id, tenant: options.tenant },
+          context,
+        ),
+      );
+    }
+  } catch {
+    return undefined;
+  }
+  return reads.some((read) => isThenable(read))
+    ? Promise.allSettled(reads)
+    : undefined;
 }
 
 function outsideHeld(
@@ -169,8 +241,24 @@ function assemblePrincipal(
       return [];
     }
   };
-  const forced =
+  const holdsCustom =
     principal !== null && fromClaims && undeclaredRole(policy, principal);
+  const rolesCheck =
+    principal !== null &&
+    holdsCustom &&
+    source?.customRolesVersion !== undefined &&
+    typeof principal.customRolesVersion === "number" &&
+    principal.tenant !== undefined &&
+    (options.tenant === undefined || options.tenant === principal.tenant)
+      ? rolesCheckOf(
+          source,
+          principal,
+          principal.tenant,
+          { memo, intent: options.intent ?? "write" },
+          options.version?.customRoles,
+        )
+      : undefined;
+  const forced = holdsCustom && rolesCheck === undefined;
   let stale: boolean | Promise<boolean> | undefined;
   let roles:
     | readonly string[]
@@ -178,7 +266,11 @@ function assemblePrincipal(
     | undefined;
   if (principal !== null && source !== undefined && !fromClaims) {
     live = true;
-    memberships = read(source, principal);
+    const primed = primeVersions(source, principal, issuedAt, options, memo);
+    memberships =
+      primed === undefined
+        ? read(source, principal)
+        : primed.then(() => read(source, principal));
   } else if (
     principal?.memberships !== undefined &&
     fromClaims &&
@@ -201,6 +293,7 @@ function assemblePrincipal(
             ) ?? [],
       options.version?.known,
       forced,
+      rolesCheck,
     );
     memberships = reread.memberships;
     stale = reread.stale;

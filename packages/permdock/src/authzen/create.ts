@@ -1,5 +1,5 @@
 import type { Decision } from "../core/decision.ts";
-import type { PermDock } from "../core/permdock.ts";
+import type { PermDock, WhereResult } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { AuthzenItem } from "./map.ts";
 import type {
@@ -7,7 +7,11 @@ import type {
   AuthzenRequestOf,
   ParseAuthzenRequestResult,
 } from "./parse.ts";
-import type { AuthzenSubjectRecord } from "./types.ts";
+import type {
+  AuthzenResourcePage,
+  AuthzenResourceQuery,
+  AuthzenSubjectRecord,
+} from "./types.ts";
 import type { AuthzenFactory } from "./types.ts";
 
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
@@ -44,7 +48,7 @@ import {
   tenantOf,
   userFromEntity,
 } from "./map.ts";
-import { authzenPage, emptyAuthzenPage } from "./page.ts";
+import { authzenPage, emptyAuthzenPage, readAuthzenPageToken } from "./page.ts";
 import { readAuthzenRequest } from "./parse.ts";
 import {
   decideAuthzen,
@@ -62,6 +66,15 @@ const WELL_KNOWN = "/.well-known/authzen-configuration";
 /** The name an item's action gives, for the reasons of an unknown permission. */
 function actionName(item: AuthzenItem): string {
   return typeof item.action?.name === "string" ? item.action.name : "unknown";
+}
+
+/** Whether `access` is exact and reaches no row: there is nothing to list. */
+function reachesNoRow(access: WhereResult): boolean {
+  return (
+    !access.partial &&
+    access.condition.op === "or" &&
+    access.condition.conditions.length === 0
+  );
 }
 
 export const createPermDock: AuthzenFactory = (policy, options) => {
@@ -243,18 +256,32 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     return Response.json(authzenPage(actions, page));
   }
 
+  /** The rows `list` yields, and the next cursor when it made the page itself. */
   async function listRows(
     type: string,
-    where: unknown,
-  ): Promise<readonly unknown[]> {
+    query: AuthzenResourceQuery,
+  ): Promise<{
+    readonly rows: readonly unknown[];
+    readonly paged: boolean;
+    readonly next: string;
+  }> {
     const list = options.resources?.[type]?.list;
     if (list === undefined) {
-      return [];
+      return { rows: [], paged: false, next: "" };
     }
     try {
-      return await list({ where });
+      const listed = await list(query);
+      return Array.isArray(listed)
+        ? { rows: listed, paged: false, next: "" }
+        : {
+            // SAFETY: a list that does not answer an array answers an AuthzenResourcePage.
+            rows: (listed as AuthzenResourcePage).rows,
+            paged: true,
+            // SAFETY: as above.
+            next: (listed as AuthzenResourcePage).next ?? "",
+          };
     } catch {
-      return [];
+      return { rows: [], paged: false, next: "" };
     }
   }
 
@@ -273,13 +300,22 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     if (type === undefined || permission === undefined) {
       return Response.json(emptyAuthzenPage());
     }
-    const rows = await listRows(
-      type,
-      isRecord(item.resource?.properties)
+    const permdock = await instantiate(pep, item);
+    const access =
+      permission.kind === "instance" ? permdock.where(permission) : undefined;
+    if (access !== undefined && reachesNoRow(access)) {
+      return Response.json(emptyAuthzenPage());
+    }
+    const cursor = readAuthzenPageToken(item);
+    const listed = await listRows(type, {
+      where: isRecord(item.resource?.properties)
         ? item.resource.properties
         : undefined,
-    );
-    const permdock = await instantiate(pep, item);
+      ...(access === undefined ? {} : { access }),
+      limit: page.size,
+      ...(cursor === undefined ? {} : { cursor }),
+    });
+    const rows = listed.rows;
     let permitted: readonly unknown[] = [];
     if (permission.kind === "instance") {
       // SAFETY: permission.kind is checked to be instance just above.
@@ -301,7 +337,14 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
         ? [{ type, id: String(id) }]
         : [];
     });
-    return Response.json(authzenPage(entities, page));
+    return Response.json(
+      listed.paged
+        ? {
+            results: entities,
+            page: { next_token: listed.next, count: entities.length },
+          }
+        : authzenPage(entities, page),
+    );
   }
 
   async function searchSubject(

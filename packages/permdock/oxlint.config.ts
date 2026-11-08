@@ -135,9 +135,9 @@ export default defineConfig({
       },
     },
     {
-      files: ["vitest.config.ts"],
+      files: ["vitest.config.ts", "tests/bench/surfaces.vitest.config.ts"],
       rules: {
-        // The config hands CI to tests through `provide` (1 finding).
+        // The configs hand CI and the surfaces runner's options to tests through `provide` (5 findings).
         "node/no-process-env": "off",
       },
     },

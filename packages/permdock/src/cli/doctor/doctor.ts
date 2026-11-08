@@ -36,11 +36,14 @@ import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
-import { pd085 } from "./hook-role.ts";
+import { eventsOf, pd085 } from "./hook-role.ts";
 import { pd092 } from "./lockfile.ts";
 import { pd044, pd065 } from "./next.ts";
 import { pd091, pd091Applies } from "./openapi.ts";
 import { pd080, pd081 } from "./per-request.ts";
+import { pd111 } from "./perf-limit.ts";
+import { pd103, pd104, pd105, pd106, pd107, pd108 } from "./perf-sql.ts";
+import { pd109, pd110 } from "./perf-token.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
 import { pd083 } from "./postgrest.ts";
 import { pd058, pd084, pd102 } from "./powersync.ts";
@@ -453,6 +456,36 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     groups: ["better-supabase", "supabase"],
     run: (project) => pd100(project, project.sources()),
   },
+  ...(
+    [
+      ["PD103", pd103],
+      ["PD104", pd104],
+      ["PD106", pd106],
+      ["PD107", pd107],
+      ["PD108", pd108],
+    ] as const
+  ).map(([code, check]): DoctorCheck => ({
+    code,
+    groups: ["rls", "sql", "performance"],
+    run: (project) => check(project.cwd, project.config, project.files),
+  })),
+  {
+    code: "PD105",
+    groups: ["rls", "sql", "performance"],
+    run: (project) => pd105(project.cwd, project.config, project.files),
+  },
+  {
+    code: "PD109",
+    groups: ["rls", "custom-roles", "performance"],
+    run: (project) => pd109(project.config),
+  },
+  {
+    code: "PD110",
+    groups: ["supabase", "hook", "performance"],
+    when: (config) => config.supabase?.hook !== undefined,
+    run: (project) => pd110(project, eventsOf(project)),
+  },
+  { code: "PD111", groups: ["openapi", "mcp", "performance"], run: pd111 },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
 ];

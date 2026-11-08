@@ -22,6 +22,11 @@ export type Parts = {
     | undefined;
   readonly jwtExpiry: number;
   readonly tenantClaim: string;
+  /**
+   * Set when custom roles live in the `permdock` tables; the type of the first
+   * scope's id.
+   */
+  readonly customRoles: { readonly tenantType: string } | undefined;
   readonly users: RlsActiveRow | undefined;
   readonly hook: SupabaseHookConfig;
   /** Global roles for `user_role` and `roles`; `undefined` with `roles: false`. */

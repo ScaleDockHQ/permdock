@@ -1,0 +1,149 @@
+[agent-browser] restore: missing; save: saved
+### Olivia -> http://127.0.0.1:3486/acme
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Olivia /acme -> http://127.0.0.1:3486/acme | PermDock on Next.js 16.4
+/acme recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+/acme recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Olivia /acme/quotes -> http://127.0.0.1:3486/acme/quotes | PermDock on Next.js 16.4
+/acme/quotes recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Olivia /acme/quotes/q-101 -> http://127.0.0.1:3486/acme/quotes/q-101 | PermDock on Next.js 16.4
+/acme/quotes/q-101 recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Olivia /acme/members -> http://127.0.0.1:3486/acme/members | PermDock on Next.js 16.4
+/acme/members console [ Prerender ] Only plain objects can be passed to Client Components from Server Components. Classes or other o
+/acme/members console [ Server ] Only plain objects can be passed to Client Components from Server Components. Classes or other obje
+/acme/members recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+/acme/members recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Olivia /acme/settings -> http://127.0.0.1:3486/acme/settings | PermDock on Next.js 16.4
+/acme/settings recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Olivia /globex/quotes -> http://127.0.0.1:3486/globex/quotes | PermDock on Next.js 16.4
+/globex/quotes recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Olivia /portal/acme -> http://127.0.0.1:3486/portal/acme | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Olivia /portal/acme/quotes/q-101 -> http://127.0.0.1:3486/portal/acme/quotes/q-101 | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+### Max -> http://127.0.0.1:3486/acme
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Max /acme -> http://127.0.0.1:3486/acme | PermDock on Next.js 16.4
+/acme recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Max /acme/quotes -> http://127.0.0.1:3486/acme/quotes | PermDock on Next.js 16.4
+/acme/quotes recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Max /acme/quotes/q-101 -> http://127.0.0.1:3486/acme/quotes/q-101 | PermDock on Next.js 16.4
+/acme/quotes/q-101 runtime quote.delete requires human approval (human). Token: sha-256:q1VPVFve9q8gD1VlEZo7GEJK4Jm9UZdaTPgTJvFAutU.
+/acme/quotes/q-101 recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Max /acme/members -> http://127.0.0.1:3486/acme/members | PermDock on Next.js 16.4
+/acme/members console [ Prerender ] Only plain objects can be passed to Client Components from Server Components. Classes or other o
+/acme/members console [ Server ] Only plain objects can be passed to Client Components from Server Components. Classes or other obje
+/acme/members recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+/acme/members recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Max /acme/settings -> http://127.0.0.1:3486/acme/settings | PermDock on Next.js 16.4
+/acme/settings recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Max /globex/quotes -> http://127.0.0.1:3486/globex/quotes | PermDock on Next.js 16.4
+/globex/quotes recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Max /portal/acme -> http://127.0.0.1:3486/portal/acme | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Max /portal/acme/quotes/q-101 -> http://127.0.0.1:3486/portal/acme/quotes/q-101 | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+### Carol -> http://127.0.0.1:3486/portal/acme
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Carol /acme -> http://127.0.0.1:3486/acme | PermDock on Next.js 16.4
+/acme recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+/acme recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Carol /acme/quotes -> http://127.0.0.1:3486/acme/quotes | PermDock on Next.js 16.4
+/acme/quotes recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Carol /acme/quotes/q-101 -> http://127.0.0.1:3486/acme/quotes/q-101 | PermDock on Next.js 16.4
+/acme/quotes/q-101 runtime quote.delete denied for subject carol: none (no-grant). Alternatives: quote.list.
+/acme/quotes/q-101 recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Carol /acme/members -> http://127.0.0.1:3486/acme/members | PermDock on Next.js 16.4
+/acme/members console [ Prerender ] Only plain objects can be passed to Client Components from Server Components. Classes or other o
+/acme/members recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+/acme/members recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Carol /acme/settings -> http://127.0.0.1:3486/acme/settings | PermDock on Next.js 16.4
+/acme/settings recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Carol /globex/quotes -> http://127.0.0.1:3486/globex/quotes | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Carol /portal/acme -> http://127.0.0.1:3486/portal/acme | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+Carol /portal/acme/quotes/q-101 -> http://127.0.0.1:3486/portal/acme/quotes/q-101 | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+### none -> http://127.0.0.1:3486/
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+none /acme -> http://127.0.0.1:3486/acme | PermDock on Next.js 16.4
+/acme recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+none /acme/quotes -> http://127.0.0.1:3486/acme/quotes | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+none /acme/quotes/q-101 -> http://127.0.0.1:3486/acme/quotes/q-101 | 404: This page could not be found.
+  (none)
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+none /acme/members -> http://127.0.0.1:3486/acme/members | PermDock on Next.js 16.4
+/acme/members console [ Prerender ] Only plain objects can be passed to Client Components from Server Components. Classes or other o
+/acme/members recoverable Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regen
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+none /acme/settings -> http://127.0.0.1:3486/acme/settings | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+none /globex/quotes -> http://127.0.0.1:3486/globex/quotes | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+none /portal/acme -> http://127.0.0.1:3486/portal/acme | PermDock on Next.js 16.4
+  (none)
+[agent-browser] restore: missing; save: saved
+[agent-browser] restore: missing; save: saved
+none /portal/acme/quotes/q-101 -> http://127.0.0.1:3486/portal/acme/quotes/q-101 | 404: This page could not be found.
+  (none)

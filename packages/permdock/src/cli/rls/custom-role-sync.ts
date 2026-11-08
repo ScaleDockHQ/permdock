@@ -29,7 +29,7 @@ export function customRoleSyncSql(
   const shared = qualified(ctx, CUSTOM_ROLES.shared);
   const guard = qualified(ctx, CUSTOM_ROLES.guard);
   const beyond = qualified(ctx, CUSTOM_ROLES.beyond);
-  const match = `c.tenant_id is not distinct from v.tenant_id and c.scope = v.scope and c.scope_id is not distinct from v.scope_id and c.role = v.role`;
+  const match = `(v.tenant_id is null and c.tenant_id is null or c.tenant_id = v.tenant_id) and c.scope = v.scope and (v.scope_id is null and c.scope_id is null or c.scope_id = v.scope_id) and c.role = v.role`;
   const keepIncludes =
     plan.includesRef === undefined
       ? `

@@ -6,10 +6,17 @@ import type { Principal } from "./subject.ts";
 import { compact } from "./compact.ts";
 import { versionQuery } from "./freshness.ts";
 import { asMembershipSource } from "./memberships.ts";
+import { undeclaredRole } from "./resolve-subject.ts";
 import { isSubject } from "./subject.ts";
 
-/** The part of a policy the key reads: its identity and its subject mapper. */
-type SubjectMapper = { readonly subject: (user: never) => Principal | null };
+/**
+ * The part of a policy the key reads: its identity, its subject mapper and its
+ * declared roles.
+ */
+type SubjectMapper = {
+  readonly subject: (user: never) => Principal | null;
+  readonly roles?: readonly { readonly name: string }[];
+};
 
 /** Options that shape an instance by value; the rest by identity. */
 const DATA_KEYS: ReadonlySet<string> = new Set([
@@ -44,6 +51,47 @@ function principalOf(
 
 function isVersion(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+/**
+ * The tenant's custom-role version for a subject that holds a custom role:
+ * `undefined` when the version is not part of the key, `null` when it cannot be
+ * read, which keeps the instance out of the cache.
+ */
+async function customRolesVersion(
+  policy: SubjectMapper,
+  principal: Principal,
+  options: PermDockOptions,
+  intent: "read" | "write",
+): Promise<number | undefined | null> {
+  const tenant = options.tenant ?? principal.tenant;
+  if (
+    options.memberships === undefined ||
+    tenant === undefined ||
+    policy.roles === undefined
+  ) {
+    return undefined;
+  }
+  const source = asMembershipSource(options.memberships);
+  if (
+    source.customRolesVersion === undefined ||
+    !undeclaredRole({ roles: policy.roles }, principal)
+  ) {
+    return undefined;
+  }
+  const known = options.version?.customRoles;
+  if (isVersion(known)) {
+    return known;
+  }
+  try {
+    const version = await source.customRolesVersion(
+      { id: principal.id, tenant },
+      { intent },
+    );
+    return isVersion(version) ? version : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -82,6 +130,15 @@ async function cacheKey(
   if (!isVersion(version)) {
     return undefined;
   }
+  const rolesVersion = await customRolesVersion(
+    policy,
+    resolved.principal,
+    options,
+    intent,
+  );
+  if (rolesVersion === null) {
+    return undefined;
+  }
   const data: Record<string, unknown> = { intent };
   const owners: unknown[] = [policy];
   for (const name of Object.keys(options).toSorted()) {
@@ -97,24 +154,34 @@ async function cacheKey(
       principal: resolved.principal.id,
       version,
       tenant: options.tenant,
+      ...(rolesVersion === undefined
+        ? {}
+        : { customRolesVersion: rolesVersion }),
       intent,
       parts: { user, data },
     }),
     owners,
-    options: { ...options, version: { known: version } },
+    options: {
+      ...options,
+      version: {
+        known: version,
+        ...(rolesVersion === undefined ? {} : { customRoles: rolesVersion }),
+      },
+    },
   };
 }
 
 function cachedFactory(
   factory: CustomRoleSourceFactory,
   instances: InstanceCache,
+  version: number | undefined,
 ): CustomRoleSourceFactory {
   return (subject) => {
     const source = factory(subject);
     const principal = subject.principal?.id;
     return source === undefined || principal === undefined
       ? source
-      : instances.customRoles(source, { owner: factory, principal });
+      : instances.customRoles(source, { owner: factory, principal }, version);
   };
 }
 
@@ -123,6 +190,7 @@ function cachedSources(
   instances: InstanceCache,
 ): PermDockOptions {
   const { customRoles, entitlements } = options;
+  const version = options.version?.customRoles;
   return {
     ...options,
     ...(customRoles === undefined
@@ -130,8 +198,8 @@ function cachedSources(
       : {
           customRoles:
             typeof customRoles === "function"
-              ? cachedFactory(customRoles, instances)
-              : instances.customRoles(customRoles),
+              ? cachedFactory(customRoles, instances, version)
+              : instances.customRoles(customRoles, undefined, version),
         }),
     ...(entitlements === undefined
       ? {}

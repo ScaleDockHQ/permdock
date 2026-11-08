@@ -110,7 +110,8 @@ describe("claims first helpers", () => {
     );
     const parts = branches(body);
     expect(parts).toHaveLength(3);
-    expect(body).toContain("permdock_custom_keys(a.allow, a.deny, a.incl");
+    expect(body).toContain("where p_grant = any(pdk_m.keys)");
+    expect(body).not.toContain("permdock_custom_keys");
     expect(parts[2]).toContain("from pdk_m");
     expect(parts[2]).not.toContain("permdock_token_current");
   });
@@ -139,7 +140,9 @@ describe("claims first helpers", () => {
       "coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')",
     );
     expect(body).toContain("statement_timestamp()::text");
-    expect(body).toContain("md5(coalesce((select auth.jwt())::text, ''))");
+    expect(body).toContain(
+      "coalesce((select auth.jwt()) ->> 'session_id', '')",
+    );
     expect(body).toContain(
       "v_memo text := nullif(current_setting(v_key, true), '');",
     );

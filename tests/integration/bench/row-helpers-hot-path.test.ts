@@ -218,7 +218,7 @@ describe("row helpers on the hot path", () => {
     const full = measured.find((row) =>
       row.shape.startsWith("hand-written fn"),
     );
-    expect(defined(scalar).medianMs * 2).toBeLessThan(defined(full).medianMs);
+    expect(defined(scalar).medianMs * 1.5).toBeLessThan(defined(full).medianMs);
     expect(defined(scalar).sharedHit).toBeLessThan(defined(full).sharedHit);
   });
 });

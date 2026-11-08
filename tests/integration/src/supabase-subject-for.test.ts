@@ -265,6 +265,7 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     );
     expect(wrappers.rows.map((row) => row.proname)).toStrictEqual([
       "permdock_authz_version_for",
+      "permdock_custom_roles_version_for",
       "permdock_members_of",
       "permdock_subject_for",
     ]);

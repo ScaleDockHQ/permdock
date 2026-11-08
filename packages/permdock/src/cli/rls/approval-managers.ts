@@ -3,6 +3,7 @@ import type { RlsApprovalManagers } from "../types.ts";
 
 import { MAX_MANAGER_LEVELS } from "../../core/approvers.ts";
 import { configError } from "../core/errors.ts";
+import { tenantTypeOf } from "../sql/columns.ts";
 import { qualified, quoteIdent, quoteQualified } from "../sql/quote.ts";
 import { subjectIdSql } from "../sql/subject.ts";
 
@@ -84,7 +85,9 @@ export function approvalManagersSql(
   const edgeTenant = (alias: string): string =>
     tenant === undefined
       ? ""
-      : `\n      and ${alias}.${tenant}::text = p_tenant`;
+      : `\n      and ${alias}.${tenant} = p_tenant::${tenantTypeOf(ctx)}`;
+  // The parameter is cast to the column's type, never the column, so an index on the edge table applies.
+  const userType = ctx.dialect === "supabase" ? "uuid" : "text";
   const entry = delegations
     ? ""
     : `
@@ -127,12 +130,12 @@ as $$
   with recursive chain (id, depth, path) as (
     select m.${boss}::text, 1, array[p_requester, m.${boss}::text]
     from ${table} m
-    where m.${user}::text = p_requester
+    where m.${user} = p_requester::${userType}
       and m.${boss} is not null${edgeTenant("m")}
     union all
     select m.${boss}::text, c.depth + 1, c.path || m.${boss}::text
     from chain c
-    join ${table} m on m.${user}::text = c.id
+    join ${table} m on m.${user} = c.id::${userType}
     where c.depth < least(p_levels, ${String(MAX_MANAGER_LEVELS)})
       and m.${boss} is not null
       and not (m.${boss}::text = any (c.path))${edgeTenant("m")}

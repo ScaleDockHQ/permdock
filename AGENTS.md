@@ -28,7 +28,7 @@ A new rule gets `description`, `globs` and `alwaysApply` (Cursor) frontmatter, p
 
 ## Status
 
-`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per `roadmap.mdx` Versioning: a breaking change to a name, default or wire format carries a changeset that says so; a breaking wire-format change bumps that format's major. Every wire format is `v1` except the catalog, which is `catalog-v2.json` with `version: 2` (snapshot `v: 1`, approval request `v: 1`). Node.js 24, pnpm 12.14.0 (`devEngines` refuses others), TypeScript 7.
+`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per `roadmap.mdx` Versioning: a breaking change to a name, default or wire format carries a changeset that says so; a breaking wire-format change bumps that format's major. Every wire format is `v1` except the catalog (`catalog-v2.json`, `version: 2`). Node.js 24, pnpm 12.14.0 (`devEngines` refuses others), TypeScript 7.
 
 ## Repo layout
 
@@ -51,16 +51,17 @@ docs/agents/ docs/decisions/   corrections agents needed twice; exceptions to th
 pnpm install
 pnpm build                 # turbo run build (tsdown)
 pnpm check                 # format:check, lint, typecheck: the fast gate
-pnpm verify                # every CI gate: root steps, then one cached turbo run
+pnpm verify                # every CI gate: root steps, then cached turbo runs
 pnpm test                  # vitest unit + type tests
 pnpm test:integration      # testcontainers Postgres (Docker)
-pnpm test:runtimes         # Bun (on PATH), Deno and workerd; CI requires all three
-pnpm lint && pnpm format   # oxlint per workspace, oxfmt everywhere; `pnpm fix` applies both
-pnpm knip                  # unused files, exports and dependencies
+pnpm test:runtimes         # Bun, Deno, workerd; CI requires all three
+pnpm lint && pnpm format   # oxlint, oxfmt; `pnpm fix` applies both
+pnpm knip                  # unused files, exports, dependencies
 pnpm size                  # per-entry gzip against the baseline
 pnpm generate:perf         # generator time and peak RSS against scripts/generate-perf.json
-pnpm gen:check && pnpm doctor   # generated catalogs and SQL current; doctors per example
-pnpm docs:drift            # docs match doctor codes, entries, meta.json, names
+pnpm runtime:perf && pnpm rls-bench   # runtime matrix, plan-shape gate (Docker)
+pnpm gen:check && pnpm doctor   # catalogs and SQL current; doctors
+pnpm docs:drift            # docs match doctor codes, entries, names
 pnpm dev:portless          # https://permdock.localhost, docs at /docs
 pnpm dev:docs              # apps/docs on :3001, no Portless
 pnpm dev:marketing         # apps/marketing on :3000, proxies /docs
@@ -139,6 +140,7 @@ Records in `docs/decisions`:
 - 0055 `turbo.json` `global` block
 - 0056 `permdock/app` `definePermDock`; 0061 `.next` and `.authorizer` on better-supabase
 - 0057 `oxc-parser`, `jiti` optional CLI peers; 0058 React evaluator split
+- 0062 `next-baseline.ts` suppressions; 0063 perf gates
 
 ## Pre-release pins
 

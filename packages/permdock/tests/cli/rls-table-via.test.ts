@@ -56,7 +56,7 @@ describe("rls table via", () => {
       expect(generated.code).toBe(0);
       const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
       expect(sql).toContain("permitted_environment_ids");
-      expect(sql).toContain('"environment_id" in (select');
+      expect(sql).toContain('"environment_id" = any(array(select');
       const explained = await run(["rls", "explain"], { cwd });
       expect(explained.stdout).toContain(
         "deploy -> public.deployments via permitted_environment_ids over cloud.environments.org_id (public.deployments.environment_id)",
@@ -71,7 +71,7 @@ describe("rls table via", () => {
       expect(generated.code).toBe(0);
       const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
       expect(sql).toContain("permitted_stage_ids");
-      expect(sql).toContain('"stage" in (select');
+      expect(sql).toContain('"stage" = any(array(select');
       expect(sql).toContain('select p."uid"');
     });
 

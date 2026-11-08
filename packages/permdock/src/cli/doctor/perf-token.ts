@@ -1,0 +1,140 @@
+import type { Project } from "../project/project.ts";
+import type { DoctorFinding } from "../shared/doctor-types.ts";
+import type { PermDockConfig } from "../types.ts";
+import type { HookEvent } from "./hook-role.ts";
+
+import { isRecord } from "../../core/compact.ts";
+import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
+import { describeError } from "../core/errors.ts";
+import { quoteIdent } from "../sql/quote.ts";
+
+/**
+ * The longest access token, in characters, PD110 accepts. The token travels in
+ * every `Authorization` header, and `@supabase/ssr` splits a session cookie
+ * into chunks of 3,180 bytes.
+ */
+export const TOKEN_CHARS_BUDGET = 4096;
+
+/** Claims every Supabase access token carries beside the hook's. */
+const BASE_CLAIMS = {
+  iss: "https://example.supabase.co/auth/v1",
+  aud: "authenticated",
+  exp: 1_900_000_000,
+  iat: 1_900_000_000,
+  sub: "00000000-0000-4000-8000-000000000000",
+  email: "caller@example.com",
+  phone: "",
+  app_metadata: { provider: "email", providers: ["email"] },
+  user_metadata: {},
+  role: "authenticated",
+  aal: "aal1",
+  amr: [{ method: "password", timestamp: 1_900_000_000 }],
+  session_id: "00000000-0000-4000-8000-000000000000",
+  is_anonymous: false,
+};
+
+/** Base64url length of `{"alg":"ES256","typ":"JWT","kid":<uuid>}`. */
+const HEADER_CHARS = 100;
+/** Base64url length of a 64-byte ES256 signature. */
+const SIGNATURE_CHARS = 86;
+
+/**
+ * The length of the compact JWT a project's sign-in would issue: the Supabase
+ * base claims overlaid with what the hook returned, plus header and signature.
+ */
+export function tokenChars(hookClaims: unknown): number {
+  const claims = JSON.stringify({
+    ...BASE_CLAIMS,
+    ...(isRecord(hookClaims) ? hookClaims : {}),
+  });
+  return (
+    HEADER_CHARS +
+    1 +
+    Math.ceil((Buffer.byteLength(claims) * 4) / 3) +
+    1 +
+    SIGNATURE_CHARS
+  );
+}
+
+/**
+ * PD109: `rls.authorize: "jwt"` with `rls.customRoles`, and no
+ * `supabase.hook.claims` function to write `grants`. The generated hook writes
+ * no `grants` on a membership, so the helpers find no custom role in the token
+ * and every custom-role holder is denied.
+ */
+export function pd109(config: PermDockConfig): readonly DoctorFinding[] {
+  const customRoles = config.rls?.customRoles;
+  if (
+    config.rls?.authorize !== "jwt" ||
+    customRoles === undefined ||
+    customRoles === false ||
+    Object.keys(config.supabase?.hook?.claims ?? {}).length > 0
+  ) {
+    return [];
+  }
+  return [
+    {
+      code: "PD109",
+      severity: "error",
+      target: "rls.customRoles",
+      message:
+        "rls.customRoles with rls.authorize 'jwt' resolves no custom role: the generated hook writes no grants into the token",
+      fix: "set rls.authorize to 'database', or write memberships[].grants from a supabase.hook.claims function",
+    },
+  ];
+}
+
+/**
+ * PD110: with `--db-url-stdin`, the token the hook builds for a sample user is
+ * longer than {@link TOKEN_CHARS_BUDGET}. It measures the whole token, as
+ * better-supabase's BS405 measures the claims against `tokenHook.budget`, and
+ * runs the hook inside a transaction it rolls back.
+ */
+export async function pd110(
+  project: Pick<Project, "database" | "config" | "files" | "cwd">,
+  events: readonly HookEvent[],
+): Promise<readonly DoctorFinding[]> {
+  const { database } = project;
+  const hook = project.config.supabase?.hook;
+  if (database === undefined || hook === undefined) {
+    return [];
+  }
+  const schema = hook.schema ?? project.config.rls?.schema ?? PERMDOCK_SCHEMA;
+  const fn = `${quoteIdent(schema)}.custom_access_token_hook`;
+  const client = await database.connect(database.url);
+  const findings: DoctorFinding[] = [];
+  try {
+    for (const { label, event } of events) {
+      await client.query("begin", []);
+      try {
+        const result = await client.query(
+          `select (${fn}($1::jsonb) -> 'claims') as claims`,
+          [JSON.stringify(event)],
+        );
+        const length = tokenChars(result.rows[0]?.["claims"]);
+        if (length > TOKEN_CHARS_BUDGET) {
+          findings.push({
+            code: "PD110",
+            severity: "warning",
+            target: label,
+            message: `the access token for ${label} is ${String(length)} characters, over ${String(TOKEN_CHARS_BUDGET)}`,
+            fix: "lower supabase.hook.budget, drop hook.claims entries, or hold fewer custom roles; the active tenant stays in the token",
+          });
+        }
+      } catch (error) {
+        findings.push({
+          code: "PD110",
+          severity: "info",
+          target: label,
+          message: `the token size for ${label} was not measured: ${describeError(error)}`,
+          fix: "fix PD085 first; it reports why the hook fails",
+        });
+      } finally {
+        await client.query("rollback", []);
+      }
+    }
+  } finally {
+    await client.end();
+  }
+  return findings;
+}

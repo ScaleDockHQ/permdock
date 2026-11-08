@@ -50,6 +50,12 @@ export const CUSTOM_ROLES = {
   nameGuard: "permdock_custom_role_name_guard",
   sync: "permdock_sync_custom_role",
   shared: "permdock_is_shared_role",
+  compiled: "custom_role_compiled",
+  versions: "custom_role_version",
+  compile: "permdock_compile_custom_role",
+  compileFor: "permdock_compile_custom_roles_for",
+  compileStatement: "permdock_compile_custom_roles",
+  recompile: "permdock_recompile_custom_roles",
 } as const;
 
 /** The function `rls.roles` adds. The name is part of the SQL contract. */

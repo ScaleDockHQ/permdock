@@ -98,7 +98,7 @@ begin
       from "permdock".memberships_for(uid) e
     ),
     pdk_fixed as (
-      select used + octet_length(pdk_roles.held::text) + octet_length(pdk_version.ver::text) as bytes from pdk_roles, pdk_version
+      select used + octet_length(pdk_roles.held::text) + octet_length(case jsonb_array_length(pdk_roles.held) when 0 then '' when 1 then (pdk_roles.held -> 0)::text else pdk_roles.held::text end) + coalesce(octet_length(to_jsonb(active)::text), 0) + octet_length(pdk_version.ver::text) as bytes from pdk_roles, pdk_version
     ),
     pdk_ranked as (
       select x.entry, x.root_id is not distinct from active as current,
@@ -117,7 +117,7 @@ begin
     (select pdk_roles.held from pdk_roles),
     coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
     truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
-    active is not null and coalesce((select bool_or(k.current) from pdk_kept k), false),
+    active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),
     (select bytes from pdk_fixed),
     (select pdk_version.ver from pdk_version)
   into held, kept, truncated, in_active, used, ver;
