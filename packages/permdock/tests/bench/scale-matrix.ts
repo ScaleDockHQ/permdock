@@ -44,13 +44,16 @@ export const permissions = definePermissions({
   ...tools,
 });
 
-type ToolName = `tool${number}`;
+type ToolName = `tool${string}`;
 
 function toolPermission(index: number) {
   const name: ToolName = `tool${String(index)}`;
   // SAFETY: `tools` registers exactly `tool0` to `tool299`.
-  return (permissions as unknown as Record<ToolName, { invoke: never }>)[name]
-    .invoke;
+  const tool = (
+    permissions as unknown as Record<ToolName, { invoke: never } | undefined>
+  )[name];
+  if (tool === undefined) throw new Error(`missing ${name}`);
+  return tool.invoke;
 }
 
 export function roleName(index: number): string {

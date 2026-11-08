@@ -640,7 +640,7 @@ describe("requires in generated RLS", () => {
       (item) => item.permissionKey === "drive.read",
     );
     expect(branch?.access).toContain(
-      `(select "permdock".permdock_has_permission('file.read')) or "orgId" in (select "permdock".permitted_tenant_ids_by_permission('file.read'))`,
+      `(select "permdock".permdock_has_permission('file.read')) or "orgId" = any(array(select "permdock".permitted_tenant_ids_by_permission('file.read')))`,
     );
     expect(requiresSql(ctx, "file.read", undefined)).toBe(
       `((select "permdock".permdock_has_permission('file.read')))`,

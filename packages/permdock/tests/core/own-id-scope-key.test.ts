@@ -99,10 +99,10 @@ describe("a resource whose own id is the scope instance", () => {
     const compiled = compileGrants(policy, ctx, undefined, [], false);
     const text = JSON.stringify(compiled.branches);
     expect(text).toContain(
-      String.raw`\"id\" in (select \"permdock\".permitted_organization_ids('organization.update'))`,
+      String.raw`\"id\" = any(array(select \"permdock\".permitted_organization_ids('organization.update')))`,
     );
     expect(text).toContain(
-      String.raw`\"organization_id\" in (select \"permdock\".permitted_organization_ids('project.read'))`,
+      String.raw`\"organization_id\" = any(array(select \"permdock\".permitted_organization_ids('project.read')))`,
     );
   });
 

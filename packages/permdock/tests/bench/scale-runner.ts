@@ -156,7 +156,6 @@ async function run(): Promise<void> {
         row["decideIds1000"] = await cappedAsync(ids, 25, (part) =>
           instance.decideIds(permissions.item.read, part, {
             data: () => loaded,
-            trusted: true,
           }),
         );
         const customRoles = customRolesFor(memberCount, customCount);
