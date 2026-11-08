@@ -21,6 +21,7 @@ const CORNERS = [
 ] as const;
 const tenant = tenantId(0);
 const rows = rowsFor(10_000, tenant);
+const tool = toolPermissions()[0];
 const own = { id: "i0", orgId: tenant, ownerId: "u-scale" };
 
 describe.each(CORNERS)(
@@ -47,7 +48,9 @@ describe.each(CORNERS)(
           instance.where(permissions.item.update);
         }),
         bench("mayUse, one tool", () => {
-          instance.mayUse(toolPermissions()[0]!);
+          if (tool !== undefined) {
+            instance.mayUse(tool);
+          }
         }),
         bench("snapshotFor", () => {
           snapshotFor(policy, user, {

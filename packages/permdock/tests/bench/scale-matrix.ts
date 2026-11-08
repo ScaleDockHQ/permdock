@@ -57,19 +57,21 @@ export function roleName(index: number): string {
   return `r${String(index)}`;
 }
 
-const declared = Array.from({ length: Math.max(...ROLE_TIERS) }, (_, index) =>
-  role(
-    roleName(index),
-    [
-      allow(permissions.item.read),
-      allow(permissions.item.update, { where: { ownerId: principal.id } }),
-      // 15 tools per declared role, so a 20-role subject reaches all 300.
-      ...Array.from({ length: TOOL_COUNT / 20 }, (_, tool) =>
-        allow(toolPermission(index * (TOOL_COUNT / 20) + tool)),
-      ),
-    ],
-    { on: "tenant", assignable: true },
-  ),
+const declared = Array.from(
+  { length: Math.max(...ROLE_TIERS) },
+  (_item, index) =>
+    role(
+      roleName(index),
+      [
+        allow(permissions.item.read),
+        allow(permissions.item.update, { where: { ownerId: principal.id } }),
+        // 15 tools per declared role, so a 20-role subject reaches all 300.
+        ...Array.from({ length: TOOL_COUNT / 20 }, (_tool, tool) =>
+          allow(toolPermission(index * (TOOL_COUNT / 20) + tool)),
+        ),
+      ],
+      { on: "tenant", assignable: true },
+    ),
 );
 
 export type ScaleUser = {
@@ -110,11 +112,14 @@ export function customRolesFor(
       roles.push({
         name: customRoleName(index),
         tenant: tenantId(tenant),
-        grants: Array.from({ length: GRANTS_PER_CUSTOM_ROLE }, (_, grant) => ({
-          permission: `tool${String(
-            (index * GRANTS_PER_CUSTOM_ROLE + grant) % TOOL_COUNT,
-          )}.invoke`,
-        })),
+        grants: Array.from(
+          { length: GRANTS_PER_CUSTOM_ROLE },
+          (_grant, grant) => ({
+            permission: `tool${String(
+              (index * GRANTS_PER_CUSTOM_ROLE + grant) % TOOL_COUNT,
+            )}.invoke`,
+          }),
+        ),
       });
     }
   }
@@ -132,10 +137,10 @@ export function userFor(
 ): ScaleUser {
   return {
     id: "u-scale",
-    memberships: Array.from({ length: memberships }, (_, tenant) => ({
+    memberships: Array.from({ length: memberships }, (_member, tenant) => ({
       scope: "tenant",
       id: tenantId(tenant),
-      roles: Array.from({ length: roles }, (_, index) =>
+      roles: Array.from({ length: roles }, (_role, index) =>
         customRoles > 0 && index === 0
           ? customRoleName(tenant % customRoles)
           : roleName(index),
@@ -151,7 +156,10 @@ export function sourceFor(
   return memoryCustomRoleSource(customRolesFor(memberships, customRoles));
 }
 
-export function rowsFor(count: number, tenant: string) {
+export function rowsFor(
+  count: number,
+  tenant: string,
+): readonly { id: string; orgId: string; ownerId: string }[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `i${String(index)}`,
     orgId: index % 2 === 0 ? tenant : tenantId(index % 7),

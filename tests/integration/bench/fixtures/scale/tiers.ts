@@ -55,14 +55,18 @@ export const CELLS: readonly Cell[] = MEMBERSHIP_TIERS.flatMap((memberships) =>
   ),
 );
 
+function positionOf(tiers: readonly number[], value: number): number {
+  return tiers.indexOf(value);
+}
+
 /** The caller of one matrix cell; no two cells share a user. */
 export function callerOf(cell: Cell): string {
   return uuidOf(
     KIND.user,
     1_000_000 +
-      MEMBERSHIP_TIERS.indexOf(cell.memberships as 1) * 1000 +
-      ROLE_TIERS.indexOf(cell.roles as 1) * 10 +
-      CUSTOM_ROLE_TIERS.indexOf(cell.custom as 0),
+      positionOf(MEMBERSHIP_TIERS, cell.memberships) * 1000 +
+      positionOf(ROLE_TIERS, cell.roles) * 10 +
+      positionOf(CUSTOM_ROLE_TIERS, cell.custom),
   );
 }
 

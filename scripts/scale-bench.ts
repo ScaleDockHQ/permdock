@@ -11,8 +11,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const tier = args.find((arg) => !arg.startsWith("--")) ?? "100k";
 if (!["1k", "100k", "1M"].includes(tier)) {
-  process.stderr.write(`Unknown tier ${tier}; use 1k, 100k or 1M.\n`);
-  process.exit(2);
+  throw new Error(`PermDock: unknown tier ${tier}; use 1k, 100k or 1M`);
 }
 
 const result = spawnSync(
@@ -38,4 +37,4 @@ const result = spawnSync(
     },
   },
 );
-process.exit(result.status ?? 1);
+process.exitCode = result.status ?? 1;

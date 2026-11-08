@@ -1,3 +1,5 @@
+import type { PoolClient } from "pg";
+
 import { spawnSync } from "node:child_process";
 import {
   mkdirSync,
@@ -111,7 +113,7 @@ function walk(plan: Plan, seen: { seq: Set<string>; loops: number }): void {
 }
 
 function median(values: readonly number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
+  const sorted = values.toSorted((a, b) => a - b);
   return sorted[Math.floor(sorted.length / 2)] ?? 0;
 }
 
@@ -119,7 +121,7 @@ function round(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
 
-type Client = Awaited<ReturnType<Pool["connect"]>>;
+type Client = PoolClient;
 
 async function explain(client: Client, sql: string): Promise<Explained> {
   const result = await client.query<{ "QUERY PLAN": Explained }>(
@@ -160,7 +162,7 @@ async function timed(client: Client, sql: string): Promise<Timing> {
         : round(median(warmMs)),
       warmRuns: warmMs.length,
       planningMs: round(last[0]["Planning Time"]),
-      seqScans: [...seen.seq].sort(),
+      seqScans: [...seen.seq].toSorted(),
       maxLoops: seen.loops,
       sharedHit: last[0].Plan["Shared Hit Blocks"] ?? 0,
       sharedRead: last[0].Plan["Shared Read Blocks"] ?? 0,
@@ -416,9 +418,9 @@ describe.runIf(enabled)(`scale baseline, ${tier} rows`, () => {
     pool: Pool,
     sql: string,
   ): Promise<void> => {
-    const started = performance.now();
+    const began = performance.now();
     await pool.query(sql);
-    seedMs[label] = Math.round(performance.now() - started);
+    seedMs[label] = Math.round(performance.now() - began);
   };
 
   beforeAll(

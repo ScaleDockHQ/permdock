@@ -1,0 +1,1862 @@
+{
+  "recordedAt": "2026-11-07T17:03:11.022Z",
+  "commit": "305c65b68",
+  "tier": "100k",
+  "rows": 100000,
+  "tenants": 1000,
+  "callerTenants": 12,
+  "postgres": "postgres:16-alpine (testcontainers, default settings)",
+  "statementTimeoutMs": 120000,
+  "note": "Timings are Execution Time from EXPLAIN (ANALYZE, BUFFERS); firstMs is the first run on a warm container, warmMs the next runs (none when the first run took over 5 s; medianMs is then firstMs). A timedOut entry hit statementTimeoutMs. Generated SQL is main, as of the commit. The full membership, role and custom-role matrix runs on the 100k tier only; other tiers record the two Lienlink callers.",
+  "seedMs": {
+    "jobsAndTenants": 1672,
+    "membershipMatrix": 9700,
+    "scaleRows": 4555,
+    "approvals": 40,
+    "customRolesTo50": 4133,
+    "customRolesTo500": 32118
+  },
+  "customRolePermissionRows": "c50 tiers read a 400,000-row permdock.custom_role_permissions; c500 tiers read 4,000,000 rows (500 roles × 1,000 tenants × 8 grants).",
+  "matrix": {
+    "m1-r1-c0": {
+      "hook": {
+        "firstMs": 9.036,
+        "warmMs": [2.651, 2.587, 2.626],
+        "medianMs": 2.626,
+        "warmRuns": 3,
+        "planningMs": 0.011,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 4.279,
+        "warmMs": [2.859, 2.525, 2.789],
+        "medianMs": 2.789,
+        "warmRuns": 3,
+        "planningMs": 0.012,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 492,
+        "sharedRead": 0
+      },
+      "claimsBytes": 319,
+      "membershipsInToken": 1,
+      "membershipsTruncated": false,
+      "tokenChars": 866,
+      "permittedTenantIds": {
+        "firstMs": 6.536,
+        "warmMs": [4.233, 4.273, 4.255],
+        "medianMs": 4.255,
+        "warmRuns": 3,
+        "planningMs": 0.022,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 966,
+        "sharedRead": 0
+      }
+    },
+    "m1-r5-c0": {
+      "hook": {
+        "firstMs": 2.572,
+        "warmMs": [3.018, 2.401, 2.38],
+        "medianMs": 2.401,
+        "warmRuns": 3,
+        "planningMs": 0.011,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 2.684,
+        "warmMs": [2.494, 2.169, 2.17],
+        "medianMs": 2.17,
+        "warmRuns": 3,
+        "planningMs": 0.008,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 348,
+      "membershipsInToken": 1,
+      "membershipsTruncated": false,
+      "tokenChars": 899,
+      "permittedTenantIds": {
+        "firstMs": 6.364,
+        "warmMs": [6.094, 5.642, 5.776],
+        "medianMs": 5.776,
+        "warmRuns": 3,
+        "planningMs": 0.022,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 970,
+        "sharedRead": 0
+      }
+    },
+    "m1-r20-c0": {
+      "hook": {
+        "firstMs": 2.718,
+        "warmMs": [2.427, 2.263, 2.232],
+        "medianMs": 2.263,
+        "warmRuns": 3,
+        "planningMs": 0.008,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 2.271,
+        "warmMs": [2.252, 2.195, 2.357],
+        "medianMs": 2.252,
+        "warmRuns": 3,
+        "planningMs": 0.009,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 449,
+      "membershipsInToken": 1,
+      "membershipsTruncated": false,
+      "tokenChars": 1014,
+      "permittedTenantIds": {
+        "firstMs": 6.153,
+        "warmMs": [6.206, 6.005, 5.969],
+        "medianMs": 6.005,
+        "warmRuns": 3,
+        "planningMs": 0.018,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 970,
+        "sharedRead": 0
+      }
+    },
+    "m12-r1-c0": {
+      "hook": {
+        "firstMs": 2.774,
+        "warmMs": [2.773, 2.423, 2.399],
+        "medianMs": 2.423,
+        "warmRuns": 3,
+        "planningMs": 0.009,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 2.329,
+        "warmMs": [2.377, 2.381, 2.278],
+        "medianMs": 2.377,
+        "warmRuns": 3,
+        "planningMs": 0.008,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1231,
+      "membershipsInToken": 11,
+      "membershipsTruncated": true,
+      "tokenChars": 1999,
+      "permittedTenantIds": {
+        "firstMs": 35.486,
+        "warmMs": [35.474, 32.636, 33.058],
+        "medianMs": 33.058,
+        "warmRuns": 3,
+        "planningMs": 0.029,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 10448,
+        "sharedRead": 0
+      }
+    },
+    "m12-r5-c0": {
+      "hook": {
+        "firstMs": 2.712,
+        "warmMs": [2.462, 2.507, 2.942],
+        "medianMs": 2.507,
+        "warmRuns": 3,
+        "planningMs": 0.012,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 2.452,
+        "warmMs": [2.321, 2.233, 2.273],
+        "medianMs": 2.273,
+        "warmRuns": 3,
+        "planningMs": 0.008,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1199,
+      "membershipsInToken": 8,
+      "membershipsTruncated": true,
+      "tokenChars": 1938,
+      "permittedTenantIds": {
+        "firstMs": 35.892,
+        "warmMs": [36.12, 34.928, 36.896],
+        "medianMs": 36.12,
+        "warmRuns": 3,
+        "planningMs": 0.021,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 10452,
+        "sharedRead": 0
+      }
+    },
+    "m12-r20-c0": {
+      "hook": {
+        "firstMs": 2.894,
+        "warmMs": [2.682, 2.536, 2.832],
+        "medianMs": 2.682,
+        "warmRuns": 3,
+        "planningMs": 0.014,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 3.342,
+        "warmMs": [2.738, 2.591, 2.664],
+        "medianMs": 2.664,
+        "warmRuns": 3,
+        "planningMs": 0.009,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1132,
+      "membershipsInToken": 4,
+      "membershipsTruncated": true,
+      "tokenChars": 1822,
+      "permittedTenantIds": {
+        "firstMs": 37.563,
+        "warmMs": [37.323, 36.841, 38.238],
+        "medianMs": 37.323,
+        "warmRuns": 3,
+        "planningMs": 0.024,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 10452,
+        "sharedRead": 0
+      }
+    },
+    "m150-r1-c0": {
+      "hook": {
+        "firstMs": 3.551,
+        "warmMs": [2.906, 2.891, 2.713],
+        "medianMs": 2.891,
+        "warmRuns": 3,
+        "planningMs": 0.009,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 3.569,
+        "warmMs": [3.679, 2.923, 3.292],
+        "medianMs": 3.292,
+        "warmRuns": 3,
+        "planningMs": 0.011,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1232,
+      "membershipsInToken": 11,
+      "membershipsTruncated": true,
+      "tokenChars": 2000,
+      "permittedTenantIds": {
+        "firstMs": 402.322,
+        "warmMs": [405.079, 413.611, 417.343],
+        "medianMs": 413.611,
+        "warmRuns": 3,
+        "planningMs": 0.025,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 129404,
+        "sharedRead": 0
+      }
+    },
+    "m150-r5-c0": {
+      "hook": {
+        "firstMs": 3.517,
+        "warmMs": [3.483, 3.55, 3.245],
+        "medianMs": 3.483,
+        "warmRuns": 3,
+        "planningMs": 0.01,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 3.716,
+        "warmMs": [4.012, 3.656, 3.471],
+        "medianMs": 3.656,
+        "warmRuns": 3,
+        "planningMs": 0.011,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1200,
+      "membershipsInToken": 8,
+      "membershipsTruncated": true,
+      "tokenChars": 1939,
+      "permittedTenantIds": {
+        "firstMs": 415.93,
+        "warmMs": [430.074, 417.184, 401.867],
+        "medianMs": 417.184,
+        "warmRuns": 3,
+        "planningMs": 0.022,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 129408,
+        "sharedRead": 0
+      }
+    },
+    "m150-r20-c0": {
+      "hook": {
+        "firstMs": 5.174,
+        "warmMs": [4.993, 4.962, 5.896],
+        "medianMs": 4.993,
+        "warmRuns": 3,
+        "planningMs": 0.019,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 5.868,
+        "warmMs": [6.068, 5.702, 5.739],
+        "medianMs": 5.739,
+        "warmRuns": 3,
+        "planningMs": 0.011,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1133,
+      "membershipsInToken": 4,
+      "membershipsTruncated": true,
+      "tokenChars": 1823,
+      "permittedTenantIds": {
+        "firstMs": 27.39,
+        "warmMs": [27.112, 25.502, 25.431],
+        "medianMs": 25.502,
+        "warmRuns": 3,
+        "planningMs": 0.024,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 970,
+        "sharedRead": 0
+      }
+    },
+    "m500-r1-c0": {
+      "hook": {
+        "firstMs": 5.144,
+        "warmMs": [4.804, 4.844, 4.533],
+        "medianMs": 4.804,
+        "warmRuns": 3,
+        "planningMs": 0.011,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 6.015,
+        "warmMs": [5.959, 5.981, 5.231],
+        "medianMs": 5.959,
+        "warmRuns": 3,
+        "planningMs": 0.011,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1232,
+      "membershipsInToken": 11,
+      "membershipsTruncated": true,
+      "tokenChars": 2000,
+      "permittedTenantIds": {
+        "firstMs": 7.042,
+        "warmMs": [6.527, 6.918, 6.522],
+        "medianMs": 6.527,
+        "warmRuns": 3,
+        "planningMs": 0.019,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 966,
+        "sharedRead": 0
+      }
+    },
+    "m500-r5-c0": {
+      "hook": {
+        "firstMs": 7.147,
+        "warmMs": [7.435, 6.186, 6.293],
+        "medianMs": 6.293,
+        "warmRuns": 3,
+        "planningMs": 0.012,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 6.973,
+        "warmMs": [7.108, 7.172, 7.458],
+        "medianMs": 7.172,
+        "warmRuns": 3,
+        "planningMs": 0.025,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1201,
+      "membershipsInToken": 8,
+      "membershipsTruncated": true,
+      "tokenChars": 1940,
+      "permittedTenantIds": {
+        "firstMs": 16.124,
+        "warmMs": [16.113, 16.183, 16.315],
+        "medianMs": 16.183,
+        "warmRuns": 3,
+        "planningMs": 0.019,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 970,
+        "sharedRead": 0
+      }
+    },
+    "m500-r20-c0": {
+      "hook": {
+        "firstMs": 11.591,
+        "warmMs": [11.963, 12.059, 11.696],
+        "medianMs": 11.963,
+        "warmRuns": 3,
+        "planningMs": 0.012,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 13.182,
+        "warmMs": [13.495, 13.154, 13.277],
+        "medianMs": 13.277,
+        "warmRuns": 3,
+        "planningMs": 0.012,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 484,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1134,
+      "membershipsInToken": 4,
+      "membershipsTruncated": true,
+      "tokenChars": 1824,
+      "permittedTenantIds": {
+        "firstMs": 51.6,
+        "warmMs": [49.307, 46.7, 47.629],
+        "medianMs": 47.629,
+        "warmRuns": 3,
+        "planningMs": 0.022,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 970,
+        "sharedRead": 0
+      }
+    },
+    "m1-r1-c50": {
+      "hook": {
+        "firstMs": 4.417,
+        "warmMs": [1.661, 1.457, 1.386],
+        "medianMs": 1.457,
+        "warmRuns": 3,
+        "planningMs": 0.004,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 622.129,
+        "warmMs": [937.599, 482.384, 412.589],
+        "medianMs": 482.384,
+        "warmRuns": 3,
+        "planningMs": 0.008,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 4612,
+        "sharedRead": 0
+      },
+      "claimsBytes": 319,
+      "membershipsInToken": 1,
+      "membershipsTruncated": false,
+      "tokenChars": 866,
+      "permittedTenantIds": {
+        "firstMs": 439.319,
+        "warmMs": [497.565, 481.657, 500.315],
+        "medianMs": 497.565,
+        "warmRuns": 3,
+        "planningMs": 0.019,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 964,
+        "sharedRead": 0
+      }
+    },
+    "m1-r5-c50": {
+      "hook": {
+        "firstMs": 1.546,
+        "warmMs": [1.457, 1.483, 1.43],
+        "medianMs": 1.457,
+        "warmRuns": 3,
+        "planningMs": 0.005,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 562.09,
+        "warmMs": [716.502, 653.638, 609.009],
+        "medianMs": 653.638,
+        "warmRuns": 3,
+        "planningMs": 0.015,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 16984,
+        "sharedRead": 0
+      },
+      "claimsBytes": 348,
+      "membershipsInToken": 1,
+      "membershipsTruncated": false,
+      "tokenChars": 899,
+      "permittedTenantIds": {
+        "firstMs": 691.154,
+        "warmMs": [668.633, 655.247, 593.188],
+        "medianMs": 655.247,
+        "warmRuns": 3,
+        "planningMs": 0.04,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 13347,
+        "sharedRead": 0
+      }
+    },
+    "m1-r20-c50": {
+      "hook": {
+        "firstMs": 1.854,
+        "warmMs": [1.722, 1.591, 1.871],
+        "medianMs": 1.722,
+        "warmRuns": 3,
+        "planningMs": 0.009,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 797.77,
+        "warmMs": [799.438, 807.198, 861.036],
+        "medianMs": 807.198,
+        "warmRuns": 3,
+        "planningMs": 0.011,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 78844,
+        "sharedRead": 0
+      },
+      "claimsBytes": 447,
+      "membershipsInToken": 1,
+      "membershipsTruncated": false,
+      "tokenChars": 1011,
+      "permittedTenantIds": {
+        "firstMs": 865.186,
+        "warmMs": [758.552, 770.641, 676.448],
+        "medianMs": 758.552,
+        "warmRuns": 3,
+        "planningMs": 0.024,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 75252,
+        "sharedRead": 0
+      }
+    },
+    "m12-r1-c50": {
+      "hook": {
+        "firstMs": 1.772,
+        "warmMs": [1.494, 1.394, 1.405],
+        "medianMs": 1.405,
+        "warmRuns": 3,
+        "planningMs": 0.005,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 523.465,
+        "warmMs": [446.892, 429.938, 454.183],
+        "medianMs": 446.892,
+        "warmRuns": 3,
+        "planningMs": 0.009,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 4612,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1231,
+      "membershipsInToken": 11,
+      "membershipsTruncated": true,
+      "tokenChars": 1999,
+      "permittedTenantIds": {
+        "firstMs": 595.645,
+        "warmMs": [472.737, 412.696, 501.244],
+        "medianMs": 472.737,
+        "warmRuns": 3,
+        "planningMs": 0.02,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 10446,
+        "sharedRead": 0
+      }
+    },
+    "m12-r5-c50": {
+      "hook": {
+        "firstMs": 2.383,
+        "warmMs": [1.907, 2.359, 2.095],
+        "medianMs": 2.095,
+        "warmRuns": 3,
+        "planningMs": 0.008,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 1142.354,
+        "warmMs": [1051.887, 928.219, 1042.44],
+        "medianMs": 1042.44,
+        "warmRuns": 3,
+        "planningMs": 0.012,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 153076,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1199,
+      "membershipsInToken": 8,
+      "membershipsTruncated": true,
+      "tokenChars": 1938,
+      "permittedTenantIds": {
+        "firstMs": 1250.052,
+        "warmMs": [1241.289, 1268.367, 1359.268],
+        "medianMs": 1268.367,
+        "warmRuns": 3,
+        "planningMs": 0.032,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 159020,
+        "sharedRead": 0
+      }
+    },
+    "m12-r20-c50": {
+      "hook": {
+        "firstMs": 3.904,
+        "warmMs": [2.55, 3.226, 2.643],
+        "medianMs": 2.643,
+        "warmRuns": 3,
+        "planningMs": 0.013,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 3340.027,
+        "warmMs": [3320.83, 3310.561, 3355.392],
+        "medianMs": 3320.83,
+        "warmRuns": 3,
+        "planningMs": 0.015,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 895396,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1124,
+      "membershipsInToken": 4,
+      "membershipsTruncated": true,
+      "tokenChars": 1811,
+      "permittedTenantIds": {
+        "firstMs": 4832.549,
+        "warmMs": [5087.241, 4879.262, 4697.172],
+        "medianMs": 4879.262,
+        "warmRuns": 3,
+        "planningMs": 0.028,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 901923,
+        "sharedRead": 0
+      }
+    },
+    "m150-r1-c50": {
+      "hook": {
+        "firstMs": 3.004,
+        "warmMs": [2.872, 2.669, 3.419],
+        "medianMs": 2.872,
+        "warmRuns": 3,
+        "planningMs": 0.014,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 990.412,
+        "warmMs": [916.882, 1002.151, 977.662],
+        "medianMs": 977.662,
+        "warmRuns": 3,
+        "planningMs": 0.017,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 4612,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1232,
+      "membershipsInToken": 11,
+      "membershipsTruncated": true,
+      "tokenChars": 2000,
+      "permittedTenantIds": {
+        "firstMs": 891.542,
+        "warmMs": [849.301, 895.742, 928.51],
+        "medianMs": 895.742,
+        "warmRuns": 3,
+        "planningMs": 0.28,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 129402,
+        "sharedRead": 0
+      }
+    },
+    "m150-r5-c50": {
+      "hook": {
+        "firstMs": 3.6,
+        "warmMs": [3.24, 3.156, 3.141],
+        "medianMs": 3.156,
+        "warmRuns": 3,
+        "planningMs": 0.01,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 7073.348,
+        "warmMs": [],
+        "medianMs": 7073.348,
+        "warmRuns": 0,
+        "planningMs": 0.01,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1860412,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1200,
+      "membershipsInToken": 8,
+      "membershipsTruncated": true,
+      "tokenChars": 1939,
+      "permittedTenantIds": {
+        "firstMs": 9472.408,
+        "warmMs": [],
+        "medianMs": 9472.408,
+        "warmRuns": 0,
+        "planningMs": 0.028,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1986554,
+        "sharedRead": 0
+      }
+    },
+    "m150-r20-c50": {
+      "hook": {
+        "firstMs": 5.732,
+        "warmMs": [5.6, 5.169, 5.049],
+        "medianMs": 5.169,
+        "warmRuns": 3,
+        "planningMs": 0.014,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 34736.984,
+        "warmMs": [],
+        "medianMs": 34736.984,
+        "warmRuns": 0,
+        "planningMs": 0.012,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 11139412,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1125,
+      "membershipsInToken": 4,
+      "membershipsTruncated": true,
+      "tokenChars": 1812,
+      "permittedTenantIds": {
+        "firstMs": 61172.164,
+        "warmMs": [],
+        "medianMs": 61172.164,
+        "warmRuns": 0,
+        "planningMs": 0.031,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 11143866,
+        "sharedRead": 0
+      }
+    },
+    "m500-r1-c50": {
+      "hook": {
+        "firstMs": 8.944,
+        "warmMs": [5.499, 5.015, 4.611],
+        "medianMs": 5.015,
+        "warmRuns": 3,
+        "planningMs": 0.023,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 2422.219,
+        "warmMs": [1761.562, 1816.471, 1837.371],
+        "medianMs": 1816.471,
+        "warmRuns": 3,
+        "planningMs": 0.014,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 4612,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1232,
+      "membershipsInToken": 11,
+      "membershipsTruncated": true,
+      "tokenChars": 2000,
+      "permittedTenantIds": {
+        "firstMs": 787.732,
+        "warmMs": [697.918, 775.875, 856.17],
+        "medianMs": 775.875,
+        "warmRuns": 3,
+        "planningMs": 0.03,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 964,
+        "sharedRead": 0
+      }
+    },
+    "m500-r5-c50": {
+      "hook": {
+        "firstMs": 8.425,
+        "warmMs": [5.604, 6.199, 5.952],
+        "medianMs": 5.952,
+        "warmRuns": 3,
+        "planningMs": 0.034,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 20680.113,
+        "warmMs": [],
+        "medianMs": 20680.113,
+        "warmRuns": 0,
+        "planningMs": 0.014,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 6190612,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1201,
+      "membershipsInToken": 8,
+      "membershipsTruncated": true,
+      "tokenChars": 1940,
+      "permittedTenantIds": {
+        "firstMs": 29001.03,
+        "warmMs": [],
+        "medianMs": 29001.03,
+        "warmRuns": 0,
+        "planningMs": 0.051,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 6186975,
+        "sharedRead": 0
+      }
+    },
+    "m500-r20-c50": {
+      "hook": {
+        "firstMs": 11.35,
+        "warmMs": [11.4, 12.271, 11.581],
+        "medianMs": 11.581,
+        "warmRuns": 3,
+        "planningMs": 0.012,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 109140.335,
+        "warmMs": [],
+        "medianMs": 109140.335,
+        "warmRuns": 0,
+        "planningMs": 0.012,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 37120612,
+        "sharedRead": 0
+      },
+      "claimsBytes": 1126,
+      "membershipsInToken": 4,
+      "membershipsTruncated": true,
+      "tokenChars": 1814,
+      "permittedTenantIds": {
+        "timedOut": true,
+        "afterMs": 120004
+      }
+    },
+    "m1-r1-c500": {
+      "hook": {
+        "firstMs": 4.432,
+        "warmMs": [1.308, 1.193, 1.179],
+        "medianMs": 1.193,
+        "warmRuns": 3,
+        "planningMs": 0.003,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 3002.146,
+        "warmMs": [2877.729, 2894.294, 2880.705],
+        "medianMs": 2880.705,
+        "warmRuns": 3,
+        "planningMs": 0.006,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 6715,
+        "sharedRead": 35011
+      },
+      "claimsBytes": 319,
+      "membershipsInToken": 1,
+      "membershipsTruncated": false,
+      "tokenChars": 866,
+      "permittedTenantIds": {
+        "firstMs": 295.054,
+        "warmMs": [312.894, 311.578, 294.476],
+        "medianMs": 311.578,
+        "warmRuns": 3,
+        "planningMs": 0.015,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 964,
+        "sharedRead": 0
+      }
+    },
+    "m1-r5-c500": {
+      "hook": {
+        "firstMs": 1.649,
+        "warmMs": [1.376, 1.209, 1.168],
+        "medianMs": 1.209,
+        "warmRuns": 3,
+        "planningMs": 0.003,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 3201.628,
+        "warmMs": [3161.82, 3135.809, 3146.344],
+        "medianMs": 3146.344,
+        "warmRuns": 3,
+        "planningMs": 0.007,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 26538,
+        "sharedRead": 138924
+      },
+      "claimsBytes": 348,
+      "membershipsInToken": 1,
+      "membershipsTruncated": false,
+      "tokenChars": 899,
+      "permittedTenantIds": {
+        "firstMs": 717.724,
+        "warmMs": [709.492, 713.759, 712.706],
+        "medianMs": 712.706,
+        "warmRuns": 3,
+        "planningMs": 0.011,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 20907,
+        "sharedRead": 103785
+      }
+    },
+    "m1-r20-c500": {
+      "hook": {
+        "firstMs": 1.461,
+        "warmMs": [1.205, 1.2, 1.23],
+        "medianMs": 1.205,
+        "warmRuns": 3,
+        "planningMs": 0.002,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 4582.911,
+        "warmMs": [4581.555, 4569.118, 4529.753],
+        "medianMs": 4569.118,
+        "warmRuns": 3,
+        "planningMs": 0.006,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 131537,
+        "sharedRead": 652473
+      },
+      "claimsBytes": 447,
+      "membershipsInToken": 1,
+      "membershipsTruncated": false,
+      "tokenChars": 1011,
+      "permittedTenantIds": {
+        "firstMs": 2810.605,
+        "warmMs": [2783.672, 2789.923, 2764.819],
+        "medianMs": 2783.672,
+        "warmRuns": 3,
+        "planningMs": 0.014,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 127524,
+        "sharedRead": 615798
+      }
+    },
+    "m12-r1-c500": {
+      "hook": {
+        "firstMs": 1.663,
+        "warmMs": [1.358, 1.329, 1.458],
+        "medianMs": 1.358,
+        "warmRuns": 3,
+        "planningMs": 0.005,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 3034.819,
+        "warmMs": [3042.536, 3040.91, 3010.683],
+        "medianMs": 3040.91,
+        "warmRuns": 3,
+        "planningMs": 0.005,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 7643,
+        "sharedRead": 34083
+      },
+      "claimsBytes": 1231,
+      "membershipsInToken": 11,
+      "membershipsTruncated": true,
+      "tokenChars": 1999,
+      "permittedTenantIds": {
+        "firstMs": 309.004,
+        "warmMs": [308.509, 306.114, 309.418],
+        "medianMs": 308.509,
+        "warmRuns": 3,
+        "planningMs": 0.017,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 10446,
+        "sharedRead": 0
+      }
+    },
+    "m12-r5-c500": {
+      "hook": {
+        "firstMs": 1.501,
+        "warmMs": [1.405, 1.769, 1.26],
+        "medianMs": 1.405,
+        "warmRuns": 3,
+        "planningMs": 0.004,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 6557.975,
+        "warmMs": [],
+        "medianMs": 6557.975,
+        "warmRuns": 0,
+        "planningMs": 0.002,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 267559,
+        "sharedRead": 1258735
+      },
+      "claimsBytes": 1199,
+      "membershipsInToken": 8,
+      "membershipsTruncated": true,
+      "tokenChars": 1938,
+      "permittedTenantIds": {
+        "firstMs": 5272.268,
+        "warmMs": [],
+        "medianMs": 5272.268,
+        "warmRuns": 0,
+        "planningMs": 0.007,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 271628,
+        "sharedRead": 1223532
+      }
+    },
+    "m12-r20-c500": {
+      "hook": {
+        "firstMs": 3.304,
+        "warmMs": [1.37, 1.337, 1.322],
+        "medianMs": 1.337,
+        "warmRuns": 3,
+        "planningMs": 0.003,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 23637.746,
+        "warmMs": [],
+        "medianMs": 23637.746,
+        "warmRuns": 0,
+        "planningMs": 0.002,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1587811,
+        "sharedRead": 7361323
+      },
+      "claimsBytes": 1124,
+      "membershipsInToken": 4,
+      "membershipsTruncated": true,
+      "tokenChars": 1811,
+      "permittedTenantIds": {
+        "firstMs": 30262.326,
+        "warmMs": [],
+        "medianMs": 30262.326,
+        "warmRuns": 0,
+        "planningMs": 0.009,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1598264,
+        "sharedRead": 7320456
+      }
+    },
+    "m150-r1-c500": {
+      "hook": {
+        "firstMs": 3.418,
+        "warmMs": [1.663, 1.645, 1.624],
+        "medianMs": 1.645,
+        "warmRuns": 3,
+        "planningMs": 0.003,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 5577.853,
+        "warmMs": [],
+        "medianMs": 5577.853,
+        "warmRuns": 0,
+        "planningMs": 0.003,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 7867,
+        "sharedRead": 33859
+      },
+      "claimsBytes": 1232,
+      "membershipsInToken": 11,
+      "membershipsTruncated": true,
+      "tokenChars": 2000,
+      "permittedTenantIds": {
+        "firstMs": 503.071,
+        "warmMs": [479.136, 480.427, 486.002],
+        "medianMs": 480.427,
+        "warmRuns": 3,
+        "planningMs": 0.021,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 129402,
+        "sharedRead": 0
+      }
+    },
+    "m150-r5-c500": {
+      "hook": {
+        "firstMs": 2.439,
+        "warmMs": [2.13, 2.299, 2.203],
+        "medianMs": 2.203,
+        "warmRuns": 3,
+        "planningMs": 0.005,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 48790.958,
+        "warmMs": [],
+        "medianMs": 48790.958,
+        "warmRuns": 0,
+        "planningMs": 0.002,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 3357249,
+        "sharedRead": 15241577
+      },
+      "claimsBytes": 1200,
+      "membershipsInToken": 8,
+      "membershipsTruncated": true,
+      "tokenChars": 1939,
+      "permittedTenantIds": {
+        "firstMs": 62594.099,
+        "warmMs": [],
+        "medianMs": 62594.099,
+        "warmRuns": 0,
+        "planningMs": 0.008,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 3494954,
+        "sharedRead": 15193350
+      }
+    },
+    "m150-r20-c500": {
+      "hook": {
+        "firstMs": 5.264,
+        "warmMs": [3.241, 3.128, 3.143],
+        "medianMs": 3.143,
+        "warmRuns": 3,
+        "planningMs": 0.002,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "timedOut": true,
+        "afterMs": 120008
+      },
+      "claimsBytes": 1125,
+      "membershipsInToken": 4,
+      "membershipsTruncated": true,
+      "tokenChars": 1812,
+      "permittedTenantIds": {
+        "timedOut": true,
+        "afterMs": 120001
+      }
+    },
+    "m500-r1-c500": {
+      "hook": {
+        "firstMs": 6.429,
+        "warmMs": [4.137, 4.66, 4.577],
+        "medianMs": 4.577,
+        "warmRuns": 3,
+        "planningMs": 0.013,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "firstMs": 15624.299,
+        "warmMs": [],
+        "medianMs": 15624.299,
+        "warmRuns": 0,
+        "planningMs": 0.013,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 8091,
+        "sharedRead": 33635
+      },
+      "claimsBytes": 1232,
+      "membershipsInToken": 11,
+      "membershipsTruncated": true,
+      "tokenChars": 2000,
+      "permittedTenantIds": {
+        "firstMs": 638.698,
+        "warmMs": [664.24, 622.313, 671.887],
+        "medianMs": 664.24,
+        "warmRuns": 3,
+        "planningMs": 0.092,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 964,
+        "sharedRead": 0
+      }
+    },
+    "m500-r5-c500": {
+      "hook": {
+        "firstMs": 8.548,
+        "warmMs": [8.109, 6.153, 6.72],
+        "medianMs": 6.72,
+        "warmRuns": 3,
+        "planningMs": 0.012,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "timedOut": true,
+        "afterMs": 120010
+      },
+      "claimsBytes": 1201,
+      "membershipsInToken": 8,
+      "membershipsTruncated": true,
+      "tokenChars": 1940,
+      "permittedTenantIds": {
+        "timedOut": true,
+        "afterMs": 120027
+      }
+    },
+    "m500-r20-c500": {
+      "hook": {
+        "firstMs": 114.929,
+        "warmMs": [22.878, 22.968, 24.744],
+        "medianMs": 22.968,
+        "warmRuns": 3,
+        "planningMs": 0.036,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 483,
+        "sharedRead": 0
+      },
+      "subjectFor": {
+        "timedOut": true,
+        "afterMs": 120071
+      },
+      "claimsBytes": 1126,
+      "membershipsInToken": 4,
+      "membershipsTruncated": true,
+      "tokenChars": 1814,
+      "permittedTenantIds": {
+        "timedOut": true,
+        "afterMs": 120004
+      }
+    }
+  },
+  "lienlinkJobs": {
+    "m1-r1-c0": {
+      "jobsTenantPage50": {
+        "firstMs": 442.07,
+        "warmMs": [458.295, 472.558, 470.017],
+        "medianMs": 470.017,
+        "warmRuns": 3,
+        "planningMs": 0.067,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 96702,
+        "sharedRead": 0
+      },
+      "jobsTenantCount": {
+        "firstMs": 472.082,
+        "warmMs": [465.372, 463.663, 482.293],
+        "medianMs": 465.372,
+        "warmRuns": 3,
+        "planningMs": 0.045,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 96702,
+        "sharedRead": 0
+      },
+      "jobsAllCount": {
+        "timedOut": true,
+        "afterMs": 120014
+      },
+      "jobsFacetsByTeam": {
+        "firstMs": 470.267,
+        "warmMs": [448.86, 439.314, 451.665],
+        "medianMs": 448.86,
+        "warmRuns": 3,
+        "planningMs": 0.05,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 96702,
+        "sharedRead": 0
+      },
+      "jobPartiesOfOneJob": {
+        "firstMs": 9.905,
+        "warmMs": [9.129, 8.527, 8.758],
+        "medianMs": 8.758,
+        "warmRuns": 3,
+        "planningMs": 0.078,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1940,
+        "sharedRead": 0
+      },
+      "jobPartiesCount": {
+        "timedOut": true,
+        "afterMs": 120018
+      },
+      "attachmentsOfOneJob": {
+        "firstMs": 11.867,
+        "warmMs": [11.789, 9.992, 10.35],
+        "medianMs": 10.35,
+        "warmRuns": 3,
+        "planningMs": 0.08,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1939,
+        "sharedRead": 0
+      },
+      "attachmentsCount": {
+        "timedOut": true,
+        "afterMs": 120020
+      }
+    },
+    "m12-r5-c0": {
+      "jobsTenantPage50": {
+        "firstMs": 3918.978,
+        "warmMs": [3852.453, 3791.683, 3808.477],
+        "medianMs": 3808.477,
+        "warmRuns": 3,
+        "planningMs": 0.054,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1045302,
+        "sharedRead": 0
+      },
+      "jobsTenantCount": {
+        "firstMs": 3736.114,
+        "warmMs": [3612.867, 3534.507, 3615.95],
+        "medianMs": 3612.867,
+        "warmRuns": 3,
+        "planningMs": 0.037,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1045302,
+        "sharedRead": 0
+      },
+      "jobsAllCount": {
+        "timedOut": true,
+        "afterMs": 120011
+      },
+      "jobsFacetsByTeam": {
+        "firstMs": 3857.33,
+        "warmMs": [4569.436, 3900.493, 3754.623],
+        "medianMs": 3900.493,
+        "warmRuns": 3,
+        "planningMs": 0.126,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1045302,
+        "sharedRead": 0
+      },
+      "jobPartiesOfOneJob": {
+        "firstMs": 74.595,
+        "warmMs": [73.782, 73.826, 71.835],
+        "medianMs": 73.782,
+        "warmRuns": 3,
+        "planningMs": 0.073,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 20912,
+        "sharedRead": 0
+      },
+      "jobPartiesCount": {
+        "timedOut": true,
+        "afterMs": 120026
+      },
+      "attachmentsOfOneJob": {
+        "firstMs": 78.013,
+        "warmMs": [85.035, 68.819, 73.404],
+        "medianMs": 73.404,
+        "warmRuns": 3,
+        "planningMs": 0.081,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 20911,
+        "sharedRead": 0
+      },
+      "attachmentsCount": {
+        "timedOut": true,
+        "afterMs": 120003
+      }
+    },
+    "m1-r1-c50": {
+      "jobsTenantPage50": {
+        "firstMs": 62131.957,
+        "warmMs": [],
+        "medianMs": 62131.957,
+        "warmRuns": 0,
+        "planningMs": 0.13,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 96404,
+        "sharedRead": 100
+      },
+      "jobsTenantCount": {
+        "firstMs": 62963.229,
+        "warmMs": [],
+        "medianMs": 62963.229,
+        "warmRuns": 0,
+        "planningMs": 0.09,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 96502,
+        "sharedRead": 0
+      },
+      "jobsAllCount": {
+        "timedOut": true,
+        "afterMs": 120974
+      },
+      "jobsFacetsByTeam": {
+        "firstMs": 55948.77,
+        "warmMs": [],
+        "medianMs": 55948.77,
+        "warmRuns": 0,
+        "planningMs": 0.129,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 96502,
+        "sharedRead": 0
+      },
+      "jobPartiesOfOneJob": {
+        "firstMs": 1260.86,
+        "warmMs": [1224.455, 1266.753, 1060.738],
+        "medianMs": 1224.455,
+        "warmRuns": 3,
+        "planningMs": 0.129,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1936,
+        "sharedRead": 0
+      },
+      "jobPartiesCount": {
+        "timedOut": true,
+        "afterMs": 120368
+      },
+      "attachmentsOfOneJob": {
+        "firstMs": 1462.047,
+        "warmMs": [1413.004, 1226.019, 1213.776],
+        "medianMs": 1226.019,
+        "warmRuns": 3,
+        "planningMs": 0.078,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1935,
+        "sharedRead": 0
+      },
+      "attachmentsCount": {
+        "timedOut": true,
+        "afterMs": 121710
+      }
+    },
+    "m12-r5-c50": {
+      "jobsTenantPage50": {
+        "timedOut": true,
+        "afterMs": 120049
+      },
+      "jobsTenantCount": {
+        "timedOut": true,
+        "afterMs": 120017
+      },
+      "jobsAllCount": {
+        "timedOut": true,
+        "afterMs": 120046
+      },
+      "jobsFacetsByTeam": {
+        "timedOut": true,
+        "afterMs": 120007
+      },
+      "jobPartiesOfOneJob": {
+        "firstMs": 2200.189,
+        "warmMs": [2204.008, 2190.538, 2243.234],
+        "medianMs": 2204.008,
+        "warmRuns": 3,
+        "planningMs": 0.054,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 318048,
+        "sharedRead": 0
+      },
+      "jobPartiesCount": {
+        "timedOut": true,
+        "afterMs": 120006
+      },
+      "attachmentsOfOneJob": {
+        "firstMs": 1638.179,
+        "warmMs": [1609.371, 1631.094, 1655.933],
+        "medianMs": 1631.094,
+        "warmRuns": 3,
+        "planningMs": 0.037,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 318047,
+        "sharedRead": 0
+      },
+      "attachmentsCount": {
+        "timedOut": true,
+        "afterMs": 120007
+      }
+    },
+    "m1-r1-c500": {
+      "jobsTenantPage50": {
+        "firstMs": 64571.588,
+        "warmMs": [],
+        "medianMs": 64571.588,
+        "warmRuns": 0,
+        "planningMs": 0.091,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 96400,
+        "sharedRead": 102
+      },
+      "jobsTenantCount": {
+        "firstMs": 63386.955,
+        "warmMs": [],
+        "medianMs": 63386.955,
+        "warmRuns": 0,
+        "planningMs": 0.065,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 96502,
+        "sharedRead": 0
+      },
+      "jobsAllCount": {
+        "timedOut": true,
+        "afterMs": 120451
+      },
+      "jobsFacetsByTeam": {
+        "firstMs": 40604.96,
+        "warmMs": [],
+        "medianMs": 40604.96,
+        "warmRuns": 0,
+        "planningMs": 0.058,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 96502,
+        "sharedRead": 0
+      },
+      "jobPartiesOfOneJob": {
+        "firstMs": 1149.063,
+        "warmMs": [1192.249, 1181.88, 975.82],
+        "medianMs": 1181.88,
+        "warmRuns": 3,
+        "planningMs": 0.062,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1936,
+        "sharedRead": 0
+      },
+      "jobPartiesCount": {
+        "timedOut": true,
+        "afterMs": 120562
+      },
+      "attachmentsOfOneJob": {
+        "firstMs": 1010.392,
+        "warmMs": [838.65, 677.075, 673.225],
+        "medianMs": 677.075,
+        "warmRuns": 3,
+        "planningMs": 0.053,
+        "seqScans": [],
+        "maxLoops": 1,
+        "sharedHit": 1935,
+        "sharedRead": 0
+      },
+      "attachmentsCount": {
+        "timedOut": true,
+        "afterMs": 120349
+      }
+    }
+  },
+  "scale": {
+    "itemsTenantPage50": {
+      "firstMs": 0.733,
+      "warmMs": [0.334, 0.3, 0.355],
+      "medianMs": 0.334,
+      "warmRuns": 3,
+      "planningMs": 0.059,
+      "seqScans": [],
+      "maxLoops": 1,
+      "sharedHit": 115,
+      "sharedRead": 0
+    },
+    "itemsTenantCount": {
+      "firstMs": 0.302,
+      "warmMs": [0.315, 0.298, 0.314],
+      "medianMs": 0.314,
+      "warmRuns": 3,
+      "planningMs": 0.036,
+      "seqScans": [],
+      "maxLoops": 1,
+      "sharedHit": 115,
+      "sharedRead": 0
+    },
+    "itemsAllCount": {
+      "firstMs": 6.454,
+      "warmMs": [6.33, 6.579, 6.688],
+      "medianMs": 6.579,
+      "warmRuns": 3,
+      "planningMs": 0.052,
+      "seqScans": ["item"],
+      "maxLoops": 1,
+      "sharedHit": 948,
+      "sharedRead": 0
+    },
+    "messagesOfOneThread": {
+      "firstMs": 0.333,
+      "warmMs": [0.296, 0.283, 0.298],
+      "medianMs": 0.296,
+      "warmRuns": 3,
+      "planningMs": 0.043,
+      "seqScans": [],
+      "maxLoops": 1,
+      "sharedHit": 25,
+      "sharedRead": 0
+    },
+    "messagesCount": {
+      "firstMs": 6.901,
+      "warmMs": [6.565, 6.474, 6.54],
+      "medianMs": 6.54,
+      "warmRuns": 3,
+      "planningMs": 0.046,
+      "seqScans": ["message"],
+      "maxLoops": 1,
+      "sharedHit": 948,
+      "sharedRead": 0
+    },
+    "folderRoots": {
+      "firstMs": 16.423,
+      "warmMs": [16.877, 16.686, 22.117],
+      "medianMs": 16.877,
+      "warmRuns": 3,
+      "planningMs": 0.211,
+      "seqScans": ["permdock_closure"],
+      "maxLoops": 1,
+      "sharedHit": 1099,
+      "sharedRead": 0
+    },
+    "folderCount": {
+      "firstMs": 31.54,
+      "warmMs": [28.239, 29.82, 28.463],
+      "medianMs": 28.463,
+      "warmRuns": 3,
+      "planningMs": 0.12,
+      "seqScans": ["folder", "permdock_closure"],
+      "maxLoops": 1,
+      "sharedHit": 2343,
+      "sharedRead": 0
+    },
+    "docsOfOneFolder": {
+      "firstMs": 15.577,
+      "warmMs": [14.732, 14.796, 13.617],
+      "medianMs": 14.732,
+      "warmRuns": 3,
+      "planningMs": 0.099,
+      "seqScans": ["permdock_closure"],
+      "maxLoops": 1,
+      "sharedHit": 1104,
+      "sharedRead": 0
+    },
+    "docsCount": {
+      "firstMs": 24.774,
+      "warmMs": [26.176, 24.321, 24.307],
+      "medianMs": 24.321,
+      "warmRuns": 3,
+      "planningMs": 0.1,
+      "seqScans": ["doc", "permdock_closure"],
+      "maxLoops": 1,
+      "sharedHit": 1926,
+      "sharedRead": 0
+    },
+    "employeeWalkCount": {
+      "firstMs": 3.517,
+      "warmMs": [3.681, 3.597, 3.963],
+      "medianMs": 3.681,
+      "warmRuns": 3,
+      "planningMs": 0.089,
+      "seqScans": ["employee"],
+      "maxLoops": 1,
+      "sharedHit": 838,
+      "sharedRead": 0
+    },
+    "storageObjectsCount": {
+      "firstMs": 18223.599,
+      "warmMs": [],
+      "medianMs": 18223.599,
+      "warmRuns": 0,
+      "planningMs": 0.149,
+      "seqScans": ["objects"],
+      "maxLoops": 1,
+      "sharedHit": 1301445,
+      "sharedRead": 0
+    },
+    "storageObjectsOfTenant": {
+      "firstMs": 19148.255,
+      "warmMs": [],
+      "medianMs": 19148.255,
+      "warmRuns": 0,
+      "planningMs": 0.233,
+      "seqScans": ["objects"],
+      "maxLoops": 1,
+      "sharedHit": 1301471,
+      "sharedRead": 0
+    },
+    "approvalList50": {
+      "firstMs": 3.526,
+      "warmMs": [3.192, 3.186, 3.267],
+      "medianMs": 3.192,
+      "warmRuns": 3,
+      "planningMs": 0.013,
+      "seqScans": [],
+      "maxLoops": 1,
+      "sharedHit": 172,
+      "sharedRead": 0
+    },
+    "approvalGet": {
+      "firstMs": 0.113,
+      "warmMs": [0.109, 0.109, 0.098],
+      "medianMs": 0.109,
+      "warmRuns": 3,
+      "planningMs": 0.009,
+      "seqScans": [],
+      "maxLoops": 1,
+      "sharedHit": 3,
+      "sharedRead": 0
+    },
+    "closureInsert1000Folders": {
+      "ms": 30.447
+    }
+  }
+}

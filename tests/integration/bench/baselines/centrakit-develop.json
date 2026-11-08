@@ -1,0 +1,60 @@
+{
+  "source": "Supabase MCP execute_sql on CentraKit develop (bdnmvlukyibjrzgwyleb), read-only, 2026-11-07",
+  "method": "A DO block ran inside begin/rollback: custom_access_token_hook built the claims, set local role authenticated, set_config request.jwt.claims, then EXPLAIN (ANALYZE, BUFFERS) twice per query. The first run is cold (new backend, plpgsql not compiled); the second is warm. The block ended in raise exception so nothing committed.",
+  "org": "525e9e5f-00ff-4d0d-b489-66abfec15438",
+  "users": {
+    "admin": "admin in 11 organisations",
+    "owner": "owner in 1 organisation"
+  },
+  "executionMs": {
+    "app_bootstrap": {
+      "admin": { "cold": 76.084, "warm": 10.742 },
+      "owner": { "cold": 34.895, "warm": 10.204 }
+    },
+    "list_inbox_threads": {
+      "admin": { "cold": 215.291, "warm": 36.142 },
+      "owner": { "cold": 144.944, "warm": 86.047 }
+    },
+    "chat_messages_page": {
+      "admin": { "cold": 18.29, "warm": 13.39 },
+      "owner": { "cold": 20.682, "warm": 20.073 }
+    },
+    "workflow_run_steps": {
+      "admin": { "cold": 168.617, "warm": 41.364 },
+      "owner": { "cold": 70.034, "warm": 29.39 }
+    },
+    "tasks_board_payload": {
+      "admin": { "cold": 337.446, "warm": 80.397 },
+      "owner": { "cold": 113.767, "warm": 79.494 }
+    },
+    "organization_dashboard_payload": {
+      "admin": { "cold": 554.165, "warm": 350.462 },
+      "owner": { "cold": 478.654, "warm": 409.919 }
+    },
+    "subject_for": {
+      "admin": { "cold": 20.667, "warm": 4.54 },
+      "owner": {
+        "cold": 3.784,
+        "warm": 3.699,
+        "note": "run after the admin in the same backend, so not cold"
+      }
+    },
+    "custom_access_token_hook": {
+      "admin": { "cold": 5.006, "warm": 3.011, "firstCallInBackend": 20.11 },
+      "owner": { "cold": 0.906, "warm": 0.762, "firstCallInBackend": 21.15 }
+    }
+  },
+  "claimsBytes": { "admin": 1404, "owner": 440 },
+  "seqScans": {
+    "chat_messages_page": ["chat_threads (RLS subplan, 113 rows admin)"],
+    "workflow_run_steps": [
+      "workflow_runs (4,429 rows admin)",
+      "workflow_definitions"
+    ]
+  },
+  "notes": [
+    "subject_for and the hook ran as the MCP role (postgres): the MCP role cannot set role supabase_auth_admin and authenticated has no execute on subject_for.",
+    "Orders page, exact count and file_nodes folder page numbers (3.4 ms, 81 ms, 113 ms warm) are the ones already recorded in the plan.",
+    "Lienlink (fjlhwepjmdmngmcnctfk): not read. The MCP has no access and the supabase CLI is not installed here."
+  ]
+}
