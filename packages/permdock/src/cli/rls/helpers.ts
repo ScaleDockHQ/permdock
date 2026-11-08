@@ -169,10 +169,11 @@ set search_path = ''
 as $$
 begin
   return coalesce((
-    select to_jsonb(v.version) = ((select auth.jwt()) -> 'authz_ver')
-      and coalesce((select auth.jwt()) -> 'memberships_truncated', 'false'::jsonb) <> 'true'::jsonb
-      and jsonb_typeof((select auth.jwt()) -> 'memberships') = 'array'
+    select to_jsonb(v.version) = (c.j -> 'authz_ver')
+      and coalesce(c.j -> 'memberships_truncated', 'false'::jsonb) <> 'true'::jsonb
+      and jsonb_typeof(c.j -> 'memberships') = 'array'
     from ${version} v
+    cross join (select auth.jwt() as j) c
     where v.user_id = ${subjectIdSql(ctx)}
   ), false);
 end;

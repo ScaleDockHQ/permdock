@@ -49,8 +49,9 @@ function memberBody(
 ): Body {
   if (ctx.authorize !== "database") {
     return sqlBody(`  select distinct (m ->> 'id')::${type}
-  from jsonb_array_elements(
-    case jsonb_typeof(${membershipClaim(ctx)}) when 'array' then ${membershipClaim(ctx)} else '[]'::jsonb end
+  from (select ${membershipClaim(ctx)} as v) pdk_c
+  cross join lateral jsonb_array_elements(
+    case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
   ) m
   where ${signedIn(ctx)}
     and m ->> 'scope' = ${quoteLiteral(scope)}
