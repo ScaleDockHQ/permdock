@@ -96,6 +96,7 @@ describe("rls-bench plan shapes, 1k tier", () => {
     const client = await pool().connect();
     try {
       await client.query("begin");
+      await client.query("set local track_functions = 'all'");
       await client.query("set local role authenticated");
       await client.query("select set_config('request.jwt.claims', $1, true)", [
         JSON.stringify({ sub: SCALE_CALLER, role: "authenticated" }),
@@ -188,6 +189,30 @@ describe("rls-bench plan shapes, 1k tier", () => {
         expect(node["Actual Loops"]).toBeLessThanOrEqual(1);
       }
       expect(median(times)).toBeLessThan(TIME_CEILING_MS);
+    },
+  );
+
+  // Postgres does not inline a security definer function, so a per-row call
+  // hides inside the helper's Function Scan; the function statistics count it.
+  it.each([
+    ["doc", "doc.read"],
+    ["folder", "folder.read"],
+  ])(
+    "permitted_%s_rows of a walk resource never calls the per-row match",
+    async (name, permission) => {
+      const { calls, ms } = await asCaller(async (client) => {
+        const started = performance.now();
+        await client.query(
+          `select count(*) from public.${name} where id in (select permdock.permitted_${name}_rows('${permission}'))`,
+        );
+        const elapsed = performance.now() - started;
+        const stats = await client.query<{ calls: string }>(
+          `select coalesce(sum(calls), 0) as calls from pg_stat_xact_user_functions where funcname = 'permitted_${name}_match'`,
+        );
+        return { calls: Number(stats.rows[0]?.calls ?? 0), ms: elapsed };
+      });
+      expect(calls).toBe(0);
+      expect(ms).toBeLessThan(TIME_CEILING_MS * 4);
     },
   );
 

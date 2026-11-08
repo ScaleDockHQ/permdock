@@ -28,6 +28,7 @@ export default {
       },
     }),
     approvals: true,
+    rowHelpers: ["doc", "folder"],
     jsonSchema: false,
     idTypes: { "*": "uuid" },
     tables: {

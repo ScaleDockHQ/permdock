@@ -250,7 +250,7 @@ describe("permitted_<resource>_rows", () => {
     expect(body).not.toContain("by_permission");
   });
 
-  it("leads a root-scope key with the tenant prefilter when the match cannot be carried inline", () => {
+  it("carries a key's table-policy arm inline whatever the narrowed set holds", () => {
     const warnings: string[] = [];
     const ctx = context("supabase");
     const compiled = compileGrants(
@@ -261,7 +261,6 @@ describe("permitted_<resource>_rows", () => {
       false,
       true,
     );
-    // The match decides nothing for the narrowed set, so no arm is carried inline.
     const sql = rowHelpersSql(
       ctx,
       policy,
@@ -271,8 +270,14 @@ describe("permitted_<resource>_rows", () => {
       warnings,
       [],
     );
-    expect(sql).toContain(
-      `when 'doc.read' then "orgId" = any(array(select "permdock".permitted_tenant_ids_by_permission(p_permission, true))) and "permdock".permitted_doc_match(permdock_row, p_permission)`,
+    const rows = sql.slice(
+      sql.indexOf(
+        'create or replace function "permdock".permitted_doc_rows(p_permission text)',
+      ),
+    );
+    const body = rows.slice(0, rows.indexOf("$$;", rows.indexOf("as $$")));
+    expect(body).toContain(
+      `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false)`,
     );
   });
 

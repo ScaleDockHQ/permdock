@@ -460,32 +460,16 @@ export function tenantRowSetSql(
 }
 
 /**
- * A `(select <schema>.<function>(<literal>?))`: one uncorrelated call, which
- * Postgres runs once per statement as an InitPlan or a hashed subplan.
+ * The arm of a key as the table's policy states it. Its sub-selects do not read
+ * the row, so Postgres hoists each into one InitPlan or hashed subplan per
+ * statement, where behind `permitted_<resource>_match` (a `security definer`
+ * function, never inlined) a closure walk or a drive lookup runs once per row.
  */
-const ONE_CALL =
-  /\(select (?:"[^"]+"|[a-z_]+)\.(?:"[^"]+"|[a-z_]+)\((?:'[^']*')?\)\)/gu;
-
-/**
- * Whether a clause reads nothing but the row and uncorrelated one-call
- * subselects, so the id-set query can carry it: behind
- * `permitted_<resource>_match` each of those calls runs once per row, because a
- * `security definer` function is not inlined.
- */
-function readsOnlyTheRow(clause: string): boolean {
-  return !/\b(?:select|from|exists)\b/iu.test(clause.replaceAll(ONE_CALL, "x"));
-}
-
 function inlineArm(
   key: string,
-  narrowed: ReadonlyMap<string, readonly CompiledBranch[]>,
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string | undefined {
-  const list = narrowed.get(key) ?? [];
-  const arm = permissionCase(key, list);
-  return arm !== undefined &&
-    list.every((branch) => readsOnlyTheRow(clauseOf(branch)))
-    ? arm
-    : undefined;
+  return permissionCase(key, branches.get(key) ?? []);
 }
 
 /**
@@ -505,7 +489,7 @@ function rowsWhereSql(
   const arms = [...new Set([...branches.keys(), ...narrowed.keys()])]
     .toSorted()
     .flatMap((key) => {
-      const inline = inlineArm(key, narrowed);
+      const inline = inlineArm(key, branches);
       if (inline !== undefined) {
         return [inline];
       }

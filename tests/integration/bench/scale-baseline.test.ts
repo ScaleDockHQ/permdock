@@ -353,6 +353,8 @@ async function scaleShapes(scale: Pool): Promise<Record<string, unknown>> {
     folderCount: `select count(*) from public.folder`,
     docsOfOneFolder: `select id from public.doc where "folderId" = '${uuidOf(KIND.folder, 0)}' limit 50`,
     docsCount: `select count(*) from public.doc`,
+    docRowsSetCount: `select count(*) from public.doc where id in (select permdock.permitted_doc_rows('doc.read'))`,
+    folderRowsSetCount: `select count(*) from public.folder where id in (select permdock.permitted_folder_rows('folder.read'))`,
     employeeWalkCount: `select count(*) from public.employee`,
     storageObjectsCount: `select count(*) from storage.objects where bucket_id = 'files'`,
     storageObjectsOfTenant: `select count(*) from storage.objects where bucket_id = 'files' and name like '${tenant}/%'`,
