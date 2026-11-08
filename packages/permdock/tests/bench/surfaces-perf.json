@@ -1,0 +1,789 @@
+{
+  "note": "Median milliseconds per call after one warm-up call, on one Mac (darwin-arm64, Node 24). A call whose warm-up took over 2 s is recorded once (runs: 1). Keys m1, m12, m150, m500 are memberships of the signed-in user. before is origin/main at 305c65b (merge of #301), after is perf/scale-100k with the surfaces commits. branchBeforeMayUseFix is perf/scale-100k at 4986a669b, before the mayUse change. Regenerate with SURFACES_OUT=<file> SURFACES_LABEL=<label> vitest run --config tests/bench/surfaces.vitest.config.ts from packages/permdock; SURFACES_PG_URL=<postgres url> adds the PowerSync row counts. The runner is not a gate: timings on a shared machine move by 10 to 20 percent.",
+  "workload": {
+    "mcp": "300 tools, user holds 20 roles per membership, in-memory transport",
+    "http": "PATCH of one row guarded by item.update, user holds 20 roles per membership",
+    "next": "getSnapshot with the next/cache mocks, 5 roles per membership",
+    "authzen": "search/resource over 10,000 rows (page limit 50) and a batch of 100 evaluations, 5 roles per membership",
+    "supabaseMiddleware": "withPermDock protect with claims carrying the memberships",
+    "betterSupabaseAuthorizer": "evaluate and evaluations with the claims carrying the memberships",
+    "orm": "where() of item.update for the membership tiers, then Drizzle, Prisma and Kysely toWhere over where() and over synthetic or-of-and conditions of 100 and 1000 grants",
+    "powersync": "Postgres 17: one tenant of 1,000,000 jobs among 100 owners and 50 teams plus 200 tenants of 1,000; the member owns 1% of the big tenant and sits in 2 of 50 teams; rows are counted over the Postgres form of the stream queries"
+  },
+  "before": {
+    "node": "v24.21.0",
+    "platform": "darwin-arm64",
+    "recordedAt": "2026-11-08T02:35:02.023Z",
+    "mcp": {
+      "m1": {
+        "toolsListed": 300,
+        "callRefused": false,
+        "toolsList": {
+          "medianMs": 1857.742,
+          "runs": 5
+        },
+        "toolsCall": {
+          "medianMs": 2122.797,
+          "runs": 5
+        }
+      },
+      "m12": {
+        "toolsListed": 300,
+        "callRefused": false,
+        "toolsList": {
+          "medianMs": 9935.107,
+          "runs": 1
+        },
+        "toolsCall": {
+          "medianMs": 9778.054,
+          "runs": 1
+        }
+      },
+      "m150": {
+        "toolsListed": 300,
+        "callRefused": false,
+        "toolsList": {
+          "medianMs": 84125.12,
+          "runs": 1
+        },
+        "toolsCall": {
+          "medianMs": 85380.941,
+          "runs": 1
+        }
+      }
+    },
+    "openapi": {
+      "permissions": 302,
+      "securitySchemes": {
+        "medianMs": 0.007,
+        "runs": 2000
+      },
+      "describeOne": {
+        "medianMs": 0.016,
+        "runs": 2000
+      },
+      "describeAll300": {
+        "medianMs": 4.874,
+        "runs": 82
+      },
+      "overlay": {
+        "medianMs": 4.963,
+        "runs": 80
+      },
+      "catalog": {
+        "medianMs": 0,
+        "runs": 2000
+      }
+    },
+    "http": {
+      "m1": {
+        "honoStatus": 200,
+        "expressStatus": 200,
+        "hono": {
+          "medianMs": 0.054,
+          "runs": 2000
+        },
+        "express": {
+          "medianMs": 0.147,
+          "runs": 2000
+        }
+      },
+      "m12": {
+        "honoStatus": 200,
+        "expressStatus": 200,
+        "hono": {
+          "medianMs": 0.068,
+          "runs": 2000
+        },
+        "express": {
+          "medianMs": 0.16,
+          "runs": 2000
+        }
+      },
+      "m150": {
+        "honoStatus": 200,
+        "expressStatus": 200,
+        "hono": {
+          "medianMs": 0.261,
+          "runs": 1439
+        },
+        "express": {
+          "medianMs": 0.378,
+          "runs": 987
+        }
+      }
+    },
+    "next": {
+      "m12": {
+        "snapshotBytes": 43201,
+        "grants": 85,
+        "getSnapshot": {
+          "medianMs": 4.348,
+          "runs": 91
+        },
+        "snapshotFor": {
+          "medianMs": 4.326,
+          "runs": 92
+        }
+      },
+      "m150": {
+        "snapshotBytes": 395397,
+        "grants": 85,
+        "getSnapshot": {
+          "medianMs": 44.543,
+          "runs": 9
+        },
+        "snapshotFor": {
+          "medianMs": 44.058,
+          "runs": 10
+        }
+      },
+      "m500": {
+        "snapshotBytes": 1312097,
+        "grants": 85,
+        "getSnapshot": {
+          "medianMs": 148.512,
+          "runs": 5
+        },
+        "snapshotFor": {
+          "medianMs": 146.676,
+          "runs": 5
+        }
+      }
+    },
+    "authzen": {
+      "m12": {
+        "searchResults": 50,
+        "evaluation": {
+          "medianMs": 0.046,
+          "runs": 2000
+        },
+        "evaluations100": {
+          "medianMs": 3.886,
+          "runs": 99
+        },
+        "searchResource10kRows": {
+          "medianMs": 110.683,
+          "runs": 5
+        }
+      },
+      "m150": {
+        "searchResults": 50,
+        "evaluation": {
+          "medianMs": 0.193,
+          "runs": 1905
+        },
+        "evaluations100": {
+          "medianMs": 17.001,
+          "runs": 24
+        },
+        "searchResource10kRows": {
+          "medianMs": 364.519,
+          "runs": 5
+        }
+      }
+    },
+    "supabaseMiddleware": {
+      "m12": {
+        "status": 200,
+        "middleware": {
+          "medianMs": 0.052,
+          "runs": 2000
+        },
+        "subjectFromSupabase": {
+          "medianMs": 0.006,
+          "runs": 2000
+        }
+      },
+      "m150": {
+        "status": 200,
+        "middleware": {
+          "medianMs": 0.289,
+          "runs": 1284
+        },
+        "subjectFromSupabase": {
+          "medianMs": 0.057,
+          "runs": 2000
+        }
+      }
+    },
+    "betterSupabaseAuthorizer": {
+      "m12": {
+        "outcome": "granted",
+        "canonicalJsonKey": {
+          "medianMs": 0.008,
+          "runs": 2000
+        },
+        "evaluate": {
+          "medianMs": 0.051,
+          "runs": 2000
+        },
+        "evaluate100WithMemo": {
+          "medianMs": 2.751,
+          "runs": 141
+        },
+        "evaluations100": {
+          "medianMs": 2.634,
+          "runs": 150
+        }
+      },
+      "m150": {
+        "outcome": "granted",
+        "canonicalJsonKey": {
+          "medianMs": 0.096,
+          "runs": 2000
+        },
+        "evaluate": {
+          "medianMs": 0.39,
+          "runs": 960
+        },
+        "evaluate100WithMemo": {
+          "medianMs": 16.084,
+          "runs": 25
+        },
+        "evaluations100": {
+          "medianMs": 16.782,
+          "runs": 24
+        }
+      }
+    },
+    "orm": {
+      "m12": {
+        "whereBytes": 656,
+        "where": {
+          "medianMs": 0.272,
+          "runs": 1449
+        },
+        "compileWhere": {
+          "medianMs": 0.002,
+          "runs": 2000
+        },
+        "drizzle": {
+          "medianMs": 0.003,
+          "runs": 2000
+        },
+        "prisma": {
+          "medianMs": 0.003,
+          "runs": 2000
+        },
+        "kysely": {
+          "medianMs": 0.002,
+          "runs": 2000
+        }
+      },
+      "m150": {
+        "whereBytes": 656,
+        "where": {
+          "medianMs": 1.294,
+          "runs": 300
+        },
+        "compileWhere": {
+          "medianMs": 0.001,
+          "runs": 2000
+        },
+        "drizzle": {
+          "medianMs": 0.001,
+          "runs": 2000
+        },
+        "prisma": {
+          "medianMs": 0.002,
+          "runs": 2000
+        },
+        "kysely": {
+          "medianMs": 0.002,
+          "runs": 2000
+        }
+      },
+      "m500": {
+        "whereBytes": 656,
+        "where": {
+          "medianMs": 4.301,
+          "runs": 91
+        },
+        "compileWhere": {
+          "medianMs": 0.001,
+          "runs": 2000
+        },
+        "drizzle": {
+          "medianMs": 0.001,
+          "runs": 2000
+        },
+        "prisma": {
+          "medianMs": 0.002,
+          "runs": 2000
+        },
+        "kysely": {
+          "medianMs": 0.002,
+          "runs": 2000
+        }
+      },
+      "synthetic100Grants": {
+        "drizzle": {
+          "medianMs": 0.054,
+          "runs": 2000
+        },
+        "prisma": {
+          "medianMs": 0.072,
+          "runs": 2000
+        },
+        "kysely": {
+          "medianMs": 0.074,
+          "runs": 2000
+        }
+      },
+      "synthetic1000Grants": {
+        "drizzle": {
+          "medianMs": 0.576,
+          "runs": 668
+        },
+        "prisma": {
+          "medianMs": 0.802,
+          "runs": 486
+        },
+        "kysely": {
+          "medianMs": 0.79,
+          "runs": 488
+        }
+      }
+    },
+    "powersync": {
+      "tenantRows": 1000000,
+      "allTenantsRows": 1200000,
+      "withoutMemberLevel": {
+        "queries": 1,
+        "rowsSynced": 1000000,
+        "medianMs": 53.6
+      },
+      "levelNull": {
+        "queries": 1,
+        "rowsSynced": 1000000,
+        "medianMs": 52.6
+      },
+      "levelAll": {
+        "queries": 1,
+        "rowsSynced": 1000000,
+        "medianMs": 53.4
+      },
+      "levelOwn": {
+        "queries": 1,
+        "rowsSynced": 1000000,
+        "medianMs": 54.5
+      },
+      "levelTeam": {
+        "queries": 1,
+        "rowsSynced": 1000000,
+        "medianMs": 54.4
+      },
+      "levelUnknown": {
+        "queries": 1,
+        "rowsSynced": 1000000,
+        "medianMs": 53.5
+      }
+    }
+  },
+  "branchBeforeMayUseFix": {
+    "mcp": {
+      "m1": {
+        "toolsList": {
+          "medianMs": 4.102,
+          "runs": 95
+        },
+        "toolsCall": {
+          "medianMs": 3.934,
+          "runs": 101
+        }
+      },
+      "m12": {
+        "toolsList": {
+          "medianMs": 25.288,
+          "runs": 16
+        },
+        "toolsCall": {
+          "medianMs": 24.779,
+          "runs": 17
+        }
+      },
+      "m150": {
+        "toolsList": {
+          "medianMs": 288.804,
+          "runs": 5
+        },
+        "toolsCall": {
+          "medianMs": 290.053,
+          "runs": 5
+        }
+      }
+    }
+  },
+  "after": {
+    "node": "v24.21.0",
+    "platform": "darwin-arm64",
+    "recordedAt": "2026-11-08T02:35:32.541Z",
+    "mcp": {
+      "m1": {
+        "toolsListed": 300,
+        "callRefused": false,
+        "toolsList": {
+          "medianMs": 0.54,
+          "runs": 685
+        },
+        "toolsCall": {
+          "medianMs": 0.467,
+          "runs": 823
+        }
+      },
+      "m12": {
+        "toolsListed": 300,
+        "callRefused": false,
+        "toolsList": {
+          "medianMs": 1.951,
+          "runs": 203
+        },
+        "toolsCall": {
+          "medianMs": 1.924,
+          "runs": 203
+        }
+      },
+      "m150": {
+        "toolsListed": 300,
+        "callRefused": false,
+        "toolsList": {
+          "medianMs": 23.32,
+          "runs": 17
+        },
+        "toolsCall": {
+          "medianMs": 23.533,
+          "runs": 18
+        }
+      }
+    },
+    "openapi": {
+      "permissions": 302,
+      "securitySchemes": {
+        "medianMs": 0.006,
+        "runs": 2000
+      },
+      "describeOne": {
+        "medianMs": 0.015,
+        "runs": 2000
+      },
+      "describeAll300": {
+        "medianMs": 4.625,
+        "runs": 86
+      },
+      "overlay": {
+        "medianMs": 4.879,
+        "runs": 82
+      },
+      "catalog": {
+        "medianMs": 0,
+        "runs": 2000
+      }
+    },
+    "http": {
+      "m1": {
+        "honoStatus": 200,
+        "expressStatus": 200,
+        "hono": {
+          "medianMs": 0.042,
+          "runs": 2000
+        },
+        "express": {
+          "medianMs": 0.119,
+          "runs": 2000
+        }
+      },
+      "m12": {
+        "honoStatus": 200,
+        "expressStatus": 200,
+        "hono": {
+          "medianMs": 0.057,
+          "runs": 2000
+        },
+        "express": {
+          "medianMs": 0.125,
+          "runs": 2000
+        }
+      },
+      "m150": {
+        "honoStatus": 200,
+        "expressStatus": 200,
+        "hono": {
+          "medianMs": 0.259,
+          "runs": 1339
+        },
+        "express": {
+          "medianMs": 0.364,
+          "runs": 971
+        }
+      }
+    },
+    "next": {
+      "m12": {
+        "snapshotBytes": 43201,
+        "grants": 85,
+        "getSnapshot": {
+          "medianMs": 4.207,
+          "runs": 95
+        },
+        "snapshotFor": {
+          "medianMs": 4.11,
+          "runs": 96
+        }
+      },
+      "m150": {
+        "snapshotBytes": 395397,
+        "grants": 85,
+        "getSnapshot": {
+          "medianMs": 41.755,
+          "runs": 10
+        },
+        "snapshotFor": {
+          "medianMs": 41.811,
+          "runs": 10
+        }
+      },
+      "m500": {
+        "snapshotBytes": 1312097,
+        "grants": 85,
+        "getSnapshot": {
+          "medianMs": 137.945,
+          "runs": 5
+        },
+        "snapshotFor": {
+          "medianMs": 138.102,
+          "runs": 5
+        }
+      }
+    },
+    "authzen": {
+      "m12": {
+        "searchResults": 50,
+        "evaluation": {
+          "medianMs": 0.043,
+          "runs": 2000
+        },
+        "evaluations100": {
+          "medianMs": 3.462,
+          "runs": 114
+        },
+        "searchResource10kRows": {
+          "medianMs": 91.989,
+          "runs": 5
+        }
+      },
+      "m150": {
+        "searchResults": 50,
+        "evaluation": {
+          "medianMs": 0.189,
+          "runs": 2000
+        },
+        "evaluations100": {
+          "medianMs": 15.707,
+          "runs": 26
+        },
+        "searchResource10kRows": {
+          "medianMs": 214.263,
+          "runs": 5
+        }
+      }
+    },
+    "supabaseMiddleware": {
+      "m12": {
+        "status": 200,
+        "middleware": {
+          "medianMs": 0.047,
+          "runs": 2000
+        },
+        "subjectFromSupabase": {
+          "medianMs": 0.005,
+          "runs": 2000
+        }
+      },
+      "m150": {
+        "status": 200,
+        "middleware": {
+          "medianMs": 0.288,
+          "runs": 1226
+        },
+        "subjectFromSupabase": {
+          "medianMs": 0.056,
+          "runs": 2000
+        }
+      }
+    },
+    "betterSupabaseAuthorizer": {
+      "m12": {
+        "outcome": "granted",
+        "canonicalJsonKey": {
+          "medianMs": 0.008,
+          "runs": 2000
+        },
+        "evaluate": {
+          "medianMs": 0.048,
+          "runs": 2000
+        },
+        "evaluate100WithMemo": {
+          "medianMs": 1.562,
+          "runs": 252
+        },
+        "evaluations100": {
+          "medianMs": 1.54,
+          "runs": 254
+        }
+      },
+      "m150": {
+        "outcome": "granted",
+        "canonicalJsonKey": {
+          "medianMs": 0.093,
+          "runs": 2000
+        },
+        "evaluate": {
+          "medianMs": 0.37,
+          "runs": 1063
+        },
+        "evaluate100WithMemo": {
+          "medianMs": 4.313,
+          "runs": 92
+        },
+        "evaluations100": {
+          "medianMs": 4.367,
+          "runs": 91
+        }
+      }
+    },
+    "orm": {
+      "m12": {
+        "whereBytes": 149,
+        "where": {
+          "medianMs": 0.212,
+          "runs": 1812
+        },
+        "compileWhere": {
+          "medianMs": 0,
+          "runs": 2000
+        },
+        "drizzle": {
+          "medianMs": 0.001,
+          "runs": 2000
+        },
+        "prisma": {
+          "medianMs": 0.001,
+          "runs": 2000
+        },
+        "kysely": {
+          "medianMs": 0.001,
+          "runs": 2000
+        }
+      },
+      "m150": {
+        "whereBytes": 149,
+        "where": {
+          "medianMs": 1.258,
+          "runs": 311
+        },
+        "compileWhere": {
+          "medianMs": 0,
+          "runs": 2000
+        },
+        "drizzle": {
+          "medianMs": 0,
+          "runs": 2000
+        },
+        "prisma": {
+          "medianMs": 0.001,
+          "runs": 2000
+        },
+        "kysely": {
+          "medianMs": 0.001,
+          "runs": 2000
+        }
+      },
+      "m500": {
+        "whereBytes": 149,
+        "where": {
+          "medianMs": 4.124,
+          "runs": 95
+        },
+        "compileWhere": {
+          "medianMs": 0,
+          "runs": 2000
+        },
+        "drizzle": {
+          "medianMs": 0,
+          "runs": 2000
+        },
+        "prisma": {
+          "medianMs": 0.001,
+          "runs": 2000
+        },
+        "kysely": {
+          "medianMs": 0.001,
+          "runs": 2000
+        }
+      },
+      "synthetic100Grants": {
+        "drizzle": {
+          "medianMs": 0.049,
+          "runs": 2000
+        },
+        "prisma": {
+          "medianMs": 0.072,
+          "runs": 2000
+        },
+        "kysely": {
+          "medianMs": 0.071,
+          "runs": 2000
+        }
+      },
+      "synthetic1000Grants": {
+        "drizzle": {
+          "medianMs": 0.535,
+          "runs": 729
+        },
+        "prisma": {
+          "medianMs": 0.743,
+          "runs": 529
+        },
+        "kysely": {
+          "medianMs": 0.731,
+          "runs": 529
+        }
+      }
+    },
+    "powersync": {
+      "tenantRows": 1000000,
+      "allTenantsRows": 1200000,
+      "withoutMemberLevel": {
+        "queries": 1,
+        "rowsSynced": 1000000,
+        "medianMs": 54.8
+      },
+      "levelNull": {
+        "queries": 3,
+        "rowsSynced": 1000000,
+        "medianMs": 137.8
+      },
+      "levelAll": {
+        "queries": 3,
+        "rowsSynced": 1000000,
+        "medianMs": 137
+      },
+      "levelOwn": {
+        "queries": 3,
+        "rowsSynced": 10000,
+        "medianMs": 42.5
+      },
+      "levelTeam": {
+        "queries": 3,
+        "rowsSynced": 40000,
+        "medianMs": 129.9
+      },
+      "levelUnknown": {
+        "queries": 3,
+        "rowsSynced": 0,
+        "medianMs": 39.6
+      }
+    }
+  }
+}

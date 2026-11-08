@@ -75,6 +75,9 @@ const config: KnipConfig = {
         "tests/cli/codemod/fixtures/lienlink.permdock.config.ts",
         // scripts/runtime-perf.ts runs it as a child process.
         "tests/bench/scale-runner.ts",
+        // `vitest run --config tests/bench/surfaces.vitest.config.ts` runs the surfaces runner.
+        "tests/bench/surfaces.vitest.config.ts",
+        "tests/bench/surfaces-runner.run.ts",
       ],
     },
     "tests/*": {},
