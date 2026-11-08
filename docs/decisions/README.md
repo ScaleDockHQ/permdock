@@ -67,3 +67,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0060](./0060-no-recursive-scopes.md)                             | Scopes are flat tenancy; hierarchies are self-parented resources                                       |
 | [0062](./0062-next-baseline-file-lint-suppressions.md)            | File-level lint suppressions in `scripts/next-baseline.ts`                                             |
 | [0063](./0063-perf-gates-machine-and-docker.md)                   | The runtime and `rls-bench` gates: timings on one machine, Docker in the perf job                      |
+| [0064](./0064-authorizer-claims-key-per-scope.md)                 | The better-supabase authorizer serialises a claims object once per request scope                       |
