@@ -5,7 +5,25 @@ import type {
 } from "./interfaces.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
+import { isRecord } from "./compact.ts";
+import { memoByFrozenObject } from "./freeze.ts";
 import { isThenable } from "./thenable.ts";
+
+/** Canonical JSON of a frozen claims object, computed once per object. */
+const CANONICAL_OF_FROZEN = new WeakMap<object, string>();
+
+function canonicalOfPart(value: unknown): string {
+  return typeof value === "object" && value !== null
+    ? memoByFrozenObject(CANONICAL_OF_FROZEN, value, canonicalJson)
+    : canonicalJson(value);
+}
+
+/** `parts` as `{ user, data }`: the user, usually the claims, is the large half. */
+function canonicalParts(parts: unknown): string {
+  return isRecord(parts) && "user" in parts && "data" in parts
+    ? `{"data":${canonicalJson(parts["data"])},"user":${canonicalOfPart(parts["user"])}}`
+    : canonicalJson(parts);
+}
 
 const MAX_AGE_CEILING_MS = 60_000;
 const DEFAULT_MAX_AGE_MS = 30_000;
@@ -237,8 +255,7 @@ export function instanceCache(
         key.tenant ?? null,
         key.customRolesVersion ?? null,
         key.intent,
-        key.parts,
-      ])}`;
+      ])}:${canonicalParts(key.parts)}`;
       return Promise.resolve(through(id, key.principal, build));
     },
     customRoles(
