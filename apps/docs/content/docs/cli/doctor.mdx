@@ -163,7 +163,8 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD109` | `rls.customRoles` with `rls.authorize: "jwt"` and no `supabase.hook.claims` function, so no token carries `grants`                                                                                                                                                                                                                   | error           |
 | `PD110` | With `--db-url-stdin`, the access token the hook builds for a sample user is over 4,096 characters                                                                                                                                                                                                                                   | warning         |
 | `PD111` | A list endpoint takes an optional `limit`: an `openapi.doc` `GET` on a collection path, or an MCP tool schema with `limit: …optional()`                                                                                                                                                                                              | warning         |
-| `PD112` | The snapshot of the role with the most grants is over 65,536 bytes of JSON; the message names the largest part warning                                                                                                                                                                                                               |
+| `PD112` | The snapshot of the role with the most grants is over 65,536 bytes of JSON; the message names the largest part                                                                                                                                                                                                                       | warning         |
+| `PD113` | Source reads the legacy shared JWT secret (`SUPABASE_JWT_SECRET`, `JWT_SECRET`) or lists `HS256` as the only verification algorithm                                                                                                                                                                                                  | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -746,6 +747,10 @@ A list that takes no limit returns every row the policies allow, and Lienlink's 
 #### PD112: snapshot size
 
 `permdock snapshot size` measures the compact snapshot of one role. PD112 measures the role with the most grants, held in three tenants, and is a warning above 65,536 bytes of JSON. A Next.js page serialises that snapshot into the Flight stream for each `PermDockProvider`. The message names the largest part, usually `grants` or `assignable`; `omitAssignable` drops the second on a page with no role editor. `--only snapshot` runs PD112.
+
+### PD113: legacy HS256 verification
+
+A Supabase project that still signs with the legacy shared secret verifies a token only by calling `GET /auth/v1/user`, or by holding the secret, which also mints any user's token. Asymmetric signing keys (ES256) let the app verify locally against `/auth/v1/.well-known/jwks.json`, and `supabase.auth.getClaims()` does that for you. PD113 is a warning for each source file that reads `SUPABASE_JWT_SECRET` or `JWT_SECRET` from the environment, or passes `algorithms: ["HS256"]`. Rotate to an ES256 signing key, verify with `permdock/jwt` or `subjectFromSupabaseClient`, and drop the secret. `--only supabase` or `--only jwt` runs PD113. See [signing keys](https://supabase.com/docs/guides/auth/signing-keys) and [JWTs](https://supabase.com/docs/guides/auth/jwts).
 
 ## Side effects
 

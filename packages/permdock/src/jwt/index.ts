@@ -35,6 +35,7 @@ export type {
   DpopProofResult,
   IntrospectionPrincipal,
   JoseTokenSignerOptions,
+  JoseTokenVerifier,
   JoseTokenVerifierOptions,
   JsonWebKeySet,
   JwtAlgorithm,

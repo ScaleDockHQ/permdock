@@ -4,7 +4,11 @@ import type {
   VerificationFailure,
   VerifiedToken,
 } from "../core/interfaces.ts";
-import type { JoseTokenVerifierOptions, JwtAlgorithm } from "./types.ts";
+import type {
+  JoseTokenVerifier,
+  JoseTokenVerifierOptions,
+  JwtAlgorithm,
+} from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { createKeyCache } from "./cache.ts";
@@ -133,7 +137,7 @@ function mapJoseCause(error: unknown): VerificationFailure["cause"] {
 
 export function joseTokenVerifier(
   options: JoseTokenVerifierOptions,
-): TokenVerifier {
+): JoseTokenVerifier {
   assertVerifierConfig(options);
   const algorithms = resolveAlgorithms(options);
   const cache = createKeyCache(options);
@@ -232,6 +236,9 @@ export function joseTokenVerifier(
   };
 
   return {
+    purgeKeys(): void {
+      cache.purge();
+    },
     verify(
       token: string,
       expectations: Parameters<TokenVerifier["verify"]>[1] = {},

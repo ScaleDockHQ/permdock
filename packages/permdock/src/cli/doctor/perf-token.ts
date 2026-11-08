@@ -15,22 +15,45 @@ import { quoteIdent } from "../sql/quote.ts";
  */
 export const TOKEN_CHARS_BUDGET = 4096;
 
-/** Claims every Supabase access token carries beside the hook's. */
+/**
+ * Claims every Supabase access token carries beside the hook's, sized for an
+ * OAuth sign-in: a long email, the `user_metadata` a social provider writes
+ * (user-writable, so any size), an OAuth `client_id` and two `amr` entries.
+ * Shorter placeholders would make PD110 and `claims size` under-report.
+ * https://supabase.com/docs/guides/auth/jwt-fields
+ */
 const BASE_CLAIMS = {
-  iss: "https://example.supabase.co/auth/v1",
+  iss: "https://abcdefghijklmnopqrst.supabase.co/auth/v1",
   aud: "authenticated",
   exp: 1_900_000_000,
   iat: 1_900_000_000,
   sub: "00000000-0000-4000-8000-000000000000",
-  email: "caller@example.com",
+  email: "firstname.lastname.with.a.long.local.part@subdomain.example.com",
   phone: "",
-  app_metadata: { provider: "email", providers: ["email"] },
-  user_metadata: {},
+  app_metadata: { provider: "google", providers: ["google", "email"] },
+  user_metadata: {
+    avatar_url:
+      "https://lh3.googleusercontent.com/a/ACg8ocJ0000000000000000000000000000000000000000000=s96-c",
+    email: "firstname.lastname.with.a.long.local.part@subdomain.example.com",
+    email_verified: true,
+    full_name: "Firstname Lastname-Longsurname",
+    iss: "https://accounts.google.com",
+    name: "Firstname Lastname-Longsurname",
+    phone_verified: false,
+    picture:
+      "https://lh3.googleusercontent.com/a/ACg8ocJ0000000000000000000000000000000000000000000=s96-c",
+    provider_id: "100000000000000000000",
+    sub: "100000000000000000000",
+  },
   role: "authenticated",
   aal: "aal1",
-  amr: [{ method: "password", timestamp: 1_900_000_000 }],
+  amr: [
+    { method: "oauth", timestamp: 1_900_000_000 },
+    { method: "password", timestamp: 1_899_000_000 },
+  ],
   session_id: "00000000-0000-4000-8000-000000000000",
   is_anonymous: false,
+  client_id: "00000000-0000-4000-8000-000000000000",
 };
 
 /** Base64url length of `{"alg":"ES256","typ":"JWT","kid":<uuid>}`. */
