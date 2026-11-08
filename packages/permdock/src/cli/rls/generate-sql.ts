@@ -424,7 +424,9 @@ function seedsBody(
       break;
     case "view":
       body =
-        "-- rls.seeds: 'view': the role_permissions rows are in the helpers part";
+        ctx.staticGrants === "ref"
+          ? "-- rls.staticGrants: 'ref': load the policy bundle with permdock policy bundle --kind sql"
+          : "-- rls.seeds: 'view': the role_permissions rows are in the helpers part";
       break;
     case undefined:
       body = seedSql(ctx, rows);

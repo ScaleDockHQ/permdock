@@ -3,7 +3,6 @@ import type { Body } from "./helper-bodies.ts";
 
 import { AUTHZ_VERSION_TABLE } from "../../supabase/sources.ts";
 import { configError } from "../core/errors.ts";
-import { byKey } from "../shared/compare.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
 import {
   hasMemberFor,
@@ -11,6 +10,12 @@ import {
   permittedForHelper,
   permittedIdsHelper,
 } from "../sql/names.ts";
+import {
+  bundleTableSql,
+  policyBundle,
+  POLICY_BUNDLE_TABLE,
+  roleKeyMap,
+} from "../sql/policy-bundle.ts";
 import {
   helperSchema,
   qualified,
@@ -289,6 +294,9 @@ function seedViewSql(
 ): string {
   const view = qualified(ctx, "role_permissions");
   const columns = "role, permission, grant_key, scope, effect";
+  if (ctx.staticGrants === "ref") {
+    return seedRefSql(ctx, rows);
+  }
   const body =
     rows.length === 0
       ? `select null::text, null::text, null::text, null::text, null::text where false`
@@ -298,26 +306,7 @@ function seedViewSql(
               `  (${[row.role, row.permission, row.grantKey, row.scope, row.effect].map(quoteLiteral).join(", ")})`,
           )
           .join(",\n")}\n) as v(${columns})`;
-  const map: Record<string, Record<string, string[]>> = {};
-  for (const row of rows) {
-    const byRole = (map[row.scope] ??= {});
-    const keys = (byRole[row.role] ??= []);
-    if (!keys.includes(row.grantKey)) {
-      keys.push(row.grantKey);
-    }
-  }
-  const sorted = Object.fromEntries(
-    Object.entries(map)
-      .toSorted(byKey)
-      .map(([scope, byRole]) => [
-        scope,
-        Object.fromEntries(
-          Object.entries(byRole)
-            .toSorted(byKey)
-            .map(([role, keys]) => [role, keys.toSorted()]),
-        ),
-      ]),
-  );
+  const sorted = roleKeyMap(rows);
   const keys = qualified(ctx, "permdock_role_keys");
   return `-- rls.seeds: 'view': role_permissions is a view, so the rows travel with the schema
 create or replace view ${view} (${columns}) with (security_invoker = true) as
@@ -332,6 +321,42 @@ parallel safe
 set search_path = ''
 as $$
   select ${quoteLiteral(JSON.stringify(sorted))}::jsonb -> p_scope -> p_role
+$$;
+revoke execute on function ${keys}(text, text) from public, anon, authenticated;`;
+}
+
+/**
+ * `rls.staticGrants: 'ref'`: `role_permissions` is a view over the policy
+ * bundle whose hash the SQL pins, and `permdock_role_keys` reads the bundle's
+ * lookup. The rows are not in the SQL; \`permdock policy bundle --kind sql\`
+ * loads them. A bundle that is not loaded, or is loaded under another hash,
+ * leaves the view empty and the lookup null, so every static grant denies.
+ */
+function seedRefSql(
+  ctx: RlsSqlContext,
+  rows: readonly RolePermission[],
+): string {
+  const { hash } = policyBundle(rows);
+  const view = qualified(ctx, "role_permissions");
+  const table = qualified(ctx, POLICY_BUNDLE_TABLE);
+  const keys = qualified(ctx, "permdock_role_keys");
+  const columns = "role, permission, grant_key, scope, effect";
+  return `-- rls.staticGrants: 'ref': the static grants are the policy bundle ${hash}, loaded by permdock policy bundle
+${bundleTableSql(ctx)}
+create or replace view ${view} (${columns}) with (security_invoker = true) as
+select r.role, r.permission, r.grant_key, r.scope, r.effect
+from ${table} b
+cross join lateral jsonb_to_recordset(b.doc -> 'rows') as r(role text, permission text, grant_key text, scope text, effect text)
+where b.hash = ${quoteLiteral(hash)};
+revoke all on table ${view} from anon, authenticated, public;
+create or replace function ${keys}(p_scope text, p_role text)
+returns jsonb
+language sql
+stable
+parallel safe
+set search_path = ''
+as $$
+  select b.doc -> 'roleKeys' -> p_scope -> p_role from ${table} b where b.hash = ${quoteLiteral(hash)}
 $$;
 revoke execute on function ${keys}(text, text) from public, anon, authenticated;`;
 }

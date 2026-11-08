@@ -484,6 +484,15 @@ export type RlsConfig = {
    * step. Nothing can write the rows, so the view cannot take hand-added ones.
    */
   readonly seeds?: "function" | "view";
+  /**
+   * `'ref'`: the static grants are not in the generated SQL. The helpers pin
+   * the hash of the policy bundle `permdock policy bundle` writes and read the
+   * bundle from `<schema>.permdock_policy_bundle`; a bundle that is not loaded,
+   * or has another hash, denies every static grant. `'inline'` (the default)
+   * keeps the rows in the SQL as `rls.seeds` says. `'ref'` makes
+   * `role_permissions` a view, so it cannot combine with `seeds: 'function'`.
+   */
+  readonly staticGrants?: "inline" | "ref";
   readonly trustedReaders?: readonly string[];
   readonly treeValues?: Readonly<
     Record<string, Readonly<Record<string, unknown>>>

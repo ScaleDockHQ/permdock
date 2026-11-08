@@ -204,7 +204,9 @@ export function outputFiles(plan: {
     seedsOut: input.seedsOut,
     noSeeds: input.noSeeds === true,
     seedFunction: input.config.rls?.seeds === "function",
-    seedView: input.config.rls?.seeds === "view",
+    seedView:
+      input.config.rls?.seeds === "view" ||
+      input.config.rls?.staticGrants === "ref",
   });
   if (refused !== undefined) {
     return refused;
