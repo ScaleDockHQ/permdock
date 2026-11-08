@@ -151,3 +151,57 @@ describe("snapshot size edge cases", () => {
     ).toBe(2);
   });
 });
+
+describe("snapshot size by role shape", () => {
+  const permissions = definePermissions({
+    note: resource(Row, {
+      id: "id",
+      actions: ["read"],
+      relations: {
+        tenant: { field: "tenant_id", memberOf: "tenant" },
+        team: { field: "team_id", memberOf: "team" },
+      },
+    }),
+  });
+  const nested = definePolicy(permissions, {
+    scopes: {
+      tenant: { key: "tenant_id" },
+      team: { key: "team_id", within: "tenant" },
+    },
+    // SAFETY: the size probe never calls the subject mapper.
+    subject: (user: unknown) => user as never,
+    roles: [
+      role("lead", [allow(permissions.note.read)], { on: "team" }),
+      role("support", [allow(permissions.note.read)]),
+    ],
+  });
+
+  it("gives a role held on a nested scope a membership inside the root", () => {
+    const report = snapshotSize({
+      policy: nested,
+      role: "lead",
+      tenants: 2,
+      omitAssignable: true,
+    });
+    if (typeof report === "string") {
+      throw new TypeError(report);
+    }
+    expect(report.scope).toBe("team");
+    expect(report.tenants).toBe(2);
+  });
+
+  it("measures a global role with no memberships and picks the first of equals", () => {
+    const report = snapshotSize({
+      policy: nested,
+      role: "support",
+      tenants: 5,
+      omitAssignable: false,
+    });
+    if (typeof report === "string") {
+      throw new TypeError(report);
+    }
+    expect(report.scope).toBeNull();
+    expect(report.tenants).toBe(0);
+    expect(mostPrivilegedRole(nested)).toBe("lead");
+  });
+});

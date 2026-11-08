@@ -35,7 +35,7 @@ const PARTS = [
 ] as const;
 
 function measure(part: string, value: unknown): SnapshotPart {
-  const text = JSON.stringify(value) ?? "";
+  const text = JSON.stringify(value);
   return { part, bytes: Buffer.byteLength(text), gzip: gzipSync(text).length };
 }
 
@@ -57,7 +57,7 @@ function subjectOf(
     return `role '${role}' is held on a resource, which snapshot size does not model`;
   }
   const scopes = scopeList(policy.scopes);
-  const root = scopes[0]?.name ?? "tenant";
+  const root = String(scopes[0]?.name);
   const scope = binding.on;
   const memberships: Membership[] = Array.from(
     { length: tenants },
@@ -95,9 +95,9 @@ export function snapshotSize(input: {
   const parts = PARTS.filter((name) => record[name] !== undefined).map((name) =>
     measure(name, record[name]),
   );
-  let largest: SnapshotPart | undefined;
+  let largest: SnapshotPart = { part: "none", bytes: -1, gzip: 0 };
   for (const item of parts) {
-    if (largest === undefined || item.bytes > largest.bytes) {
+    if (item.bytes > largest.bytes) {
       largest = item;
     }
   }
@@ -108,7 +108,7 @@ export function snapshotSize(input: {
     grants: snapshot.grants.length,
     parts,
     total: measure("total", snapshot),
-    largest: largest?.part ?? "none",
+    largest: largest.part,
   };
 }
 
