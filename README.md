@@ -118,7 +118,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm build`                           | `turbo run build` (tsdown for `permdock`, `next build` for the apps)                                                                                        |
 | `pnpm check`                           | The fast gate: `format:check`, `lint` and `typecheck`                                                                                                       |
-| `pnpm verify`                          | Every CI gate: `format:check`, `lint:root` and `boundaries`, then one cached `turbo run` of the rest                                                        |
+| `pnpm verify`                          | Every CI gate: `format:check`, `lint:root` and `boundaries`, then cached `turbo run`s of the rest, `runtime:perf` last                                      |
 | `pnpm test`                            | Vitest unit and type tests across the workspace                                                                                                             |
 | `pnpm test:integration`                | Postgres via testcontainers: RLS parity and providers                                                                                                       |
 | `pnpm test:runtimes`                   | The WinterTC app on Bun, Deno and workerd                                                                                                                   |

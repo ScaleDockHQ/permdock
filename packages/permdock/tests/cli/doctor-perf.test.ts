@@ -358,4 +358,105 @@ const required = { inputSchema: z.object({ limit: z.number().max(100) }) };
       expect(targets(findings)).toStrictEqual(["src/mcp.ts:2"]);
     });
   });
+
+  describe("edges", () => {
+    it("PD105 reads string, false, tableOf and via entries and a walk with no user", () => {
+      const cwd = project({
+        "supabase/migrations/001.sql": `
+create unique index if not exists ux on only public.orders (org_id);
+create index on public.lines (order_id desc);
+create table public.t (id int);
+`,
+      });
+      const config: PermDockConfig = {
+        rls: {
+          tables: {
+            plain: "public.plain",
+            none: false,
+            moved: { tableOf: "plain" },
+            tree: { walk: "recursive" },
+            line: {
+              table: "lines",
+              via: {
+                table: "public.orders",
+                column: "org_id",
+                key: "order_id",
+              },
+            },
+            missing: {
+              table: "gaps",
+              via: { table: "public.orders", column: "tenant" },
+            },
+          },
+        },
+      };
+      expect(targets(pd105(cwd, config, nodeFiles))).toStrictEqual([
+        "public.orders.tenant",
+      ]);
+      expect(pd105(cwd, NONE, nodeFiles)).toStrictEqual([]);
+    });
+
+    it("PD103 to PD108 ignore a statement that is not a policy and a missing schema folder", () => {
+      const cwd = project({
+        "supabase/schemas/x.sql": "select 1;\ncreate table a (id int);",
+      });
+      expect(pd103(cwd, NONE, nodeFiles)).toStrictEqual([]);
+      expect(pd108(cwd, NONE, nodeFiles)).toStrictEqual([]);
+      expect(pd104(cwd, NONE, nodeFiles)).toStrictEqual([]);
+    });
+
+    it("PD110 reports a hook that fails as a note", async () => {
+      const findings = await pd110(
+        {
+          cwd: "/",
+          config: { supabase: { hook: {} } },
+          files: nodeFiles,
+          database: {
+            url: "postgres://x",
+            connect: () =>
+              Promise.resolve({
+                query: (sql: string) =>
+                  sql.includes("custom_access_token_hook")
+                    ? Promise.reject(new Error("permission denied"))
+                    : Promise.resolve({ rows: [] }),
+                end: () => Promise.resolve(),
+              }),
+          },
+        },
+        [{ label: "sample 0", event: {} }],
+      );
+      expect(findings).toHaveLength(1);
+      expect(findings[0]?.severity).toBe("info");
+      expect(
+        await pd110({ cwd: "/", config: {}, files: nodeFiles }, [
+          { label: "x", event: {} },
+        ]),
+      ).toStrictEqual([]);
+    });
+
+    it("PD111 skips a missing or invalid document and one without paths", () => {
+      const cwd = project({
+        "bad.json": "{",
+        "empty.json": "[]",
+        "refs.json": JSON.stringify({
+          paths: {
+            "/a": { get: { parameters: ["x", { $ref: "#/nope/missing" }] } },
+            "/b": { post: {} },
+            "/c": { get: {} },
+          },
+        }),
+      });
+      const findings = pd111({
+        cwd,
+        config: {
+          openapi: {
+            doc: ["gone.json", "bad.json", "empty.json", "refs.json"],
+          },
+        },
+        files: nodeFiles,
+        sources: () => [],
+      });
+      expect(findings).toStrictEqual([]);
+    });
+  });
 });

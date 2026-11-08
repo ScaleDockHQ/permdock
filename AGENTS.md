@@ -51,7 +51,7 @@ docs/agents/ docs/decisions/   corrections agents needed twice; exceptions to th
 pnpm install
 pnpm build                 # turbo run build (tsdown)
 pnpm check                 # format:check, lint, typecheck: the fast gate
-pnpm verify                # every CI gate: root steps, then one cached turbo run
+pnpm verify                # every CI gate: root steps, then cached turbo runs
 pnpm test                  # vitest unit + type tests
 pnpm test:integration      # testcontainers Postgres (Docker)
 pnpm test:runtimes         # Bun, Deno, workerd; CI requires all three
