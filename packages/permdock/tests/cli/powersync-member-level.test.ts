@@ -217,4 +217,58 @@ describe("powersync powersync.memberLevel", () => {
       "SELECT * FROM jobs WHERE jobs.tenant_id IN (SELECT tenant_users.tenant_id FROM tenant_users WHERE tenant_users.user_id = auth.user_id() AND tenant_users.disabled_at IS NULL AND tenant_users.tier_role IN ('owner')) AND jobs.tenant_id IN (SELECT tenant_users.tenant_id FROM tenant_users WHERE tenant_users.user_id = auth.user_id() AND tenant_users.disabled_at IS NULL AND tenant_users.job_level = 'own') AND jobs.owner_id = auth.user_id()",
     );
   });
+
+  it("omits the stream when the membership table of the scope is another one", () => {
+    const other = powersyncPlan(leveled, {
+      policy: "p.ts",
+      powersync: {
+        resources: ["job"],
+        memberLevel: { job: { table: "elsewhere", column: "job_level" } },
+      },
+      rls: {
+        authorize: "database",
+        tables: { job: "jobs" },
+        memberships: {
+          scopes: {
+            tenant: {
+              table: "tenant_users",
+              user: "user_id",
+              role: "tier_role",
+              columns: { tenant: "tenant_id" },
+            },
+          },
+        },
+      },
+    });
+    expect(other.omitted).toStrictEqual([
+      {
+        resource: "job",
+        reason:
+          "memberLevel table elsewhere is not a membership table of the tenant scope",
+      },
+    ]);
+  });
+
+  it("names a source a level's condition cannot read", () => {
+    const { stream: _stream, ...sql } = tier.sql;
+    const handWritten = { ...tier, sql: { ...sql, table: "legacy_users" } };
+    const reading = powersyncPlan(
+      policyOf({
+        own: { owner_id: principal.id },
+        team: {
+          op: "memberOf",
+          scope: "tenant",
+          field: "tenant_id",
+          roles: ["owner"],
+        },
+      }),
+      {
+        ...config,
+        rls: { ...config.rls, membershipSources: [tier, handWritten] },
+      },
+    );
+    expect(reading.warnings).toContain(
+      "job/job.read member level team under-syncs: the legacy_users membership source has no stream form: build it with tableMembershipSource, junctionMembershipSource or blockMembershipSource",
+    );
+  });
 });

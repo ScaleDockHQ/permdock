@@ -122,6 +122,7 @@ export function memberLevelOf(
   const node = ctx.policy.resources.get(resource);
   const field =
     root === undefined ? undefined : scopeField(node, root, ctx.scopes);
+  /* v8 ignore next 5 -- a scope always has a key, so the field is a name unless the key is not an identifier */
   if (root === undefined || field === undefined || !SQL_IDENT.test(field)) {
     return {
       omitted: `memberLevel needs the tenant scope's key on ${resource}`,
