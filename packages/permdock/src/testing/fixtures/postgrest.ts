@@ -9,6 +9,14 @@ export type PostgrestFixtureOptions = {
   /** The users `subject_for` knows, by id. An unknown user answers `null`. */
   readonly subjects: Readonly<Record<string, SubjectRecord>>;
   /**
+   * What `subject_for(p_user, p_tenant)` answers, by tenant and then user id. A
+   * tenant or user missing here answers the user's `subjects` record with no
+   * memberships, as the function does for a tenant the user holds none in.
+   */
+  readonly tenantSubjects?: Readonly<
+    Record<string, Readonly<Record<string, SubjectRecord>>>
+  >;
+  /**
    * `authz_version_for` by id. A user missing here answers the `authzVersion`
    * of its record.
    */
@@ -47,7 +55,14 @@ export function postgrestFixture(
       return answer(options.versions?.[user] ?? record?.authzVersion ?? null);
     }
     if (fn.endsWith("subject_for")) {
-      return answer(record ?? null);
+      const tenant = args["p_tenant"];
+      if (typeof tenant !== "string") {
+        return answer(args["p_tenant"] === undefined ? (record ?? null) : null);
+      }
+      return answer(
+        options.tenantSubjects?.[tenant]?.[user] ??
+          (record === undefined ? null : { ...record, memberships: [] }),
+      );
     }
     if (fn.endsWith("members_of")) {
       return answer(

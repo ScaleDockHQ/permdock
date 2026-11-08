@@ -156,7 +156,7 @@ const pushed = await client.catalog.push(betterSupabaseCatalog);
 expect(pushed.fingerprint).toBe(betterSupabaseCatalog.fingerprint);
 ```
 
-`postgrestFixture({ subjects, versions?, members? })` from the same entry is a Supabase client double for code that calls `postgrestSources`. It answers `subject_for` from `subjects` (a record by user id, `null` for an unknown user), `authz_version_for` from `versions` or the record's `authzVersion`, and `members_of` from the `members` entries whose scope and id match. Any schema and wrapper prefix answers, and `calls` lists every RPC made. It is a fixture, not a `memory*` default, because it implements no PermDock interface.
+`postgrestFixture({ subjects, tenantSubjects?, versions?, members? })` from the same entry is a Supabase client double for code that calls `postgrestSources`. It answers `subject_for` from `subjects` (a record by user id, `null` for an unknown user), `subject_for(p_user, p_tenant)` from `tenantSubjects` (a record by tenant, then user id; a missing entry answers the user's record with no memberships), `authz_version_for` from `versions` or the record's `authzVersion`, and `members_of` from the `members` entries whose scope and id match. Any schema and wrapper prefix answers, and `calls` lists every RPC made. It is a fixture, not a `memory*` default, because it implements no PermDock interface.
 
 ```ts
 import { postgrestFixture } from "permdock/testing/fixtures";

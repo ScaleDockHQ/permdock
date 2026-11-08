@@ -102,6 +102,17 @@ export type PostgrestSourcesOptions = {
    * `subject_for` itself.
    */
   readonly subjects?: SubjectCache;
+  /**
+   * Read the memberships of an instance's `tenant` (`getPermDock`'s `tenant`
+   * option) through `subject_for(p_user, p_tenant)` instead of every tenant's
+   * through `subject_for(p_user)`, so a user in many organisations loads one.
+   * An instance with no `tenant`, or an empty one, reads no memberships here:
+   * the source never falls back to the all-tenants read. `subject`, `refresh`,
+   * `record` and `memberships.globalRolesFor` still read the whole user. A
+   * custom role of another tenant than the instance's is not read. Default
+   * `false`.
+   */
+  readonly tenantScoped?: boolean;
 };
 
 export type { SubjectRecord };
@@ -320,38 +331,64 @@ export function postgrestSources(
     readonly id: string;
   }): Promise<MemberEntry[]> =>
     once(undefined, `${schema}.${membersFn}`, "", () => members(query));
+  const tenantScoped = options.tenantScoped === true;
   const record = (
     userId: string,
     memo?: SourceMemo,
+    tenant?: string,
   ): Promise<SubjectRecord | undefined> =>
-    once(memo, `${schema}.${fn}`, `${schema}.${fn}:${userId}`, async () => {
-      if (memo !== undefined) {
-        await Promise.allSettled(pendingRoles.get(memo) ?? []);
-      }
-      const rolesRead =
-        memo === undefined ? undefined : resolvedRoles.get(memo);
-      const cached = await subjects?.record(
-        userId,
-        memo === undefined
-          ? undefined
-          : (resolved.get(memo)?.get(userId) ?? memo.version),
-        rolesRead === undefined ? undefined : Object.fromEntries(rolesRead),
-      );
-      if (cached !== null && cached !== undefined) {
-        return cached;
-      }
-      const result = await callRpc(client, schema, fn, { p_user: userId });
-      if (result.error !== null) {
-        throw new Error(
-          `PermDock: ${schema}.${fn} failed: ${result.error.message}`,
+    once(
+      memo,
+      `${schema}.${fn}`,
+      tenant === undefined
+        ? `${schema}.${fn}:${userId}`
+        : `${schema}.${fn}:${userId}\u0000${tenant}`,
+      async () => {
+        if (memo !== undefined) {
+          await Promise.allSettled(pendingRoles.get(memo) ?? []);
+        }
+        const rolesRead =
+          memo === undefined ? undefined : resolvedRoles.get(memo);
+        const cached = await subjects?.record(
+          userId,
+          memo === undefined
+            ? undefined
+            : (resolved.get(memo)?.get(userId) ?? memo.version),
+          rolesRead === undefined ? undefined : Object.fromEntries(rolesRead),
+          tenant,
         );
-      }
-      const read = readSubjectRecord(result.data);
-      if (read !== undefined) {
-        await subjects?.seed(read);
-      }
-      return read;
-    });
+        // A cache that ignores the tenant may answer another tenant's record.
+        if (
+          cached !== null &&
+          cached !== undefined &&
+          cached.tenant === tenant
+        ) {
+          return cached;
+        }
+        const result = await callRpc(
+          client,
+          schema,
+          fn,
+          tenant === undefined
+            ? { p_user: userId }
+            : { p_user: userId, p_tenant: tenant },
+        );
+        if (result.error !== null) {
+          throw new Error(
+            `PermDock: ${schema}.${fn} failed: ${result.error.message}`,
+          );
+        }
+        const parsed = readSubjectRecord(result.data);
+        const read =
+          parsed === undefined || tenant === undefined
+            ? parsed
+            : { ...parsed, tenant };
+        if (read !== undefined) {
+          await subjects?.seed(read);
+        }
+        return read;
+      },
+    );
   const version = (
     userId: string,
     memo?: SourceMemo,
@@ -418,14 +455,26 @@ export function postgrestSources(
   const live = async (
     userId: string,
     memo?: SourceMemo,
+    tenant?: string,
   ): Promise<SubjectRecord | undefined> => {
-    const found = await record(userId, memo);
+    const found = await record(userId, memo, tenant);
     return found?.active === true ? found : undefined;
   };
   return {
     memberships: {
       async membershipsFor(principal, query) {
-        return [...((await live(principal.id, query.memo))?.memberships ?? [])];
+        if (!tenantScoped) {
+          return [
+            ...((await live(principal.id, query.memo))?.memberships ?? []),
+          ];
+        }
+        if (query.tenant === undefined || query.tenant === "") {
+          return [];
+        }
+        return [
+          ...((await live(principal.id, query.memo, query.tenant))
+            ?.memberships ?? []),
+        ];
       },
       customRolesVersion(query, context) {
         return rolesVersion(query.tenant, context?.memo);
@@ -455,6 +504,7 @@ export function postgrestSources(
         keep: (role: CustomRole) => boolean,
         tenant?: string,
       ): Promise<CustomRole[]> => {
+        const scopeTo = tenantScoped ? tenant : undefined;
         if (onlyDeclared(context?.held)) {
           return [];
         }
@@ -466,7 +516,7 @@ export function postgrestSources(
           }
         }
         return (
-          (await live(principal.id, context?.memo))?.customRoles ?? []
+          (await live(principal.id, context?.memo, scopeTo))?.customRoles ?? []
         ).filter(keep);
       };
       return {

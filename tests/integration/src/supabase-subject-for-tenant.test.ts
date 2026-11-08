@@ -1,5 +1,9 @@
+import type { SupabaseRpcClient } from "permdock/supabase";
+
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { memorySubjectCache } from "permdock";
+import { postgrestSources } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -290,5 +294,50 @@ insert into permdock.custom_role_permissions (tenant_id, scope, scope_id, role, 
     expect(rows[0]?.definer).toBe(true);
     expect(rows[0]?.config).toStrictEqual(['search_path=""']);
     expect(rows[0]?.src).not.toContain("service_role");
+  });
+
+  it("loads one tenant's memberships through postgrestSources({ tenantScoped })", async () => {
+    const pg = target();
+    const client: SupabaseRpcClient = {
+      schema: (schema) => ({
+        async rpc(fn, args) {
+          const names = Object.keys(args);
+          const list = names.map((name, at) => `${name} => $${at + 1}`);
+          try {
+            const { rows } = await pg.admin.query<{ data: unknown }>(
+              `select ${schema}.${fn}(${list.join(", ")}) as data`,
+              names.map((name) => args[name]),
+            );
+            return { data: rows[0]?.data ?? null, error: null };
+          } catch (error) {
+            return {
+              data: null,
+              error: { message: error instanceof Error ? error.message : "" },
+            };
+          }
+        },
+      }),
+    };
+    const sources = postgrestSources(client, {
+      tenantScoped: true,
+      subjects: memorySubjectCache(),
+    });
+    const ids = async (tenant: string): Promise<(string | undefined)[]> =>
+      (await sources.memberships.membershipsFor({ id: OWNER }, { tenant })).map(
+        (membership) => membership.id,
+      );
+    expect(await ids("T")).toStrictEqual(["T"]);
+    expect(await ids("B")).toStrictEqual(["B"]);
+    expect(await ids("Z")).toStrictEqual([]);
+    expect(
+      await sources.memberships.membershipsFor({ id: OWNER }, {}),
+    ).toStrictEqual([]);
+    const all = postgrestSources(client);
+    expect(
+      (await all.memberships.membershipsFor({ id: OWNER }, { tenant: "T" }))
+        .length,
+    ).toBeGreaterThan(1);
+    const crew = await sources.customRoles({ id: CREW }).rolesFor?.("B");
+    expect(crew?.map((role) => role.name)).toStrictEqual(["crew"]);
   });
 });
