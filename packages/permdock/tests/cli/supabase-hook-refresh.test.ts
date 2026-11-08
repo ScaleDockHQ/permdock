@@ -142,4 +142,43 @@ describe("supabase hook refresh and oauth branches", () => {
       expect(slim).not.toContain(`- '${required}'`);
     }
   });
+
+  it("reuses the team ids and refuses a truncated team claim", async () => {
+    const { code, sql } = await generate(
+      `{ memberships: [${PLAIN}], teams: { table: 'team_members', user: 'user_id', team: 'team_id' } }`,
+    );
+    expect(code).toBe(0);
+    expect(sql).toContain("and not (event -> 'claims' ? 'team_ids_truncated')");
+    expect(sql).toContain(
+      "team_ids := case when jsonb_typeof(event -> 'claims' -> 'team_ids') = 'array'",
+    );
+    expect(sql).toContain("octet_length(team_ids::text)");
+  });
+
+  it("counts the custom-role version in the reused budget", async () => {
+    const { code, sql } = await generate(
+      `{ memberships: [${PLAIN}] }`,
+      [],
+      "{ dialect: 'supabase', authorize: 'database', scopeTypes: { tenant: 'text' }, customRoles: true }",
+    );
+    expect(code).toBe(0);
+    expect(sql).toContain(FAST);
+    expect(sql).toContain("octet_length(ver::text) + 20 + 2 <= budget");
+  });
+
+  it("drops the OAuth client's teams, custom-role version and hook.claims with oauth 'slim'", async () => {
+    const { code, sql } = await generate(
+      `{ memberships: [${PLAIN}], oauth: 'slim', claims: { features: 'public.feature_claims' }, teams: { table: 'team_members', user: 'user_id', team: 'team_id' } }`,
+      [],
+      "{ dialect: 'supabase', authorize: 'database', scopeTypes: { tenant: 'text' }, customRoles: true }",
+    );
+    expect(code).toBe(0);
+    const slim = sql.slice(
+      sql.indexOf(SLIM),
+      sql.indexOf("end if;", sql.indexOf(SLIM)),
+    );
+    expect(slim).toContain("- 'team_ids' - 'team_ids_truncated'");
+    expect(slim).toContain("- 'custom_roles_ver'");
+    expect(slim).toContain("- 'features'");
+  });
 });
