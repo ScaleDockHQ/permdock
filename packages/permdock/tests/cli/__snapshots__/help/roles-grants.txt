@@ -1,0 +1,17 @@
+permdock roles grants: List the grants of each role, expanded per permission
+
+Usage  permdock roles grants [flags]
+
+Flags
+  --policy <module>  Module exporting the policy (default policy in the config)
+  --role <name>      List one role (default every role)
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock roles grants
+  permdock roles grants --role admin --json
+
+Side effects  none: reads only
+Docs  https://permdock.com/docs/cli/roles

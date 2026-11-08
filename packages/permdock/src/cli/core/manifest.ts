@@ -267,6 +267,23 @@ export const SECTIONS: readonly Section[] = [
           }),
         ],
       ),
+      group("roles", "List what each role holds", "roles", [
+        leaf(
+          "grants",
+          "List the grants of each role, expanded per permission",
+          {
+            examples: [
+              "permdock roles grants",
+              "permdock roles grants --role admin --json",
+            ],
+            docs: "roles",
+            effects: [],
+            config: true,
+            load: async () =>
+              (await import("../commands/roles.ts")).rolesGrants,
+          },
+        ),
+      ]),
       group(
         "claims",
         "Measure the memberships claim of an access token",
