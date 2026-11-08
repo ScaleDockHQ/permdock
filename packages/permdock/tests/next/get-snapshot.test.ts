@@ -34,6 +34,17 @@ describe("get snapshot", () => {
       );
     });
 
+    it("writes static role references with omitStatic", async () => {
+      const { getSnapshot } = createPermDock(policy, {
+        subject: () => memberUser,
+      });
+      const full = await getSnapshot();
+      const lean = await getSnapshot({ omitStatic: true });
+      expect(full.static).toBeUndefined();
+      expect(lean.static?.held.length).toBeGreaterThan(0);
+      expect(lean.grants.length).toBeLessThan(full.grants.length);
+    });
+
     it("tags an anonymous snapshot", async () => {
       const { getSnapshot } = createPermDock(policy, { subject: () => null });
       await getSnapshot();

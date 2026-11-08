@@ -81,6 +81,11 @@ export type GetSnapshotQuery = GetPermDockQuery & {
   readonly tenants?: SnapshotTenants;
   readonly omitAssignable?: boolean;
   /**
+   * Replace the grants of declared roles with references into the generated
+   * bundle; see `SnapshotOptions.omitStatic`.
+   */
+  readonly omitStatic?: boolean;
+  /**
    * Tags added next to `snapshotTag(sub)`, such as the app's own organisation
    * tag.
    */
@@ -124,6 +129,7 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
         readonly include?: never;
         readonly tenants?: never;
         readonly omitAssignable?: never;
+        readonly omitStatic?: never;
         readonly context?: never;
       }
     | {
@@ -135,6 +141,7 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
         )[];
         readonly tenants?: SnapshotTenants;
         readonly omitAssignable?: boolean;
+        readonly omitStatic?: boolean;
         /**
          * The `subject.context` keys the snapshot ships; see
          * `GetSnapshotQuery`.

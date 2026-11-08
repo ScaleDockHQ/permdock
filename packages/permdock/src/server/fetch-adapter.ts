@@ -241,6 +241,7 @@ export function fetchAdapter<
         include: query.include,
         tenants: query.tenants,
         omitAssignable: query.omitAssignable,
+        omitStatic: query.omitStatic,
       }),
     );
   };

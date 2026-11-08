@@ -30,6 +30,16 @@ describe(createSnapshotRegistry, () => {
     expect(build).toHaveBeenCalledTimes(4);
   });
 
+  it("keys omitStatic apart", () => {
+    const registry = createSnapshotRegistry(false, () => {});
+    const build = vi.fn<() => Promise<Snapshot>>(() =>
+      Promise.resolve(snapshot),
+    );
+    const plain = registry.memo({}, build);
+    expect(registry.memo({ omitStatic: true }, build)).not.toBe(plain);
+    expect(registry.memo({ omitStatic: false }, build)).toBe(plain);
+  });
+
   it("reports an equal snapshot from a second promise, once per repeat", async () => {
     const onDuplicate = vi.fn<(bytes: number) => void>();
     const registry = createSnapshotRegistry(true, onDuplicate);
