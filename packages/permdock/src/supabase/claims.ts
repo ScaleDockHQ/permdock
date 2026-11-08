@@ -1,7 +1,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { isRecord } from "../core/compact.ts";
-import { supabaseTenantClaim } from "./budget.ts";
+import { CUSTOM_ROLES_VERSION_CLAIM, supabaseTenantClaim } from "./budget.ts";
 
 /**
  * One entry of the `memberships` claim, as `schemas/supabase-claims-v1.json`
@@ -62,6 +62,8 @@ export type SupabasePermDockClaims<TenantClaim extends string = "tenant_id"> = {
   readonly team_ids?: readonly string[];
   /** The principal's authorization version. */
   readonly authz_ver?: number;
+  /** The custom-role version of the active tenant. */
+  readonly custom_roles_ver?: number;
 } & { readonly [K in TenantClaim]?: string };
 
 /**
@@ -117,6 +119,7 @@ const KNOWN: ReadonlySet<string> = new Set([
   "team_ids",
   "attrs",
   "authz_ver",
+  CUSTOM_ROLES_VERSION_CLAIM,
   "client_id",
   "scope",
   "act",
@@ -270,6 +273,14 @@ function checkPermDockClaims(
   optional(
     record,
     "authz_ver",
+    path,
+    issues,
+    (value) => Number.isInteger(value),
+    "an integer",
+  );
+  optional(
+    record,
+    CUSTOM_ROLES_VERSION_CLAIM,
     path,
     issues,
     (value) => Number.isInteger(value),

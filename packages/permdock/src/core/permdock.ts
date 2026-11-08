@@ -557,7 +557,14 @@ export type PermDockOptions = {
    * `bsb.bootstrap()`'s `authz_ver`: the memberships source's `version` is not
    * called. Anything but a non-negative integer is ignored.
    */
-  readonly version?: { readonly known: number };
+  readonly version?: {
+    readonly known: number;
+    /**
+     * The custom-role version of `tenant` this request already read; the
+     * memberships source's `customRolesVersion` is not called.
+     */
+    readonly customRoles?: number;
+  };
   readonly customRoles?: CustomRoleSource | CustomRoleSourceFactory;
   /**
    * Plans and seats from billing, merged into `principal.plans` for the active

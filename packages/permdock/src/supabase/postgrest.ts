@@ -79,6 +79,11 @@ export type PostgrestSourcesOptions = {
    */
   readonly versionFn?: string;
   /**
+   * The function `memberships.customRolesVersion` calls. Default
+   * `custom_roles_version_for`.
+   */
+  readonly rolesVersionFn?: string;
+  /**
    * The policy whose declared roles tell custom roles apart. With it,
    * `customRoles` reads nothing while every role the subject holds is declared,
    * and `memberships.version` reads the whole subject in one call when the
@@ -240,6 +245,10 @@ export function postgrestSources(
   const membersFn = options.membersFn ?? names?.membersOf ?? "members_of";
   const versionFn =
     options.versionFn ?? names?.authzVersionFor ?? "authz_version_for";
+  const rolesVersionFn =
+    options.rolesVersionFn ??
+    names?.rolesVersionFor ??
+    "custom_roles_version_for";
   const declared =
     options.policy === undefined
       ? undefined
@@ -254,6 +263,13 @@ export function postgrestSources(
    * match.
    */
   const resolved = new WeakMap<SourceMemo, Map<string, number>>();
+  /** The custom-role version each instance (its memo) read, by tenant. */
+  const resolvedRoles = new WeakMap<SourceMemo, Map<string, number>>();
+  /**
+   * The version reads of an instance still running, which a cached record waits
+   * for.
+   */
+  const pendingRoles = new WeakMap<SourceMemo, Promise<unknown>[]>();
   const noteVersionRead = repeatedVersionReads();
   const once = <T>(
     memo: SourceMemo | undefined,
@@ -309,11 +325,17 @@ export function postgrestSources(
     memo?: SourceMemo,
   ): Promise<SubjectRecord | undefined> =>
     once(memo, `${schema}.${fn}`, `${schema}.${fn}:${userId}`, async () => {
+      if (memo !== undefined) {
+        await Promise.allSettled(pendingRoles.get(memo) ?? []);
+      }
+      const rolesRead =
+        memo === undefined ? undefined : resolvedRoles.get(memo);
       const cached = await subjects?.record(
         userId,
         memo === undefined
           ? undefined
           : (resolved.get(memo)?.get(userId) ?? memo.version),
+        rolesRead === undefined ? undefined : Object.fromEntries(rolesRead),
       );
       if (cached !== null && cached !== undefined) {
         return cached;
@@ -357,6 +379,42 @@ export function postgrestSources(
         return current;
       },
     );
+  const rolesVersion = (
+    tenant: string,
+    memo?: SourceMemo,
+  ): Promise<number | undefined> => {
+    const read = rolesVersionOnce(tenant, memo);
+    if (memo !== undefined) {
+      pendingRoles.set(memo, [...(pendingRoles.get(memo) ?? []), read]);
+    }
+    return read;
+  };
+  const rolesVersionOnce = (
+    tenant: string,
+    memo?: SourceMemo,
+  ): Promise<number | undefined> =>
+    once(
+      memo,
+      `${schema}.${rolesVersionFn}`,
+      `${schema}.${rolesVersionFn}:${tenant}`,
+      async () => {
+        const result = await callRpc(client, schema, rolesVersionFn, {
+          p_tenant: tenant,
+        });
+        if (result.error !== null) {
+          throw new Error(
+            `PermDock: ${schema}.${rolesVersionFn} failed: ${result.error.message}`,
+          );
+        }
+        const current = versionOf(result.data);
+        if (memo !== undefined && current !== undefined) {
+          const versions = resolvedRoles.get(memo) ?? new Map<string, number>();
+          versions.set(tenant, current);
+          resolvedRoles.set(memo, versions);
+        }
+        return current;
+      },
+    );
   const live = async (
     userId: string,
     memo?: SourceMemo,
@@ -369,8 +427,12 @@ export function postgrestSources(
       async membershipsFor(principal, query) {
         return [...((await live(principal.id, query.memo))?.memberships ?? [])];
       },
+      customRolesVersion(query, context) {
+        return rolesVersion(query.tenant, context?.memo);
+      },
       version(principal, context) {
         return declared !== undefined &&
+          principal.customRolesVersion === undefined &&
           !onlyDeclared([
             ...(principal.roles ?? []),
             ...(principal.memberships ?? []).flatMap(
@@ -391,15 +453,25 @@ export function postgrestSources(
       const held = async (
         context: CustomRoleContext | undefined,
         keep: (role: CustomRole) => boolean,
-      ): Promise<CustomRole[]> =>
-        onlyDeclared(context?.held)
-          ? []
-          : (
-              (await live(principal.id, context?.memo))?.customRoles ?? []
-            ).filter(keep);
+        tenant?: string,
+      ): Promise<CustomRole[]> => {
+        if (onlyDeclared(context?.held)) {
+          return [];
+        }
+        if (subjects !== undefined && tenant !== undefined) {
+          try {
+            await rolesVersion(tenant, context?.memo);
+          } catch {
+            // Without the tenant's version the cache answers by the user's version alone, as before.
+          }
+        }
+        return (
+          (await live(principal.id, context?.memo))?.customRoles ?? []
+        ).filter(keep);
+      };
       return {
         rolesFor: (tenant, context) =>
-          held(context, (role) => role.tenant === tenant),
+          held(context, (role) => role.tenant === tenant, tenant),
         globalRoles: (context) =>
           held(context, (role) => role.scope === "global"),
         sharedRoles: (context) => held(context, (role) => role.shared === true),

@@ -22,6 +22,7 @@ export function versionQuery(
     roles: principal.roles,
     memberships: principal.memberships,
     authzVersion: principal.authzVersion,
+    customRolesVersion: principal.customRolesVersion,
     issuedAt,
   });
 }
@@ -46,10 +47,19 @@ function threw(source: MembershipSource, auth: AuthEvent[]): void {
   });
 }
 
+/** The custom-role version a token that holds a custom role is checked against. */
+export type RolesVersionCheck = {
+  readonly claimed: number;
+  readonly read: () => number | undefined | Promise<number | undefined>;
+};
+
 /**
  * `onStale: 'reread'`: a token behind the source's version has its memberships
  * (and global roles, with `readRoles`) read live; a version that cannot be read
- * keeps the claims and marks the subject stale.
+ * keeps the claims and marks the subject stale. With `rolesCheck`, a token
+ * whose custom-role version is behind the tenant's is read live too, and one
+ * whose tenant version cannot be read is read live as well, since its custom
+ * roles may have changed.
  */
 export function rereadStale(
   source: MembershipSource,
@@ -61,6 +71,7 @@ export function rereadStale(
   readRoles?: () => readonly string[] | Promise<readonly string[]>,
   known?: number,
   force = false,
+  rolesCheck?: RolesVersionCheck,
 ): {
   readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
   readonly stale: boolean | Promise<boolean>;
@@ -68,16 +79,21 @@ export function rereadStale(
 } {
   const claims = principal.memberships ?? [];
   const claimed = principal.authzVersion;
-  const judge = (current: number | undefined): Freshness =>
+  const judge = (
+    current: number | undefined,
+    currentRoles: number | undefined,
+  ): Freshness =>
     force ||
     typeof claimed !== "number" ||
     current === undefined ||
-    claimed < current
+    claimed < current ||
+    (rolesCheck !== undefined &&
+      (currentRoles === undefined || rolesCheck.claimed < currentRoles))
       ? "reread"
       : "fresh";
   const unknown = (): Freshness => {
     threw(source, auth);
-    return force ? "reread" : "unknown";
+    return force || rolesCheck !== undefined ? "reread" : "unknown";
   };
   let freshness: Freshness | Promise<Freshness>;
   try {
@@ -87,9 +103,14 @@ export function rereadStale(
       context,
       known,
     );
-    freshness = isThenable(current)
-      ? Promise.resolve(current).then(judge, unknown)
-      : judge(current);
+    const currentRoles = rolesCheck?.read();
+    freshness =
+      isThenable(current) || isThenable(currentRoles)
+        ? Promise.all([current, currentRoles]).then(
+            ([version, roles]) => judge(version, roles),
+            unknown,
+          )
+        : judge(current, currentRoles);
   } catch {
     freshness = unknown();
   }

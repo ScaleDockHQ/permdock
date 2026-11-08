@@ -83,6 +83,9 @@ export function composeMemberships(
 ): MembershipSource {
   const listing = sources.filter((source) => source.list !== undefined);
   const versioned = sources.filter((source) => source.version !== undefined);
+  const rolesVersioned = sources.filter(
+    (source) => source.customRolesVersion !== undefined,
+  );
   const rolesReaders = sources.filter(
     (source) => source.globalRolesFor !== undefined,
   );
@@ -137,6 +140,26 @@ export function composeMemberships(
                   );
                 }
                 return [...seen.values()];
+              },
+            );
+          },
+        }),
+    ...(rolesVersioned.length === 0
+      ? {}
+      : {
+          customRolesVersion(query, context) {
+            return then(
+              all(
+                rolesVersioned.map((source) =>
+                  source.customRolesVersion?.(query, context),
+                ),
+              ),
+              (versions) => {
+                const known = versions.filter(
+                  (value): value is number =>
+                    typeof value === "number" && Number.isFinite(value),
+                );
+                return known.length === 0 ? undefined : Math.max(...known);
               },
             );
           },
@@ -218,6 +241,12 @@ export function claimsFirst(
       ? {}
       : { list: (query) => inner.list?.(query) ?? [] }),
     ...(version === undefined ? {} : { version }),
+    ...(inner.customRolesVersion === undefined
+      ? {}
+      : {
+          customRolesVersion: (query, context) =>
+            inner.customRolesVersion?.(query, context),
+        }),
     ...(inner.globalRolesFor === undefined
       ? {}
       : {

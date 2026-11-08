@@ -31,6 +31,11 @@ export type InstanceCacheKey = {
   readonly principal: string;
   readonly version: number;
   readonly tenant?: string;
+  /**
+   * The custom-role version of `tenant` for a subject that holds a custom role:
+   * an edit of a role moves the key, so the instance is rebuilt.
+   */
+  readonly customRolesVersion?: number;
   readonly intent: "read" | "write";
   readonly parts: unknown;
 };
@@ -57,11 +62,14 @@ export type InstanceCache = {
    * `source` with every answer kept for `maxAgeMs`, keyed by its arguments.
    * With `of`, the answers are keyed by `of.owner` and `of.principal` instead
    * of `source`, so the new source a `CustomRoleSourceFactory` returns per
-   * subject reuses them, and `evict(of.principal)` drops them.
+   * subject reuses them, and `evict(of.principal)` drops them. `version`, the
+   * tenant's custom-role version, is part of every key, so an edit of a role
+   * ends the answers kept before it.
    */
   customRoles: (
     source: CustomRoleSource,
     of?: CustomRoleOwner,
+    version?: number,
   ) => CustomRoleSource;
   /** `source` with every answer kept for `maxAgeMs`, per principal and tenant. */
   entitlements: (source: EntitlementSource) => EntitlementSource;
@@ -227,6 +235,7 @@ export function instanceCache(
         key.principal,
         key.version,
         key.tenant ?? null,
+        key.customRolesVersion ?? null,
         key.intent,
         key.parts,
       ])}`;
@@ -235,11 +244,13 @@ export function instanceCache(
     customRoles(
       source: CustomRoleSource,
       of?: CustomRoleOwner,
+      version?: number,
     ): CustomRoleSource {
-      const sourceId =
+      const sourceId = `${
         of === undefined
           ? String(ownerId(source))
-          : `${String(ownerId(of.owner))}:${canonicalJson(of.principal)}`;
+          : `${String(ownerId(of.owner))}:${canonicalJson(of.principal)}`
+      }@${version === undefined ? "" : String(version)}`;
       const principal = of?.principal;
       const { globalRoles, sharedRoles, assignable } = source;
       return Object.freeze({
