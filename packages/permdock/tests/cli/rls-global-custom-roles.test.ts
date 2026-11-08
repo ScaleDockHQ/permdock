@@ -116,7 +116,7 @@ describe("platform custom roles in SQL", () => {
     expect(sql).not.toContain("permdock_custom_keys");
   });
 
-  it("types the event and topic of the custom-role broadcast so realtime.send resolves", () => {
+  it("calls realtime.send through execute, so the function lints where the stack has no realtime.send", () => {
     const sql = helpersSql(
       {
         ...base,
@@ -130,8 +130,9 @@ describe("platform custom roles in SQL", () => {
       [],
       { userRoles: true },
     );
-    expect(sql).toContain("perform realtime.send(");
-    expect(sql).toContain("'custom_roles'::text,");
-    expect(sql).toContain("r.tenant_id::text end)::text,");
+    expect(sql).toContain(
+      "execute 'select realtime.send($1, $2, $3, true)' using",
+    );
+    expect(sql).not.toContain("perform realtime.send(");
   });
 });

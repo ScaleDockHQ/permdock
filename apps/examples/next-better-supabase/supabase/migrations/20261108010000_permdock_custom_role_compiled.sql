@@ -103,12 +103,10 @@ begin
       where v.tenant_id in (select u from unnest(p_owners) u)
         or (v.tenant_id is null and exists (select 1 from unnest(p_owners) u where u is null))
     loop
-      perform realtime.send(
+      execute 'select realtime.send($1, $2, $3, true)' using
         jsonb_build_object('tenant', r.tenant_id, 'version', r.version),
         'custom_roles'::text,
-        (case when r.tenant_id is null then 'better_supabase:authz' else 'authz-tenant:' || r.tenant_id::text end)::text,
-        true
-      );
+        (case when r.tenant_id is null then 'better_supabase:authz' else 'authz-tenant:' || r.tenant_id::text end)::text;
     end loop;
   end if;
 end;
