@@ -36,8 +36,11 @@ export type SnapshotForOptions = {
   readonly include?: SnapshotInclude;
   readonly tenants?: SnapshotTenants;
   readonly omitAssignable?: boolean;
-  /** The wire version: `2` (the default) or `1` for a reader older than 0.25.0. */
-  readonly v?: 1 | 2;
+  /**
+   * The wire version. `1` is the only one that exists, so the option pins it;
+   * any other value is a `TypeError` rather than a silently ignored request.
+   */
+  readonly v?: 1;
   /** The instant for `issuedAt` and membership expiry. Defaults to the clock. */
   readonly now?: Instant;
 };
@@ -75,6 +78,12 @@ export function snapshotFor<
   user: TUser | Subject | null,
   options: SnapshotForOptions = {},
 ): Snapshot {
+  const version: number | undefined = options.v;
+  if (version !== undefined && version !== 1) {
+    throw new TypeError(
+      `PermDock: snapshotFor() writes snapshot wire version 1 only, got v: ${String(version)}`,
+    );
+  }
   return compactSnapshot(expandedSnapshotFor(policy, user, options));
 }
 

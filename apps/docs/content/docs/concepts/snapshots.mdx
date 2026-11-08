@@ -24,6 +24,8 @@ const preview = permdock
   .snapshot(); // simulated: true
 ```
 
+`assignableFor(policy, user, { tenant, customRoles?, assignable? })` returns the `assignable` entry of one tenant without building the rest. A page with a role editor for the open tenant calls it instead of shipping every tenant's entry with `tenants: "all"`; use `omitAssignable: true` on the snapshot and read the entry when the editor opens. It answers an empty entry for a tenant the subject holds no membership in.
+
 `snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip; it stays opt-in, with no membership-count threshold ([snapshots](/docs/concepts/snapshots), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)). Full grants with normalised conditions ship; `include` is the size lever. `omitAssignable: true` leaves out `assignable`, which repeats the roles and permissions the subject may hand out for every tenant; use it when the client never offers role or custom-role choices. `parseSnapshot(json)` is the public reader.
 
 ### Without an instance: `snapshotFor`
