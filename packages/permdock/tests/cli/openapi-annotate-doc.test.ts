@@ -270,4 +270,30 @@ describe("openapi annotate --doc", () => {
       expect(result.stdout).toContain(code);
     }
   });
+
+  it("reads oauth scopes and names an unknown permission from x-authorization", async () => {
+    const dir = workdir({
+      "/e": {
+        get: {
+          operationId: "e",
+          "x-permdock-permissions": ["post.read"],
+          "x-oauth-scopes": ["posts:read"],
+        },
+      },
+    });
+    expect((await annotate(dir)).code).toBe(0);
+    const bad = workdir({
+      "/f": {
+        get: {
+          operationId: "f",
+          "x-authorization": { permission: "ghost.thing" },
+        },
+      },
+      "/g": { get: { operationId: "g", "x-authorization": "ghost.text" } },
+    });
+    expect((await annotate(bad)).stdout).toContain("ghost.thing");
+    expect(readFileSync(join(dir, "operations.ts"), "utf8")).toContain(
+      'oauthScopes: ["posts:read"]',
+    );
+  });
 });

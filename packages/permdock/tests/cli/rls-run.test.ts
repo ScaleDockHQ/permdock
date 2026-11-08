@@ -250,6 +250,41 @@ describe("rls run", () => {
       ).rejects.toThrow(/fixtures not found/u);
     });
 
+    it("reads grant calls through the injected connector and through the default one", async () => {
+      const exec = () => ({
+        status: 0,
+        stdout: JSON.stringify({ results: [] }),
+        stderr: "",
+      });
+      const rows = [{ query: "select permdock_has('a.b')", calls: "2" }];
+      const connect = () =>
+        Promise.resolve({
+          query: () => Promise.resolve({ rows }),
+          end: () => Promise.resolve(),
+        });
+      const injected = await runRls(
+        input({
+          rest: ["verify"],
+          advisors: true,
+          grantCalls: true,
+          db: "postgres://x",
+          connect,
+          exec,
+        }),
+      );
+      expect(injected.output).toContain("a.b");
+      const unreachable = runRls(
+        input({
+          rest: ["verify"],
+          advisors: true,
+          grantCalls: true,
+          db: "postgres://127.0.0.1:1/none",
+          exec,
+        }),
+      );
+      await expect(unreachable).rejects.toThrow(/could not connect/u);
+    });
+
     it("writes a walk chain and a tree helper, and warns when assignments have no assigns", async () => {
       const policyFile = path.join(cwd, "folder-policy.ts");
       writeFileSync(
