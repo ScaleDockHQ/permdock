@@ -14,6 +14,12 @@ export type SubjectRecord = {
   readonly roles: readonly string[];
   readonly memberships: readonly Membership[];
   readonly customRoles: readonly CustomRole[];
+  /**
+   * The tenant a `subject_for(p_user, p_tenant)` read was scoped to. Absent for
+   * the all-tenants record. A scoped record is a different record from the
+   * all-tenants one and from another tenant's.
+   */
+  readonly tenant?: string;
   readonly authzVersion?: number;
   /**
    * The custom-role version of each tenant the user holds a custom role in,
@@ -42,12 +48,14 @@ export type SubjectCache = {
    * the cache's staleness window and at the version the cache's `VersionCache`
    * holds. With `roles`, the custom-role version read for each tenant, a record
    * whose version for any of them differs is not served either, and a record
-   * below one is dropped.
+   * below one is dropped. With `tenant`, only the record read for that tenant
+   * answers; without it, only the all-tenants record does.
    */
   record: (
     id: string,
     version: number | undefined,
     roles?: Readonly<Record<string, number>>,
+    tenant?: string,
   ) => SubjectRecord | null | Promise<SubjectRecord | null>;
   /**
    * Stores a record a source read. A record whose `authzVersion` is below the
@@ -55,7 +63,7 @@ export type SubjectCache = {
    * with no version when a versioned record is held.
    */
   seed: (record: SubjectRecord) => void | Promise<void>;
-  /** Drops the record of `id`. */
+  /** Drops every record of `id`, whatever its tenant. */
   evict: (id: string) => void | Promise<void>;
 };
 
@@ -221,6 +229,12 @@ function rolesBehind(
 const DEFAULT_MAX_ENTRIES = 10_000;
 const MAX_STALE_CEILING_MS = 60_000;
 
+const TENANT_SEPARATOR = "\u0000";
+
+function keyOf(id: string, tenant: string | undefined): string {
+  return tenant === undefined ? id : `${id}${TENANT_SEPARATOR}${tenant}`;
+}
+
 type Entry = { readonly record: SubjectRecord; readonly at: number };
 
 /**
@@ -241,8 +255,9 @@ export function memorySubjectCache(
   const entries = new Map<string, Entry>();
   const now = (): number => nowMillis(options.now?.());
   const store = (entry: Entry): void => {
-    entries.delete(entry.record.id);
-    entries.set(entry.record.id, entry);
+    const key = keyOf(entry.record.id, entry.record.tenant);
+    entries.delete(key);
+    entries.set(key, entry);
     if (entries.size > maxEntries) {
       const oldest = entries.keys().next();
       if (oldest.done !== true) {
@@ -259,8 +274,9 @@ export function memorySubjectCache(
   };
   return Object.freeze({
     name: "memory",
-    record(id, version, roles) {
-      const entry = entries.get(id);
+    record(id, version, roles, tenant) {
+      const key = keyOf(id, tenant);
+      const entry = entries.get(key);
       if (entry === undefined) {
         return null;
       }
@@ -269,7 +285,7 @@ export function memorySubjectCache(
         if (held === version) {
           if (roles !== undefined && !rolesMatch(entry.record, roles)) {
             if (rolesBehind(entry.record, roles)) {
-              entries.delete(id);
+              entries.delete(key);
             }
             return null;
           }
@@ -277,7 +293,7 @@ export function memorySubjectCache(
           return entry.record;
         }
         if (held === undefined || held < version) {
-          entries.delete(id);
+          entries.delete(key);
         }
         return null;
       }
@@ -294,7 +310,8 @@ export function memorySubjectCache(
     },
     seed(record) {
       const version = record.authzVersion;
-      const held = entries.get(record.id)?.record.authzVersion;
+      const held = entries.get(keyOf(record.id, record.tenant))?.record
+        .authzVersion;
       if (version === undefined) {
         if (held !== undefined) {
           return;
@@ -309,6 +326,12 @@ export function memorySubjectCache(
     },
     evict(id) {
       entries.delete(id);
+      const scoped = `${id}${TENANT_SEPARATOR}`;
+      for (const key of entries.keys()) {
+        if (key.startsWith(scoped)) {
+          entries.delete(key);
+        }
+      }
     },
   });
 }

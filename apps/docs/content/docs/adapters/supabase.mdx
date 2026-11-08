@@ -119,7 +119,7 @@ const fromSession = await app.fromClient(supabase); // a supabase-js or @supabas
 ```
 
 - `client()` is called once, on first use. Without it, only the claims count and `app.forClient(client)` binds one later.
-- The default `sources(client)` is `postgrestSources(client)`: memberships through `members_of`, custom roles through `subject_for`, the version through `authz_version_for`.
+- The default `sources(client)` is `postgrestSources(client)`: memberships through `members_of`, custom roles through `subject_for`, the version through `authz_version_for`. `postgrestSources(client, { tenantScoped: true })` reads one tenant through `subject_for(p_user, p_tenant)` ([one tenant over PostgREST](/docs/adapters/supabase-hook#one-tenant-over-postgrest)).
 - `fromClaims(claims, { version })` compares the token's `authz_ver` with the database before it trusts the claims, as [freshness](#freshness-and-the-version-cache) describes. A token's `authz_ver` is never taken as current.
 - `getPermissions(app, input, checks)` is the same batch decision `permdock/better-supabase` offers; both import one resolver.
 - `permdock/supabase` does not import `better-supabase`; `tests/package/supabase-layering.test.ts` fails if it does. `permdock/better-supabase`'s `definePermDock` builds on the same resolver and adds `.server`, `.authorizer` and `.next`.

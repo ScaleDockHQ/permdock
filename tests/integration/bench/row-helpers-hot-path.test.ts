@@ -211,14 +211,19 @@ describe("row helpers on the hot path", () => {
     }
   });
 
-  it("checks one known id faster with can_item than with the full rows() form", () => {
-    const scalar = measured.find((row) =>
-      row.shape.startsWith("can_item(id, 'item.read')"),
-    );
+  it("checks one known id through can_item touching fewer buffers than the full rows() form", () => {
+    // Buffer counts do not vary with load or cache warmth: a hit becomes a read when cold, so the sum is stable. Wall time of a sub-millisecond statement is not, so it is only reported.
+    const touched = (row: Measured | undefined): number =>
+      defined(row).sharedHit + defined(row).sharedRead;
     const full = measured.find((row) =>
       row.shape.startsWith("hand-written fn"),
     );
-    expect(defined(scalar).medianMs * 1.5).toBeLessThan(defined(full).medianMs);
-    expect(defined(scalar).sharedHit).toBeLessThan(defined(full).sharedHit);
+    for (const prefix of [
+      "can_item(id, 'item.read')",
+      "can_item(id, 'item.edit')",
+    ]) {
+      const scalar = measured.find((row) => row.shape.startsWith(prefix));
+      expect(touched(scalar) * 2).toBeLessThan(touched(full));
+    }
   });
 });
