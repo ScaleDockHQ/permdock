@@ -96,7 +96,11 @@ insert into better_supabase.membership_roles (organization_id, user_id, role)
   select ${tenant("t")}, '${id}', ${roleNames(cell)}
   from generate_series(0, ${cell.memberships - 1}) t, generate_series(0, ${cell.roles - 1}) k;
 `;
-  }).join("\n");
+  })
+    .concat(
+      "\nanalyze better_supabase.memberships;\nanalyze better_supabase.membership_roles;\n",
+    )
+    .join("\n");
 }
 
 /** Grants of one custom role, kept at 8 so 500 roles × 1,000 tenants is 4M. */

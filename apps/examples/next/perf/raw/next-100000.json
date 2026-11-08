@@ -2,337 +2,201 @@
   "sample": "next",
   "seed": 100000,
   "base": "http://127.0.0.1:3485",
-  "started": "2026-11-07T17:39:40.264Z",
-  "runsPerRoute": 3,
+  "started": "2026-11-08T06:27:38.737Z",
+  "runsPerRoute": 5,
   "results": {
     "quotes-list": {
       "user": "Olivia",
       "url": "http://127.0.0.1:3485/acme/quotes",
       "cold": {
-        "lcpMs": null,
+        "ttfbMs": 1730.6,
+        "lcpMs": 4220,
+        "fcpMs": 4220,
         "facts": {
-          "ttfbMs": 9866.899999976158,
-          "domContentLoadedMs": 60125.700000047684,
-          "loadMs": 60204.39999997616,
-          "htmlEncodedBytes": 10184000,
+          "ttfbMs": 1731.1000000238419,
+          "domContentLoadedMs": 21299.800000071526,
+          "loadMs": 21319.800000071526,
+          "htmlEncodedBytes": 10183996,
           "htmlDecodedBytes": 481537976,
           "rscPayloadBytes": 319873271,
           "snapshotBytes": 2036,
-          "domNodes": 900153,
+          "domNodes": 900154,
           "links": 100012,
-          "heapMB": 2794.5,
-          "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"],
+          "heapMB": 2916.1,
+          "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
           "rscRequests": [
             {
-              "encodedBytes": 168,
+              "encodedBytes": 167,
               "decodedBytes": 169,
-              "serverMs": 4
+              "serverMs": 2
             },
             {
-              "encodedBytes": 3660,
+              "encodedBytes": 3654,
               "decodedBytes": 21662,
-              "serverMs": 3
+              "serverMs": 1
             },
             {
               "encodedBytes": 213,
               "decodedBytes": 262,
-              "serverMs": 6
+              "serverMs": 2
             },
             {
               "encodedBytes": 213,
               "decodedBytes": 262,
-              "serverMs": 7
+              "serverMs": 2
             },
             {
               "encodedBytes": 229,
               "decodedBytes": 315,
-              "serverMs": 8
-            },
-            {
-              "encodedBytes": 794,
-              "decodedBytes": 1158,
-              "serverMs": 9
-            },
-            {
-              "encodedBytes": 3767,
-              "decodedBytes": 14792,
-              "serverMs": 2
-            },
-            {
-              "encodedBytes": 3229,
-              "decodedBytes": 11356,
               "serverMs": 3
+            },
+            {
+              "encodedBytes": 791,
+              "decodedBytes": 1158,
+              "serverMs": 5
+            },
+            {
+              "encodedBytes": 3766,
+              "decodedBytes": 14792,
+              "serverMs": 1
+            },
+            {
+              "encodedBytes": 3226,
+              "decodedBytes": 11356,
+              "serverMs": 1
             },
             {
               "encodedBytes": 7385,
               "decodedBytes": 18603,
-              "serverMs": 247
+              "serverMs": 140
             },
             {
               "encodedBytes": 3384624,
               "decodedBytes": 8983270,
-              "serverMs": 8970
+              "serverMs": 265
+            },
+            {
+              "encodedBytes": 242,
+              "decodedBytes": 392,
+              "serverMs": 4
+            },
+            {
+              "encodedBytes": 242,
+              "decodedBytes": 392,
+              "serverMs": 4
+            },
+            {
+              "encodedBytes": 242,
+              "decodedBytes": 392,
+              "serverMs": 4
+            },
+            {
+              "encodedBytes": 242,
+              "decodedBytes": 392,
+              "serverMs": 4
+            },
+            {
+              "encodedBytes": 3047,
+              "decodedBytes": 10747,
+              "serverMs": 3
+            },
+            {
+              "encodedBytes": 3265,
+              "decodedBytes": 9562,
+              "serverMs": 13
+            },
+            {
+              "encodedBytes": 3209,
+              "decodedBytes": 9439,
+              "serverMs": 14
+            },
+            {
+              "encodedBytes": 3193,
+              "decodedBytes": 9430,
+              "serverMs": 15
+            },
+            {
+              "encodedBytes": 3262,
+              "decodedBytes": 9559,
+              "serverMs": 16
+            },
+            {
+              "encodedBytes": 3251,
+              "decodedBytes": 9570,
+              "serverMs": 10
+            },
+            {
+              "encodedBytes": 3197,
+              "decodedBytes": 9439,
+              "serverMs": 10
+            },
+            {
+              "encodedBytes": 3184,
+              "decodedBytes": 9434,
+              "serverMs": 10
+            },
+            {
+              "encodedBytes": 3256,
+              "decodedBytes": 9573,
+              "serverMs": 12
+            },
+            {
+              "encodedBytes": 3192,
+              "decodedBytes": 9437,
+              "serverMs": 6
+            },
+            {
+              "encodedBytes": 3185,
+              "decodedBytes": 9436,
+              "serverMs": 9
+            },
+            {
+              "encodedBytes": 3254,
+              "decodedBytes": 9571,
+              "serverMs": 9
             }
           ]
         }
       },
       "warmMedian": {
-        "ttfbMs": 3.4,
-        "lcpMs": 332,
-        "fcpMs": 332,
+        "ttfbMs": 3.9,
+        "lcpMs": 2120,
+        "fcpMs": 2120,
         "cls": 0,
-        "loadMs": 26771,
-        "htmlEncodedBytes": 10184001,
+        "loadMs": 18755.699999928474,
+        "htmlEncodedBytes": 10183999,
         "htmlDecodedBytes": 481537976,
         "rscPayloadBytes": 319873271,
         "snapshotBytes": 2036,
         "domNodes": 900154,
-        "heapMB": 6098
+        "heapMB": 4751.1
       },
-      "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"],
+      "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
       "runs": [
         {
           "run": 1,
-          "vitals": {},
-          "facts": {
-            "ttfbMs": 9866.899999976158,
-            "domContentLoadedMs": 60125.700000047684,
-            "loadMs": 60204.39999997616,
-            "htmlEncodedBytes": 10184000,
-            "htmlDecodedBytes": 481537976,
-            "rscPayloadBytes": 319873271,
-            "snapshotBytes": 2036,
-            "domNodes": 900153,
-            "links": 100012,
-            "heapMB": 2794.5,
-            "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"],
-            "rscRequests": [
-              {
-                "encodedBytes": 168,
-                "decodedBytes": 169,
-                "serverMs": 4
-              },
-              {
-                "encodedBytes": 3660,
-                "decodedBytes": 21662,
-                "serverMs": 3
-              },
-              {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 6
-              },
-              {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 7
-              },
-              {
-                "encodedBytes": 229,
-                "decodedBytes": 315,
-                "serverMs": 8
-              },
-              {
-                "encodedBytes": 794,
-                "decodedBytes": 1158,
-                "serverMs": 9
-              },
-              {
-                "encodedBytes": 3767,
-                "decodedBytes": 14792,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 3229,
-                "decodedBytes": 11356,
-                "serverMs": 3
-              },
-              {
-                "encodedBytes": 7385,
-                "decodedBytes": 18603,
-                "serverMs": 247
-              },
-              {
-                "encodedBytes": 3384624,
-                "decodedBytes": 8983270,
-                "serverMs": 8970
-              }
-            ]
-          }
-        },
-        {
-          "run": 2,
-          "vitals": {},
-          "facts": {
-            "ttfbMs": 3.299999952316284,
-            "domContentLoadedMs": 26731.699999928474,
-            "loadMs": 26771,
-            "htmlEncodedBytes": 10184001,
-            "htmlDecodedBytes": 481537976,
-            "rscPayloadBytes": 319873271,
-            "snapshotBytes": 2036,
-            "domNodes": 900154,
-            "links": 100012,
-            "heapMB": 3525.9,
-            "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"],
-            "rscRequests": [
-              {
-                "encodedBytes": 168,
-                "decodedBytes": 169,
-                "serverMs": 3
-              },
-              {
-                "encodedBytes": 3660,
-                "decodedBytes": 21662,
-                "serverMs": 1
-              },
-              {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 6
-              },
-              {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 8
-              },
-              {
-                "encodedBytes": 229,
-                "decodedBytes": 315,
-                "serverMs": 8
-              },
-              {
-                "encodedBytes": 795,
-                "decodedBytes": 1158,
-                "serverMs": 10
-              },
-              {
-                "encodedBytes": 3767,
-                "decodedBytes": 14792,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 3229,
-                "decodedBytes": 11356,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 7385,
-                "decodedBytes": 18603,
-                "serverMs": 220
-              },
-              {
-                "encodedBytes": 3384625,
-                "decodedBytes": 8983270,
-                "serverMs": 468
-              },
-              {
-                "encodedBytes": 242,
-                "decodedBytes": 392,
-                "serverMs": 10519
-              },
-              {
-                "encodedBytes": 242,
-                "decodedBytes": 392,
-                "serverMs": 10519
-              },
-              {
-                "encodedBytes": 242,
-                "decodedBytes": 392,
-                "serverMs": 10519
-              },
-              {
-                "encodedBytes": 242,
-                "decodedBytes": 392,
-                "serverMs": 10519
-              },
-              {
-                "encodedBytes": 3050,
-                "decodedBytes": 10747,
-                "serverMs": 1
-              },
-              {
-                "encodedBytes": 3265,
-                "decodedBytes": 9562,
-                "serverMs": 22
-              },
-              {
-                "encodedBytes": 3193,
-                "decodedBytes": 9430,
-                "serverMs": 25
-              },
-              {
-                "encodedBytes": 3209,
-                "decodedBytes": 9439,
-                "serverMs": 23
-              },
-              {
-                "encodedBytes": 3263,
-                "decodedBytes": 9559,
-                "serverMs": 26
-              },
-              {
-                "encodedBytes": 3254,
-                "decodedBytes": 9570,
-                "serverMs": 16
-              },
-              {
-                "encodedBytes": 3196,
-                "decodedBytes": 9439,
-                "serverMs": 17
-              },
-              {
-                "encodedBytes": 3183,
-                "decodedBytes": 9434,
-                "serverMs": 18
-              },
-              {
-                "encodedBytes": 3254,
-                "decodedBytes": 9573,
-                "serverMs": 20
-              },
-              {
-                "encodedBytes": 3196,
-                "decodedBytes": 9437,
-                "serverMs": 14
-              },
-              {
-                "encodedBytes": 3184,
-                "decodedBytes": 9436,
-                "serverMs": 15
-              },
-              {
-                "encodedBytes": 3254,
-                "decodedBytes": 9571,
-                "serverMs": 16
-              }
-            ]
-          }
-        },
-        {
-          "run": 3,
           "vitals": {
             "cls": {
               "entries": [
                 {
-                  "startTime": 13412.5,
+                  "startTime": 12632.6,
                   "value": 0.0005
                 },
                 {
-                  "startTime": 13446.1,
+                  "startTime": 12649.2,
                   "value": 0.0005
                 }
               ],
               "score": 0
             },
-            "fcp": 332,
+            "fcp": 4220,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
             "lcp": {
               "element": "p",
               "size": 10523,
-              "startTime": 332,
+              "startTime": 4220,
               "url": null
             },
             "lifecycle": {
@@ -344,34 +208,412 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 3.4,
+            "ttfb": 1730.6,
             "url": "http://127.0.0.1:3485/acme/quotes"
           },
           "facts": {
-            "ttfbMs": 4.399999976158142,
-            "domContentLoadedMs": 22890.299999952316,
-            "loadMs": 22918.5,
-            "htmlEncodedBytes": 10184001,
+            "ttfbMs": 1731.1000000238419,
+            "domContentLoadedMs": 21299.800000071526,
+            "loadMs": 21319.800000071526,
+            "htmlEncodedBytes": 10183996,
             "htmlDecodedBytes": 481537976,
             "rscPayloadBytes": 319873271,
             "snapshotBytes": 2036,
             "domNodes": 900154,
             "links": 100012,
-            "heapMB": 6098,
-            "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"],
+            "heapMB": 2916.1,
+            "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
                 "serverMs": 2
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 229,
+                "decodedBytes": 315,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 791,
+                "decodedBytes": 1158,
+                "serverMs": 5
+              },
+              {
+                "encodedBytes": 3766,
+                "decodedBytes": 14792,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3226,
+                "decodedBytes": 11356,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 7385,
+                "decodedBytes": 18603,
+                "serverMs": 140
+              },
+              {
+                "encodedBytes": 3384624,
+                "decodedBytes": 8983270,
+                "serverMs": 265
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 4
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 4
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 4
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 4
+              },
+              {
+                "encodedBytes": 3047,
+                "decodedBytes": 10747,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 3265,
+                "decodedBytes": 9562,
+                "serverMs": 13
+              },
+              {
+                "encodedBytes": 3209,
+                "decodedBytes": 9439,
+                "serverMs": 14
+              },
+              {
+                "encodedBytes": 3193,
+                "decodedBytes": 9430,
+                "serverMs": 15
+              },
+              {
+                "encodedBytes": 3262,
+                "decodedBytes": 9559,
+                "serverMs": 16
+              },
+              {
+                "encodedBytes": 3251,
+                "decodedBytes": 9570,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 3197,
+                "decodedBytes": 9439,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 3184,
+                "decodedBytes": 9434,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 3256,
+                "decodedBytes": 9573,
+                "serverMs": 12
+              },
+              {
+                "encodedBytes": 3192,
+                "decodedBytes": 9437,
+                "serverMs": 6
+              },
+              {
+                "encodedBytes": 3185,
+                "decodedBytes": 9436,
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 3254,
+                "decodedBytes": 9571,
+                "serverMs": 9
+              }
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 8440.1,
+                  "value": 0.0005
+                },
+                {
+                  "startTime": 8468,
+                  "value": 0.0005
+                }
+              ],
+              "score": 0
+            },
+            "fcp": 244,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 10523,
+              "startTime": 244,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 3.9,
+            "url": "http://127.0.0.1:3485/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 4.699999928474426,
+            "domContentLoadedMs": 18960.5,
+            "loadMs": 18988.799999952316,
+            "htmlEncodedBytes": 10183999,
+            "htmlDecodedBytes": 481537976,
+            "rscPayloadBytes": 319873271,
+            "snapshotBytes": 2036,
+            "domNodes": 900154,
+            "links": 100012,
+            "heapMB": 3527.5,
+            "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 229,
+                "decodedBytes": 315,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 791,
+                "decodedBytes": 1158,
+                "serverMs": 5
+              },
+              {
+                "encodedBytes": 3766,
+                "decodedBytes": 14792,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3226,
+                "decodedBytes": 11356,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 7387,
+                "decodedBytes": 18603,
+                "serverMs": 147
+              },
+              {
+                "encodedBytes": 3384612,
+                "decodedBytes": 8983270,
+                "serverMs": 268
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 4
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 3047,
+                "decodedBytes": 10747,
+                "serverMs": 6
+              },
+              {
+                "encodedBytes": 3207,
+                "decodedBytes": 9439,
+                "serverMs": 11
+              },
+              {
+                "encodedBytes": 3192,
+                "decodedBytes": 9430,
+                "serverMs": 12
+              },
+              {
+                "encodedBytes": 3265,
+                "decodedBytes": 9562,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 3258,
+                "decodedBytes": 9559,
+                "serverMs": 13
+              },
+              {
+                "encodedBytes": 3253,
+                "decodedBytes": 9570,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 3195,
+                "decodedBytes": 9439,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 3182,
+                "decodedBytes": 9434,
+                "serverMs": 11
+              },
+              {
+                "encodedBytes": 3254,
+                "decodedBytes": 9573,
+                "serverMs": 12
+              },
+              {
+                "encodedBytes": 3192,
+                "decodedBytes": 9437,
+                "serverMs": 7
+              },
+              {
+                "encodedBytes": 3186,
+                "decodedBytes": 9436,
+                "serverMs": 7
+              },
+              {
+                "encodedBytes": 3254,
+                "decodedBytes": 9571,
+                "serverMs": 8
+              }
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 8804.9,
+                  "value": 0.0005
+                },
+                {
+                  "startTime": 8861.5,
+                  "value": 0.0005
+                }
+              ],
+              "score": 0
+            },
+            "fcp": 2120,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 10523,
+              "startTime": 2120,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 3.9,
+            "url": "http://127.0.0.1:3485/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 5,
+            "domContentLoadedMs": 18178.600000023842,
+            "loadMs": 18205.400000095367,
+            "htmlEncodedBytes": 10183996,
+            "htmlDecodedBytes": 481537976,
+            "rscPayloadBytes": 319873271,
+            "snapshotBytes": 2036,
+            "domNodes": 900154,
+            "links": 100012,
+            "heapMB": 4137.5,
+            "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
                 "serverMs": 1
               },
@@ -379,6 +621,384 @@
                 "encodedBytes": 213,
                 "decodedBytes": 262,
                 "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 229,
+                "decodedBytes": 315,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 793,
+                "decodedBytes": 1158,
+                "serverMs": 5
+              },
+              {
+                "encodedBytes": 3766,
+                "decodedBytes": 14792,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3226,
+                "decodedBytes": 11356,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 7387,
+                "decodedBytes": 18603,
+                "serverMs": 138
+              },
+              {
+                "encodedBytes": 3384612,
+                "decodedBytes": 8983270,
+                "serverMs": 264
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 4
+              },
+              {
+                "encodedBytes": 3047,
+                "decodedBytes": 10747,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3266,
+                "decodedBytes": 9562,
+                "serverMs": 12
+              },
+              {
+                "encodedBytes": 3211,
+                "decodedBytes": 9439,
+                "serverMs": 13
+              },
+              {
+                "encodedBytes": 3193,
+                "decodedBytes": 9430,
+                "serverMs": 14
+              },
+              {
+                "encodedBytes": 3258,
+                "decodedBytes": 9559,
+                "serverMs": 15
+              },
+              {
+                "encodedBytes": 3251,
+                "decodedBytes": 9570,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 3195,
+                "decodedBytes": 9439,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 3183,
+                "decodedBytes": 9434,
+                "serverMs": 11
+              },
+              {
+                "encodedBytes": 3253,
+                "decodedBytes": 9573,
+                "serverMs": 12
+              },
+              {
+                "encodedBytes": 3192,
+                "decodedBytes": 9437,
+                "serverMs": 7
+              },
+              {
+                "encodedBytes": 3184,
+                "decodedBytes": 9436,
+                "serverMs": 8
+              },
+              {
+                "encodedBytes": 3254,
+                "decodedBytes": 9571,
+                "serverMs": 8
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 8600.4,
+                  "value": 0.0005
+                },
+                {
+                  "startTime": 8634.6,
+                  "value": 0.0005
+                }
+              ],
+              "score": 0
+            },
+            "fcp": 380,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 10523,
+              "startTime": 380,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 3.5,
+            "url": "http://127.0.0.1:3485/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 5,
+            "domContentLoadedMs": 18726.399999976158,
+            "loadMs": 18755.699999928474,
+            "htmlEncodedBytes": 10183999,
+            "htmlDecodedBytes": 481537976,
+            "rscPayloadBytes": 319873271,
+            "snapshotBytes": 2036,
+            "domNodes": 900154,
+            "links": 100012,
+            "heapMB": 4751.1,
+            "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 229,
+                "decodedBytes": 315,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 793,
+                "decodedBytes": 1158,
+                "serverMs": 6
+              },
+              {
+                "encodedBytes": 3766,
+                "decodedBytes": 14792,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3226,
+                "decodedBytes": 11356,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 7385,
+                "decodedBytes": 18603,
+                "serverMs": 136
+              },
+              {
+                "encodedBytes": 3384624,
+                "decodedBytes": 8983270,
+                "serverMs": 268
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 3047,
+                "decodedBytes": 10747,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 3266,
+                "decodedBytes": 9562,
+                "serverMs": 13
+              },
+              {
+                "encodedBytes": 3194,
+                "decodedBytes": 9430,
+                "serverMs": 14
+              },
+              {
+                "encodedBytes": 3208,
+                "decodedBytes": 9439,
+                "serverMs": 14
+              },
+              {
+                "encodedBytes": 3262,
+                "decodedBytes": 9559,
+                "serverMs": 16
+              },
+              {
+                "encodedBytes": 3250,
+                "decodedBytes": 9570,
+                "serverMs": 11
+              },
+              {
+                "encodedBytes": 3195,
+                "decodedBytes": 9439,
+                "serverMs": 11
+              },
+              {
+                "encodedBytes": 3183,
+                "decodedBytes": 9434,
+                "serverMs": 12
+              },
+              {
+                "encodedBytes": 3252,
+                "decodedBytes": 9573,
+                "serverMs": 13
+              },
+              {
+                "encodedBytes": 3194,
+                "decodedBytes": 9437,
+                "serverMs": 8
+              },
+              {
+                "encodedBytes": 3185,
+                "decodedBytes": 9436,
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 3254,
+                "decodedBytes": 9571,
+                "serverMs": 13
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 8548.4,
+                  "value": 0.0005
+                },
+                {
+                  "startTime": 8576.6,
+                  "value": 0.0005
+                }
+              ],
+              "score": 0
+            },
+            "fcp": 2160,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 10523,
+              "startTime": 2160,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 2.9,
+            "url": "http://127.0.0.1:3485/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 3.799999952316284,
+            "domContentLoadedMs": 17128.799999952316,
+            "loadMs": 17161.199999928474,
+            "htmlEncodedBytes": 10183996,
+            "htmlDecodedBytes": 481537976,
+            "rscPayloadBytes": 319873271,
+            "snapshotBytes": 2036,
+            "domNodes": 900154,
+            "links": 100012,
+            "heapMB": 5716.8,
+            "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
               },
               {
                 "encodedBytes": 213,
@@ -393,37 +1013,37 @@
               {
                 "encodedBytes": 793,
                 "decodedBytes": 1158,
-                "serverMs": 7
+                "serverMs": 5
               },
               {
-                "encodedBytes": 3767,
+                "encodedBytes": 3766,
                 "decodedBytes": 14792,
                 "serverMs": 1
               },
               {
-                "encodedBytes": 3229,
+                "encodedBytes": 3226,
                 "decodedBytes": 11356,
-                "serverMs": 2
+                "serverMs": 1
               },
               {
-                "encodedBytes": 7384,
+                "encodedBytes": 7382,
                 "decodedBytes": 18603,
-                "serverMs": 196
+                "serverMs": 143
               },
               {
-                "encodedBytes": 3384612,
+                "encodedBytes": 3384624,
                 "decodedBytes": 8983270,
-                "serverMs": 404
+                "serverMs": 262
+              },
+              {
+                "encodedBytes": 242,
+                "decodedBytes": 392,
+                "serverMs": 1
               },
               {
                 "encodedBytes": 242,
                 "decodedBytes": 392,
                 "serverMs": 3
-              },
-              {
-                "encodedBytes": 242,
-                "decodedBytes": 392,
-                "serverMs": 5
               },
               {
                 "encodedBytes": 242,
@@ -433,67 +1053,67 @@
               {
                 "encodedBytes": 242,
                 "decodedBytes": 392,
-                "serverMs": 3
+                "serverMs": 2
               },
               {
-                "encodedBytes": 3050,
+                "encodedBytes": 3047,
                 "decodedBytes": 10747,
                 "serverMs": 1
               },
               {
-                "encodedBytes": 3207,
-                "decodedBytes": 9439,
-                "serverMs": 17
-              },
-              {
                 "encodedBytes": 3266,
                 "decodedBytes": 9562,
-                "serverMs": 16
+                "serverMs": 9
               },
               {
-                "encodedBytes": 3193,
+                "encodedBytes": 3208,
+                "decodedBytes": 9439,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 3191,
                 "decodedBytes": 9430,
-                "serverMs": 19
+                "serverMs": 10
               },
               {
                 "encodedBytes": 3260,
                 "decodedBytes": 9559,
-                "serverMs": 19
+                "serverMs": 12
               },
               {
-                "encodedBytes": 3254,
+                "encodedBytes": 3253,
                 "decodedBytes": 9570,
-                "serverMs": 13
+                "serverMs": 8
               },
               {
-                "encodedBytes": 3196,
+                "encodedBytes": 3197,
                 "decodedBytes": 9439,
-                "serverMs": 14
+                "serverMs": 8
               },
               {
-                "encodedBytes": 3184,
+                "encodedBytes": 3183,
                 "decodedBytes": 9434,
-                "serverMs": 15
+                "serverMs": 9
               },
               {
                 "encodedBytes": 3253,
                 "decodedBytes": 9573,
-                "serverMs": 16
+                "serverMs": 10
               },
               {
-                "encodedBytes": 3195,
+                "encodedBytes": 3194,
                 "decodedBytes": 9437,
-                "serverMs": 11
+                "serverMs": 6
               },
               {
-                "encodedBytes": 3187,
+                "encodedBytes": 3184,
                 "decodedBytes": 9436,
-                "serverMs": 12
+                "serverMs": 6
               },
               {
-                "encodedBytes": 3254,
+                "encodedBytes": 3253,
                 "decodedBytes": 9571,
-                "serverMs": 13
+                "serverMs": 7
               }
             ]
           }
@@ -504,31 +1124,41 @@
       "user": "Olivia",
       "url": "http://127.0.0.1:3485/acme/quotes/q-s0000002",
       "cold": {
-        "ttfbMs": 4.3,
-        "lcpMs": 308,
-        "fcpMs": 308,
+        "ttfbMs": 3.7,
+        "lcpMs": 372,
+        "fcpMs": 372,
         "facts": {
-          "ttfbMs": 5.5,
-          "domContentLoadedMs": 257.3000000715256,
-          "loadMs": 258.7000000476837,
-          "htmlEncodedBytes": 17345,
+          "ttfbMs": 4.700000047683716,
+          "domContentLoadedMs": 212.10000002384186,
+          "loadMs": 213.30000007152557,
+          "htmlEncodedBytes": 17343,
           "htmlDecodedBytes": 78482,
           "rscPayloadBytes": 59764,
           "snapshotBytes": 2036,
           "domNodes": 143,
           "links": 8,
-          "heapMB": 5637.7,
-          "serverReads": ["Quote read in 0 ms at 17:41:30 UTC"],
+          "heapMB": 5371,
+          "serverReads": ["Quote read in 0 ms at 06:28:02 UTC"],
           "rscRequests": [
             {
-              "encodedBytes": 168,
+              "encodedBytes": 167,
               "decodedBytes": 169,
-              "serverMs": 2
+              "serverMs": 1
             },
             {
-              "encodedBytes": 3660,
+              "encodedBytes": 3654,
               "decodedBytes": 21662,
-              "serverMs": 3
+              "serverMs": 1
+            },
+            {
+              "encodedBytes": 213,
+              "decodedBytes": 262,
+              "serverMs": 1
+            },
+            {
+              "encodedBytes": 213,
+              "decodedBytes": 262,
+              "serverMs": 2
             },
             {
               "encodedBytes": 228,
@@ -536,52 +1166,47 @@
               "serverMs": 2
             },
             {
-              "encodedBytes": 213,
-              "decodedBytes": 262,
-              "serverMs": 3
-            },
-            {
-              "encodedBytes": 213,
-              "decodedBytes": 262,
-              "serverMs": 4
-            },
-            {
               "encodedBytes": 229,
               "decodedBytes": 315,
-              "serverMs": 4
-            },
-            {
-              "encodedBytes": 2872,
-              "decodedBytes": 9434,
               "serverMs": 2
             },
             {
-              "encodedBytes": 3767,
+              "encodedBytes": 3766,
               "decodedBytes": 14792,
-              "serverMs": 2
+              "serverMs": 1
             },
             {
-              "encodedBytes": 3229,
+              "encodedBytes": 2869,
+              "decodedBytes": 9434,
+              "serverMs": 1
+            },
+            {
+              "encodedBytes": 3226,
               "decodedBytes": 11356,
-              "serverMs": 2
+              "serverMs": 1
+            },
+            {
+              "encodedBytes": 7384,
+              "decodedBytes": 18603,
+              "serverMs": 116
             }
           ]
         }
       },
       "warmMedian": {
-        "ttfbMs": 2.6,
-        "lcpMs": 28,
-        "fcpMs": 28,
+        "ttfbMs": 1.7,
+        "lcpMs": 24,
+        "fcpMs": 24,
         "cls": 0,
-        "loadMs": 27.199999928474426,
-        "htmlEncodedBytes": 17348,
+        "loadMs": 18.5,
+        "htmlEncodedBytes": 17344,
         "htmlDecodedBytes": 78482,
         "rscPayloadBytes": 59764,
         "snapshotBytes": 2036,
         "domNodes": 143,
-        "heapMB": 1845.4
+        "heapMB": 3066.7
       },
-      "serverReads": ["Quote read in 0 ms at 17:41:30 UTC"],
+      "serverReads": ["Quote read in 0 ms at 06:28:02 UTC"],
       "runs": [
         {
           "run": 1,
@@ -590,14 +1215,14 @@
               "entries": [],
               "score": 0
             },
-            "fcp": 308,
+            "fcp": 372,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
             "lcp": {
               "element": "p",
               "size": 30377,
-              "startTime": 308,
+              "startTime": 372,
               "url": null
             },
             "lifecycle": {
@@ -609,36 +1234,46 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 4.3,
+            "ttfb": 3.7,
             "url": "http://127.0.0.1:3485/acme/quotes/q-s0000002"
           },
           "facts": {
-            "ttfbMs": 5.5,
-            "domContentLoadedMs": 257.3000000715256,
-            "loadMs": 258.7000000476837,
-            "htmlEncodedBytes": 17345,
+            "ttfbMs": 4.700000047683716,
+            "domContentLoadedMs": 212.10000002384186,
+            "loadMs": 213.30000007152557,
+            "htmlEncodedBytes": 17343,
             "htmlDecodedBytes": 78482,
             "rscPayloadBytes": 59764,
             "snapshotBytes": 2036,
             "domNodes": 143,
             "links": 8,
-            "heapMB": 5637.7,
-            "serverReads": ["Quote read in 0 ms at 17:41:30 UTC"],
+            "heapMB": 5371,
+            "serverReads": ["Quote read in 0 ms at 06:28:02 UTC"],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
-                "serverMs": 2
+                "serverMs": 1
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
-                "serverMs": 3
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
               },
               {
                 "encodedBytes": 228,
@@ -646,34 +1281,29 @@
                 "serverMs": 2
               },
               {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 3
-              },
-              {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 4
-              },
-              {
                 "encodedBytes": 229,
                 "decodedBytes": 315,
-                "serverMs": 4
-              },
-              {
-                "encodedBytes": 2872,
-                "decodedBytes": 9434,
                 "serverMs": 2
               },
               {
-                "encodedBytes": 3767,
+                "encodedBytes": 3766,
                 "decodedBytes": 14792,
-                "serverMs": 2
+                "serverMs": 1
               },
               {
-                "encodedBytes": 3229,
+                "encodedBytes": 2869,
+                "decodedBytes": 9434,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3226,
                 "decodedBytes": 11356,
-                "serverMs": 2
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 7384,
+                "decodedBytes": 18603,
+                "serverMs": 116
               }
             ]
           }
@@ -684,115 +1314,11 @@
             "cls": {
               "entries": [
                 {
-                  "startTime": 42.9,
+                  "startTime": 34.3,
                   "value": 0.0004
                 },
                 {
-                  "startTime": 326.6,
-                  "value": 0.0006
-                }
-              ],
-              "score": 0
-            },
-            "fcp": 28,
-            "hydratedComponents": [],
-            "hydration": null,
-            "inp": null,
-            "lcp": {
-              "element": "p",
-              "size": 30377,
-              "startTime": 28,
-              "url": null
-            },
-            "lifecycle": {
-              "effectiveLaunch": {
-                "browserLaunched": true,
-                "engine": "chrome",
-                "launchHash": 4759075326389112000
-              },
-              "launched": false,
-              "relaunchedBrowser": false,
-              "restartedBackground": false,
-              "restoreStatus": "loaded",
-              "reused": true,
-              "saveStatus": "not_attempted"
-            },
-            "phases": [],
-            "ttfb": 2.6,
-            "url": "http://127.0.0.1:3485/acme/quotes/q-s0000002"
-          },
-          "facts": {
-            "ttfbMs": 3.5999999046325684,
-            "domContentLoadedMs": 27.09999990463257,
-            "loadMs": 27.199999928474426,
-            "htmlEncodedBytes": 17348,
-            "htmlDecodedBytes": 78482,
-            "rscPayloadBytes": 59764,
-            "snapshotBytes": 2036,
-            "domNodes": 143,
-            "links": 8,
-            "heapMB": 1838.7,
-            "serverReads": ["Quote read in 0 ms at 17:41:30 UTC"],
-            "rscRequests": [
-              {
-                "encodedBytes": 168,
-                "decodedBytes": 169,
-                "serverMs": 4
-              },
-              {
-                "encodedBytes": 3660,
-                "decodedBytes": 21662,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 228,
-                "decodedBytes": 314,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 3
-              },
-              {
-                "encodedBytes": 229,
-                "decodedBytes": 315,
-                "serverMs": 4
-              },
-              {
-                "encodedBytes": 3767,
-                "decodedBytes": 14792,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 2872,
-                "decodedBytes": 9434,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 3229,
-                "decodedBytes": 11356,
-                "serverMs": 2
-              }
-            ]
-          }
-        },
-        {
-          "run": 3,
-          "vitals": {
-            "cls": {
-              "entries": [
-                {
-                  "startTime": 29.3,
-                  "value": 0.0004
-                },
-                {
-                  "startTime": 329.7,
+                  "startTime": 319,
                   "value": 0.0006
                 }
               ],
@@ -817,34 +1343,34 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 1.9,
+            "ttfb": 1.6,
             "url": "http://127.0.0.1:3485/acme/quotes/q-s0000002"
           },
           "facts": {
-            "ttfbMs": 2.799999952316284,
-            "domContentLoadedMs": 23.5,
-            "loadMs": 23.600000023841858,
-            "htmlEncodedBytes": 17345,
+            "ttfbMs": 2.6999999284744263,
+            "domContentLoadedMs": 18.5,
+            "loadMs": 18.5,
+            "htmlEncodedBytes": 17344,
             "htmlDecodedBytes": 78482,
             "rscPayloadBytes": 59764,
             "snapshotBytes": 2036,
             "domNodes": 143,
             "links": 8,
-            "heapMB": 1845.4,
-            "serverReads": ["Quote read in 0 ms at 17:41:30 UTC"],
+            "heapMB": 5378.8,
+            "serverReads": ["Quote read in 0 ms at 06:28:02 UTC"],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
-                "serverMs": 5
+                "serverMs": 3
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
                 "serverMs": 1
               },
@@ -856,7 +1382,111 @@
               {
                 "encodedBytes": 213,
                 "decodedBytes": 262,
-                "serverMs": 4
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 228,
+                "decodedBytes": 314,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 229,
+                "decodedBytes": 315,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 3766,
+                "decodedBytes": 14792,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 2869,
+                "decodedBytes": 9434,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3226,
+                "decodedBytes": 11356,
+                "serverMs": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 27.6,
+                  "value": 0.0004
+                },
+                {
+                  "startTime": 328.9,
+                  "value": 0.0006
+                }
+              ],
+              "score": 0
+            },
+            "fcp": 16,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 30377,
+              "startTime": 16,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.7,
+            "url": "http://127.0.0.1:3485/acme/quotes/q-s0000002"
+          },
+          "facts": {
+            "ttfbMs": 2.6999999284744263,
+            "domContentLoadedMs": 18,
+            "loadMs": 18.100000023841858,
+            "htmlEncodedBytes": 17345,
+            "htmlDecodedBytes": 78482,
+            "rscPayloadBytes": 59764,
+            "snapshotBytes": 2036,
+            "domNodes": 143,
+            "links": 8,
+            "heapMB": 3058.7,
+            "serverReads": ["Quote read in 0 ms at 06:28:02 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
               },
               {
                 "encodedBytes": 228,
@@ -866,20 +1496,233 @@
               {
                 "encodedBytes": 229,
                 "decodedBytes": 315,
-                "serverMs": 5
+                "serverMs": 18
               },
               {
-                "encodedBytes": 3767,
+                "encodedBytes": 3766,
                 "decodedBytes": 14792,
-                "serverMs": 2
+                "serverMs": 1
               },
               {
-                "encodedBytes": 2872,
+                "encodedBytes": 2869,
                 "decodedBytes": 9434,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3226,
+                "decodedBytes": 11356,
+                "serverMs": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 36.9,
+                  "value": 0.0004
+                },
+                {
+                  "startTime": 318.4,
+                  "value": 0.0006
+                }
+              ],
+              "score": 0
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 30377,
+              "startTime": 24,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.8,
+            "url": "http://127.0.0.1:3485/acme/quotes/q-s0000002"
+          },
+          "facts": {
+            "ttfbMs": 2.700000047683716,
+            "domContentLoadedMs": 17.899999976158142,
+            "loadMs": 20,
+            "htmlEncodedBytes": 17343,
+            "htmlDecodedBytes": 78482,
+            "rscPayloadBytes": 59764,
+            "snapshotBytes": 2036,
+            "domNodes": 143,
+            "links": 8,
+            "heapMB": 3066.7,
+            "serverReads": ["Quote read in 0 ms at 06:28:02 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
                 "serverMs": 2
               },
               {
-                "encodedBytes": 3229,
+                "encodedBytes": 228,
+                "decodedBytes": 314,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 229,
+                "decodedBytes": 315,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 3766,
+                "decodedBytes": 14792,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 2869,
+                "decodedBytes": 9434,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3226,
+                "decodedBytes": 11356,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 7384,
+                "decodedBytes": 18603,
+                "serverMs": 2230
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 32.4,
+                  "value": 0.0004
+                },
+                {
+                  "startTime": 316,
+                  "value": 0.0006
+                }
+              ],
+              "score": 0
+            },
+            "fcp": 20,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 30377,
+              "startTime": 20,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.6,
+            "url": "http://127.0.0.1:3485/acme/quotes/q-s0000002"
+          },
+          "facts": {
+            "ttfbMs": 2.4000000953674316,
+            "domContentLoadedMs": 17.600000023841858,
+            "loadMs": 17.700000047683716,
+            "htmlEncodedBytes": 17343,
+            "htmlDecodedBytes": 78482,
+            "rscPayloadBytes": 59764,
+            "snapshotBytes": 2036,
+            "domNodes": 143,
+            "links": 8,
+            "heapMB": 3058.9,
+            "serverReads": ["Quote read in 0 ms at 06:28:02 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 228,
+                "decodedBytes": 314,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 229,
+                "decodedBytes": 315,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 3766,
+                "decodedBytes": 14792,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 2869,
+                "decodedBytes": 9434,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3226,
                 "decodedBytes": 11356,
                 "serverMs": 1
               }
@@ -892,79 +1735,79 @@
       "user": "Olivia",
       "url": "http://127.0.0.1:3485/acme/members",
       "cold": {
-        "ttfbMs": 4.3,
-        "lcpMs": 24,
-        "fcpMs": 24,
+        "ttfbMs": 1.6,
+        "lcpMs": 16,
+        "fcpMs": 16,
         "facts": {
-          "ttfbMs": 5.399999976158142,
-          "domContentLoadedMs": 679.8999999761581,
-          "loadMs": 680.5,
-          "htmlEncodedBytes": 318565,
+          "ttfbMs": 2.399999976158142,
+          "domContentLoadedMs": 436.1999999284744,
+          "loadMs": 436.7999999523163,
+          "htmlEncodedBytes": 318561,
           "htmlDecodedBytes": 20376646,
           "rscPayloadBytes": 20365668,
           "snapshotBytes": 2036,
           "domNodes": 80148,
           "links": 8,
-          "heapMB": 2056.8,
-          "serverReads": ["Members read in 0 ms at 17:39:48 UTC"],
+          "heapMB": 3296.6,
+          "serverReads": ["Members read in 0 ms at 06:27:40 UTC"],
           "rscRequests": [
             {
-              "encodedBytes": 168,
+              "encodedBytes": 167,
               "decodedBytes": 169,
+              "serverMs": 2
+            },
+            {
+              "encodedBytes": 213,
+              "decodedBytes": 262,
               "serverMs": 3
             },
             {
               "encodedBytes": 213,
               "decodedBytes": 262,
-              "serverMs": 4
-            },
-            {
-              "encodedBytes": 213,
-              "decodedBytes": 262,
-              "serverMs": 7
+              "serverMs": 3
             },
             {
               "encodedBytes": 228,
               "decodedBytes": 314,
-              "serverMs": 11
+              "serverMs": 6
             },
             {
-              "encodedBytes": 3660,
+              "encodedBytes": 3654,
               "decodedBytes": 21662,
-              "serverMs": 3
+              "serverMs": 1
             },
             {
-              "encodedBytes": 3767,
+              "encodedBytes": 3766,
               "decodedBytes": 14792,
-              "serverMs": 4
+              "serverMs": 2
             },
             {
-              "encodedBytes": 2872,
+              "encodedBytes": 2869,
               "decodedBytes": 9434,
-              "serverMs": 4
+              "serverMs": 2
             },
             {
-              "encodedBytes": 7384,
+              "encodedBytes": 7386,
               "decodedBytes": 18603,
-              "serverMs": 4403
+              "serverMs": 2290
             }
           ]
         }
       },
       "warmMedian": {
-        "ttfbMs": 2,
-        "lcpMs": 68,
-        "fcpMs": 68,
+        "ttfbMs": 1.8,
+        "lcpMs": 56,
+        "fcpMs": 56,
         "cls": 0,
-        "loadMs": 637,
-        "htmlEncodedBytes": 318561,
+        "loadMs": 445,
+        "htmlEncodedBytes": 318559,
         "htmlDecodedBytes": 20376646,
         "rscPayloadBytes": 20365668,
         "snapshotBytes": 2036,
         "domNodes": 80148,
-        "heapMB": 2289.2
+        "heapMB": 3344.3
       },
-      "serverReads": ["Members read in 0 ms at 17:39:48 UTC"],
+      "serverReads": ["Members read in 0 ms at 06:27:40 UTC"],
       "runs": [
         {
           "run": 1,
@@ -972,24 +1815,24 @@
             "cls": {
               "entries": [
                 {
-                  "startTime": 624.1,
+                  "startTime": 379.6,
                   "value": 0.0005
                 },
                 {
-                  "startTime": 679.2,
+                  "startTime": 401.3,
                   "value": 0.0005
                 }
               ],
               "score": 0
             },
-            "fcp": 24,
+            "fcp": 16,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
             "lcp": {
               "element": "p",
               "size": 12869,
-              "startTime": 24,
+              "startTime": 16,
               "url": null
             },
             "lifecycle": {
@@ -1001,66 +1844,66 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 4.3,
+            "ttfb": 1.6,
             "url": "http://127.0.0.1:3485/acme/members"
           },
           "facts": {
-            "ttfbMs": 5.399999976158142,
-            "domContentLoadedMs": 679.8999999761581,
-            "loadMs": 680.5,
-            "htmlEncodedBytes": 318565,
+            "ttfbMs": 2.399999976158142,
+            "domContentLoadedMs": 436.1999999284744,
+            "loadMs": 436.7999999523163,
+            "htmlEncodedBytes": 318561,
             "htmlDecodedBytes": 20376646,
             "rscPayloadBytes": 20365668,
             "snapshotBytes": 2036,
             "domNodes": 80148,
             "links": 8,
-            "heapMB": 2056.8,
-            "serverReads": ["Members read in 0 ms at 17:39:48 UTC"],
+            "heapMB": 3296.6,
+            "serverReads": ["Members read in 0 ms at 06:27:40 UTC"],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
                 "serverMs": 3
               },
               {
                 "encodedBytes": 213,
                 "decodedBytes": 262,
-                "serverMs": 4
-              },
-              {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 7
+                "serverMs": 3
               },
               {
                 "encodedBytes": 228,
                 "decodedBytes": 314,
-                "serverMs": 11
+                "serverMs": 6
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
-                "serverMs": 3
+                "serverMs": 1
               },
               {
-                "encodedBytes": 3767,
+                "encodedBytes": 3766,
                 "decodedBytes": 14792,
-                "serverMs": 4
+                "serverMs": 2
               },
               {
-                "encodedBytes": 2872,
+                "encodedBytes": 2869,
                 "decodedBytes": 9434,
-                "serverMs": 4
+                "serverMs": 2
               },
               {
-                "encodedBytes": 7384,
+                "encodedBytes": 7386,
                 "decodedBytes": 18603,
-                "serverMs": 4403
+                "serverMs": 2290
               }
             ]
           }
@@ -1071,20 +1914,24 @@
             "cls": {
               "entries": [
                 {
-                  "startTime": 576.5,
-                  "value": 0.0011
+                  "startTime": 414.8,
+                  "value": 0.0004
+                },
+                {
+                  "startTime": 499.1,
+                  "value": 0.0006
                 }
               ],
               "score": 0
             },
-            "fcp": 60,
+            "fcp": 184,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
             "lcp": {
               "element": "p",
               "size": 12869,
-              "startTime": 60,
+              "startTime": 184,
               "url": null
             },
             "lifecycle": {
@@ -1096,66 +1943,66 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 1.9,
+            "ttfb": 1.6,
             "url": "http://127.0.0.1:3485/acme/members"
           },
           "facts": {
-            "ttfbMs": 2.799999952316284,
-            "domContentLoadedMs": 621.8999999761581,
-            "loadMs": 622.3999999761581,
-            "htmlEncodedBytes": 318561,
+            "ttfbMs": 2.3000000715255737,
+            "domContentLoadedMs": 452.3000000715256,
+            "loadMs": 453.10000002384186,
+            "htmlEncodedBytes": 318559,
             "htmlDecodedBytes": 20376646,
             "rscPayloadBytes": 20365668,
             "snapshotBytes": 2036,
             "domNodes": 80148,
             "links": 8,
-            "heapMB": 2289.2,
-            "serverReads": ["Members read in 0 ms at 17:39:48 UTC"],
+            "heapMB": 3303.1,
+            "serverReads": ["Members read in 0 ms at 06:27:40 UTC"],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
-                "serverMs": 2
+                "serverMs": 1
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
                 "serverMs": 3
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
               },
               {
                 "encodedBytes": 228,
                 "decodedBytes": 314,
-                "serverMs": 6
+                "serverMs": 3
               },
               {
-                "encodedBytes": 3767,
+                "encodedBytes": 3766,
                 "decodedBytes": 14792,
-                "serverMs": 2
+                "serverMs": 1
               },
               {
-                "encodedBytes": 2872,
+                "encodedBytes": 2869,
                 "decodedBytes": 9434,
-                "serverMs": 2
+                "serverMs": 1
               },
               {
                 "encodedBytes": 7385,
                 "decodedBytes": 18603,
-                "serverMs": 4028
+                "serverMs": 2363
               }
             ]
           }
@@ -1166,24 +2013,24 @@
             "cls": {
               "entries": [
                 {
-                  "startTime": 582.6,
+                  "startTime": 387.1,
                   "value": 0.0005
                 },
                 {
-                  "startTime": 600.8,
+                  "startTime": 401,
                   "value": 0.0005
                 }
               ],
               "score": 0
             },
-            "fcp": 68,
+            "fcp": 36,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
             "lcp": {
               "element": "p",
               "size": 12869,
-              "startTime": 68,
+              "startTime": 36,
               "url": null
             },
             "lifecycle": {
@@ -1195,36 +2042,46 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 2,
+            "ttfb": 2.2,
             "url": "http://127.0.0.1:3485/acme/members"
           },
           "facts": {
-            "ttfbMs": 2.899999976158142,
-            "domContentLoadedMs": 636.3999999761581,
-            "loadMs": 637,
-            "htmlEncodedBytes": 318560,
+            "ttfbMs": 3.100000023841858,
+            "domContentLoadedMs": 436.3000000715256,
+            "loadMs": 436.8000000715256,
+            "htmlEncodedBytes": 318556,
             "htmlDecodedBytes": 20376646,
             "rscPayloadBytes": 20365668,
             "snapshotBytes": 2036,
             "domNodes": 80148,
             "links": 8,
-            "heapMB": 2119.9,
-            "serverReads": ["Members read in 0 ms at 17:39:48 UTC"],
+            "heapMB": 3344.3,
+            "serverReads": ["Members read in 0 ms at 06:27:40 UTC"],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
-                "serverMs": 4
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
               },
               {
                 "encodedBytes": 228,
                 "decodedBytes": 314,
-                "serverMs": 5
+                "serverMs": 3
               },
               {
                 "encodedBytes": 213,
@@ -1232,29 +2089,213 @@
                 "serverMs": 5
               },
               {
-                "encodedBytes": 213,
-                "decodedBytes": 262,
-                "serverMs": 6
-              },
-              {
-                "encodedBytes": 3660,
-                "decodedBytes": 21662,
-                "serverMs": 3
-              },
-              {
-                "encodedBytes": 2872,
-                "decodedBytes": 9434,
-                "serverMs": 3
-              },
-              {
-                "encodedBytes": 3767,
+                "encodedBytes": 3766,
                 "decodedBytes": 14792,
-                "serverMs": 7
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 2869,
+                "decodedBytes": 9434,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 7383,
+                "decodedBytes": 18603,
+                "serverMs": 2313
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 385,
+                  "value": 0.0005
+                },
+                {
+                  "startTime": 393.4,
+                  "value": 0.0005
+                }
+              ],
+              "score": 0
+            },
+            "fcp": 56,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 12869,
+              "startTime": 56,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.8,
+            "url": "http://127.0.0.1:3485/acme/members"
+          },
+          "facts": {
+            "ttfbMs": 2.5,
+            "domContentLoadedMs": 435.60000002384186,
+            "loadMs": 436,
+            "htmlEncodedBytes": 318562,
+            "htmlDecodedBytes": 20376646,
+            "rscPayloadBytes": 20365668,
+            "snapshotBytes": 2036,
+            "domNodes": 80148,
+            "links": 8,
+            "heapMB": 3392.6,
+            "serverReads": ["Members read in 0 ms at 06:27:40 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 228,
+                "decodedBytes": 314,
+                "serverMs": 4
+              },
+              {
+                "encodedBytes": 3766,
+                "decodedBytes": 14792,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 2869,
+                "decodedBytes": 9434,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 7386,
+                "decodedBytes": 18603,
+                "serverMs": 2305
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 403.7,
+                  "value": 0.0011
+                }
+              ],
+              "score": 0
+            },
+            "fcp": 56,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 12869,
+              "startTime": 56,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.6,
+            "url": "http://127.0.0.1:3485/acme/members"
+          },
+          "facts": {
+            "ttfbMs": 2.399999976158142,
+            "domContentLoadedMs": 444.39999997615814,
+            "loadMs": 445,
+            "htmlEncodedBytes": 318559,
+            "htmlDecodedBytes": 20376646,
+            "rscPayloadBytes": 20365668,
+            "snapshotBytes": 2036,
+            "domNodes": 80148,
+            "links": 8,
+            "heapMB": 3280.1,
+            "serverReads": ["Members read in 0 ms at 06:27:40 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 228,
+                "decodedBytes": 314,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 213,
+                "decodedBytes": 262,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 3766,
+                "decodedBytes": 14792,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 2869,
+                "decodedBytes": 9434,
+                "serverMs": 4
               },
               {
                 "encodedBytes": 7385,
                 "decodedBytes": 18603,
-                "serverMs": 3499
+                "serverMs": 2360
               }
             ]
           }
@@ -1265,29 +2306,29 @@
       "user": "Max",
       "url": "http://127.0.0.1:3485/acme/settings",
       "cold": {
-        "ttfbMs": 5876.1,
-        "lcpMs": 5920,
-        "fcpMs": 5892,
+        "ttfbMs": 4035.9,
+        "lcpMs": 4080,
+        "fcpMs": 4048,
         "facts": {
-          "ttfbMs": 5877,
-          "domContentLoadedMs": 5894.100000023842,
-          "loadMs": 5894.200000047684,
-          "htmlEncodedBytes": 13776,
+          "ttfbMs": 4036.6999999284744,
+          "domContentLoadedMs": 4049.600000023842,
+          "loadMs": 4049.6999999284744,
+          "htmlEncodedBytes": 13775,
           "htmlDecodedBytes": 53880,
           "rscPayloadBytes": 43689,
           "snapshotBytes": 1343,
           "domNodes": 53,
           "links": 1,
-          "heapMB": 1958.9,
+          "heapMB": 2642.2,
           "serverReads": [],
           "rscRequests": [
             {
-              "encodedBytes": 168,
+              "encodedBytes": 167,
               "decodedBytes": 169,
-              "serverMs": 2
+              "serverMs": 1
             },
             {
-              "encodedBytes": 3660,
+              "encodedBytes": 3654,
               "decodedBytes": 21662,
               "serverMs": 1
             }
@@ -1295,17 +2336,17 @@
         }
       },
       "warmMedian": {
-        "ttfbMs": 1.8,
+        "ttfbMs": 1.6,
         "lcpMs": 48,
         "fcpMs": 24,
         "cls": 0,
-        "loadMs": 17.200000047683716,
-        "htmlEncodedBytes": 13777,
+        "loadMs": 15.399999976158142,
+        "htmlEncodedBytes": 13775,
         "htmlDecodedBytes": 53880,
         "rscPayloadBytes": 43689,
         "snapshotBytes": 1343,
         "domNodes": 53,
-        "heapMB": 1965.5
+        "heapMB": 2647.4
       },
       "serverReads": [],
       "runs": [
@@ -1316,14 +2357,14 @@
               "entries": [],
               "score": 0
             },
-            "fcp": 5892,
+            "fcp": 4048,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
             "lcp": {
               "element": "h1",
               "size": 5859,
-              "startTime": 5920,
+              "startTime": 4080,
               "url": null
             },
             "lifecycle": {
@@ -1335,34 +2376,34 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 5876.1,
+            "ttfb": 4035.9,
             "url": "http://127.0.0.1:3485/acme/settings"
           },
           "facts": {
-            "ttfbMs": 5877,
-            "domContentLoadedMs": 5894.100000023842,
-            "loadMs": 5894.200000047684,
-            "htmlEncodedBytes": 13776,
+            "ttfbMs": 4036.6999999284744,
+            "domContentLoadedMs": 4049.600000023842,
+            "loadMs": 4049.6999999284744,
+            "htmlEncodedBytes": 13775,
             "htmlDecodedBytes": 53880,
             "rscPayloadBytes": 43689,
             "snapshotBytes": 1343,
             "domNodes": 53,
             "links": 1,
-            "heapMB": 1958.9,
+            "heapMB": 2642.2,
             "serverReads": [],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
-                "serverMs": 2
+                "serverMs": 1
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
                 "serverMs": 1
               }
@@ -1371,66 +2412,6 @@
         },
         {
           "run": 2,
-          "vitals": {
-            "cls": {
-              "entries": [],
-              "score": 0
-            },
-            "fcp": 16,
-            "hydratedComponents": [],
-            "hydration": null,
-            "inp": null,
-            "lcp": {
-              "element": "h1",
-              "size": 5859,
-              "startTime": 48,
-              "url": null
-            },
-            "lifecycle": {
-              "effectiveLaunch": {
-                "browserLaunched": true,
-                "engine": "chrome",
-                "launchHash": 4759075326389112000
-              },
-              "launched": false,
-              "relaunchedBrowser": false,
-              "restartedBackground": false,
-              "restoreStatus": "loaded",
-              "reused": true,
-              "saveStatus": "not_attempted"
-            },
-            "phases": [],
-            "ttfb": 1.6,
-            "url": "http://127.0.0.1:3485/acme/settings"
-          },
-          "facts": {
-            "ttfbMs": 2.600000023841858,
-            "domContentLoadedMs": 17.100000023841858,
-            "loadMs": 17.200000047683716,
-            "htmlEncodedBytes": 13777,
-            "htmlDecodedBytes": 53880,
-            "rscPayloadBytes": 43689,
-            "snapshotBytes": 1343,
-            "domNodes": 53,
-            "links": 1,
-            "heapMB": 1961.6,
-            "serverReads": [],
-            "rscRequests": [
-              {
-                "encodedBytes": 168,
-                "decodedBytes": 169,
-                "serverMs": 1
-              },
-              {
-                "encodedBytes": 3660,
-                "decodedBytes": 21662,
-                "serverMs": 1
-              }
-            ]
-          }
-        },
-        {
-          "run": 3,
           "vitals": {
             "cls": {
               "entries": [],
@@ -1455,34 +2436,214 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 1.8,
+            "ttfb": 1.7,
             "url": "http://127.0.0.1:3485/acme/settings"
           },
           "facts": {
             "ttfbMs": 2.5,
-            "domContentLoadedMs": 15.399999976158142,
-            "loadMs": 15.5,
+            "domContentLoadedMs": 13.600000023841858,
+            "loadMs": 13.700000047683716,
+            "htmlEncodedBytes": 13775,
+            "htmlDecodedBytes": 53880,
+            "rscPayloadBytes": 43689,
+            "snapshotBytes": 1343,
+            "domNodes": 53,
+            "links": 1,
+            "heapMB": 2645.7,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 16,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "h1",
+              "size": 5859,
+              "startTime": 48,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.5,
+            "url": "http://127.0.0.1:3485/acme/settings"
+          },
+          "facts": {
+            "ttfbMs": 2.299999952316284,
+            "domContentLoadedMs": 15.299999952316284,
+            "loadMs": 15.399999976158142,
+            "htmlEncodedBytes": 13774,
+            "htmlDecodedBytes": 53880,
+            "rscPayloadBytes": 43689,
+            "snapshotBytes": 1343,
+            "domNodes": 53,
+            "links": 1,
+            "heapMB": 2647.4,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "h1",
+              "size": 5859,
+              "startTime": 40,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.4,
+            "url": "http://127.0.0.1:3485/acme/settings"
+          },
+          "facts": {
+            "ttfbMs": 2.1999999284744263,
+            "domContentLoadedMs": 15.600000023841858,
+            "loadMs": 15.699999928474426,
             "htmlEncodedBytes": 13776,
             "htmlDecodedBytes": 53880,
             "rscPayloadBytes": 43689,
             "snapshotBytes": 1343,
             "domNodes": 53,
             "links": 1,
-            "heapMB": 1965.5,
+            "heapMB": 2651.3,
             "serverReads": [],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 16,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "h1",
+              "size": 5859,
+              "startTime": 48,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.6,
+            "url": "http://127.0.0.1:3485/acme/settings"
+          },
+          "facts": {
+            "ttfbMs": 2.299999952316284,
+            "domContentLoadedMs": 14.199999928474426,
+            "loadMs": 14.299999952316284,
+            "htmlEncodedBytes": 13775,
+            "htmlDecodedBytes": 53880,
+            "rscPayloadBytes": 43689,
+            "snapshotBytes": 1343,
+            "domNodes": 53,
+            "links": 1,
+            "heapMB": 2497.8,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
                 "decodedBytes": 169,
                 "serverMs": 1
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
                 "serverMs": 1
               }
@@ -1495,29 +2656,29 @@
       "user": null,
       "url": "http://127.0.0.1:3485/acme/settings",
       "cold": {
-        "ttfbMs": 1.9,
+        "ttfbMs": 1.4,
         "lcpMs": 48,
-        "fcpMs": 12,
+        "fcpMs": 16,
         "facts": {
-          "ttfbMs": 2.799999952316284,
-          "domContentLoadedMs": 14.700000047683716,
-          "loadMs": 14.700000047683716,
-          "htmlEncodedBytes": 13052,
+          "ttfbMs": 2.200000047683716,
+          "domContentLoadedMs": 12.5,
+          "loadMs": 12.600000023841858,
+          "htmlEncodedBytes": 13051,
           "htmlDecodedBytes": 50643,
           "rscPayloadBytes": 41043,
           "snapshotBytes": 574,
           "domNodes": 53,
           "links": 1,
-          "heapMB": 1959.1,
+          "heapMB": 2503.8,
           "serverReads": [],
           "rscRequests": [
             {
-              "encodedBytes": 168,
+              "encodedBytes": 167,
               "decodedBytes": 169,
-              "serverMs": 1
+              "serverMs": 2
             },
             {
-              "encodedBytes": 3660,
+              "encodedBytes": 3654,
               "decodedBytes": 21662,
               "serverMs": 1
             }
@@ -1525,17 +2686,17 @@
         }
       },
       "warmMedian": {
-        "ttfbMs": 1.6,
-        "lcpMs": 52,
-        "fcpMs": 20,
+        "ttfbMs": 1.4,
+        "lcpMs": 48,
+        "fcpMs": 24,
         "cls": 0,
-        "loadMs": 13.700000047683716,
-        "htmlEncodedBytes": 13052,
+        "loadMs": 13.299999952316284,
+        "htmlEncodedBytes": 13051,
         "htmlDecodedBytes": 50643,
         "rscPayloadBytes": 41043,
         "snapshotBytes": 574,
         "domNodes": 53,
-        "heapMB": 1966
+        "heapMB": 2039.6
       },
       "serverReads": [],
       "runs": [
@@ -1546,7 +2707,7 @@
               "entries": [],
               "score": 0
             },
-            "fcp": 12,
+            "fcp": 16,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
@@ -1565,34 +2726,34 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 1.9,
+            "ttfb": 1.4,
             "url": "http://127.0.0.1:3485/acme/settings"
           },
           "facts": {
-            "ttfbMs": 2.799999952316284,
-            "domContentLoadedMs": 14.700000047683716,
-            "loadMs": 14.700000047683716,
-            "htmlEncodedBytes": 13052,
+            "ttfbMs": 2.200000047683716,
+            "domContentLoadedMs": 12.5,
+            "loadMs": 12.600000023841858,
+            "htmlEncodedBytes": 13051,
             "htmlDecodedBytes": 50643,
             "rscPayloadBytes": 41043,
             "snapshotBytes": 574,
             "domNodes": 53,
             "links": 1,
-            "heapMB": 1959.1,
+            "heapMB": 2503.8,
             "serverReads": [],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
-                "serverMs": 1
+                "serverMs": 2
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
                 "serverMs": 1
               }
@@ -1606,14 +2767,14 @@
               "entries": [],
               "score": 0
             },
-            "fcp": 20,
+            "fcp": 16,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
             "lcp": {
               "element": "div",
               "size": 4131,
-              "startTime": 52,
+              "startTime": 48,
               "url": null
             },
             "lifecycle": {
@@ -1625,34 +2786,34 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 1.6,
+            "ttfb": 1.3,
             "url": "http://127.0.0.1:3485/acme/settings"
           },
           "facts": {
-            "ttfbMs": 2.200000047683716,
-            "domContentLoadedMs": 13.700000047683716,
-            "loadMs": 13.700000047683716,
-            "htmlEncodedBytes": 13052,
+            "ttfbMs": 1.899999976158142,
+            "domContentLoadedMs": 12.300000071525574,
+            "loadMs": 12.300000071525574,
+            "htmlEncodedBytes": 13049,
             "htmlDecodedBytes": 50643,
             "rscPayloadBytes": 41043,
             "snapshotBytes": 574,
             "domNodes": 53,
             "links": 1,
-            "heapMB": 1961.6,
+            "heapMB": 2506.2,
             "serverReads": [],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
                 "serverMs": 2
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
                 "serverMs": 1
               }
@@ -1666,14 +2827,14 @@
               "entries": [],
               "score": 0
             },
-            "fcp": 20,
+            "fcp": 28,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
             "lcp": {
               "element": "div",
               "size": 4131,
-              "startTime": 36,
+              "startTime": 60,
               "url": null
             },
             "lifecycle": {
@@ -1685,34 +2846,154 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 1.6,
+            "ttfb": 1.3,
             "url": "http://127.0.0.1:3485/acme/settings"
           },
           "facts": {
-            "ttfbMs": 2.5,
-            "domContentLoadedMs": 12.900000095367432,
-            "loadMs": 13,
+            "ttfbMs": 2.1999999284744263,
+            "domContentLoadedMs": 12.799999952316284,
+            "loadMs": 12.899999976158142,
+            "htmlEncodedBytes": 13053,
+            "htmlDecodedBytes": 50643,
+            "rscPayloadBytes": 41043,
+            "snapshotBytes": 574,
+            "domNodes": 53,
+            "links": 1,
+            "heapMB": 2034.2,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "div",
+              "size": 4131,
+              "startTime": 40,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.4,
+            "url": "http://127.0.0.1:3485/acme/settings"
+          },
+          "facts": {
+            "ttfbMs": 2.1999999284744263,
+            "domContentLoadedMs": 13.299999952316284,
+            "loadMs": 13.299999952316284,
             "htmlEncodedBytes": 13051,
             "htmlDecodedBytes": 50643,
             "rscPayloadBytes": 41043,
             "snapshotBytes": 574,
             "domNodes": 53,
             "links": 1,
-            "heapMB": 1966,
+            "heapMB": 2036.9,
             "serverReads": [],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
                 "serverMs": 1
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "div",
+              "size": 4131,
+              "startTime": 40,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 2.4,
+            "url": "http://127.0.0.1:3485/acme/settings"
+          },
+          "facts": {
+            "ttfbMs": 3.200000047683716,
+            "domContentLoadedMs": 17,
+            "loadMs": 17.100000023841858,
+            "htmlEncodedBytes": 13051,
+            "htmlDecodedBytes": 50643,
+            "rscPayloadBytes": 41043,
+            "snapshotBytes": 574,
+            "domNodes": 53,
+            "links": 1,
+            "heapMB": 2039.6,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
                 "serverMs": 1
               }
@@ -1725,86 +3006,86 @@
       "user": "Carol",
       "url": "http://127.0.0.1:3485/portal/acme",
       "cold": {
-        "ttfbMs": 1.9,
+        "ttfbMs": 2.1,
         "lcpMs": 132,
         "fcpMs": 132,
         "facts": {
-          "ttfbMs": 2.5,
-          "domContentLoadedMs": 5368.800000071526,
-          "loadMs": 5376.399999976158,
-          "htmlEncodedBytes": 3403346,
+          "ttfbMs": 2.799999952316284,
+          "domContentLoadedMs": 5005.399999976158,
+          "loadMs": 5012.100000023842,
+          "htmlEncodedBytes": 3403330,
           "htmlDecodedBytes": 161328199,
           "rscPayloadBytes": 107154146,
           "snapshotBytes": 1536,
           "domNodes": 300098,
           "links": 33338,
-          "heapMB": 3543.4,
-          "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"],
+          "heapMB": 3612.8,
+          "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
           "rscRequests": [
             {
-              "encodedBytes": 168,
+              "encodedBytes": 167,
               "decodedBytes": 169,
               "serverMs": 2
             },
             {
-              "encodedBytes": 3660,
+              "encodedBytes": 3654,
               "decodedBytes": 21662,
               "serverMs": 1
             },
             {
-              "encodedBytes": 243,
+              "encodedBytes": 244,
+              "decodedBytes": 430,
+              "serverMs": 1
+            },
+            {
+              "encodedBytes": 244,
               "decodedBytes": 430,
               "serverMs": 2
             },
             {
-              "encodedBytes": 243,
+              "encodedBytes": 244,
               "decodedBytes": 430,
               "serverMs": 2
             },
             {
-              "encodedBytes": 243,
+              "encodedBytes": 244,
               "decodedBytes": 430,
               "serverMs": 2
             },
             {
-              "encodedBytes": 243,
-              "decodedBytes": 430,
-              "serverMs": 3
-            },
-            {
-              "encodedBytes": 2568,
+              "encodedBytes": 2565,
               "decodedBytes": 8396,
-              "serverMs": 3
+              "serverMs": 1
             },
             {
-              "encodedBytes": 3644,
+              "encodedBytes": 3645,
               "decodedBytes": 9284,
-              "serverMs": 9
+              "serverMs": 16
             },
             {
-              "encodedBytes": 3558,
+              "encodedBytes": 3555,
               "decodedBytes": 9167,
-              "serverMs": 10
+              "serverMs": 17
             },
             {
-              "encodedBytes": 3548,
+              "encodedBytes": 3544,
               "decodedBytes": 9167,
-              "serverMs": 11
+              "serverMs": 18
             },
             {
-              "encodedBytes": 3634,
+              "encodedBytes": 3631,
               "decodedBytes": 9295,
-              "serverMs": 12
+              "serverMs": 18
             },
             {
-              "encodedBytes": 3546,
+              "encodedBytes": 3547,
               "decodedBytes": 9167,
-              "serverMs": 8
+              "serverMs": 9
             },
             {
               "encodedBytes": 3636,
               "decodedBytes": 9295,
-              "serverMs": 8
+              "serverMs": 9
             },
             {
               "encodedBytes": 3548,
@@ -1812,22 +3093,22 @@
               "serverMs": 9
             },
             {
-              "encodedBytes": 3638,
+              "encodedBytes": 3637,
               "decodedBytes": 9296,
-              "serverMs": 9
+              "serverMs": 10
             },
             {
-              "encodedBytes": 3549,
+              "encodedBytes": 3550,
               "decodedBytes": 9168,
-              "serverMs": 6
+              "serverMs": 7
             },
             {
-              "encodedBytes": 3638,
+              "encodedBytes": 3635,
               "decodedBytes": 9296,
               "serverMs": 7
             },
             {
-              "encodedBytes": 3548,
+              "encodedBytes": 3549,
               "decodedBytes": 9168,
               "serverMs": 7
             }
@@ -1835,19 +3116,19 @@
         }
       },
       "warmMedian": {
-        "ttfbMs": 2.2,
-        "lcpMs": 1412,
-        "fcpMs": 1412,
+        "ttfbMs": 1.9,
+        "lcpMs": 964,
+        "fcpMs": 964,
         "cls": 0,
-        "loadMs": 5306.100000023842,
-        "htmlEncodedBytes": 3403347,
+        "loadMs": 5207.100000023842,
+        "htmlEncodedBytes": 3403332,
         "htmlDecodedBytes": 161328199,
         "rscPayloadBytes": 107154146,
         "snapshotBytes": 1536,
         "domNodes": 300098,
-        "heapMB": 3429.8
+        "heapMB": 3334.4
       },
-      "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"],
+      "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
       "runs": [
         {
           "run": 1,
@@ -1875,91 +3156,91 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 1.9,
+            "ttfb": 2.1,
             "url": "http://127.0.0.1:3485/portal/acme"
           },
           "facts": {
-            "ttfbMs": 2.5,
-            "domContentLoadedMs": 5368.800000071526,
-            "loadMs": 5376.399999976158,
-            "htmlEncodedBytes": 3403346,
+            "ttfbMs": 2.799999952316284,
+            "domContentLoadedMs": 5005.399999976158,
+            "loadMs": 5012.100000023842,
+            "htmlEncodedBytes": 3403330,
             "htmlDecodedBytes": 161328199,
             "rscPayloadBytes": 107154146,
             "snapshotBytes": 1536,
             "domNodes": 300098,
             "links": 33338,
-            "heapMB": 3543.4,
-            "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"],
+            "heapMB": 3612.8,
+            "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
                 "serverMs": 2
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
                 "serverMs": 1
               },
               {
-                "encodedBytes": 243,
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 244,
                 "decodedBytes": 430,
                 "serverMs": 2
               },
               {
-                "encodedBytes": 243,
+                "encodedBytes": 244,
                 "decodedBytes": 430,
                 "serverMs": 2
               },
               {
-                "encodedBytes": 243,
+                "encodedBytes": 244,
                 "decodedBytes": 430,
                 "serverMs": 2
               },
               {
-                "encodedBytes": 243,
-                "decodedBytes": 430,
-                "serverMs": 3
-              },
-              {
-                "encodedBytes": 2568,
+                "encodedBytes": 2565,
                 "decodedBytes": 8396,
-                "serverMs": 3
+                "serverMs": 1
               },
               {
-                "encodedBytes": 3644,
+                "encodedBytes": 3645,
                 "decodedBytes": 9284,
-                "serverMs": 9
+                "serverMs": 16
               },
               {
-                "encodedBytes": 3558,
+                "encodedBytes": 3555,
                 "decodedBytes": 9167,
-                "serverMs": 10
+                "serverMs": 17
               },
               {
-                "encodedBytes": 3548,
+                "encodedBytes": 3544,
                 "decodedBytes": 9167,
-                "serverMs": 11
+                "serverMs": 18
               },
               {
-                "encodedBytes": 3634,
+                "encodedBytes": 3631,
                 "decodedBytes": 9295,
-                "serverMs": 12
+                "serverMs": 18
               },
               {
-                "encodedBytes": 3546,
+                "encodedBytes": 3547,
                 "decodedBytes": 9167,
-                "serverMs": 8
+                "serverMs": 9
               },
               {
                 "encodedBytes": 3636,
                 "decodedBytes": 9295,
-                "serverMs": 8
+                "serverMs": 9
               },
               {
                 "encodedBytes": 3548,
@@ -1967,22 +3248,22 @@
                 "serverMs": 9
               },
               {
-                "encodedBytes": 3638,
+                "encodedBytes": 3637,
                 "decodedBytes": 9296,
-                "serverMs": 9
+                "serverMs": 10
               },
               {
-                "encodedBytes": 3549,
+                "encodedBytes": 3550,
                 "decodedBytes": 9168,
-                "serverMs": 6
+                "serverMs": 7
               },
               {
-                "encodedBytes": 3638,
+                "encodedBytes": 3635,
                 "decodedBytes": 9296,
                 "serverMs": 7
               },
               {
-                "encodedBytes": 3548,
+                "encodedBytes": 3549,
                 "decodedBytes": 9168,
                 "serverMs": 7
               }
@@ -1996,14 +3277,14 @@
               "entries": [],
               "score": 0
             },
-            "fcp": 1412,
+            "fcp": 964,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
             "lcp": {
               "element": "p",
               "size": 7480,
-              "startTime": 1412,
+              "startTime": 964,
               "url": null
             },
             "lifecycle": {
@@ -2015,66 +3296,71 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
             "phases": [],
-            "ttfb": 2.2,
+            "ttfb": 2.7,
             "url": "http://127.0.0.1:3485/portal/acme"
           },
           "facts": {
-            "ttfbMs": 2.899999976158142,
-            "domContentLoadedMs": 5296.899999976158,
-            "loadMs": 5306.100000023842,
-            "htmlEncodedBytes": 3403344,
+            "ttfbMs": 3.600000023841858,
+            "domContentLoadedMs": 5675,
+            "loadMs": 5680.799999952316,
+            "htmlEncodedBytes": 3403333,
             "htmlDecodedBytes": 161328199,
             "rscPayloadBytes": 107154146,
             "snapshotBytes": 1536,
             "domNodes": 300098,
             "links": 33338,
-            "heapMB": 3429.8,
-            "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"],
+            "heapMB": 3108.1,
+            "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
                 "serverMs": 1
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
                 "serverMs": 1
               },
               {
-                "encodedBytes": 243,
-                "decodedBytes": 430,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 243,
-                "decodedBytes": 430,
-                "serverMs": 2
-              },
-              {
-                "encodedBytes": 243,
+                "encodedBytes": 244,
                 "decodedBytes": 430,
                 "serverMs": 3
               },
               {
-                "encodedBytes": 243,
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 4
+              },
+              {
+                "encodedBytes": 244,
                 "decodedBytes": 430,
                 "serverMs": 3
               },
               {
-                "encodedBytes": 2568,
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 5
+              },
+              {
+                "encodedBytes": 2565,
                 "decodedBytes": 8396,
-                "serverMs": 1
+                "serverMs": 3
               },
               {
-                "encodedBytes": 3646,
+                "encodedBytes": 3643,
                 "decodedBytes": 9284,
                 "serverMs": 13
+              },
+              {
+                "encodedBytes": 3544,
+                "decodedBytes": 9167,
+                "serverMs": 15
               },
               {
                 "encodedBytes": 3556,
@@ -2082,49 +3368,44 @@
                 "serverMs": 14
               },
               {
-                "encodedBytes": 3547,
-                "decodedBytes": 9167,
-                "serverMs": 14
-              },
-              {
-                "encodedBytes": 3635,
+                "encodedBytes": 3633,
                 "decodedBytes": 9295,
                 "serverMs": 16
               },
               {
                 "encodedBytes": 3548,
                 "decodedBytes": 9167,
-                "serverMs": 10
+                "serverMs": 11
               },
               {
-                "encodedBytes": 3634,
+                "encodedBytes": 3632,
                 "decodedBytes": 9295,
-                "serverMs": 10
+                "serverMs": 11
               },
               {
-                "encodedBytes": 3550,
+                "encodedBytes": 3546,
                 "decodedBytes": 9168,
                 "serverMs": 11
               },
               {
                 "encodedBytes": 3637,
                 "decodedBytes": 9296,
-                "serverMs": 11
+                "serverMs": 12
               },
               {
-                "encodedBytes": 3550,
+                "encodedBytes": 3549,
                 "decodedBytes": 9168,
                 "serverMs": 8
               },
               {
-                "encodedBytes": 3638,
+                "encodedBytes": 3637,
                 "decodedBytes": 9296,
                 "serverMs": 8
               },
               {
-                "encodedBytes": 3551,
+                "encodedBytes": 3549,
                 "decodedBytes": 9168,
-                "serverMs": 8
+                "serverMs": 9
               }
             ]
           }
@@ -2136,14 +3417,14 @@
               "entries": [],
               "score": 0
             },
-            "fcp": 132,
+            "fcp": 148,
             "hydratedComponents": [],
             "hydration": null,
             "inp": null,
             "lcp": {
               "element": "p",
               "size": 7480,
-              "startTime": 132,
+              "startTime": 148,
               "url": null
             },
             "lifecycle": {
@@ -2155,7 +3436,7 @@
               "launched": false,
               "relaunchedBrowser": false,
               "restartedBackground": false,
-              "restoreStatus": "loaded",
+              "restoreStatus": "not_configured",
               "reused": true,
               "saveStatus": "not_attempted"
             },
@@ -2164,107 +3445,387 @@
             "url": "http://127.0.0.1:3485/portal/acme"
           },
           "facts": {
-            "ttfbMs": 2.799999952316284,
-            "domContentLoadedMs": 5286.100000023842,
-            "loadMs": 5294.600000023842,
-            "htmlEncodedBytes": 3403347,
+            "ttfbMs": 2.600000023841858,
+            "domContentLoadedMs": 5020.900000095367,
+            "loadMs": 5026.100000023842,
+            "htmlEncodedBytes": 3403332,
             "htmlDecodedBytes": 161328199,
             "rscPayloadBytes": 107154146,
             "snapshotBytes": 1536,
             "domNodes": 300098,
             "links": 33338,
-            "heapMB": 3225.5,
-            "serverReads": ["Quotes read in 2 ms at 17:39:48 UTC"],
+            "heapMB": 3334.4,
+            "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
             "rscRequests": [
               {
-                "encodedBytes": 168,
+                "encodedBytes": 167,
                 "decodedBytes": 169,
                 "serverMs": 1
               },
               {
-                "encodedBytes": 3660,
+                "encodedBytes": 3654,
                 "decodedBytes": 21662,
                 "serverMs": 1
               },
               {
-                "encodedBytes": 243,
-                "decodedBytes": 430,
-                "serverMs": 1
-              },
-              {
-                "encodedBytes": 243,
+                "encodedBytes": 244,
                 "decodedBytes": 430,
                 "serverMs": 2
               },
               {
-                "encodedBytes": 243,
+                "encodedBytes": 244,
                 "decodedBytes": 430,
                 "serverMs": 2
               },
               {
-                "encodedBytes": 243,
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 244,
                 "decodedBytes": 430,
                 "serverMs": 3
               },
               {
-                "encodedBytes": 2568,
+                "encodedBytes": 2565,
                 "decodedBytes": 8396,
-                "serverMs": 1
+                "serverMs": 2
               },
               {
-                "encodedBytes": 3647,
-                "decodedBytes": 9284,
-                "serverMs": 16
-              },
-              {
-                "encodedBytes": 3558,
+                "encodedBytes": 3555,
                 "decodedBytes": 9167,
-                "serverMs": 17
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 3644,
+                "decodedBytes": 9284,
+                "serverMs": 8
               },
               {
                 "encodedBytes": 3547,
                 "decodedBytes": 9167,
-                "serverMs": 17
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 3633,
+                "decodedBytes": 9295,
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 3547,
+                "decodedBytes": 9167,
+                "serverMs": 6
               },
               {
                 "encodedBytes": 3634,
                 "decodedBytes": 9295,
-                "serverMs": 18
+                "serverMs": 7
               },
               {
-                "encodedBytes": 3548,
-                "decodedBytes": 9167,
-                "serverMs": 10
+                "encodedBytes": 3545,
+                "decodedBytes": 9168,
+                "serverMs": 7
               },
               {
-                "encodedBytes": 3637,
-                "decodedBytes": 9295,
-                "serverMs": 10
+                "encodedBytes": 3636,
+                "decodedBytes": 9296,
+                "serverMs": 7
               },
               {
                 "encodedBytes": 3549,
                 "decodedBytes": 9168,
-                "serverMs": 10
+                "serverMs": 6
               },
               {
-                "encodedBytes": 3638,
+                "encodedBytes": 3635,
                 "decodedBytes": 9296,
-                "serverMs": 10
+                "serverMs": 7
               },
               {
                 "encodedBytes": 3550,
                 "decodedBytes": 9168,
+                "serverMs": 7
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 1324,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 7480,
+              "startTime": 1324,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.9,
+            "url": "http://127.0.0.1:3485/portal/acme"
+          },
+          "facts": {
+            "ttfbMs": 2.5,
+            "domContentLoadedMs": 5201.5,
+            "loadMs": 5207.100000023842,
+            "htmlEncodedBytes": 3403329,
+            "htmlDecodedBytes": 161328199,
+            "rscPayloadBytes": 107154146,
+            "snapshotBytes": 1536,
+            "domNodes": 300098,
+            "links": 33338,
+            "heapMB": 3386.9,
+            "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 2565,
+                "decodedBytes": 8396,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3646,
+                "decodedBytes": 9284,
+                "serverMs": 12
+              },
+              {
+                "encodedBytes": 3557,
+                "decodedBytes": 9167,
+                "serverMs": 13
+              },
+              {
+                "encodedBytes": 3547,
+                "decodedBytes": 9167,
+                "serverMs": 14
+              },
+              {
+                "encodedBytes": 3633,
+                "decodedBytes": 9295,
+                "serverMs": 14
+              },
+              {
+                "encodedBytes": 3547,
+                "decodedBytes": 9167,
                 "serverMs": 8
               },
               {
-                "encodedBytes": 3638,
-                "decodedBytes": 9296,
+                "encodedBytes": 3635,
+                "decodedBytes": 9295,
                 "serverMs": 8
               },
               {
-                "encodedBytes": 3551,
+                "encodedBytes": 3547,
                 "decodedBytes": 9168,
                 "serverMs": 9
+              },
+              {
+                "encodedBytes": 3636,
+                "decodedBytes": 9296,
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 3546,
+                "decodedBytes": 9168,
+                "serverMs": 6
+              },
+              {
+                "encodedBytes": 3637,
+                "decodedBytes": 9296,
+                "serverMs": 7
+              },
+              {
+                "encodedBytes": 3546,
+                "decodedBytes": 9168,
+                "serverMs": 7
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 744,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 7480,
+              "startTime": 744,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 4759075326389112000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_attempted"
+            },
+            "phases": [],
+            "ttfb": 1.8,
+            "url": "http://127.0.0.1:3485/portal/acme"
+          },
+          "facts": {
+            "ttfbMs": 2.5999999046325684,
+            "domContentLoadedMs": 4895.599999904633,
+            "loadMs": 4900.899999976158,
+            "htmlEncodedBytes": 3403330,
+            "htmlDecodedBytes": 161328199,
+            "rscPayloadBytes": 107154146,
+            "snapshotBytes": 1536,
+            "domNodes": 300098,
+            "links": 33338,
+            "heapMB": 2968.3,
+            "serverReads": ["Quotes read in 3 ms at 06:27:40 UTC"],
+            "rscRequests": [
+              {
+                "encodedBytes": 167,
+                "decodedBytes": 169,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 3654,
+                "decodedBytes": 21662,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 3
+              },
+              {
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 4
+              },
+              {
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 5
+              },
+              {
+                "encodedBytes": 244,
+                "decodedBytes": 430,
+                "serverMs": 4
+              },
+              {
+                "encodedBytes": 2565,
+                "decodedBytes": 8396,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 3643,
+                "decodedBytes": 9284,
+                "serverMs": 12
+              },
+              {
+                "encodedBytes": 3557,
+                "decodedBytes": 9167,
+                "serverMs": 13
+              },
+              {
+                "encodedBytes": 3545,
+                "decodedBytes": 9167,
+                "serverMs": 13
+              },
+              {
+                "encodedBytes": 3632,
+                "decodedBytes": 9295,
+                "serverMs": 14
+              },
+              {
+                "encodedBytes": 3547,
+                "decodedBytes": 9167,
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 3635,
+                "decodedBytes": 9295,
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 3546,
+                "decodedBytes": 9168,
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 3635,
+                "decodedBytes": 9296,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 3548,
+                "decodedBytes": 9168,
+                "serverMs": 7
+              },
+              {
+                "encodedBytes": 3635,
+                "decodedBytes": 9296,
+                "serverMs": 7
+              },
+              {
+                "encodedBytes": 3548,
+                "decodedBytes": 9168,
+                "serverMs": 8
               }
             ]
           }
@@ -2273,7 +3834,7 @@
     },
     "approve": {
       "label": "click Approve",
-      "commandWallMs": 111,
+      "commandWallMs": 98,
       "inpMs": 16,
       "renders": {
         "total": 54,
@@ -2281,12 +3842,12 @@
         "reRenders": 29
       },
       "fetches": [],
-      "serverReads": ["Quote read in 0 ms at 17:41:30 UTC"],
+      "serverReads": ["Quote read in 0 ms at 06:28:02 UTC"],
       "urlAfter": "/acme/quotes/q-s0000001"
     },
     "delete": {
       "label": "click Delete quote",
-      "commandWallMs": 104,
+      "commandWallMs": 96,
       "inpMs": 16,
       "renders": {
         "total": 384,
@@ -2294,14 +3855,14 @@
         "reRenders": 259
       },
       "fetches": [],
-      "serverReads": ["Quote read in 0 ms at 17:44:32 UTC"],
+      "serverReads": ["Quote read in 0 ms at 06:33:30 UTC"],
       "urlAfter": "/acme/quotes/q-s0000003"
     },
     "offline": {
       "badge": true,
       "title": "PermDock on Next.js 16.4",
       "navLinks": 6,
-      "wallMs": 2827
+      "wallMs": 2733
     }
   },
   "notMeasured": []
