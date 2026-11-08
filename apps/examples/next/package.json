@@ -7,6 +7,8 @@
     "build": "node ../../../scripts/next-build.ts",
     "dev": "next dev -p 3485 -H 127.0.0.1",
     "doctor": "permdock doctor",
+    "gen": "permdock generate",
+    "gen:check": "permdock generate --check",
     "lint": "next typegen && oxlint --disable-nested-config --type-aware",
     "start": "next start -p 3485 -H 127.0.0.1",
     "test:e2e": "playwright test",
