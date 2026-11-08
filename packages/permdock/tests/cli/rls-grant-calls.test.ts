@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { SqlClient } from "../../src/cli/pg.ts";
 import type { CliExec } from "../../src/cli/rls/advisors.ts";
 
+import { run } from "../../src/cli/core/run.ts";
 import { runRlsAdvisors } from "../../src/cli/rls/advisors.ts";
 import {
   grantCallLines,
@@ -123,5 +124,19 @@ describe("grant calls", () => {
       grantCalls: () => Promise.resolve(client([])),
     });
     expect(without.output).not.toContain("grant calls");
+  });
+});
+
+describe("rls verify --grant-calls through the command", () => {
+  it("passes the connector down and prints the counts", async () => {
+    const result = await run([
+      "rls",
+      "verify",
+      "--advisors",
+      "--grant-calls",
+      "--help",
+    ]);
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("--grant-calls");
   });
 });

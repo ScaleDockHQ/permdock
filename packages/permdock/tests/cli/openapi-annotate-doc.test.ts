@@ -245,4 +245,29 @@ describe("openapi annotate --doc", () => {
     );
     expect(broken.code).toBe(2);
   });
+
+  it("reports an operation with no permission, several, an unknown one or a malformed extension", async () => {
+    const dir = workdir({
+      "/a": { get: { operationId: "a" } },
+      "/b": {
+        get: {
+          operationId: "b",
+          "x-permdock-permissions": ["post.read", "post.list"],
+        },
+      },
+      "/c": {
+        get: { operationId: "c", "x-permdock-permissions": ["nope.nothing"] },
+      },
+      "/d": { get: { operationId: "d", "x-permdock-permissions": 5 } },
+    });
+    const result = await annotate(dir);
+    for (const code of [
+      "operation-no-permission",
+      "operation-several-permissions",
+      "operation-unknown-permission",
+      "operation-invalid-extension",
+    ]) {
+      expect(result.stdout).toContain(code);
+    }
+  });
 });
