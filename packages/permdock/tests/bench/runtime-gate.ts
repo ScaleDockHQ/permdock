@@ -4,14 +4,14 @@
  */
 
 /** Headroom over the baseline before a measurement fails. */
-export const MARGIN = 1.1;
+const MARGIN = 1.1;
 /**
  * Added to a per-call limit, in ms: a call under 0.05 ms varies by more than
  * 10% between two runs on one machine.
  */
-export const NOISE_FLOOR_MS = 0.05;
+const NOISE_FLOOR_MS = 0.05;
 /** The same floor per item of a capped measurement, in ms. */
-export const NOISE_FLOOR_PER_ITEM_MS = 0.001;
+const NOISE_FLOOR_PER_ITEM_MS = 0.001;
 
 const PER_CALL = ["instanceBuild", "can", "where", "snapshotFor"] as const;
 const CAPPED = ["filter100k", "mayUse300", "decideIds1000"] as const;
