@@ -15,6 +15,8 @@ Permissions
   generate  Write every plugin's files from the policy
   usage     Report unused, ungranted and role-less permissions and conditions on undeclared fields
   diff      Compare two policies or catalogs; exit 1 on a breaking change
+  snapshot  Measure the snapshot a role sends to the client
+  claims    Measure the memberships claim of an access token
   config    Check permdock.config.ts for unknown keys, or print the effective config
 
 Database

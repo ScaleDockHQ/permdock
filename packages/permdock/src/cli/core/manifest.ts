@@ -249,6 +249,40 @@ export const SECTIONS: readonly Section[] = [
           load: async () => (await import("../commands/diff.ts")).diff,
         },
       ),
+      group(
+        "snapshot",
+        "Measure the snapshot a role sends to the client",
+        "snapshot",
+        [
+          leaf("size", "Report snapshot bytes by part, raw and gzip", {
+            examples: [
+              "permdock snapshot size",
+              "permdock snapshot size --role admin --tenants 40 --json",
+            ],
+            docs: "snapshot",
+            effects: [],
+            config: true,
+            load: async () => (await import("../commands/size.ts")).snapshotSize,
+          }),
+        ],
+      ),
+      group(
+        "claims",
+        "Measure the memberships claim of an access token",
+        "claims",
+        [
+          leaf("size", "Report claim bytes, token characters and the budget cut", {
+            examples: [
+              "permdock claims size --memberships 60",
+              "permdock claims size --memberships 11 --roles 3 --json",
+            ],
+            docs: "claims",
+            effects: [],
+            config: false,
+            load: async () => (await import("../commands/size.ts")).claimsSize,
+          }),
+        ],
+      ),
       leaf(
         "config",
         "Check permdock.config.ts for unknown keys, or print the effective config",

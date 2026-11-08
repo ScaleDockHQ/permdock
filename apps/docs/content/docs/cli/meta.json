@@ -13,6 +13,8 @@
     "catalog",
     "diff",
     "usage",
+    "snapshot",
+    "claims",
     "generate",
     "gen",
     "openapi",

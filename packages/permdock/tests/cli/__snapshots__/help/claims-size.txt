@@ -1,0 +1,19 @@
+permdock claims size: Report claim bytes, token characters and the budget cut
+
+Usage  permdock claims size [flags]
+
+Flags
+  --memberships <count>  Memberships the user holds (default 11)
+  --roles <count>        Roles in each membership (default 1)
+  --scope <name>         Scope name written in each entry (default organization)
+  --budget <bytes>       Byte budget of the memberships claim (default 1024)
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock claims size --memberships 60
+  permdock claims size --memberships 11 --roles 3 --json
+
+Side effects  none: reads only
+Docs  https://permdock.com/docs/cli/claims

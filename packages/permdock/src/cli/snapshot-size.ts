@@ -1,0 +1,162 @@
+import { gzipSync } from "node:zlib";
+
+import type { Membership, Policy, Principal, Subject } from "../index.ts";
+import type { CommandResult } from "./core/result.ts";
+
+import { snapshotFor } from "../index.ts";
+import { scopeList } from "../core/scopes.ts";
+
+/** The default budget of the PD112 doctor rule, in bytes of JSON. */
+export const SNAPSHOT_BUDGET_BYTES = 65_536;
+
+export type SnapshotPart = {
+  readonly part: string;
+  readonly bytes: number;
+  readonly gzip: number;
+};
+
+export type SnapshotSizeReport = {
+  readonly role: string;
+  readonly scope: string | null;
+  readonly tenants: number;
+  readonly grants: number;
+  readonly parts: readonly SnapshotPart[];
+  readonly total: SnapshotPart;
+  readonly largest: string;
+};
+
+const PARTS = [
+  "grants",
+  "conditions",
+  "vocabulary",
+  "tenants",
+  "assignable",
+  "subject",
+] as const;
+
+function measure(part: string, value: unknown): SnapshotPart {
+  const text = JSON.stringify(value) ?? "";
+  return {
+    part,
+    bytes: Buffer.byteLength(text),
+    gzip: gzipSync(text).length,
+  };
+}
+
+function subjectOf(
+  policy: Policy,
+  role: string,
+  tenants: number,
+): { readonly subject: Subject; readonly scope: string | null } | string {
+  const binding = policy.roles.find((item) => item.name === role);
+  if (binding === undefined) {
+    return `unknown role '${role}'; the policy declares ${policy.roles.map((item) => item.name).join(", ")}`;
+  }
+  const base = { id: "snapshot-size-probe" };
+  if (binding.on === undefined) {
+    const principal: Principal = { ...base, roles: [role] };
+    return { subject: { principal, context: {} }, scope: null };
+  }
+  if (typeof binding.on !== "string") {
+    return `role '${role}' is held on a resource, which snapshot size does not model`;
+  }
+  const scopes = scopeList(policy.scopes);
+  const root = scopes[0]?.name ?? "tenant";
+  const scope = binding.on;
+  const memberships: Membership[] = Array.from(
+    { length: tenants },
+    (_, index) => {
+      const id = `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
+      return scope === root
+        ? { scope, id, roles: [role] }
+        : { scope, id, within: { [root]: id }, roles: [role] };
+    },
+  );
+  const principal: Principal = { ...base, memberships };
+  return { subject: { principal, context: {} }, scope };
+}
+
+/**
+ * The size of the compact snapshot a probe subject holding `role` gets. The
+ * parts are the top-level keys of the wire form; the total is
+ * `JSON.stringify(snapshot)`.
+ */
+export function snapshotSize(input: {
+  readonly policy: Policy;
+  readonly role: string;
+  readonly tenants: number;
+  readonly omitAssignable: boolean;
+}): SnapshotSizeReport | string {
+  const built = subjectOf(input.policy, input.role, input.tenants);
+  if (typeof built === "string") {
+    return built;
+  }
+  const snapshot = snapshotFor(input.policy, built.subject, {
+    ...(input.omitAssignable ? { omitAssignable: true } : {}),
+    ...(built.scope === null ? {} : { tenants: "all" as const }),
+  });
+  const record: Readonly<Record<string, unknown>> = { ...snapshot };
+  const parts = PARTS.filter((name) => record[name] !== undefined).map((name) =>
+    measure(name, record[name]),
+  );
+  const largest = parts.reduce<SnapshotPart | undefined>(
+    (best, item) => (best === undefined || item.bytes > best.bytes ? item : best),
+    undefined,
+  );
+  return {
+    role: input.role,
+    scope: built.scope,
+    tenants: built.scope === null ? 0 : input.tenants,
+    grants: snapshot.grants.length,
+    parts,
+    total: measure("total", snapshot),
+    largest: largest?.part ?? "none",
+  };
+}
+
+export function runSnapshotSize(input: {
+  readonly policy: Policy;
+  readonly role: string | undefined;
+  readonly tenants: number;
+  readonly omitAssignable: boolean;
+  readonly budget: number;
+  readonly json: boolean;
+}): CommandResult {
+  const role = input.role ?? mostPrivilegedRole(input.policy);
+  if (role === undefined) {
+    return { code: 2, output: "snapshot size: the policy declares no role to measure" };
+  }
+  const report = snapshotSize({ ...input, role });
+  if (typeof report === "string") {
+    return { code: 2, output: `snapshot size: ${report}` };
+  }
+  const over = report.total.bytes > input.budget;
+  const lines = [
+    `snapshot of ${report.role}: ${String(report.grants)} grants${report.scope === null ? "" : `, ${String(report.tenants)} ${report.scope} memberships`}`,
+    ...[...report.parts, report.total].map(
+      (item) =>
+        `${item.part.padEnd(12)} ${String(item.bytes).padStart(9)} bytes ${String(item.gzip).padStart(9)} gzip`,
+    ),
+    over
+      ? `over the ${String(input.budget)} byte budget; the largest part is ${report.largest}`
+      : `within the ${String(input.budget)} byte budget`,
+  ];
+  return {
+    code: 0,
+    output: input.json ? JSON.stringify(report) : lines.join("\n"),
+    data: { ...report, budget: input.budget, overBudget: over },
+  };
+}
+
+/** The role with the most grants: the heaviest snapshot the policy can produce. */
+export function mostPrivilegedRole(policy: Policy): string | undefined {
+  return policy.roles.reduce<
+    { readonly name: string; readonly grants: number } | undefined
+  >(
+    (best, role) =>
+      best === undefined || role.grants.length > best.grants
+        ? { name: role.name, grants: role.grants.length }
+        : best,
+    undefined,
+  )?.name;
+}
