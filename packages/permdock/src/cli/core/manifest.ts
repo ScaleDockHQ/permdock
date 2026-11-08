@@ -285,6 +285,29 @@ export const SECTIONS: readonly Section[] = [
         ),
       ]),
       group(
+        "policy",
+        "Write the static grants of a policy as a content-addressed bundle",
+        "policy",
+        [
+          leaf(
+            "bundle",
+            "Write the policy bundle that rls.staticGrants 'ref' pins by hash",
+            {
+              examples: [
+                "permdock policy bundle --out supabase/permdock-policy-bundle.json",
+                "permdock policy bundle --kind sql --out supabase/seeds/permdock-bundle.sql",
+                "permdock policy bundle --out supabase/permdock-policy-bundle.json --check",
+              ],
+              docs: "policy",
+              effects: ["files"],
+              config: true,
+              load: async () =>
+                (await import("../commands/policy.ts")).policyBundle,
+            },
+          ),
+        ],
+      ),
+      group(
         "claims",
         "Measure the memberships claim of an access token",
         "claims",
