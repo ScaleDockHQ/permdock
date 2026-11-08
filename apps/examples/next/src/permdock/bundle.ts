@@ -5,83 +5,165 @@
 import type { ClientBundle } from "permdock";
 
 export const clientBundle: ClientBundle = {
-  v: 1,
-  conditions: [
+  "v": 1,
+  "conditions": [
     {
-      effect: "allow",
-      role: "admin",
-      to: { kind: "role", role: "admin", scope: "organization" },
-      scope: "organization",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
     },
     {
-      effect: "allow",
-      role: "admin",
-      to: { kind: "role", role: "admin", scope: "organization" },
-      where: { op: "eq", field: "status", value: "sent" },
-      scope: "organization",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "where": {
+        "op": "eq",
+        "field": "status",
+        "value": "sent"
+      },
+      "scope": "organization"
     },
     {
-      effect: "allow",
-      role: "contact",
-      to: { kind: "role", role: "contact", scope: "customer" },
-      where: { op: "in", field: "status", value: ["sent", "approved"] },
-      scope: "customer",
+      "effect": "allow",
+      "role": "contact",
+      "to": {
+        "kind": "role",
+        "role": "contact",
+        "scope": "customer"
+      },
+      "where": {
+        "op": "in",
+        "field": "status",
+        "value": [
+          "sent",
+          "approved"
+        ]
+      },
+      "scope": "customer"
     },
     {
-      effect: "allow",
-      role: "contact",
-      to: { kind: "role", role: "contact", scope: "customer" },
-      scope: "customer",
+      "effect": "allow",
+      "role": "contact",
+      "to": {
+        "kind": "role",
+        "role": "contact",
+        "scope": "customer"
+      },
+      "scope": "customer"
     },
     {
-      effect: "allow",
-      role: "contact",
-      to: { kind: "role", role: "contact", scope: "customer" },
-      where: { op: "eq", field: "status", value: "sent" },
-      scope: "customer",
+      "effect": "allow",
+      "role": "contact",
+      "to": {
+        "kind": "role",
+        "role": "contact",
+        "scope": "customer"
+      },
+      "where": {
+        "op": "eq",
+        "field": "status",
+        "value": "sent"
+      },
+      "scope": "customer"
     },
     {
-      effect: "allow",
-      role: "member",
-      to: { kind: "role", role: "member", scope: "organization" },
-      scope: "organization",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "organization"
+      },
+      "scope": "organization"
     },
     {
-      effect: "allow",
-      role: "member",
-      to: { kind: "role", role: "member", scope: "organization" },
-      approval: "human",
-      scope: "organization",
-    },
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "organization"
+      },
+      "approval": "human",
+      "scope": "organization"
+    }
   ],
-  roles: {
-    admin: {
-      digest: "sha-256:2Zp80mpEa9lxmcNNRoxnXI0PyrcSNWSnz5PvorK-jb8",
-      grants: [
-        { permission: "quote.read", cond: 0 },
-        { permission: "quote.list", cond: 0 },
-        { permission: "member.list", cond: 0 },
-        { permission: "quote.approve", cond: 1 },
-        { permission: "quote.delete", cond: 0 },
-        { permission: "member.manage", cond: 0 },
-      ],
+  "roles": {
+    "admin": {
+      "digest": "sha-256:2Zp80mpEa9lxmcNNRoxnXI0PyrcSNWSnz5PvorK-jb8",
+      "grants": [
+        {
+          "permission": "quote.read",
+          "cond": 0
+        },
+        {
+          "permission": "quote.list",
+          "cond": 0
+        },
+        {
+          "permission": "member.list",
+          "cond": 0
+        },
+        {
+          "permission": "quote.approve",
+          "cond": 1
+        },
+        {
+          "permission": "quote.delete",
+          "cond": 0
+        },
+        {
+          "permission": "member.manage",
+          "cond": 0
+        }
+      ]
     },
-    contact: {
-      digest: "sha-256:AVtrnpDcXjSjqTTBY0p2k3wP4ouGpg2_12ywRmZsgIc",
-      grants: [
-        { permission: "quote.read", cond: 2 },
-        { permission: "quote.list", cond: 3 },
-        { permission: "quote.approve", cond: 4 },
-      ],
+    "contact": {
+      "digest": "sha-256:AVtrnpDcXjSjqTTBY0p2k3wP4ouGpg2_12ywRmZsgIc",
+      "grants": [
+        {
+          "permission": "quote.read",
+          "cond": 2
+        },
+        {
+          "permission": "quote.list",
+          "cond": 3
+        },
+        {
+          "permission": "quote.approve",
+          "cond": 4
+        }
+      ]
     },
-    member: {
-      digest: "sha-256:EpX0jD4xdVnck5fYSKfl3OGCINHiR1r_Lb1GVgRLOq0",
-      grants: [
-        { permission: "quote.read", cond: 5 },
-        { permission: "quote.list", cond: 5 },
-        { permission: "member.list", cond: 5 },
-        { permission: "quote.delete", cond: 6 },
-      ],
-    },
-  },
+    "member": {
+      "digest": "sha-256:EpX0jD4xdVnck5fYSKfl3OGCINHiR1r_Lb1GVgRLOq0",
+      "grants": [
+        {
+          "permission": "quote.read",
+          "cond": 5
+        },
+        {
+          "permission": "quote.list",
+          "cond": 5
+        },
+        {
+          "permission": "member.list",
+          "cond": 5
+        },
+        {
+          "permission": "quote.delete",
+          "cond": 6
+        }
+      ]
+    }
+  }
 };

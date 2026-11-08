@@ -25,6 +25,7 @@ export default defineConfig({
     "**/.cursor/**",
     "**/.claude/**",
     "**/permissions.catalog.json",
+    "**/permdock/bundle.ts",
     "packages/permdock/src/testing/fixtures/better-supabase.catalog.json",
     "packages/ui/src/**",
     "apps/marketing/components/blocks/**",

@@ -12,7 +12,7 @@ import { permissions } from "./large-policy.ts";
  * declared roles, about 2,200 grants in the expanded form. It models the shape
  * of one CentraKit capture and is not a measurement of CentraKit.
  */
-export const CENTRAKIT_TENANTS = Array.from(
+const CENTRAKIT_TENANTS = Array.from(
   { length: 11 },
   (_, index) => `org${index}`,
 );
