@@ -16,6 +16,7 @@ export type AdapterStoreOptions = Pick<
   | "fetchSnapshot"
   | "approvals"
   | "tenant"
+  | "bundle"
   | "fetch"
   | "headers"
   | "maxAge"
@@ -88,6 +89,7 @@ export function adapterStore(
       fetchSnapshot: options.fetchSnapshot,
       approvals: options.approvals,
       tenant: options.tenant,
+      bundle: options.bundle,
       fetch: options.fetch,
       headers: options.headers,
       maxAge: options.maxAge,

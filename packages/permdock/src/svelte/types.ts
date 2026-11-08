@@ -20,7 +20,7 @@ import type {
 import type { ActionResult } from "../core/action-result.ts";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { ClientBundle, Snapshot } from "../core/snapshot-types.ts";
 
 export type SveltePermDockOptions = ProviderOptionsBase & {
   /**
@@ -39,6 +39,11 @@ export type SveltePermDockOptions = ProviderOptionsBase & {
    * tenant })`) when it changes.
    */
   readonly tenant?: string | (() => string | undefined);
+  /**
+   * The generated bundle (`permdock generate bundle`) that a snapshot written
+   * with `omitStatic` points into.
+   */
+  readonly bundle?: ClientBundle;
   /**
    * A getter is read on every request, so a rotated token applies without a new
    * store.

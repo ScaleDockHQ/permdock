@@ -19,7 +19,7 @@ import type {
 import type { ActionResult } from "../core/action-result.ts";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { ClientBundle, Snapshot } from "../core/snapshot-types.ts";
 
 export type PermDockPluginOptions = ProviderOptionsBase & {
   /**
@@ -35,6 +35,11 @@ export type PermDockPluginOptions = ProviderOptionsBase & {
    * changes.
    */
   readonly tenant?: MaybeRefOrGetter<string | undefined>;
+  /**
+   * The generated bundle (`permdock generate bundle`) that a snapshot written
+   * with `omitStatic` points into.
+   */
+  readonly bundle?: ClientBundle;
   /**
    * Read on every request: a ref or getter carries a rotated token without
    * rebuilding the store.

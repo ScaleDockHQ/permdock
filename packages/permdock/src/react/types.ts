@@ -10,7 +10,7 @@ import type { DescribeMessages } from "../core/describe.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { RowData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { ClientBundle, Snapshot } from "../core/snapshot-types.ts";
 
 export type {
   ApprovalHandle,
@@ -64,6 +64,11 @@ export type PermDockProviderProps = (
   readonly fetchSnapshot?: NonNullable<ClientStoreOptions["fetchSnapshot"]>;
   readonly approvals?: string;
   readonly tenant?: string;
+  /**
+   * The generated bundle (`permdock generate bundle`) that a snapshot written
+   * with `omitStatic` points into.
+   */
+  readonly bundle?: ClientBundle;
   readonly fetch?: typeof fetch;
   readonly headers?: Readonly<Record<string, string>>;
   readonly maxAge?: number;

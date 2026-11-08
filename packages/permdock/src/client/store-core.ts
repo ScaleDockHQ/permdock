@@ -2,7 +2,7 @@ import type { Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { ClientBundle, Snapshot } from "../core/snapshot-types.ts";
 import type { CacheEntry } from "./batch.ts";
 import type { RefreshTrigger } from "./refresh-on.ts";
 import type { StoreHeaders } from "./request.ts";
@@ -42,6 +42,11 @@ export type ClientStoreOptions = {
   }) => Snapshot | string | Promise<Snapshot | string>;
   readonly approvals?: string;
   readonly tenant?: string;
+  /**
+   * The generated bundle a snapshot written with `omitStatic` points into. A
+   * snapshot that lists static roles grants nothing from them without it.
+   */
+  readonly bundle?: ClientBundle;
   readonly fetch?: typeof fetch;
   /**
    * Request headers, or a getter read on every request so a rotated token needs
@@ -222,7 +227,7 @@ export type Evaluator = {
 
 export type InstanceBuilder = (
   snapshot: Snapshot,
-  options: { readonly tenant?: string },
+  options: { readonly tenant?: string; readonly bundle?: ClientBundle },
 ) => PermDock;
 
 function needsEndpoint(decision: Decision): boolean {
@@ -249,7 +254,10 @@ export function createStore(
   // `ready`, or why the current snapshot cannot be trusted as fresh.
   let base: "ready" | "stale" | "server-only" = "server-only";
   const build = (): PermDock =>
-    (evaluator.build() ?? lightInstance)(snapshot, compact({ tenant }));
+    (evaluator.build() ?? lightInstance)(
+      snapshot,
+      compact({ tenant, bundle: options.bundle }),
+    );
   let instance: PermDock = build();
   let cached: ClientPermDock;
   let verifying = false;
