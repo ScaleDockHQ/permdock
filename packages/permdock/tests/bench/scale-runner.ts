@@ -1,8 +1,9 @@
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";
+import { compareCell } from "./runtime-gate.ts";
 import {
   CUSTOM_ROLE_TIERS,
   DECIDE_IDS,
@@ -89,7 +90,10 @@ async function cappedAsync<T>(
   };
 }
 
-const ONLY = process.argv.includes("--quick");
+/** Measurements of one cell `--check` takes before it fails the cell. */
+const ATTEMPTS = 3;
+const CHECK = process.argv.includes("--check");
+const ONLY = process.argv.includes("--quick") || CHECK;
 const memberships = ONLY ? [1, 150] : MEMBERSHIP_TIERS;
 const roleTiers = ONLY ? [1, 20] : ROLE_TIERS;
 const customTiers = ONLY ? [0, 500] : CUSTOM_ROLE_TIERS;
@@ -119,12 +123,128 @@ const record = {
   cells,
 };
 flush = (): void => {
-  if (process.argv.includes("--write")) {
+  if (process.argv.includes("--write") && !CHECK) {
     writeFileSync(OUT, `${JSON.stringify(record, null, 2)}\n`);
   }
 };
 
+async function measureCell(
+  memberCount: number,
+  roleCount: number,
+  customCount: number,
+): Promise<Record<string, unknown>> {
+  const user = userFor(memberCount, roleCount, customCount);
+  const tenant = tenantId(0);
+  const source = sourceFor(memberCount, customCount);
+  const build = () =>
+    getPermDockSync(policy, user, { tenant, customRoles: source });
+  const instance = build();
+  const own = { id: "i0", orgId: tenant, ownerId: "u-scale" };
+  const row: Record<string, unknown> = {};
+  row["instanceBuild"] = measure(build);
+  row["can"] = measure(() => instance.can(permissions.item.update, own));
+  row["filter100k"] = capped(filterRows, 5000, (part) =>
+    instance.filter(permissions.item.update, part),
+  );
+  row["where"] = measure(() => instance.where(permissions.item.update));
+  row["mayUse300"] = capped(tools, 1, ([permission]) =>
+    permission === undefined ? false : instance.mayUse(permission),
+  );
+  row["decideIds1000"] = await cappedAsync(ids, 25, (part) =>
+    instance.decideIds(permissions.item.read, part, { data: () => loaded }),
+  );
+  const customRoles = customRolesFor(memberCount, customCount);
+  const snapshot = snapshotFor(policy, user, { tenant, customRoles });
+  row["snapshotFor"] = measure(
+    () => snapshotFor(policy, user, { tenant, customRoles }),
+    1,
+  );
+  row["snapshotBytes"] = JSON.stringify(snapshot).length;
+  return row;
+}
+
+type Baseline = {
+  readonly node?: string;
+  readonly platform?: string;
+  readonly cells?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+};
+
+function readBaseline(): Baseline {
+  const parsed: unknown = JSON.parse(readFileSync(OUT, "utf8"));
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new Error("PermDock: scripts/runtime-perf.json is not an object");
+  }
+  // SAFETY: this script writes the file in this shape.
+  return parsed as Baseline;
+}
+
+/**
+ * `--check`: runs the quick matrix cells the committed baseline measured and
+ * fails above its margin. A cell the baseline skipped, or lacks, stays
+ * skipped.
+ */
+async function check(): Promise<void> {
+  const baseline = readBaseline();
+  const sameMachine =
+    baseline.platform === `${process.platform}-${process.arch}` &&
+    baseline.node?.split(".")[0] === process.version.split(".")[0];
+  const failures: string[] = [];
+  for (const memberCount of memberships) {
+    for (const roleCount of roleTiers) {
+      for (const customCount of customTiers) {
+        const key = `m${String(memberCount)}-r${String(roleCount)}-c${String(customCount)}`;
+        const recorded = baseline.cells?.[key];
+        if (recorded === undefined || "skipped" in recorded) {
+          process.stdout.write(
+            `${key} skipped: not measured in the baseline\n`,
+          );
+          continue;
+        }
+        // A noisy neighbour slows one run; a regression slows every run.
+        let verdict = compareCell(
+          key,
+          recorded,
+          await measureCell(memberCount, roleCount, customCount),
+          sameMachine,
+        );
+        for (
+          let attempt = 1;
+          attempt < ATTEMPTS && verdict.failures.length > 0;
+          attempt += 1
+        ) {
+          verdict = compareCell(
+            key,
+            recorded,
+            await measureCell(memberCount, roleCount, customCount),
+            sameMachine,
+          );
+        }
+        failures.push(...verdict.failures);
+        for (const note of verdict.notes) {
+          process.stdout.write(`note: ${note}\n`);
+        }
+        process.stdout.write(
+          `${key} ${verdict.failures.length === 0 ? "ok" : "over"}\n`,
+        );
+      }
+    }
+  }
+  if (!sameMachine) {
+    process.stdout.write(
+      `timings are notes: the baseline was recorded on ${baseline.platform ?? "?"} ${baseline.node ?? "?"}, this is ${process.platform}-${process.arch} ${process.version}\n`,
+    );
+  }
+  if (failures.length > 0) {
+    process.stderr.write(`${failures.join("\n")}\n`);
+    process.exitCode = 1;
+  }
+}
+
 async function run(): Promise<void> {
+  if (CHECK) {
+    await check();
+    return;
+  }
   for (const memberCount of memberships) {
     for (const roleCount of roleTiers) {
       for (const customCount of customTiers) {
@@ -136,35 +256,7 @@ async function run(): Promise<void> {
           flush();
           continue;
         }
-        const user = userFor(memberCount, roleCount, customCount);
-        const tenant = tenantId(0);
-        const source = sourceFor(memberCount, customCount);
-        const build = () =>
-          getPermDockSync(policy, user, { tenant, customRoles: source });
-        const instance = build();
-        const own = { id: "i0", orgId: tenant, ownerId: "u-scale" };
-        const row: Record<string, unknown> = {};
-        row["instanceBuild"] = measure(build);
-        row["can"] = measure(() => instance.can(permissions.item.update, own));
-        row["filter100k"] = capped(filterRows, 5000, (part) =>
-          instance.filter(permissions.item.update, part),
-        );
-        row["where"] = measure(() => instance.where(permissions.item.update));
-        row["mayUse300"] = capped(tools, 1, ([permission]) =>
-          permission === undefined ? false : instance.mayUse(permission),
-        );
-        row["decideIds1000"] = await cappedAsync(ids, 25, (part) =>
-          instance.decideIds(permissions.item.read, part, {
-            data: () => loaded,
-          }),
-        );
-        const customRoles = customRolesFor(memberCount, customCount);
-        const snapshot = snapshotFor(policy, user, { tenant, customRoles });
-        row["snapshotFor"] = measure(
-          () => snapshotFor(policy, user, { tenant, customRoles }),
-          1,
-        );
-        row["snapshotBytes"] = JSON.stringify(snapshot).length;
+        const row = await measureCell(memberCount, roleCount, customCount);
         cells[key] = row;
         process.stdout.write(
           `${key} ${JSON.stringify(row["instanceBuild"])}\n`,
@@ -180,7 +272,7 @@ async function run(): Promise<void> {
 run()
   .then(() => {
     flush();
-    process.stdout.write(`done ${OUT}\n`);
+    process.stdout.write(CHECK ? "checked\n" : `done ${OUT}\n`);
   })
   .catch((error: unknown) => {
     throw error;
