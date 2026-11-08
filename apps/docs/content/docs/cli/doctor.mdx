@@ -163,6 +163,10 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD109` | `rls.customRoles` with `rls.authorize: "jwt"` and no `supabase.hook.claims` function, so no token carries `grants`                                                                                                                                                                                                                   | error           |
 | `PD110` | With `--db-url-stdin`, the access token the hook builds for a sample user is over 4,096 characters                                                                                                                                                                                                                                   | warning         |
 | `PD111` | A list endpoint takes an optional `limit`: an `openapi.doc` `GET` on a collection path, or an MCP tool schema with `limit: …optional()`                                                                                                                                                                                              | warning         |
+| `PD112` | The snapshot of the role with the most grants is over 65,536 bytes of JSON; the message names the largest part                                                                                                                                                                                                                       | warning         |
+| `PD113` | Source reads the legacy shared JWT secret (`SUPABASE_JWT_SECRET`, `JWT_SECRET`) or lists `HS256` as the only verification algorithm                                                                                                                                                                                                  | warning         |
+| `PD114` | `rls.authorize: "jwt"` with a token hook: the helpers read only the memberships the budget keeps; an error when a sample user's token is truncated                                                                                                                                                                                   | warning         |
+| `PD115` | The newest migration with the generated helpers carries a different `sha-256:` digest from the schema file `rls generate` writes                                                                                                                                                                                                     | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -702,7 +706,7 @@ Postgres reads a row before it updates it, so an `update` policy on a table with
 
 ### Performance checks
 
-PD103 to PD108 read the statements of `supabase/schemas`, `rls.out` and the migration folders. The generated files are included, so output from an older release is reported until you run `permdock rls generate`. `--only performance` runs PD103 to PD111.
+PD103 to PD108 read the statements of `supabase/schemas`, `rls.out` and the migration folders. The generated files are included, so output from an older release is reported until you run `permdock rls generate`. `--only performance` runs PD103 to PD112.
 
 #### PD103: a PermDock call per row
 
@@ -741,6 +745,22 @@ With `--db-url-stdin`, doctor runs `custom_access_token_hook` for the sample use
 #### PD111: an optional `limit`
 
 A list that takes no limit returns every row the policies allow, and Lienlink's jobs API did so at 1M rows. PD111 is a warning for a `GET` on a collection path in an `openapi.doc` document whose `limit` query parameter is not `required`, and for a source file that builds an MCP server (`permdock/mcp`, `registerTool(`, `.tool(`) with `limit: …optional()` on a line that sets no `default`. Make `limit` required, or give it a default and a maximum.
+
+#### PD112: snapshot size
+
+`permdock snapshot size` measures the compact snapshot of one role. PD112 measures the role with the most grants, held in three tenants, and is a warning above 65,536 bytes of JSON. A Next.js page serialises that snapshot into the Flight stream for each `PermDockProvider`. The message names the largest part, usually `grants` or `assignable`; `omitAssignable` drops the second on a page with no role editor. `--only snapshot` runs PD112.
+
+### PD113: legacy HS256 verification
+
+A Supabase project that still signs with the legacy shared secret verifies a token only by calling `GET /auth/v1/user`, or by holding the secret, which also mints any user's token. Asymmetric signing keys (ES256) let the app verify locally against `/auth/v1/.well-known/jwks.json`, and `supabase.auth.getClaims()` does that for you. PD113 is a warning for each source file that reads `SUPABASE_JWT_SECRET` or `JWT_SECRET` from the environment, or passes `algorithms: ["HS256"]`. Rotate to an ES256 signing key, verify with `permdock/jwt` or `subjectFromSupabaseClient`, and drop the secret. `--only supabase` or `--only jwt` runs PD113. See [signing keys](https://supabase.com/docs/guides/auth/signing-keys) and [JWTs](https://supabase.com/docs/guides/auth/jwts).
+
+### PD114: truncated tokens in jwt mode
+
+With `rls.authorize: "jwt"` the helpers read the `memberships` claim and nothing else. When the hook budget cuts a user's memberships it sets `memberships_truncated` and keeps a prefix, and the helpers see only that prefix: the user loses the other organisations with no error. PD114 is a warning for a project that sets both a token hook and `jwt` mode. With `--db-url-stdin` it runs the hook for the `doctor.claims` sample users, as PD110 does, and is an error for a sample whose token is truncated. Use `rls.authorize: "database"`: with a hook the helpers read the claims first and the tables when the token is truncated ([token shape](/docs/adapters/supabase-hook#token-shape)). `--only hook` runs PD114.
+
+### PD115: a migration behind the schema file
+
+`permdock generate --only rls` writes `-- permdock helpers (…) sha-256:<digest>` as the first line of the helpers, where the digest covers every line after it. The digest depends on the helper text only, so a release that writes the same helpers writes the same line. PD115 compares the newest migration in the migration folders that holds that line with the schema file (`supabase/schemas` or `rls.out`). A different digest means a policy change reached the schema file and no migration applies it. The check is silent when either side has no stamp, which is the case for a migration that `supabase db diff` wrote, since a diff carries no comments. `--only drift` runs PD115.
 
 ## Side effects
 

@@ -484,6 +484,15 @@ export type RlsConfig = {
    * step. Nothing can write the rows, so the view cannot take hand-added ones.
    */
   readonly seeds?: "function" | "view";
+  /**
+   * `'ref'`: the static grants are not in the generated SQL. The helpers pin
+   * the hash of the policy bundle `permdock policy bundle` writes and read the
+   * bundle from `<schema>.permdock_policy_bundle`; a bundle that is not loaded,
+   * or has another hash, denies every static grant. `'inline'` (the default)
+   * keeps the rows in the SQL as `rls.seeds` says. `'ref'` makes
+   * `role_permissions` a view, so it cannot combine with `seeds: 'function'`.
+   */
+  readonly staticGrants?: "inline" | "ref";
   readonly trustedReaders?: readonly string[];
   readonly treeValues?: Readonly<
     Record<string, Readonly<Record<string, unknown>>>
@@ -931,10 +940,11 @@ export type SupabaseHookConfig = {
   /**
    * The `team_ids` claim: the uuid of every team the user belongs to, read from
    * `table` (`user` and `team` columns; `tenant` puts the active tenant's teams
-   * first) through `member_team_ids_for`. Teams have their own budget. On
-   * overflow `team_ids` is omitted and `team_ids_truncated` is set; the claim
-   * is never a prefix, and `memberships_truncated` is not set by team rows. A
-   * suspended user gets none. Clients must not write the table.
+   * first) through `member_team_ids_for`. Teams share the `budget` with the
+   * roles, the attrs, the version and the kept memberships. On overflow
+   * `team_ids` is omitted and `team_ids_truncated` is set; the claim is never a
+   * prefix, and `memberships_truncated` is not set by team rows. A suspended
+   * user gets none. Clients must not write the table.
    */
   readonly teams?: {
     readonly table: string;

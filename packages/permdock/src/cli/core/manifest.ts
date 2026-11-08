@@ -249,6 +249,86 @@ export const SECTIONS: readonly Section[] = [
           load: async () => (await import("../commands/diff.ts")).diff,
         },
       ),
+      group(
+        "snapshot",
+        "Measure the snapshot a role sends to the client",
+        "snapshot",
+        [
+          leaf("size", "Report snapshot bytes by part, raw and gzip", {
+            examples: [
+              "permdock snapshot size",
+              "permdock snapshot size --role admin --tenants 40 --json",
+            ],
+            docs: "snapshot",
+            effects: [],
+            config: true,
+            load: async () =>
+              (await import("../commands/size.ts")).snapshotSize,
+          }),
+        ],
+      ),
+      group("roles", "List what each role holds", "roles", [
+        leaf(
+          "grants",
+          "List the grants of each role, expanded per permission",
+          {
+            examples: [
+              "permdock roles grants",
+              "permdock roles grants --role admin --json",
+            ],
+            docs: "roles",
+            effects: [],
+            config: true,
+            load: async () =>
+              (await import("../commands/roles.ts")).rolesGrants,
+          },
+        ),
+      ]),
+      group(
+        "policy",
+        "Write the static grants of a policy as a content-addressed bundle",
+        "policy",
+        [
+          leaf(
+            "bundle",
+            "Write the policy bundle that rls.staticGrants 'ref' pins by hash",
+            {
+              examples: [
+                "permdock policy bundle --out supabase/permdock-policy-bundle.json",
+                "permdock policy bundle --kind sql --out supabase/seeds/permdock-bundle.sql",
+                "permdock policy bundle --out supabase/permdock-policy-bundle.json --check",
+              ],
+              docs: "policy",
+              effects: ["files"],
+              config: true,
+              load: async () =>
+                (await import("../commands/policy.ts")).policyBundle,
+            },
+          ),
+        ],
+      ),
+      group(
+        "claims",
+        "Measure the memberships claim of an access token",
+        "claims",
+        [
+          leaf(
+            "size",
+            "Report claim bytes, token characters and the budget cut",
+            {
+              examples: [
+                "permdock claims size --memberships 60",
+                "permdock claims size --memberships 11 --roles 3 --json",
+              ],
+              docs: "claims",
+              effects: [],
+              config: false,
+              load: async () =>
+                (await import("../commands/size.ts")).claimsSize,
+            },
+          ),
+        ],
+      ),
       leaf(
         "config",
         "Check permdock.config.ts for unknown keys, or print the effective config",
@@ -383,14 +463,16 @@ export const SECTIONS: readonly Section[] = [
         [
           leaf(
             "annotate",
-            "Write an operations map from @permission comments",
+            "Write an operations map from @permission comments or an OpenAPI document",
             {
               examples: [
                 "permdock openapi annotate --routes 'app/**/route.ts'",
+                "permdock openapi annotate --doc openapi.yaml --tenant-path orgId",
               ],
               docs: "openapi",
               effects: ["files"],
-              config: false,
+              config: true,
+              findings: true,
               load: async () =>
                 (await import("../commands/openapi.ts")).annotateRoutes,
             },

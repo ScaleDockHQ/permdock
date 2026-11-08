@@ -53,6 +53,15 @@ export type JwksCacheOptions = {
   readonly timeout?: number;
 };
 
+/**
+ * A `TokenVerifier` over `jose`. `purgeKeys()` drops the cached discovery
+ * document and JWKS, so the next token fetches them: call it after a key
+ * rotation instead of waiting for the TTL.
+ */
+export type JoseTokenVerifier = TokenVerifier & {
+  readonly purgeKeys: () => void;
+};
+
 export type JoseTokenVerifierOptions = {
   readonly jwks?: JwtJwks;
   readonly discovery?: DiscoveryInput;

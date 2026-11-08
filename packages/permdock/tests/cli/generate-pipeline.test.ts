@@ -100,7 +100,13 @@ describe("generate pipeline", () => {
       dryRun: false,
     });
     expect(first.files).toStrictEqual([
-      { path: "rules.txt", plugin: "rules", outcome: "created" },
+      {
+        path: "rules.txt",
+        plugin: "rules",
+        outcome: "created",
+        bytes: 6,
+        delta: 6,
+      },
     ]);
     expect(readFileSync(join(cwd, "rules.txt"), "utf8")).toBe("rules\n");
     expect(structuredClone(first.model)).toStrictEqual(first.model);
@@ -128,6 +134,32 @@ describe("generate pipeline", () => {
     });
     expect(check.code).toBe(0);
     expect(check.diff).toBe("");
+  });
+
+  it("plans a changed file with its byte delta on a dry run", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "permdock-generate-"));
+    dirs.push(cwd);
+    writeFileSync(join(cwd, "rules.txt"), "old text that is longer\n");
+    const ctx = await projectContext(cwd);
+    const dry = await runGenerate({
+      cwd,
+      policy,
+      plugins: [plugin("rules")],
+      config: {},
+      ctx,
+      check: false,
+      dryRun: true,
+      noCache: true,
+    });
+    expect(dry.files[0]).toMatchObject({
+      outcome: "planned",
+      bytes: 6,
+      delta: -18,
+    });
+    expect(dry.diff).toBe("~ rules.txt (-18 bytes, 6 total)");
+    expect(readFileSync(join(cwd, "rules.txt"), "utf8")).toBe(
+      "old text that is longer\n",
+    );
   });
 
   it("writes the same bytes with and without a cache", async () => {

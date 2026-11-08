@@ -9,6 +9,7 @@ import type { VerifyIgnore } from "./verify-findings.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { describeError, exitCodeOfError, usageResult } from "../core/errors.ts";
 import { requirePeer } from "../core/peer.ts";
+import { pgConnector } from "../pg.ts";
 import { isSupabaseSchemas, schemasRefusal } from "../supabase-schemas.ts";
 import { runRlsAdvisors } from "./advisors.ts";
 import { describeExplain } from "./explain.ts";
@@ -100,6 +101,11 @@ export type RlsRunInput = {
   readonly connect?: SqlConnect;
   /** `verify --advisors`: run `supabase db advisors` instead of the fixtures. */
   readonly advisors?: boolean;
+  /**
+   * `verify --advisors --grant-calls`: also count executions per permission
+   * key.
+   */
+  readonly grantCalls?: boolean;
   /** Starts the Supabase CLI for `--advisors`; defaults to `spawn`. */
   readonly exec?: CliExec;
   /** `verify --ignore`: finding ids to accept for this run. */
@@ -457,6 +463,13 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
           ...(input.io.signal === undefined ? {} : { signal: input.io.signal }),
           ...(input.db === undefined ? {} : { db: input.db }),
           ...(input.exec === undefined ? {} : { exec: input.exec }),
+          ...(input.grantCalls === true
+            ? {
+                grantCalls:
+                  input.connect ??
+                  pgConnector("permdock rls verify", input.cwd),
+              }
+            : {}),
         });
       }
       const ignore = verifyIgnores(input.config, input.ignore);

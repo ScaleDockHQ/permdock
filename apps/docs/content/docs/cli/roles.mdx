@@ -1,0 +1,31 @@
+---
+title: roles
+description: List the grants each role holds, expanded to one row per permission.
+---
+
+`permdock roles grants` prints what each role of the policy holds. `allow(permissions.invoice)` expands to one grant per leaf of the resource, and the command lists those leaves, so the listing answers "what can this role do" without reading the policy source.
+
+## Usage
+
+```bash
+permdock roles grants
+permdock roles grants --role admin --json
+```
+
+| Flag                | Meaning                                                     |
+| ------------------- | ----------------------------------------------------------- |
+| `--policy <module>` | Module exporting the policy; default `policy` in the config |
+| `--role <name>`     | List one role; default every role                           |
+| `--json`            | Print `{ roles: [{ role, scope, grants }] }`                |
+
+Each row is `allow` or `deny`, the permission key, and notes in brackets for a grant that carries a `where`, `check`, `approval`, `limit` or `fields`. A role held on a scope shows `(on <scope>)`.
+
+## Why
+
+Roles do not inherit from one another. Array spread is the way to reuse grants, as [policies](/docs/concepts/policies) and [tenancy](/docs/concepts/tenancy) record, so a role's grant list is the whole answer. A wildcard or an inheritance edge would hide it; the listing shows it.
+
+## Side effects
+
+| Command                 | Effects |
+| ----------------------- | ------- |
+| `permdock roles grants` | None    |

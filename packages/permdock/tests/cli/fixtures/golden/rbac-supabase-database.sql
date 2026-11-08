@@ -27,7 +27,7 @@ create table if not exists "permdock"."user_roles" (
 alter table "permdock"."user_roles" enable row level security;
 revoke all on table "permdock"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (database: reads the membership and user_roles tables)
+-- permdock helpers (database: reads the membership and user_roles tables) sha-256:w0Vlsy66ixNU-P6RajKGwLDAMge4rgCXUZrNVJ7wdPU
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "permdock";

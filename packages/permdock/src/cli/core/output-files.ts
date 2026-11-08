@@ -207,6 +207,42 @@ export function dataMigrationFile(input: {
     : undefined;
 }
 
+export type SeedDelta = {
+  readonly added: number;
+  readonly removed: number;
+  /** The migration the rows are compared with. */
+  readonly since?: string;
+};
+
+/** A seed row is one ` ('role', …)` line of the values list. */
+function seedRows(text: string): ReadonlySet<string> {
+  return new Set(
+    text
+      .split("\n")
+      .filter((line) => line.startsWith("  ("))
+      .map((line) => line.replace(/,$/u, "")),
+  );
+}
+
+/** The seed rows `next` adds to and removes from `previous`. */
+export function seedDelta(previous: string, next: string): SeedDelta {
+  const before = seedRows(previous);
+  const after = seedRows(next);
+  return {
+    added: [...after].filter((row) => !before.has(row)).length,
+    removed: [...before].filter((row) => !after.has(row)).length,
+  };
+}
+
+function plural(count: number): string {
+  return count === 1 ? "row" : "rows";
+}
+
+/** `seeds: +2 rows, -1 row since <file>` for a new seeds migration. */
+export function seedDeltaNote(delta: SeedDelta): string {
+  return `seeds: +${String(delta.added)} ${plural(delta.added)}, -${String(delta.removed)} ${plural(delta.removed)} against the newest seeds migration (${delta.since ?? "none"})`;
+}
+
 /** `YYYYMMDDHHMMSS` in UTC, the Supabase migration version. */
 export function migrationVersion(now: Date): string {
   return now
@@ -266,7 +302,15 @@ export function seedsMigration(
   now: Date,
   label = "seeds",
   reserved: readonly string[] = [],
-): { readonly rel: string; readonly current: boolean } {
+): {
+  readonly rel: string;
+  readonly current: boolean;
+  /**
+   * Rows added and removed against the newest migration with `marker`, when
+   * there is one.
+   */
+  readonly delta?: SeedDelta;
+} {
   const base = dir.endsWith("/") ? dir.slice(0, -1) : dir;
   const path = resolve(cwd, base);
   const latest = existsSync(path)
@@ -284,6 +328,13 @@ export function seedsMigration(
   ) {
     return { rel: `${base}/${latest}`, current: true };
   }
+  const delta =
+    latest === undefined
+      ? undefined
+      : {
+          ...seedDelta(readFileSync(resolve(path, latest), "utf8"), text),
+          since: latest,
+        };
   const names = [
     ...(existsSync(path) ? readdirSync(path) : []),
     ...reserved
@@ -293,5 +344,6 @@ export function seedsMigration(
   return {
     rel: `${base}/${nextMigrationVersion(names, now)}_permdock_${label}.sql`,
     current: false,
+    ...(delta === undefined ? {} : { delta }),
   };
 }

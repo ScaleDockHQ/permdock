@@ -1,0 +1,61 @@
+{
+  "source": "tests/integration/bench/jwt-org-helper.test.ts on Postgres 16.15 (testcontainers), 30,000 posts over 60 organisations, median of 9 EXPLAIN ANALYZE runs of `select id from public.post`, after the helpers parse the token once",
+  "unit": "ms",
+  "cells": [
+    {
+      "memberships": 3,
+      "tokenBytes": 512,
+      "claimsFirst": 3.24,
+      "tableOnly": 3.23
+    },
+    {
+      "memberships": 3,
+      "tokenBytes": 2048,
+      "claimsFirst": 3.43,
+      "tableOnly": 2.98
+    },
+    {
+      "memberships": 3,
+      "tokenBytes": 4096,
+      "claimsFirst": 3.42,
+      "tableOnly": 3.15
+    },
+    {
+      "memberships": 11,
+      "tokenBytes": 512,
+      "claimsFirst": 7.16,
+      "tableOnly": 6.75
+    },
+    {
+      "memberships": 11,
+      "tokenBytes": 2048,
+      "claimsFirst": 6.96,
+      "tableOnly": 6.45
+    },
+    {
+      "memberships": 11,
+      "tokenBytes": 4096,
+      "claimsFirst": 6.72,
+      "tableOnly": 6.7
+    },
+    {
+      "memberships": 60,
+      "tokenBytes": 512,
+      "claimsFirst": 9.91,
+      "tableOnly": 10.0
+    },
+    {
+      "memberships": 60,
+      "tokenBytes": 2048,
+      "claimsFirst": 10.31,
+      "tableOnly": 10.12
+    },
+    {
+      "memberships": 60,
+      "tokenBytes": 4096,
+      "claimsFirst": 10.32,
+      "tableOnly": 10.09
+    }
+  ],
+  "finding": "Token size from 0.5 to 4 KB moves neither mode by more than 0.5 ms. Claims-first is not faster than the indexed table read at any cell; cost grows with the membership count, not the token."
+}

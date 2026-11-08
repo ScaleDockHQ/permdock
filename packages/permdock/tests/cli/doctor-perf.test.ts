@@ -337,6 +337,40 @@ create policy c on public.docs for select
     });
   });
 
+  describe("PD114 sample whose token is truncated", () => {
+    it("is an error in jwt mode and absent in database mode", async () => {
+      const truncated = { memberships: [], memberships_truncated: true };
+      const run = (authorize: "jwt" | "database") =>
+        pd110(
+          {
+            cwd: "/",
+            config: { rls: { authorize }, supabase: { hook: {} } },
+            files: nodeFiles,
+            database: {
+              url: "postgres://x",
+              connect: () =>
+                Promise.resolve({
+                  query: (sql: string) =>
+                    Promise.resolve({
+                      rows: sql.includes("custom_access_token_hook")
+                        ? [{ claims: truncated }]
+                        : [],
+                    }),
+                  end: () => Promise.resolve(),
+                }),
+            },
+          },
+          [{ label: "a user in many organisations", event: { user_id: "u" } }],
+        );
+      expect((await run("jwt")).map((finding) => finding.code)).toContain(
+        "PD114",
+      );
+      expect(
+        (await run("database")).map((finding) => finding.code),
+      ).not.toContain("PD114");
+    });
+  });
+
   describe("PD111 optional limit on a list endpoint", () => {
     const doc = JSON.stringify({
       openapi: "3.1.0",

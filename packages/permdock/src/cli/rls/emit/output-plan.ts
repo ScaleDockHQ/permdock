@@ -9,6 +9,7 @@ import {
   parseSplit,
   partPath,
   pgDeltaPath,
+  seedDeltaNote,
   seedsMigration,
   serviceRel,
   underSchemaDir,
@@ -204,7 +205,9 @@ export function outputFiles(plan: {
     seedsOut: input.seedsOut,
     noSeeds: input.noSeeds === true,
     seedFunction: input.config.rls?.seeds === "function",
-    seedView: input.config.rls?.seeds === "view",
+    seedView:
+      input.config.rls?.seeds === "view" ||
+      input.config.rls?.staticGrants === "ref",
   });
   if (refused !== undefined) {
     return refused;
@@ -262,6 +265,9 @@ export function outputFiles(plan: {
           );
           if (!planned.current || input.check) {
             files.push({ part, rel: planned.rel, text: seeds });
+          }
+          if (!planned.current && planned.delta !== undefined) {
+            input.io.stderr(`${seedDeltaNote(planned.delta)}\n`);
           }
           break;
         }

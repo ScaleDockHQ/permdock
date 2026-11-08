@@ -458,6 +458,64 @@ describe("verifier", () => {
       }
     });
 
+    it("caps the cache at 600 seconds for a Supabase issuer, whatever the header or option says", async () => {
+      const fake = fakeFetch(() => jwksResponse(86_400));
+      const cache = createKeyCache({
+        jwks: "https://abc.supabase.co/auth/v1/.well-known/jwks.json",
+        fetch: fake.fetch,
+        jwksCache: { maxTtl: 7200 },
+      });
+      await cache.resolveJwks(NOW);
+      await cache.resolveJwks(NOW + 599);
+      expect(fake.calls.length).toBe(1);
+      await cache.resolveJwks(NOW + 601);
+      expect(fake.calls.length).toBe(2);
+    });
+
+    it("keeps the longer default for a non-Supabase issuer", async () => {
+      const fake = fakeFetch(() => jwksResponse(86_400));
+      const cache = createKeyCache({
+        jwks: "https://login.test/jwks",
+        fetch: fake.fetch,
+      });
+      await cache.resolveJwks(NOW);
+      await cache.resolveJwks(NOW + 601);
+      expect(fake.calls.length).toBe(1);
+    });
+
+    it("never serves keys past their expiry when the refetch fails", async () => {
+      let fail = false;
+      const fake = fakeFetch(() =>
+        fail ? new Response("", { status: 500 }) : jwksResponse(120),
+      );
+      const cache = createKeyCache({
+        jwks: "https://login.test/jwks",
+        fetch: fake.fetch,
+      });
+      await cache.resolveJwks(NOW);
+      fail = true;
+      const result = await cache.resolveJwks(NOW + 121);
+      expect(result).toStrictEqual({ ok: false, cause: "jwks-unavailable" });
+    });
+
+    it("purges the cached keys on request", async () => {
+      const fake = fakeFetch(() => jwksResponse(120));
+      const purging = joseTokenVerifier({
+        jwks: "https://login.test/jwks",
+        fetch: fake.fetch,
+      });
+      const cache = createKeyCache({
+        jwks: "https://login.test/jwks",
+        fetch: fake.fetch,
+      });
+      await cache.resolveJwks(NOW);
+      cache.purge();
+      await cache.resolveJwks(NOW + 1);
+      expect(fake.calls.length).toBe(2);
+      expect(purging.purgeKeys).toBeTypeOf("function");
+      purging.purgeKeys();
+    });
+
     it("shares one request between concurrent resolves", async () => {
       const fake = fakeFetch(() => jwksResponse(120));
       const cache = createKeyCache({

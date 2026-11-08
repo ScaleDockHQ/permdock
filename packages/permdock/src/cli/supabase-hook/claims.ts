@@ -2,6 +2,7 @@ import type { SupabaseHookClaim } from "../../supabase/manifest.ts";
 import type { SupabaseHookConfig } from "../types.ts";
 import type { Parts } from "./parts.ts";
 
+import { REGISTERED_CLAIMS } from "../../supabase/subject.ts";
 import { PERMDOCK_CLAIMS_SCHEMA } from "../claims-schema.ts";
 import { configError } from "../core/errors.ts";
 import {
@@ -108,20 +109,8 @@ const RESERVED_CLAIMS: ReadonlySet<string> = new Set([
   "team_ids_truncated",
   "attrs",
   "authz_ver",
-  "sub",
-  "aud",
-  "role",
-  "exp",
-  "iat",
-  "iss",
-  "aal",
-  "amr",
-  "session_id",
-  "is_anonymous",
-  "email",
-  "phone",
-  "app_metadata",
-  "user_metadata",
+  "custom_roles_ver",
+  ...REGISTERED_CLAIMS,
 ]);
 
 const CLAIM_FUNCTION = /^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/u;

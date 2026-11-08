@@ -27,7 +27,10 @@ description: Emit security and securitySchemes into an existing OpenAPI document
 | `--validator`                    | `zod`, `valibot`, `arktype` | none                                      | `import`           | Validator used for generated resource schemas; without it resources are schema-less                                                                                                                                                                                                                                                                                |
 | `--map <file>`                   | JSON file                   | none                                      | `import`           | `{ "METHOD /path": "resource.action" }`: names the permission for an operation, overriding scopes, `x-permdock-permissions` and the inferred name                                                                                                                                                                                                                  |
 | `--annotate`                     | flag                        | off                                       | `import`           | Write the inferred keys back into the local `--doc` as `x-permdock-permissions` on every operation; JSON is rewritten with two-space indent, YAML keeps its comments and layout                                                                                                                                                                                    |
-| `--routes <glob>`                | glob                        | required                                  | `annotate`         | Route modules whose `@permission`, `@permissionCheck` and `@oauthScopes` comments become the operations map. `permdock generate --only openapi` emits the same map when the plugin sets `routes`                                                                                                                                                                   |
+| `--routes <glob>`                | glob                        | required with `--doc` absent              | `annotate`         | Route modules whose `@permission`, `@permissionCheck` and `@oauthScopes` comments become the operations map. `permdock generate --only openapi` emits the same map when the plugin sets `routes`                                                                                                                                                                   |
+| `--permissions <module>`         | module path                 | `permissions` from the config             | `annotate --doc`   | Module exporting the permission vocabulary that every key in the document is checked against                                                                                                                                                                                                                                                                       |
+| `--tenant-path <param>`          | path parameter name         | none                                      | `annotate --doc`   | Path parameter that carries the tenant id, such as `orgId`; writes `operationTenants`                                                                                                                                                                                                                                                                              |
+| `--dry-run`                      | flag                        | off                                       | `annotate`         | Print what would be written; write nothing                                                                                                                                                                                                                                                                                                                         |
 
 `--cwd`, `--config` and `--json` are shared by every command ([CLI](/docs/cli)). Exit codes follow the shared contract: `0` clean, `1` drift or findings, `2` usage error (for example `--target 3.0`, or `--profile fapi2` on a document whose scheme is not `oauth2` or `openIdConnect`).
 
@@ -167,6 +170,30 @@ The generated file merges with hand-written definitions through `mergePermission
 `permdock openapi annotate --routes 'app/**/route.ts'` reads `@permission`, `@permissionCheck` and `@oauthScopes` on each exported handler and writes `src/operations.generated.ts`. The path comes from the file: `app/orgs/[org]/posts/route.ts` is `POST /orgs/{org}/posts` when the handler is `POST`. `x-authorization` and `x-oauth-scopes` on an existing document are input only; `emit` and the runtime hooks still write `x-permdock-*` and `security`.
 
 The openapi plugin emits the same module when `routes` is set, through `permdock generate --only openapi`.
+
+### From a document
+
+```bash
+permdock openapi annotate --doc openapi.yaml --permissions src/permissions.ts --tenant-path orgId
+```
+
+`--doc` reads the operations from a local JSON or YAML file instead of route comments, and takes the same `x-permdock-permissions`, `x-authorization` and `x-oauth-scopes` as `emit`. It writes `src/operations.generated.ts` (or `--out`) with three exports:
+
+- `operations`: `operationPermissions({ … })` with each operation's `permission`, `operationId`, `oauthScopes` and `enforcement`, so a tool name or RPC name that is an `operationId` resolves to the same permission as the route.
+- `operationGroups`: the operation labels by group. The group is the operation's first tag, else its first static path segment, else `root`.
+- `operationTenants`: with `--tenant-path`, the path parameter of each operation whose path template contains `{<param>}`. A tenant id in a header or query parameter is not read.
+
+Every key is checked against `--permissions` (or `permissions` in the config). These findings exit `1` and write nothing:
+
+| Code                            | Cause                                                             |
+| ------------------------------- | ----------------------------------------------------------------- |
+| `operation-unknown-permission`  | The key is not in the vocabulary                                  |
+| `operation-several-permissions` | The operation names more than one key                             |
+| `operation-no-permission`       | No key, no OAuth scopes and no `security: []`                     |
+| `operation-invalid-extension`   | A malformed `x-permdock-*`, `x-authorization` or `x-oauth-scopes` |
+| `operation-id-duplicate`        | Two operations share an `operationId`                             |
+
+`operation-id-missing` and `operation-no-tenant` (an operation without the `--tenant-path` parameter) are warnings. An operation with `security: []` is public and is left out of the map. `--check` exits `1` when the file on disk differs from what the document produces. Without a vocabulary the command exits `3` with `input_required` and `missing: ["--permissions"]`.
 
 ## `--check` in CI
 

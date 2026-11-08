@@ -101,6 +101,11 @@ export type RlsSqlContext = {
    */
   readonly seeds?: "function" | "view";
   /**
+   * `rls.staticGrants: 'ref'`: with `seeds: 'view'`, the view reads the pinned
+   * policy bundle instead of a `values` list.
+   */
+  readonly staticGrants?: "ref";
+  /**
    * Where the helpers read roles and memberships: tables (`database`) or claims
    * (`jwt`, the default).
    */

@@ -27,7 +27,7 @@ create table if not exists "app"."user_roles" (
 alter table "app"."user_roles" enable row level security;
 revoke all on table "app"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (jwt: reads the role and memberships claims)
+-- permdock helpers (jwt: reads the role and memberships claims) sha-256:DRJbaOsG1zz675Gikzvzd7b1R66jxrgaFaYNU7Q39t0
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "app";
@@ -127,8 +127,9 @@ parallel safe
 set search_path = ''
 as $$
   select (m ->> 'id')::uuid
-  from jsonb_array_elements(
-      case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
+  from (select coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') as v) pdk_c
+    cross join lateral jsonb_array_elements(
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
     ) m
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
@@ -188,8 +189,9 @@ parallel safe
 set search_path = ''
 as $$
   select distinct (m ->> 'id')::uuid
-  from jsonb_array_elements(
-    case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
+  from (select coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') as v) pdk_c
+  cross join lateral jsonb_array_elements(
+    case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
   ) m
   where coalesce((select "app".permdock_user_id())::text, '') <> ''
     and m ->> 'scope' = 'tenant'
@@ -384,8 +386,9 @@ as $$
     select pdk_i.grant_key
     from (
   select (m ->> 'id')::uuid, rp.grant_key
-  from jsonb_array_elements(
-      case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
+  from (select coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') as v) pdk_c
+    cross join lateral jsonb_array_elements(
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
     ) m
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
@@ -462,8 +465,9 @@ as $$
     select pdk_i.grant_key
     from (
   select (m ->> 'id')::uuid, rp.grant_key
-  from jsonb_array_elements(
-      case jsonb_typeof(coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships')) when 'array' then coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') else '[]'::jsonb end
+  from (select coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') as v) pdk_c
+    cross join lateral jsonb_array_elements(
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
     ) m
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end

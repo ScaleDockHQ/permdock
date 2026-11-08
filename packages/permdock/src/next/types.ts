@@ -350,7 +350,7 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   };
   /**
    * Never awaits: passes an unawaited snapshot to the client provider, whose
-   * hooks suspend.
+   * hooks answer `pending` until it resolves, and suspend only with `suspend`.
    */
   readonly PermDockProvider: (props: NextPermDockProviderProps) => ReactElement;
   readonly permdockHandler: () => PermDockHandler;

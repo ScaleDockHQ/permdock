@@ -297,6 +297,8 @@ export type {
 } from "./core/custom-roles.ts";
 export type { InstanceOptions } from "./core/instance-options.ts";
 export type { PermissionCheck, PermissionState } from "./core/checks.ts";
+export { assignableFor } from "./core/assignable-for.ts";
+export type { AssignableForOptions } from "./core/assignable-for.ts";
 export { snapshotFor } from "./core/snapshot-for.ts";
 export type { SnapshotForOptions } from "./core/snapshot-for.ts";
 export type {

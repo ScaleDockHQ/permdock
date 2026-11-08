@@ -116,8 +116,9 @@ export function membershipRows(ctx: RlsSqlContext): string {
     ctx.dialect === "supabase"
       ? `coalesce(${raw}, (select auth.jwt()) -> 'app_metadata' -> 'memberships')`
       : raw;
-  return `jsonb_array_elements(
-      case jsonb_typeof(${value}) when 'array' then ${value} else '[]'::jsonb end
+  return `(select ${value} as v) pdk_c
+    cross join lateral jsonb_array_elements(
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
     ) m
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end

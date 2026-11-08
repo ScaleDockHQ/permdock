@@ -35,6 +35,7 @@ import { wrapPermDock } from "../core/wrap.ts";
 import { evaluationsHandler } from "../server/evaluations.ts";
 import { protectActionOf } from "./action.ts";
 import { renderClientProvider } from "./provider.tsx";
+import { createSnapshotRegistry } from "./snapshot-memo.ts";
 
 type GrantedDecision = Extract<Decision, { readonly outcome: "granted" }>;
 
@@ -339,24 +340,51 @@ export function createPermDock<
   let warnedShortLife = false;
   let warnedPrefetchDrop = false;
   let warnedUncachedProvider = false;
+  let warnedDuplicate = false;
   const droppedContext = new Set<string>();
+  const requestSnapshots = cache(() =>
+    createSnapshotRegistry(isDevelopment(), (bytes) => {
+      if (warnedDuplicate) {
+        return;
+      }
+      warnedDuplicate = true;
+      // oxlint-disable-next-line no-console -- one development hint per process for a snapshot serialised twice
+      console.warn(
+        `PermDock: one request carries an equal ${String(bytes)}-byte snapshot more than once. Pass nested providers the same snapshot promise, or leave the nested snapshot out.`,
+      );
+    }),
+  );
   const getSnapshot = async (
     query: GetSnapshotQuery = {},
   ): Promise<Snapshot> => {
     const permdock = await getPermDock(
       compact({ tenant: query.tenant, version: query.version }),
     );
-    const snapshot = withContextAllowed(
-      permdock.snapshot(
-        compact({
-          include: query.include,
-          tenants: query.tenants,
-          omitAssignable: query.omitAssignable,
-        }),
-      ),
-      query.context,
-      droppedContext,
-    );
+    // SAFETY: the build below resolves to a Snapshot, since no signer is passed.
+    const snapshot = (await requestSnapshots().memo(
+      {
+        tenant: query.tenant,
+        version: query.version,
+        include: query.include,
+        tenants: query.tenants,
+        omitAssignable: query.omitAssignable,
+        context: query.context,
+      },
+      () =>
+        Promise.resolve(
+          withContextAllowed(
+            permdock.snapshot(
+              compact({
+                include: query.include,
+                tenants: query.tenants,
+                omitAssignable: query.omitAssignable,
+              }),
+            ),
+            query.context,
+            droppedContext,
+          ),
+        ),
+    )) as Snapshot;
     const life = cacheLifeFor(snapshot, query.cacheLife);
     if (life.stale < 30 && !warnedPrefetchDrop && isDevelopment()) {
       warnedPrefetchDrop = true;
@@ -436,28 +464,41 @@ export function createPermDock<
         );
       }
     }
+    const registry = requestSnapshots();
     const snapshotPromise: Promise<Snapshot | string> =
       props.snapshot ??
-      getPermDock(
-        props.tenant === undefined ? undefined : { tenant: props.tenant },
-      ).then((permdock) =>
-        withContextAllowed(
-          permdock.snapshot(
-            compact({
-              include: props.include,
-              tenants: props.tenants,
-              omitAssignable: props.omitAssignable,
-            }),
+      registry.memo(
+        {
+          tenant: props.tenant,
+          include: props.include,
+          tenants: props.tenants,
+          omitAssignable: props.omitAssignable,
+          context: props.context,
+        },
+        () =>
+          getPermDock(
+            props.tenant === undefined ? undefined : { tenant: props.tenant },
+          ).then((permdock) =>
+            withContextAllowed(
+              permdock.snapshot(
+                compact({
+                  include: props.include,
+                  tenants: props.tenants,
+                  omitAssignable: props.omitAssignable,
+                }),
+              ),
+              props.context,
+              droppedContext,
+            ),
           ),
-          props.context,
-          droppedContext,
-        ),
       );
+    registry.watch(snapshotPromise);
     const {
       snapshot: _snapshot,
       include: _include,
       tenants: _tenants,
       context: _context,
+      omitAssignable: _omitAssignable,
       ...rest
     } = props;
     return renderClientProvider({

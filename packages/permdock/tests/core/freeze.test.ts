@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { freezeDeep, freezeShallow } from "../../src/core/freeze.ts";
+import {
+  freezeDeep,
+  freezeShallow,
+  isDeepFrozen,
+  memoByFrozenObject,
+} from "../../src/core/freeze.ts";
 import { assertSafeKey, readPath } from "../../src/core/paths.ts";
 import {
   anonymousSubject,
@@ -95,5 +100,34 @@ describe("subject guards", () => {
     expect(isSubject({ principal: { id: "u1" }, context: {} })).toBe(true);
     expect(isPrincipal({ principal: null, context: {} })).toBe(false);
     expect(anonymousSubject().principal).toBeNull();
+  });
+});
+
+describe("memoising per frozen object", () => {
+  it("computes once for a deeply frozen object", () => {
+    const memo = new WeakMap<object, number>();
+    const claims = freezeDeep({ memberships: [{ id: "a" }] });
+    let calls = 0;
+    const compute = (): number => {
+      calls += 1;
+      return calls;
+    };
+    expect(memoByFrozenObject(memo, claims, compute)).toBe(1);
+    expect(memoByFrozenObject(memo, claims, compute)).toBe(1);
+    expect(calls).toBe(1);
+  });
+
+  it("computes every time for an object that can still change", () => {
+    const memo = new WeakMap<object, number>();
+    const claims = { memberships: [{ id: "a" }] };
+    let calls = 0;
+    const compute = (): number => {
+      calls += 1;
+      return calls;
+    };
+    memoByFrozenObject(memo, claims, compute);
+    claims.memberships.push({ id: "b" });
+    expect(memoByFrozenObject(memo, claims, compute)).toBe(2);
+    expect(isDeepFrozen(Object.freeze({ inner: {} }))).toBe(false);
   });
 });

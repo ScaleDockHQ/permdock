@@ -80,3 +80,48 @@ export function freezeCopy<T>(value: T): T {
 export function freezeShallow<T extends object>(value: T): T {
   return Object.freeze(value);
 }
+
+/**
+ * Whether `value` and everything it reaches through plain objects and arrays is
+ * frozen. A frozen graph cannot change, so a result computed from it once stays
+ * correct: that is what a per-object memo may rely on.
+ */
+export function isDeepFrozen(value: unknown): boolean {
+  if (value === null || typeof value !== "object") {
+    return true;
+  }
+  if (!Object.isFrozen(value)) {
+    return false;
+  }
+  if (value instanceof Map || value instanceof Set) {
+    return false;
+  }
+  for (const key of Object.getOwnPropertyNames(value)) {
+    // SAFETY: value is a non-null object checked above and key is one of its own property names.
+    if (!isDeepFrozen((value as Record<string, unknown>)[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * `compute(value)`, remembered per object while `value` is deeply frozen. An
+ * object that is not frozen is computed every time, since it may change between
+ * calls.
+ */
+export function memoByFrozenObject<T extends object, R>(
+  memo: WeakMap<T, R>,
+  value: T,
+  compute: (input: T) => R,
+): R {
+  const known = memo.get(value);
+  if (known !== undefined) {
+    return known;
+  }
+  const result = compute(value);
+  if (isDeepFrozen(value)) {
+    memo.set(value, result);
+  }
+  return result;
+}

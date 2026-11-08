@@ -34,6 +34,7 @@
     "approvalFingerprint",
     "approvalPolicies",
     "arazzoFindings",
+    "assignableFor",
     "assurance",
     "authenticated",
     "automationEvent",

@@ -11,7 +11,9 @@ import {
   DEFAULT_JWKS_MAX_TTL,
   DEFAULT_JWKS_MIN_TTL,
   DEFAULT_JWKS_TIMEOUT,
+  isSupabaseAuthUrl,
   issuerFromDiscovery,
+  SUPABASE_JWKS_MAX_TTL,
 } from "./config.ts";
 
 export type ResolvedKeys =
@@ -27,6 +29,8 @@ type CachedDocument<T> = { value: T; expiresAt: number };
 export type KeyCache = {
   resolveJwks: (now?: number) => Promise<ResolvedKeys>;
   refetchJwks: (now?: number) => Promise<ResolvedKeys>;
+  /** Drops the cached discovery document and keys; the next call fetches. */
+  purge: () => void;
 };
 
 function clampTtl(seconds: number, minTtl: number, maxTtl: number): number {
@@ -62,7 +66,18 @@ function discoveryUrls(issuer: string): readonly string[] {
 
 export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
   const minTtl = options.jwksCache?.minTtl ?? DEFAULT_JWKS_MIN_TTL;
-  const maxTtl = options.jwksCache?.maxTtl ?? DEFAULT_JWKS_MAX_TTL;
+  const supabase = [
+    options.issuer,
+    options.discovery === undefined
+      ? undefined
+      : issuerFromDiscovery(options.discovery),
+    options.jwks instanceof URL ? options.jwks.href : undefined,
+    typeof options.jwks === "string" ? options.jwks : undefined,
+  ].some(isSupabaseAuthUrl);
+  const configuredMax = options.jwksCache?.maxTtl ?? DEFAULT_JWKS_MAX_TTL;
+  const maxTtl = supabase
+    ? Math.min(configuredMax, SUPABASE_JWKS_MAX_TTL)
+    : configuredMax;
   const cooldown = options.jwksCache?.cooldown ?? DEFAULT_JWKS_COOLDOWN;
   const timeout = options.jwksCache?.timeout ?? DEFAULT_JWKS_TIMEOUT;
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
@@ -267,6 +282,11 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
   };
 
   return {
+    purge(): void {
+      discoveryCache = undefined;
+      jwksCache = undefined;
+      cooldownUntil = 0;
+    },
     resolveJwks(now?: number): Promise<ResolvedKeys> {
       return resolve(false, now);
     },

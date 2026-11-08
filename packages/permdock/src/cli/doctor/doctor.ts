@@ -41,9 +41,11 @@ import { pd092 } from "./lockfile.ts";
 import { pd044, pd065 } from "./next.ts";
 import { pd091, pd091Applies } from "./openapi.ts";
 import { pd080, pd081 } from "./per-request.ts";
+import { pd115 } from "./perf-drift.ts";
 import { pd111 } from "./perf-limit.ts";
+import { pd112 } from "./perf-snapshot.ts";
 import { pd103, pd104, pd105, pd106, pd107, pd108 } from "./perf-sql.ts";
-import { pd109, pd110 } from "./perf-token.ts";
+import { pd109, pd110, pd114 } from "./perf-token.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
 import { pd083 } from "./postgrest.ts";
 import { pd058, pd084, pd102 } from "./powersync.ts";
@@ -100,6 +102,7 @@ import {
   pd093,
 } from "./sql.ts";
 import { pd098, pd099 } from "./supabase-checklist.ts";
+import { pd113 } from "./supabase-jwt.ts";
 import { pd061 } from "./suspension.ts";
 
 export type { DoctorFinding, DoctorSeverity } from "../shared/doctor-types.ts";
@@ -470,6 +473,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => check(project.cwd, project.config, project.files),
   })),
   {
+    code: "PD115",
+    groups: ["rls", "sql", "drift"],
+    run: (project) => pd115(project.cwd, project.config, project.files),
+  },
+  {
     code: "PD105",
     groups: ["rls", "sql", "performance"],
     run: (project) => pd105(project.cwd, project.config, project.files),
@@ -485,7 +493,24 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     when: (config) => config.supabase?.hook !== undefined,
     run: (project) => pd110(project, eventsOf(project)),
   },
+  {
+    code: "PD114",
+    groups: ["rls", "supabase", "hook", "performance"],
+    when: (config) => config.supabase?.hook !== undefined,
+    run: (project) => pd114(project.config),
+  },
   { code: "PD111", groups: ["openapi", "mcp", "performance"], run: pd111 },
+  {
+    code: "PD112",
+    groups: ["next", "snapshot", "performance"],
+    when: (config) => config.policy !== undefined,
+    run: pd112,
+  },
+  {
+    code: "PD113",
+    groups: ["supabase", "jwt"],
+    run: (project) => pd113(project.sources()),
+  },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
 ];

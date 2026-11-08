@@ -4,6 +4,8 @@ import { transformAsync } from "@babel/core";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import reactCompiler from "babel-plugin-react-compiler";
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
 import { defineConfig } from "vitest/config";
 
 declare module "vitest" {
@@ -11,6 +13,10 @@ declare module "vitest" {
     readonly requireAuthzenVectors: boolean;
   }
 }
+
+const reactDir = path.dirname(
+  createRequire(import.meta.url).resolve("react/package.json"),
+);
 
 // Thresholds follow CI's test set, which includes the official AuthZEN vectors
 // (`pnpm authzen:vectors`); CI itself never rewrites this file.
@@ -67,7 +73,31 @@ export default defineConfig({
           // source; with coverage on and two suites running in parallel it measured 4.6 s.
           testTimeout: 15_000,
           include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
-          exclude: ["tests/**/*.browser.test.ts"],
+          exclude: ["tests/**/*.browser.test.ts", "tests/**/*.flight.test.tsx"],
+        },
+      },
+      {
+        // Real Flight streams: `React.cache` memoises only under the
+        // `react-server` condition, which Node applies from `execArgv`.
+        extends: true,
+        resolve: {
+          conditions: ["react-server"],
+          // Vite resolves React and its JSX runtimes without the condition.
+          alias: [
+            {
+              find: /^react$/u,
+              replacement: `${reactDir}/react.react-server.js`,
+            },
+            {
+              find: /^react\/jsx-(dev-)?runtime$/u,
+              replacement: `${reactDir}/jsx-$1runtime.react-server.js`,
+            },
+          ],
+        },
+        test: {
+          name: "flight",
+          execArgv: ["--conditions=react-server"],
+          include: ["tests/**/*.flight.test.tsx"],
         },
       },
       {

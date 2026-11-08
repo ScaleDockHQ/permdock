@@ -1,0 +1,21 @@
+permdock policy bundle: Write the policy bundle that rls.staticGrants 'ref' pins by hash
+
+Usage  permdock policy bundle [flags]
+
+Flags
+  --policy <module>    Module exporting the policy (default policy in the config)
+  --kind <bundle|sql>  What to print: the bundle JSON, or the SQL that loads it into the database (default bundle)
+  --out <file>         File to write
+  --check              Exit 1 when a file on disk is stale; write nothing
+  --dry-run            Print what would change; write nothing
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock policy bundle --out supabase/permdock-policy-bundle.json
+  permdock policy bundle --kind sql --out supabase/seeds/permdock-bundle.sql
+  permdock policy bundle --out supabase/permdock-policy-bundle.json --check
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/policy

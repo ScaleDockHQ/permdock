@@ -31,7 +31,7 @@ describe("permdock completion", () => {
     const { stdout } = await run(["completion", "bash", "--agent", "yes"]);
     expect(stdout).toMatch(/^# permdock completion for bash/u);
     const offered = await run(["__complete", "--agent", "yes", "--", "cl"]);
-    expect(offered.stdout).toBe("cloud\n");
+    expect(offered.stdout).toBe("claims\ncloud\n");
   });
 
   it("rejects an unknown shell with exit 2", async () => {

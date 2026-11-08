@@ -52,22 +52,19 @@ import { asideAuthzReceive } from "./version.ts";
 
 export { supabaseHookManifest, supabaseHookSql };
 
-const SUPABASE_HELP = `permdock supabase hook generate | inspect
+const SUPABASE_HELP = `permdock supabase inspect [--json] [--out [permdock.manifest.json]] [--check]
 
-  hook generate [--out <file>] [--check] [--db-url-stdin] [--schemas pg-delta|migra|migrations]
-                [--active-from app_metadata.active_<scope>|<table>.<column>]
-                [--budget 1024] [--schema public] [--grants-out <file>|-]
-  inspect [--json] [--out [permdock.manifest.json]] [--check]
-
-Reads supabase.hook from permdock.config.ts: the tableMembershipSource / junctionMembershipSource sources the app
-passes as memberships. hook generate emits custom_access_token_hook(jsonb), the grants it
-needs, the permdock_authz_version table and its triggers. Under pg-delta (the default) --out defaults to
+The token hook is written by \`permdock generate --only supabaseHook\`, which reads supabase.hook from
+permdock.config.ts: the tableMembershipSource / junctionMembershipSource sources the app passes as
+memberships. It emits custom_access_token_hook(jsonb), the grants it needs, the permdock_authz_version
+table and its triggers. Under pg-delta (the default) the file goes to
 supabase/schemas/<schema>/functions/custom_access_token_hook.sql and the grants stay in it; under
---schemas migra, --grants-out takes the privileges supabase db diff drops. Never grants anything to
-service_role unless supabase.hook.api is set, which grants its wrappers to it. inspect prints the manifest: helper schema, names and signatures, tenant claim,
-budget, the claims the hook writes, the membership sources and the columns that decide them.
---out writes it as JSON, to permdock.manifest.json without a path; --check exits 1 when that
-file differs.
+--schemas migra, --grants-out takes the privileges supabase db diff drops. Nothing is granted to
+service_role unless supabase.hook.api is set, which grants its wrappers to it.
+
+inspect prints the manifest: helper schema, names and signatures, tenant claim, budget, the claims
+the hook writes, the membership sources and the columns that decide them. --out writes it as JSON,
+to permdock.manifest.json without a path; --check exits 1 when that file differs.
 `;
 
 /**

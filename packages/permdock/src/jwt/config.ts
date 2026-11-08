@@ -31,6 +31,16 @@ const FAPI2_CLOCK_TOLERANCE = 5;
 export const DEFAULT_JWKS_MIN_TTL = 60;
 export const DEFAULT_JWKS_MAX_TTL = 3600;
 export const DEFAULT_JWKS_COOLDOWN = 60;
+/**
+ * Supabase's edge caches `/auth/v1/.well-known/jwks.json` for 10 minutes, and
+ * its docs say an app must not cache the keys for longer.
+ */
+export const SUPABASE_JWKS_MAX_TTL = 600;
+
+/** An issuer or JWKS URL under Supabase Auth's `/auth/v1` path. */
+export function isSupabaseAuthUrl(value: string | undefined): boolean {
+  return value !== undefined && /\/auth\/v1(?:\/|$)/u.test(value);
+}
 /** Milliseconds a discovery or JWKS request may take. */
 export const DEFAULT_JWKS_TIMEOUT = 5000;
 

@@ -225,6 +225,48 @@ describe("the token the hook mints", () => {
     expect(broken).toStrictEqual([]);
   });
 
+  it.each([
+    ["every membership fits", 1024, 3, OWNER],
+    ["the budget truncates the memberships", 60, 40, OWNER],
+    ["the user is suspended", 1024, 3, SUSPENDED],
+  ] as const)(
+    "keeps every claim Supabase Auth requires when %s",
+    async (_name, budget, organizations, user) => {
+      await seed(organizations, 2);
+      await target().admin.query(
+        hookSql.replace(
+          "budget integer := 1024;",
+          `budget integer := ${String(budget)};`,
+        ),
+      );
+      const before = baseClaims("org-0001");
+      const result = await target().admin.query<{ event: { claims: Claims } }>(
+        "select permdock.custom_access_token_hook($1::jsonb) as event",
+        [JSON.stringify({ user_id: user, claims: before })],
+      );
+      const after = result.rows[0]?.event.claims ?? {};
+      // https://supabase.com/docs/guides/auth/jwt-fields: Auth errors when the hook drops one
+      const required = [
+        "iss",
+        "aud",
+        "exp",
+        "iat",
+        "sub",
+        "role",
+        "aal",
+        "session_id",
+        "email",
+        "phone",
+        "is_anonymous",
+      ];
+      for (const claim of required) {
+        expect({ [claim]: after[claim] }).toStrictEqual({
+          [claim]: before[claim],
+        });
+      }
+    },
+  );
+
   it("puts the active tenant's memberships first", async () => {
     await seed(40, 2);
     await target().admin.query(hookSql);
@@ -264,6 +306,9 @@ describe("the token the hook mints", () => {
       `HOOK-BENCH memberships=500 roles=20 rows=10000 median_ms=${median.toFixed(1)} max_ms=${(timings[6] ?? 0).toFixed(1)}\n`,
     );
     expect(median).toBeLessThan(250);
+    // A Postgres hook has 2 s, and an error is not retried:
+    // https://supabase.com/docs/guides/auth/auth-hooks
+    expect(timings[6] ?? Number.NaN).toBeLessThan(2000);
   });
 
   it.each(

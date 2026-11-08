@@ -1,0 +1,20 @@
+permdock snapshot size: Report snapshot bytes by part, raw and gzip
+
+Usage  permdock snapshot size [flags]
+
+Flags
+  --policy <module>  Module exporting the policy (default policy in the config)
+  --role <name>      Role to measure (default the role with the most grants)
+  --tenants <count>  Memberships of a scoped role (default 1)
+  --omit-assignable  Measure with the assignable part left out
+  --budget <bytes>   Bytes the total may weigh (default 65536)
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock snapshot size
+  permdock snapshot size --role admin --tenants 40 --json
+
+Side effects  none: reads only
+Docs  https://permdock.com/docs/cli/snapshot

@@ -21,7 +21,11 @@ import { anonymousSubject } from "../core/subject.ts";
 import { validateRecord } from "../core/thenable.ts";
 import { CUSTOM_ROLES_VERSION_CLAIM, supabaseTenantClaim } from "./budget.ts";
 
-const REGISTERED: ReadonlySet<string> = new Set([
+/**
+ * Claim names Supabase Auth or the OAuth server issues; the hook may not
+ * overwrite them.
+ */
+export const REGISTERED_CLAIMS: ReadonlySet<string> = new Set([
   "sub",
   "role",
   "iss",
@@ -41,6 +45,7 @@ const REGISTERED: ReadonlySet<string> = new Set([
   "act",
   "client_id",
   "scope",
+  "jti",
 ]);
 
 /**
@@ -358,7 +363,7 @@ function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
     }
   }
   for (const [key, value] of Object.entries(claims)) {
-    if (REGISTERED.has(key) || key === "user_metadata") {
+    if (REGISTERED_CLAIMS.has(key) || key === "user_metadata") {
       continue;
     }
     extra[key] = value;

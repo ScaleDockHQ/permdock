@@ -96,6 +96,7 @@ const RLS = {
   memo: STRING,
   rowHelpers: BOOLEAN_OR_ARRAY,
   seeds: STRING,
+  staticGrants: STRING,
   treeValues: OBJECT,
   trustedReaders: ARRAY,
   migrate: OBJECT,

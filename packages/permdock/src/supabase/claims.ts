@@ -1,6 +1,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { isRecord } from "../core/compact.ts";
+import { memoByFrozenObject } from "../core/freeze.ts";
 import { CUSTOM_ROLES_VERSION_CLAIM, supabaseTenantClaim } from "./budget.ts";
 
 /**
@@ -498,8 +499,15 @@ export function supabaseClaims<TenantClaim extends string = "tenant_id">(
       `PermDock: supabaseClaims tenantClaim must be a claim name other than ${[...KNOWN].join(", ")}`,
     );
   }
+  // A frozen claims object cannot change, so it is checked once.
+  const checked = new WeakMap<object, ReturnType<typeof checkClaims>>();
   return schemaOf((value: unknown) => {
-    const issues = checkClaims(value, tenantClaim);
+    const issues =
+      typeof value === "object" && value !== null
+        ? memoByFrozenObject(checked, value, (input) =>
+            checkClaims(input, tenantClaim),
+          )
+        : checkClaims(value, tenantClaim);
     return issues.length > 0 ? { issues } : { value };
   });
 }

@@ -9,6 +9,7 @@ import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { ResolvedNames } from "../sql/resolve-names.ts";
 import type {
+  PermDockConfig,
   RlsMembershipTable,
   RlsMemberships,
   RlsMigrateConfig,
@@ -337,6 +338,29 @@ function skippedOwnershipTriggers(
 }
 
 /**
+ * `rls.seeds`, and `rls.staticGrants: 'ref'` as the `'view'` seeds mode that
+ * reads the pinned policy bundle.
+ */
+function seedsContext(
+  rls: PermDockConfig["rls"],
+): Pick<RlsSqlContext, "seeds" | "staticGrants"> {
+  if (rls?.staticGrants === undefined || rls.staticGrants === "inline") {
+    return rls?.seeds === undefined ? {} : { seeds: rls.seeds };
+  }
+  if (rls.staticGrants !== "ref") {
+    throw configError(
+      `PermDock CLI: rls.staticGrants must be 'inline' or 'ref', got '${String(rls.staticGrants)}'`,
+    );
+  }
+  if (rls.seeds === "function") {
+    throw configError(
+      "PermDock CLI: rls.staticGrants 'ref' needs role_permissions as a view, so it cannot combine with rls.seeds 'function'",
+    );
+  }
+  return { seeds: "view", staticGrants: "ref" };
+}
+
+/**
  * The SQL context every emitter reads, from the flags, `rls` config and the
  * policy.
  */
@@ -503,7 +527,7 @@ export function buildContext(
       ? { anonymousSignIns: "deny" as const }
       : {}),
     ...(ownership === undefined ? {} : { ownership }),
-    ...(rls?.seeds === undefined ? {} : { seeds: rls.seeds }),
+    ...seedsContext(rls),
     ...(rls?.ownershipTriggers === undefined
       ? {}
       : {

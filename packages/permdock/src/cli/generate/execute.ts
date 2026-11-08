@@ -147,7 +147,7 @@ export async function executeGenerate(
     return {
       run,
       code: run.code,
-      output: [input.check ? run.diff : "", ...run.notes]
+      output: [input.check || input.dryRun ? run.diff : "", ...run.notes]
         .filter((part) => part !== "")
         .join("\n"),
       summary: run.summary,
@@ -159,7 +159,11 @@ export async function executeGenerate(
   return {
     run,
     code: run.code === 0 ? typed.code : run.code,
-    output: [input.check ? run.diff : "", typed.output, ...run.notes]
+    output: [
+      input.check || input.dryRun ? run.diff : "",
+      typed.output,
+      ...run.notes,
+    ]
       .filter((part) => part !== "")
       .join("\n"),
     summary: run.summary,

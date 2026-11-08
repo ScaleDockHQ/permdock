@@ -1,3 +1,6 @@
+import { statSync } from "node:fs";
+import { resolve } from "node:path";
+
 import type { Policy } from "../../core/policy-types.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { ProjectContext } from "./context.ts";
@@ -31,6 +34,10 @@ export type GeneratedFile = {
   readonly path: string;
   readonly plugin: string;
   readonly outcome: GenerateOutcome;
+  /** Bytes the file holds after this run. */
+  readonly bytes: number;
+  /** `bytes` minus the bytes on disk before; `bytes` for a new file. */
+  readonly delta: number;
 };
 
 export type GenerateSummary = {
@@ -86,18 +93,33 @@ export function receiptRows(summary: GenerateSummary): readonly string[] {
   return rows;
 }
 
+function bytesOnDisk(abs: string): number {
+  try {
+    return statSync(abs).isFile() ? statSync(abs).size : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function sizeOf(file: GeneratedFile): string {
+  const sign = file.delta >= 0 ? "+" : "-";
+  return `${sign}${String(Math.abs(file.delta))} bytes, ${String(file.bytes)} total`;
+}
+
 function diffOf(files: readonly GeneratedFile[]): string {
   const rows: string[] = [];
   for (const file of files) {
     switch (file.outcome) {
       case "created":
-        rows.push(`+ ${file.path}`);
+        rows.push(`+ ${file.path} (${sizeOf(file)})`);
         break;
       case "updated":
-        rows.push(`~ ${file.path}`);
+        rows.push(`~ ${file.path} (${sizeOf(file)})`);
         break;
       case "planned":
-        rows.push(`+ ${file.path}`);
+        rows.push(
+          `${file.delta === file.bytes ? "+" : "~"} ${file.path} (${sizeOf(file)})`,
+        );
         break;
       case "unchanged":
         break;
@@ -164,6 +186,8 @@ export async function runGenerate(input: {
         path: file.path,
         plugin: file.plugin,
         outcome: "unchanged" as const,
+        bytes: bytesOnDisk(resolve(input.cwd, file.path)),
+        delta: 0,
       }));
       return {
         model,
@@ -227,16 +251,27 @@ export async function runGenerate(input: {
     text: item.contents,
   }));
   const planned = planFiles(input.cwd, bodies);
+  const before = new Map<string, number>(
+    bodies.map((body) => [
+      body.path,
+      bytesOnDisk(resolve(input.cwd, body.path)),
+    ]),
+  );
   const write = input.check !== true && input.dryRun !== true;
   const applied = write ? applyFiles(input.cwd, bodies) : planned;
-  const files: GeneratedFile[] = applied.map((file, index) => ({
-    path: file.path,
-    plugin: emitted[index]?.plugin ?? "",
-    outcome:
-      input.dryRun === true && file.outcome !== "unchanged"
-        ? "planned"
-        : file.outcome,
-  }));
+  const files: GeneratedFile[] = applied.map((file, index) => {
+    const bytes = Buffer.byteLength(emitted[index]?.contents ?? "");
+    return {
+      path: file.path,
+      plugin: emitted[index]?.plugin ?? "",
+      outcome:
+        input.dryRun === true && file.outcome !== "unchanged"
+          ? "planned"
+          : file.outcome,
+      bytes,
+      delta: bytes - (before.get(file.path) ?? 0),
+    };
+  });
   if (useCache && write) {
     writeCache(
       directory,
