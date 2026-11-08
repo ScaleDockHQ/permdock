@@ -24,7 +24,10 @@ import type {
   TokenSigner,
 } from "./interfaces.ts";
 import type { Limits } from "./limits.ts";
-import type { PermittedIdsOptions } from "./may-use.ts";
+import type {
+  PermittedIdsOptions,
+  PermittedScopeIdsOptions,
+} from "./may-use.ts";
 import type { MembershipFilter } from "./membership-filter.ts";
 import type { AdapterId } from "./open-union.ts";
 import type { Operation } from "./operations.ts";
@@ -177,6 +180,15 @@ export type RowData<P> =
  * value of a known type that does not fit the row is a type error.
  */
 export type UncheckedData<D> = D & (unknown extends D ? unknown : never);
+
+export type WhereOptions = {
+  /**
+   * Compile for this tenant's memberships instead of the active tenant's. The
+   * result's `subject` carries it as its active tenant, so `toWhere` compiles
+   * `memberOf` for it.
+   */
+  readonly tenant?: string;
+};
 
 export type WhereResult = {
   readonly condition:
@@ -403,7 +415,15 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     row: T,
     options?: DecideOptions,
   ) => Partial<T>;
-  readonly where: (permission: Permission) => WhereResult;
+  /**
+   * The condition under which the subject holds `permission`, for the active
+   * tenant or the one in `options`, ready for an ORM adapter's `toWhere`. A
+   * tenant the subject does not hold compiles to no row.
+   */
+  readonly where: (
+    permission: Permission,
+    options?: WhereOptions,
+  ) => WhereResult;
   readonly actions: (
     resource: Permission | { readonly [key: string]: unknown },
     data: unknown,
@@ -505,6 +525,33 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     permission: Permission,
     scope: string,
     options?: PermittedIdsOptions,
+  ) => readonly string[];
+  /**
+   * The instances of the scope `permission` is held at, within a tenant (the
+   * active one by default), in which the subject holds it: `permittedIds` for
+   * the permission's own scope, the in-process mirror of the SQL
+   * `permitted_<scope>_id_array`. A listing, never a decision.
+   */
+  readonly permittedScopeIds: (
+    permission: Permission,
+    options?: PermittedScopeIdsOptions,
+  ) => readonly string[];
+  /**
+   * `mayUse` for each of `permissions`, in order, from one snapshot read:
+   * answers a tool listing of any length with one pass.
+   */
+  readonly mayUseMany: (
+    permissions: readonly Permission[],
+  ) => readonly boolean[];
+  /**
+   * The ids, in the order given and each once, that name an instance of the
+   * permission's scope on which the subject holds it, without loading rows. A
+   * resource whose id is not a scope instance keeps nothing: use `filter` or
+   * `decideEach` with its rows. A listing, never a decision.
+   */
+  readonly filterIds: (
+    permission: Permission,
+    ids: readonly string[],
   ) => readonly string[];
   /**
    * Loads the relation facts `permission` needs for `rows` into this instance's

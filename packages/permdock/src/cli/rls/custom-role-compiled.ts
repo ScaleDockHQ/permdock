@@ -5,10 +5,10 @@ import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { CUSTOM_ROLES, allowEntry } from "../sql/shared.ts";
 
 /** The event name of a tenant's custom-role version message. */
-export const CUSTOM_ROLES_EVENT = "custom_roles";
+const CUSTOM_ROLES_EVENT = "custom_roles";
 
 /** `authz-tenant:<tenant>`, the topic one message per edited tenant goes to. */
-export const CUSTOM_ROLES_TENANT_TOPIC = "authz-tenant:";
+const CUSTOM_ROLES_TENANT_TOPIC = "authz-tenant:";
 
 function tenantMatch(alias: string): string {
   return `(p_tenant is null and ${alias}.tenant_id is null or ${alias}.tenant_id = p_tenant)`;

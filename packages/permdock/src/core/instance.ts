@@ -13,6 +13,7 @@ import type {
   PermDock,
   SimulateOptions,
   SnapshotOptions,
+  WhereOptions,
   WhereResult,
 } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
@@ -38,7 +39,12 @@ import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { deriveEnv } from "./instance-env.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
 import { attachInternals } from "./internals.ts";
-import { mayUseOf, permittedIds } from "./may-use.ts";
+import {
+  filterIds,
+  mayUseOf,
+  permittedIds,
+  permittedScopeIds,
+} from "./may-use.ts";
 import { filterMemberships } from "./membership-filter.ts";
 import { getResource, listPermissions } from "./permission-registry.ts";
 import { pendingRelations, relationReader } from "./relations.ts";
@@ -56,7 +62,7 @@ import {
   resolveActiveTenant,
   tenantsOf,
 } from "./tenancy.ts";
-import { whereFromGrants } from "./where-scope.ts";
+import { subjectInTenant, whereFromGrants } from "./where-scope.ts";
 
 /**
  * Each round reads one more layer: link hops, then the chain, then nested
@@ -375,7 +381,8 @@ export function buildInstance(
         return canImpl(permission, row, next) === true;
       });
     },
-    where(permission: Permission): WhereResult {
+    where(permission: Permission, options?: WhereOptions): WhereResult {
+      const given = subjectInTenant(subject, options?.tenant);
       const grants = collectSnapshotGrants(
         policy,
         subject,
@@ -405,10 +412,10 @@ export function buildInstance(
               name,
               scopeList(policy.scopes),
             ),
-          tenant: subject.principal?.tenant,
+          tenant: given.principal?.tenant,
           team,
           now: nowSeconds(),
-          subject,
+          subject: given,
         }),
       );
     },
@@ -665,8 +672,19 @@ export function buildInstance(
       mayUseFor ??= mayUseOf(instance);
       return mayUseFor(permission);
     },
+    mayUseMany(permissions) {
+      mayUseFor ??= mayUseOf(instance);
+      const use = mayUseFor;
+      return permissions.map((permission) => use(permission));
+    },
     permittedIds(permission, scope, options) {
       return permittedIds(instance, permission, scope, options);
+    },
+    permittedScopeIds(permission, options) {
+      return permittedScopeIds(instance, permission, options);
+    },
+    filterIds(permission, ids) {
+      return filterIds(instance, permission, ids);
     },
     async derive(options: DeriveOptions): Promise<PermDock> {
       const env = await deriveEnv(

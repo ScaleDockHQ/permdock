@@ -7,7 +7,7 @@ import type { Membership, Subject } from "./subject.ts";
 
 import { bindConditionRefs } from "../conditions/bind.ts";
 import { sole } from "./compact.ts";
-import { freezeDeep } from "./freeze.ts";
+import { freezeCopy, freezeDeep } from "./freeze.ts";
 import { resourceRoleCondition } from "./grantee-conditions.ts";
 import { findScope, scopeChain, scopeIdOf } from "./scopes.ts";
 import {
@@ -320,4 +320,24 @@ export function whereFromGrants(
   }
   // SAFETY: result has condition and partial, plus subject, scopes and resources defined above.
   return freezeDeep(result) as WhereResult;
+}
+
+/**
+ * `subject` with `tenant` as its active tenant, for a `where()` asked for
+ * another tenant than the subject's own. The subject itself when no tenant is
+ * given or it already is the active one.
+ */
+export function subjectInTenant(
+  subject: Subject,
+  tenant: string | undefined,
+): Subject {
+  const principal = subject.principal;
+  if (
+    tenant === undefined ||
+    principal === null ||
+    principal.tenant === tenant
+  ) {
+    return subject;
+  }
+  return freezeCopy({ ...subject, principal: { ...principal, tenant } });
 }

@@ -155,6 +155,7 @@ describe("compiled custom roles and the per-tenant version against Postgres", ()
 
   it("reports the tenant version of each held custom role in subject_for", async () => {
     await target().admin.query(SAVE("B", "mechanic", "array['asset.read']"));
+    // SAFETY: subject_for returns the subject JSON, whose customRolesVersions is a tenant-to-version object.
     const subject = (await one(`select permdock.subject_for('${OWNER}')`)) as {
       customRolesVersions?: Record<string, number>;
     };

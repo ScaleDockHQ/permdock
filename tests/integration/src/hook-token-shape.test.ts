@@ -99,6 +99,15 @@ function tokenLength(claims: Claims): number {
   );
 }
 
+/**
+ * The kept memberships of a minted token, which the hook always writes as an
+ * array.
+ */
+function keptOf(claims: Claims): { id: string }[] {
+  // SAFETY: the hook writes memberships as an array of { id, ... } objects.
+  return claims["memberships"] as { id: string }[];
+}
+
 const COUNTED = [
   "roles",
   "user_role",
@@ -209,7 +218,7 @@ describe("the token the hook mints", () => {
           )
         ).rows[0]?.n,
       );
-      if (bytes > budget && (claims["memberships"] as unknown[]).length > 0) {
+      if (bytes > budget && keptOf(claims).length > 0) {
         broken.push(`${String(budget)}: ${String(bytes)}`);
       }
     }
@@ -220,7 +229,7 @@ describe("the token the hook mints", () => {
     await seed(40, 2);
     await target().admin.query(hookSql);
     const claims = await mint("org-0030");
-    const first = (claims["memberships"] as { id: string }[])[0];
+    const first = keptOf(claims)[0];
     expect(first?.id).toBe("org-0030");
   });
 
@@ -269,7 +278,7 @@ describe("the token the hook mints", () => {
       const claims = await mint("org-0001");
       const length = tokenLength(claims);
       process.stdout.write(
-        `TOKEN-LENGTH memberships=${String(organizations)} roles=${String(roles)} chars=${String(length)} kept=${String((claims["memberships"] as unknown[]).length)}\n`,
+        `TOKEN-LENGTH memberships=${String(organizations)} roles=${String(roles)} chars=${String(length)} kept=${String(keptOf(claims).length)}\n`,
       );
       expect(length).toBeLessThanOrEqual(4096);
     },

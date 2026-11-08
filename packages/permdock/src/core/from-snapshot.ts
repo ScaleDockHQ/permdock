@@ -21,7 +21,12 @@ import {
 } from "./errors.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
-import { mayUseOf, permittedIds } from "./may-use.ts";
+import {
+  filterIds,
+  mayUseOf,
+  permittedIds,
+  permittedScopeIds,
+} from "./may-use.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
@@ -31,6 +36,7 @@ import { snapshotReads } from "./snapshot-reads.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
 import { subjectFromSnapshot } from "./snapshot-subject.ts";
 import { parseSnapshot } from "./snapshot.ts";
+import { subjectInTenant } from "./where-scope.ts";
 
 function resourceRef(
   snapshot: ExpandedSnapshot,
@@ -195,8 +201,13 @@ export function fromSnapshot(
         return can(permission, row, next) === true;
       });
     },
-    where(permission) {
-      return whereFromSnapshot(snapshot, subject, permission, team);
+    where(permission, whereOptions) {
+      return whereFromSnapshot(
+        snapshot,
+        subjectInTenant(subject, whereOptions?.tenant),
+        permission,
+        team,
+      );
     },
     actions(resource, data, decideOptions) {
       // SAFETY: actions takes a leaf or a resource node, the shapes listPermissions walks.
@@ -282,8 +293,19 @@ export function fromSnapshot(
       mayUseFor ??= mayUseOf(instance);
       return mayUseFor(permission);
     },
+    mayUseMany(permissions) {
+      mayUseFor ??= mayUseOf(instance);
+      const use = mayUseFor;
+      return permissions.map((permission) => use(permission));
+    },
     permittedIds(permission, scope, query) {
       return permittedIds(instance, permission, scope, query);
+    },
+    permittedScopeIds(permission, scopeOptions) {
+      return permittedScopeIds(instance, permission, scopeOptions);
+    },
+    filterIds(permission, ids) {
+      return filterIds(instance, permission, ids);
     },
     derive() {
       // A snapshot carries its grants already resolved: no source applies to it.

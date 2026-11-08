@@ -6,6 +6,7 @@ import type {
   DecideOptions,
   PermDock,
   SimulateOptions,
+  WhereOptions,
   WhereResult,
 } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
@@ -371,10 +372,21 @@ function wrap<V extends PolicyVocabulary>(
       });
     },
     pick: permdock.pick.bind(permdock),
-    async where(permission: Permission): Promise<WhereResult> {
+    async where(
+      permission: Permission,
+      options?: WhereOptions,
+    ): Promise<WhereResult> {
       const provider = providerFor(providers, permission);
       if (provider === undefined) {
-        return permdock.where(permission);
+        return permdock.where(permission, options);
+      }
+      if (
+        options?.tenant !== undefined &&
+        options.tenant !== permdock.subject.principal?.tenant
+      ) {
+        // The provider answers for the subject's active tenant: ask it as that tenant's instance.
+        const next = permdock.tenant(options.tenant);
+        return wrap(next, policy, next.subject, providers).where(permission);
       }
       const ids = await permittedIds(provider, permission);
       if (ids === undefined) {
@@ -423,7 +435,10 @@ function wrap<V extends PolicyVocabulary>(
     assignablePermissions: permdock.assignablePermissions.bind(permdock),
     assignableLevels: permdock.assignableLevels.bind(permdock),
     mayUse: permdock.mayUse.bind(permdock),
+    mayUseMany: permdock.mayUseMany.bind(permdock),
     permittedIds: permdock.permittedIds.bind(permdock),
+    permittedScopeIds: permdock.permittedScopeIds.bind(permdock),
+    filterIds: permdock.filterIds.bind(permdock),
     prefetchRelations: permdock.prefetchRelations.bind(permdock),
     permissions: permdock.permissions,
     roles: permdock.roles,
