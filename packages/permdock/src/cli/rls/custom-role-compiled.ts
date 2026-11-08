@@ -84,8 +84,8 @@ export function customRoleCompiledSql(ctx: RlsSqlContext): string {
     loop
       perform realtime.send(
         jsonb_build_object('tenant', r.tenant_id, 'version', r.version),
-        ${quoteLiteral(CUSTOM_ROLES_EVENT)},
-        case when r.tenant_id is null then ${quoteLiteral(broadcast.topic)} else ${quoteLiteral(CUSTOM_ROLES_TENANT_TOPIC)} || r.tenant_id::text end,
+        ${quoteLiteral(CUSTOM_ROLES_EVENT)}::text,
+        (case when r.tenant_id is null then ${quoteLiteral(broadcast.topic)} else ${quoteLiteral(CUSTOM_ROLES_TENANT_TOPIC)} || r.tenant_id::text end)::text,
         true
       );
     end loop;

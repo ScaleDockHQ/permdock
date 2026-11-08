@@ -115,4 +115,23 @@ describe("platform custom roles in SQL", () => {
     expect(sql).not.toContain("role_grants");
     expect(sql).not.toContain("permdock_custom_keys");
   });
+
+  it("types the event and topic of the custom-role broadcast so realtime.send resolves", () => {
+    const sql = helpersSql(
+      {
+        ...base,
+        authorize: "database",
+        customRoles: {
+          declared: ["admin"],
+          assignable: [],
+          broadcast: { topic: "better_supabase:authz" },
+        },
+      },
+      [],
+      { userRoles: true },
+    );
+    expect(sql).toContain("perform realtime.send(");
+    expect(sql).toContain("'custom_roles'::text,");
+    expect(sql).toContain("r.tenant_id::text end)::text,");
+  });
 });

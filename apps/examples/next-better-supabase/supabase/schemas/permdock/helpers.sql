@@ -279,8 +279,8 @@ begin
     loop
       perform realtime.send(
         jsonb_build_object('tenant', r.tenant_id, 'version', r.version),
-        'custom_roles',
-        case when r.tenant_id is null then 'better_supabase:authz' else 'authz-tenant:' || r.tenant_id::text end,
+        'custom_roles'::text,
+        (case when r.tenant_id is null then 'better_supabase:authz' else 'authz-tenant:' || r.tenant_id::text end)::text,
         true
       );
     end loop;
