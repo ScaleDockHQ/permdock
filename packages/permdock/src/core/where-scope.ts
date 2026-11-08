@@ -1,4 +1,4 @@
-import type { Condition } from "../conditions/ast.ts";
+import type { Condition, ConditionValue } from "../conditions/ast.ts";
 import type { WhereResult } from "./permdock.ts";
 import type { ResourceNode } from "./permission-types.ts";
 import type { Scope } from "./scopes.ts";
@@ -218,7 +218,8 @@ function collect(
       denies.push({ grant, condition });
     }
   }
-  const parts: Condition[] = [];
+  const bases: Condition[] = [];
+  let unrestricted = false;
   for (const grant of grants) {
     if (
       grant.effect !== "allow" ||
@@ -234,20 +235,60 @@ function collect(
     ) {
       continue;
     }
-    parts.push(
-      all([
-        ...(condition === "always" ? [] : [condition]),
-        ...denies.map((deny): Condition => ({
-          op: "not",
-          condition: deny.condition,
-        })),
-      ]),
-    );
+    if (condition === "always") {
+      unrestricted = true;
+    } else {
+      bases.push(condition);
+    }
   }
-  if (parts.length === 0) {
+  if (!unrestricted && bases.length === 0) {
     return { condition: none, partial };
   }
-  return { condition: sole(parts) ?? { op: "or", conditions: parts }, partial };
+  // Every deny applies to every allow, so each is subtracted once from the union.
+  const allowed = unrestricted ? [] : [foldAlternatives(bases)];
+  const subtracted = denies.map((deny): Condition => ({
+    op: "not",
+    condition: deny.condition,
+  }));
+  return { condition: all([...allowed, ...subtracted]), partial };
+}
+
+/**
+ * The union of `conditions`: equal alternatives once, and `eq` alternatives on
+ * one field as a single `in`, so a subject with many memberships filters on
+ * `tenant_id in (…)` and not on one `or` branch per membership.
+ */
+function foldAlternatives(conditions: readonly Condition[]): Condition {
+  const folded: Condition[] = [];
+  const seen = new Set<string>();
+  const values = new Map<string, { at: number; list: ConditionValue[] }>();
+  for (const condition of conditions) {
+    const key = JSON.stringify(condition);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    if (condition.op !== "eq" || typeof condition.value === "object") {
+      folded.push(condition);
+      continue;
+    }
+    const group = values.get(condition.field);
+    if (group === undefined) {
+      values.set(condition.field, {
+        at: folded.length,
+        list: [condition.value],
+      });
+      folded.push(condition);
+    } else {
+      group.list.push(condition.value);
+    }
+  }
+  for (const [field, group] of values) {
+    if (group.list.length > 1) {
+      folded[group.at] = { op: "in", field, value: group.list };
+    }
+  }
+  return sole(folded) ?? { op: "or", conditions: folded };
 }
 
 /**

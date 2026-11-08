@@ -10,13 +10,17 @@ import { compact } from "./compact.ts";
 import { contactMayUse } from "./contact.ts";
 import {
   customGrantsFor,
+  customRoleNames,
+  customRoleScope,
   holdsCustomRole,
   holdsGlobalCustomRole,
+  isSharedCustomRole,
 } from "./custom-roles.ts";
 import { coversRequirements } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
 import { combineWhere, matchGrantee } from "./grantee-match.ts";
 import { flattenGrantee } from "./grantee.ts";
+import { idText } from "./ids.ts";
 import { getResource, listPermissions } from "./permission-registry.ts";
 import { declaredRoleNames, grantList } from "./policy.ts";
 import { requirementCondition } from "./requires-conditions.ts";
@@ -116,11 +120,13 @@ export function collectSnapshotGrants(
         grant.effect !== "allow";
   const scopes = scopeList(policy.scopes);
   const declared = declaredRoleNames(policy);
+  const names = customRoleNames(customRoles);
   const global = expandRoleNames(
     subject.principal?.roles ?? [],
     declared,
     customRoles,
     subject.principal?.tenant,
+    names,
   );
   const held = (subject.principal?.memberships ?? []).map((membership) => ({
     membership,
@@ -130,6 +136,7 @@ export function collectSnapshotGrants(
         declared,
         customRoles,
         tenantOf(membership, scopes),
+        names,
       ).roles,
     ),
   }));
@@ -214,15 +221,51 @@ export function collectSnapshotGrants(
       }
     }
   }
+  // Memberships by scope and tenant, so a role looks at its tenant's memberships, not all of them.
+  const byScope = new Map<string, typeof held>();
+  const byScopeTenant = new Map<string, typeof held>();
+  const add = (
+    index: Map<string, typeof held>,
+    key: string,
+    entry: (typeof held)[number],
+  ): void => {
+    const list = index.get(key) ?? [];
+    list.push(entry);
+    index.set(key, list);
+  };
+  for (const entry of held) {
+    const tenant = idText(tenantOf(entry.membership, scopes)) ?? "";
+    add(byScope, entry.membership.scope ?? "", entry);
+    add(byScopeTenant, `${entry.membership.scope ?? ""}\0${tenant}`, entry);
+  }
+  const holdersByRole = new Map<CustomRole, typeof held>();
+  const holdersOf = (role: CustomRole): typeof held => {
+    const known = holdersByRole.get(role);
+    if (known !== undefined) {
+      return known;
+    }
+    const scope = customRoleScope(role, scopes);
+    const pool =
+      scope === undefined
+        ? []
+        : ((isSharedCustomRole(role)
+            ? byScope.get(scope)
+            : byScopeTenant.get(
+                `${scope}\0${idText(role.tenant) ?? "\u0001"}`,
+              )) ?? []);
+    const made = pool.filter((entry) =>
+      holdsCustomRole(entry.membership, role, scopes),
+    );
+    holdersByRole.set(role, made);
+    return made;
+  };
   for (const { grant, role } of customGrants) {
     if (!contactMayUse(policy, subject, grant)) {
       continue;
     }
     const globalHeld = holdsGlobalCustomRole(subject.principal?.roles, role);
-    const holders = held.filter(
-      (entry) =>
-        keepsPermission(entry.membership, grant.permission.key) &&
-        holdsCustomRole(entry.membership, role, scopes),
+    const holders = holdersOf(role).filter((entry) =>
+      keepsPermission(entry.membership, grant.permission.key),
     );
     if (holders.length === 0 && !globalHeld) {
       continue;

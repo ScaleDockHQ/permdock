@@ -11,6 +11,7 @@ import type {
 
 import { compact } from "../compact.ts";
 import {
+  customGrantsOfKey,
   holdsCustomRole,
   holdsGlobalCustomRole,
   isGlobalCustomRole,
@@ -78,10 +79,13 @@ export function candidatesFor(call: EvaluationCall): Candidate[] {
   )
     .filter((grant) => grant.breakGlass === undefined)
     .map((grant) => ({ grant }));
-  for (const item of call.env.customGrants) {
-    if (item.grant.permission.key === permission.key) {
-      candidates.push({ grant: item.grant, custom: item.role });
-    }
+  const { customLookup } = call.env;
+  for (const item of customLookup === undefined
+    ? call.env.customGrants.filter(
+        (grant) => grant.grant.permission.key === permission.key,
+      )
+    : customGrantsOfKey(customLookup, permission.key)) {
+    candidates.push({ grant: item.grant, custom: item.role });
   }
   return candidates;
 }
@@ -192,6 +196,7 @@ function roleScope(
               state.declared,
               state.env.customRoles,
               tenantOf(held, state.scopes),
+              state.env.customLookup,
             ).roles;
           }
           return holdsCustomRole(held, custom, state.scopes)

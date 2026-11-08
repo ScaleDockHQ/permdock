@@ -21,7 +21,7 @@ import {
 } from "./errors.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
-import { mayUse, permittedIds } from "./may-use.ts";
+import { mayUseOf, permittedIds } from "./may-use.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
@@ -142,6 +142,7 @@ export function fromSnapshot(
       explain: true,
     }) as ExplainedDecision) as PermDock["explain"];
 
+  let mayUseFor: ((permission: Permission) => boolean) | undefined;
   const instance: PermDock = {
     ...snapshotReads(snapshot, subject),
     can,
@@ -278,7 +279,8 @@ export function fromSnapshot(
       return Promise.resolve();
     },
     mayUse(permission) {
-      return mayUse(instance, permission);
+      mayUseFor ??= mayUseOf(instance);
+      return mayUseFor(permission);
     },
     permittedIds(permission, scope, query) {
       return permittedIds(instance, permission, scope, query);

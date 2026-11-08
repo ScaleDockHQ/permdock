@@ -12,6 +12,7 @@ import { isForbiddenKey } from "./paths.ts";
 import { formerKeys } from "./permission-leaf.ts";
 import { findPermission } from "./permission-registry.ts";
 import { declaredRoleNames, grantList, levelCondition } from "./policy.ts";
+import { soleRole } from "./resolve-index.ts";
 import {
   normalizeMemberships,
   resolveScope,
@@ -188,12 +189,6 @@ function isCeilingScope(scope: Grant["scope"]): scope is CeilingScope {
   return typeof scope === "string";
 }
 
-function soleRole(grant: Grant): string | undefined {
-  const roles = flattenGrantee(grant.to).filter((item) => item.kind === "role");
-  const first = roles[0];
-  return roles.length === 1 && first?.kind === "role" ? first.role : undefined;
-}
-
 /** Permission keys a declared role's allows reach, hosted grants included. */
 export function roleAllowKeys(
   policy: Policy,
@@ -221,7 +216,7 @@ function isAssignableRole(policy: Policy, name: string): boolean {
  * widen it. `assignable` narrows it to those role names
  * (`CustomRoleSource.assignable`).
  */
-function ceilings(
+function computeCeilings(
   policy: Policy,
   assignable?: readonly string[],
 ): ReadonlyMap<CeilingScope, readonly Grant[]> {
@@ -244,6 +239,15 @@ function ceilings(
     byScope.set(grant.scope, list);
   }
   return byScope;
+}
+
+function ceilings(
+  policy: Policy,
+  assignable?: readonly string[],
+): ReadonlyMap<CeilingScope, readonly Grant[]> {
+  return assignable === undefined
+    ? policy.index.resolve.ceilings
+    : computeCeilings(policy, assignable);
 }
 
 export function ceilingGrants(
@@ -283,11 +287,11 @@ export function resolveCustomRole(
   if (scope === undefined) {
     return freezeDeep({ grants: [], dropped: [], renamed: [] });
   }
-  const ceiling = ceilingGrants(policy, scope);
-  const ceilingSet = new Set(ceiling);
-  const ceilingKeys = new Set(ceiling.map((grant) => grant.permission.key));
+  const index = policy.index.resolve;
+  const ceiling = index.ceilings.get(scope) ?? [];
+  const ceilingSet = index.ceilingSets.get(scope) ?? new Set<Grant>();
+  const ceilingKeys = index.ceilingKeys.get(scope) ?? new Set<string>();
   const declared = declaredRoleNames(policy);
-  const all = grantList(policy).filter((grant) => grant.hosted === undefined);
   const dropped: CustomRoleDrop[] = [];
   const renamed: CustomRoleRename[] = [];
   const seen = new Set<string>();
@@ -315,10 +319,7 @@ export function resolveCustomRole(
       drop({ role: String(name), reason: "unknown-role" });
       continue;
     }
-    for (const grant of all) {
-      if (soleRole(grant) !== name) {
-        continue;
-      }
+    for (const grant of index.byRole.get(name) ?? []) {
       const key = grant.permission.key;
       if (grant.effect === "deny") {
         // Only denies of the role's own scope: RLS evaluates each scope's keys separately.
@@ -439,10 +440,10 @@ export function resolveCustomRole(
         push(leveled(grant, level, condition));
       }
     }
-    for (const grant of all) {
+    for (const grant of policy.index.grantsByKey.get(key) ?? []) {
       if (
         grant.effect === "deny" &&
-        grant.permission.key === key &&
+        grant.hosted === undefined &&
         sources.has(soleRole(grant) ?? "")
       ) {
         push(grant);
@@ -603,6 +604,111 @@ function effectiveCustomRoles(
           isGlobalCustomRole(role) ||
           !shared.has(role.name),
       );
+}
+
+/**
+ * One instance's custom roles, indexed once: the resolved grants by permission
+ * key, the role names that are known, and the grants naming an undeclared
+ * level. Built by `indexCustomRoles`; an instance holds it, so the lookups on a
+ * decision never scan every role.
+ */
+export type CustomRoleLookup = CustomRoleNames & {
+  readonly grants: readonly CustomGrant[];
+  readonly unknownLevels: readonly UnknownLevel[];
+  readonly grantsByKey: ReadonlyMap<string, readonly CustomGrant[]>;
+};
+
+/**
+ * The custom roles by name, and `expandRoleNames` answers by role-name list and
+ * tenant.
+ */
+export type CustomRoleNames = {
+  readonly rolesByName: ReadonlyMap<string, readonly CustomRole[]>;
+  readonly expanded: WeakMap<
+    readonly string[],
+    Map<string | undefined, ExpandedRoleNames>
+  >;
+};
+
+/** The names of `roles` visible to a tenant, without resolving any role. */
+export function customRoleNames(roles: readonly CustomRole[]): CustomRoleNames {
+  const rolesByName = new Map<string, CustomRole[]>();
+  for (const role of effectiveCustomRoles(roles)) {
+    const named = rolesByName.get(role.name) ?? [];
+    named.push(role);
+    rolesByName.set(role.name, named);
+  }
+  return { rolesByName, expanded: new WeakMap() };
+}
+
+export type ExpandedRoleNames = {
+  readonly roles: readonly string[];
+  readonly unknown: readonly string[];
+};
+
+/** Resolves each custom role once and indexes the result. */
+export function indexCustomRoles(
+  policy: Policy,
+  roles: readonly CustomRole[],
+): CustomRoleLookup {
+  const declared = declaredRoleNames(policy);
+  const grants: CustomGrant[] = [];
+  const unknownLevels: UnknownLevel[] = [];
+  const grantsByKey = new Map<string, CustomGrant[]>();
+  const rolesByName = new Map<string, CustomRole[]>();
+  for (const role of effectiveCustomRoles(roles)) {
+    const named = rolesByName.get(role.name) ?? [];
+    named.push(role);
+    rolesByName.set(role.name, named);
+    if (declared.has(role.name)) {
+      continue;
+    }
+    const resolved = resolveCustomRole(policy, role);
+    for (const grant of resolved.grants) {
+      const item = { grant, role };
+      grants.push(item);
+      const bucket = grantsByKey.get(grant.permission.key) ?? [];
+      bucket.push(item);
+      grantsByKey.set(grant.permission.key, bucket);
+    }
+    for (const entry of resolved.dropped) {
+      if ("permission" in entry && entry.reason === "unknown-level") {
+        unknownLevels.push({
+          role: role.name,
+          permission: entry.permission,
+          level: entry.level ?? "",
+        });
+      }
+    }
+  }
+  return {
+    grants,
+    unknownLevels,
+    grantsByKey,
+    rolesByName,
+    expanded: new WeakMap(),
+  };
+}
+
+/** The custom grants of one permission key. */
+export function customGrantsOfKey(
+  lookup: CustomRoleLookup,
+  key: string,
+): readonly CustomGrant[] {
+  return lookup.grantsByKey.get(key) ?? [];
+}
+
+/** Whether `name` is a custom role known in `tenant`, through the lookup. */
+export function isKnownCustomRole(
+  lookup: CustomRoleNames,
+  name: string,
+  tenant: string | undefined,
+): boolean {
+  return (lookup.rolesByName.get(name) ?? []).some(
+    (item) =>
+      isGlobalCustomRole(item) ||
+      (tenant !== undefined && customRoleOf(item, tenant)),
+  );
 }
 
 /**

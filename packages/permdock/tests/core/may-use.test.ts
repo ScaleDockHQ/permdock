@@ -6,7 +6,7 @@ import type { Snapshot, SnapshotGrant } from "../../src/core/snapshot-types.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { mayAccess } from "../../src/core/may-access.ts";
-import { mayUse } from "../../src/core/may-use.ts";
+import { mayUse, mayUseOf } from "../../src/core/may-use.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -196,6 +196,25 @@ describe(mayAccess, () => {
     expect(
       mayAccess(later, { id: "u1", roles: [] }, permissions.doc.read),
     ).toBe(true);
+  });
+});
+
+describe("mayUse snapshot reuse", () => {
+  it("reads the instance snapshot once for every permission asked", () => {
+    const base = permdock([read]);
+    let reads = 0;
+    // SAFETY: the wrapper forwards every call to the real overloads and only counts them.
+    const snapshot = ((options?: Parameters<PermDock["snapshot"]>[0]) => {
+      reads += 1;
+      // SAFETY: the overload set is narrowed to the unsigned form the counter forwards.
+      return base.snapshot(options as undefined);
+    }) as PermDock["snapshot"];
+    const counted: PermDock = { ...base, snapshot };
+    const use = mayUseOf(counted);
+    expect(use(permissions.doc.read)).toBe(true);
+    expect(use(permissions.doc.update)).toBe(false);
+    expect(use(permissions.doc.read)).toBe(true);
+    expect(reads).toBe(1);
   });
 });
 

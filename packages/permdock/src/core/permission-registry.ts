@@ -7,7 +7,7 @@ import type {
   ResourceXTree,
 } from "./permission-types.ts";
 
-import { TREE_LEAVES, TREE_REGISTRY } from "./brands.ts";
+import { TREE_LEAVES, TREE_LOOKUP, TREE_REGISTRY } from "./brands.ts";
 import { freezeDeep } from "./freeze.ts";
 import { attachRegistry } from "./materialise-resource.ts";
 import { assertSafeKey, isForbiddenKey, ownKeys } from "./paths.ts";
@@ -151,6 +151,10 @@ export function findPermission(
 ): Permission | undefined {
   if (isForbiddenKey(keyOrScope)) {
     return undefined;
+  }
+  const lookup = isRegistryTree(tree) ? tree[TREE_LOOKUP] : undefined;
+  if (lookup !== undefined) {
+    return lookup.get(keyOrScope);
   }
   const leaves = listPermissions(tree);
   for (const leaf of leaves) {

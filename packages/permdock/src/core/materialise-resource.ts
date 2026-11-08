@@ -10,11 +10,18 @@ import type {
   ResourceRelation,
 } from "./permission-types.ts";
 
-import { NODE_RESOURCE, TREE_LEAVES, TREE_REGISTRY } from "./brands.ts";
+import {
+  NODE_RESOURCE,
+  TREE_LEAVES,
+  TREE_LOOKUP,
+  TREE_REGISTRY,
+} from "./brands.ts";
 import { freezeDeep } from "./freeze.ts";
 import { MAX_GROUP_DEPTH, assertSafeKey } from "./paths.ts";
 import {
   actionNames,
+  formerKeys,
+  formerScopes,
   isResourceInit,
   makeLeaf,
   metaFor,
@@ -288,6 +295,31 @@ export function walk(
   return group;
 }
 
+/**
+ * The leaf a name resolves to: current key or scope first, then former ones,
+ * each in leaf order.
+ */
+function lookupOf(
+  leaves: readonly Permission[],
+): ReadonlyMap<string, Permission> {
+  const found = new Map<string, Permission>();
+  for (const leaf of leaves) {
+    for (const name of [leaf.key, leaf.scope]) {
+      if (!found.has(name)) {
+        found.set(name, leaf);
+      }
+    }
+  }
+  for (const leaf of leaves) {
+    for (const name of [...formerKeys(leaf), ...formerScopes(leaf)]) {
+      if (!found.has(name)) {
+        found.set(name, leaf);
+      }
+    }
+  }
+  return found;
+}
+
 export function attachRegistry(
   tree: PermissionTree,
   registry: ReadonlyMap<string, ResourceNode>,
@@ -297,6 +329,12 @@ export function attachRegistry(
   const attached = tree as RegistryTree;
   Object.defineProperty(attached, TREE_REGISTRY, {
     value: registry,
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
+  Object.defineProperty(attached, TREE_LOOKUP, {
+    value: lookupOf(leaves),
     enumerable: false,
     writable: false,
     configurable: false,

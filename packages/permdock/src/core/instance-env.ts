@@ -1,4 +1,5 @@
 import type { LoadedApprovalPolicies } from "./approval-policies.ts";
+import type { CustomRoleLookup } from "./custom-roles.ts";
 import type { TargetFactory } from "./decide-for.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type {
@@ -31,6 +32,8 @@ import { isThenable } from "./thenable.ts";
  */
 export type InstanceEnv = {
   readonly customRoles: readonly CustomRole[];
+  /** `customRoles` resolved and indexed; `buildInstance` builds it when absent. */
+  readonly customLookup?: CustomRoleLookup;
   readonly sink: DecisionSink | undefined;
   readonly limits: Limits | undefined;
   readonly limitCache: Map<string, number>;
@@ -110,6 +113,8 @@ export function deriveEnv(
     compact<InstanceEnv>({
       ...base,
       customRoles: loadedRoles,
+      customLookup:
+        loadedRoles === base.customRoles ? base.customLookup : undefined,
       roleSource,
       assignable: loadedNames,
       approvalPolicies: loadedApprovals,

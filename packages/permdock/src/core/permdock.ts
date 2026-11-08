@@ -48,7 +48,7 @@ import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
 import { withApp } from "./app.ts";
 import { cachedInstance } from "./cached-instance.ts";
 import { compact } from "./compact.ts";
-import { unknownLevelsFor } from "./custom-roles.ts";
+import { indexCustomRoles } from "./custom-roles.ts";
 import { buildInstance } from "./instance.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { resolveSubject } from "./resolve-subject.ts";
@@ -638,7 +638,8 @@ function instantiate(
     names: ReadonlyMap<string, readonly string[]> | undefined,
     approvalPolicies: LoadedApprovalPolicies | undefined,
   ): PermDock => {
-    for (const entry of unknownLevelsFor(policy, roles)) {
+    const customLookup = indexCustomRoles(policy, roles);
+    for (const entry of customLookup.unknownLevels) {
       auth.push({
         reason: "schema",
         source: "customRoles",
@@ -650,6 +651,7 @@ function instantiate(
       subject,
       compact<InstanceEnv>({
         customRoles: roles,
+        customLookup,
         sink: options.sink,
         limits: options.limits,
         limitCache: new Map<string, number>(),

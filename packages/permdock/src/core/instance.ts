@@ -27,7 +27,7 @@ import { assertDecision } from "./assert-decision.ts";
 import { assignableIn } from "./assignable.ts";
 import { canAllWith, decideAllWith } from "./checks.ts";
 import { compact, isReadonlyArray, isRecord } from "./compact.ts";
-import { customGrantsFor, unknownLevelsFor } from "./custom-roles.ts";
+import { indexCustomRoles } from "./custom-roles.ts";
 import { decideForTarget, deniedFor } from "./decide-for.ts";
 import { evaluate } from "./evaluate/index.ts";
 import { emitSafe, emptyListeners, finish } from "./events.ts";
@@ -38,7 +38,7 @@ import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { deriveEnv } from "./instance-env.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
 import { attachInternals } from "./internals.ts";
-import { mayUse, permittedIds } from "./may-use.ts";
+import { mayUseOf, permittedIds } from "./may-use.ts";
 import { filterMemberships } from "./membership-filter.ts";
 import { getResource, listPermissions } from "./permission-registry.ts";
 import { pendingRelations, relationReader } from "./relations.ts";
@@ -73,8 +73,10 @@ export function buildInstance(
   const listeners = emptyListeners();
   const queuedAuth = [...envBase.queuedAuth];
   const queuedErrors = [...(envBase.queuedErrors ?? [])];
-  const customGrants = customGrantsFor(policy, envBase.customRoles);
-  const unknownLevels = unknownLevelsFor(policy, envBase.customRoles);
+  const customLookup =
+    envBase.customLookup ?? indexCustomRoles(policy, envBase.customRoles);
+  const customGrants = customLookup.grants;
+  const unknownLevels = customLookup.unknownLevels;
   const relationCache: RelationCache = envBase.relationCache ?? new Map();
   const relations = relationReader(
     envBase.relations,
@@ -107,6 +109,7 @@ export function buildInstance(
     skipAlternatives,
     customRoles: envBase.customRoles,
     customGrants,
+    customLookup,
     listeners,
     sink: envBase.sink,
     limits: envBase.limits,
@@ -203,6 +206,7 @@ export function buildInstance(
     );
   };
 
+  let mayUseFor: ((permission: Permission) => boolean) | undefined;
   // SAFETY: canImpl, decideImpl, assertImpl and explainImpl each implement every overload of their member.
   const instance: PermDock = {
     can: canImpl as PermDock["can"],
@@ -234,19 +238,22 @@ export function buildInstance(
       const resource = getResource(policy.permissions, permission.resource);
       const scopes = scopeList(policy.scopes);
       const root = scopes[0]?.name;
-      const rowOf = (id: string): unknown => {
-        if (loaded instanceof Map) {
-          return loaded.get(id);
+      let byId: ReadonlyMap<string, unknown> | undefined;
+      if (loaded instanceof Map) {
+        byId = loaded;
+      } else if (isReadonlyArray(loaded) && resource !== undefined) {
+        const idField = resource.id;
+        const indexed = new Map<string, unknown>();
+        for (const row of loaded) {
+          const key = isRecord(row) ? row[idField] : undefined;
+          if (typeof key === "string" && !indexed.has(key)) {
+            indexed.set(key, row);
+          }
         }
-        return isReadonlyArray(loaded)
-          ? loaded.find(
-              (row) =>
-                isRecord(row) &&
-                resource !== undefined &&
-                row[resource.id] === id,
-            )
-          : undefined;
-      };
+        byId = indexed;
+      }
+      const rowOf = (id: string): unknown => byId?.get(id);
+      const tenants = new Map<string, PermDock>();
       const tenantField =
         root === undefined ? undefined : scopeField(resource, root, scopes);
       const results: Decision[] = [];
@@ -260,10 +267,11 @@ export function buildInstance(
           tenantField !== undefined && isRecord(row)
             ? row[tenantField]
             : undefined;
-        const target =
-          typeof tenant === "string" && tenant !== ""
-            ? instance.tenant(tenant)
-            : instance;
+        let target = instance;
+        if (typeof tenant === "string" && tenant !== "") {
+          target = tenants.get(tenant) ?? instance.tenant(tenant);
+          tenants.set(tenant, target);
+        }
         results.push(
           target.decide(permission, row, { ...decide, trusted: true }),
         );
@@ -654,7 +662,8 @@ export function buildInstance(
       return tenant === undefined ? [] : of(assignableAt(tenant));
     },
     mayUse(permission) {
-      return mayUse(instance, permission);
+      mayUseFor ??= mayUseOf(instance);
+      return mayUseFor(permission);
     },
     permittedIds(permission, scope, options) {
       return permittedIds(instance, permission, scope, options);
