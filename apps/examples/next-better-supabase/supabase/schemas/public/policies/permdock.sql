@@ -15,14 +15,14 @@ create policy "staff_select"
   as permissive
   for select
   to authenticated
-  using (("organization_id" in (select "permdock".permitted_organization_ids('staff.read'))) or ("organization_id" in (select "permdock".permitted_organization_ids('staff.list'))));
+  using (("organization_id" = any(array(select "permdock".permitted_organization_ids('staff.read')))) or ("organization_id" = any(array(select "permdock".permitted_organization_ids('staff.list')))));
 
 create policy "quotes_select"
   on "public"."quotes"
   as permissive
   for select
   to authenticated
-  using ((("organization_id" in (select "permdock".permitted_organization_ids('quotes.read'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.read')))) or (("organization_id" in (select "permdock".permitted_organization_ids('quotes.list'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.list')))));
+  using ((("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.read')))) or ("customer_id" = any(array(select "permdock".permitted_customer_ids('quotes.read'))))) or (("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.list')))) or ("customer_id" = any(array(select "permdock".permitted_customer_ids('quotes.list'))))));
 
 create policy "quotes_select_anon"
   on "public"."quotes"
@@ -36,8 +36,8 @@ create policy "quotes_update"
   as permissive
   for update
   to authenticated
-  using ("organization_id" in (select "permdock".permitted_organization_ids('quotes.update')))
-  with check ("organization_id" in (select "permdock".permitted_organization_ids('quotes.update')));
+  using ("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.update'))))
+  with check ("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.update'))));
 
 create policy "quotes_update_read_only_actors"
   on "public"."quotes"

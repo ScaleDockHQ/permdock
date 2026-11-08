@@ -124,7 +124,7 @@ function rowsFilter(ctx: RlsSqlContext, entry: BreakGlassEntry): string {
       return grant.column === undefined
         ? []
         : [
-            `(${asked} and ${quoteIdent(grant.column)} in (select ${qualified(ctx, memberIdsHelper(grant.root))}()))`,
+            `(${asked} and ${quoteIdent(grant.column)} = any(array(select ${qualified(ctx, memberIdsHelper(grant.root))}())))`,
           ];
     }
     if (grant.scope !== "global" && grant.column === undefined) {

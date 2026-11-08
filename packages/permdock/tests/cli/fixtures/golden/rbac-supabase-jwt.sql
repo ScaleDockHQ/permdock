@@ -39,6 +39,7 @@ create or replace function "app".permdock_user_id()
 returns uuid
 language sql
 stable
+parallel safe
 set search_path = ''
 as $$
   select nullif(
@@ -147,12 +148,43 @@ $$;
 revoke execute on function "app".permitted_tenant_ids(text) from public, anon;
 grant execute on function "app".permitted_tenant_ids(text) to authenticated;
 
+-- tenant ids a grant key reaches, as one array, for `<column> = any(...)`
+create or replace function "app".permitted_tenant_id_array(p_grant text)
+returns uuid[]
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select coalesce(array_agg(i), '{}'::uuid[]) from "app".permitted_tenant_ids(p_grant) i
+$$;
+revoke execute on function "app".permitted_tenant_id_array(text) from public, anon;
+grant execute on function "app".permitted_tenant_id_array(text) to authenticated;
+-- whether a grant key reaches one tenant
+create or replace function "app".permdock_tenant_has(p_grant text, p_tenant uuid)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select p_tenant = any("app".permitted_tenant_id_array(p_grant))
+$$;
+revoke execute on function "app".permdock_tenant_has(text, uuid) from public, anon;
+grant execute on function "app".permdock_tenant_has(text, uuid) to authenticated;
+
 create or replace function "app".member_tenant_ids()
 returns setof uuid
 language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select distinct (m ->> 'id')::uuid
@@ -620,7 +652,7 @@ create policy "post_select"
   as permissive
   for select
   to authenticated
-  using (((select "app".permdock_has('post.read')) or ("orgId" in (select "app".permitted_tenant_ids('post.read')))) or ((select "app".permdock_has('post.list')) or ("orgId" in (select "app".permitted_tenant_ids('post.list')))));
+  using (((select "app".permdock_has('post.read')) or ("orgId" = any(array(select "app".permitted_tenant_ids('post.read'))))) or ((select "app".permdock_has('post.list')) or ("orgId" = any(array(select "app".permitted_tenant_ids('post.list'))))));
 
 drop policy if exists "post_update" on "public"."post";
 create policy "post_update"
@@ -628,8 +660,8 @@ create policy "post_update"
   as permissive
   for update
   to authenticated
-  using ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select "app".permdock_user_id()))))
-  with check ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select "app".permdock_user_id()))));
+  using ((select "app".permdock_has('post.update#1')) or (("orgId" = any(array(select "app".permitted_tenant_ids('post.update#2')))) and ("authorId" = (select "app".permdock_user_id()))))
+  with check ((select "app".permdock_has('post.update#1')) or (("orgId" = any(array(select "app".permitted_tenant_ids('post.update#2')))) and ("authorId" = (select "app".permdock_user_id()))));
 
 drop policy if exists "post_delete" on "public"."post";
 create policy "post_delete"
@@ -645,4 +677,4 @@ create policy "post_insert"
   as permissive
   for insert
   to authenticated
-  with check ((select "app".permdock_has('post.create')) or ("orgId" in (select "app".permitted_tenant_ids('post.create'))));
+  with check ((select "app".permdock_has('post.create')) or ("orgId" = any(array(select "app".permitted_tenant_ids('post.create')))));

@@ -7,13 +7,13 @@ import type { RlsFunctionMapping } from "../types.ts";
 import { isRecord } from "../../core/compact.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
 
-type PgNode = Record<string, unknown>;
+export type PgNode = Record<string, unknown>;
 
 export function asNode(value: unknown): PgNode | undefined {
   return isRecord(value) ? value : undefined;
 }
 
-function stringVal(value: unknown): string | undefined {
+export function stringVal(value: unknown): string | undefined {
   const node = asNode(value);
   if (node === undefined) {
     return undefined;

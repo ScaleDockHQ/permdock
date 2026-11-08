@@ -1,12 +1,14 @@
 Aggregate  (cost=…) (actual time=… rows=1 loops=1)
+  InitPlan 1 (returns $0)
+    ->  ProjectSet  (cost=…) (actual time=… rows=50 loops=1)
+          ->  Result  (cost=…) (actual time=… rows=1 loops=1)
   ->  Hash Join  (cost=…) (actual time=… rows=800 loops=1)
         Hash Cond: (item.id = (permdock.permitted_item_rows('item.edit'::text)))
-        ->  Seq Scan on item  (cost=…) (actual time=… rows=1000 loops=1)
-              Filter: (hashed SubPlan 1)
-              Rows Removed by Filter: 8000
-              SubPlan 1
-                ->  ProjectSet  (cost=…) (actual time=… rows=50 loops=1)
-                      ->  Result  (cost=…) (actual time=… rows=1 loops=1)
+        ->  Bitmap Heap Scan on item  (cost=…) (actual time=… rows=1000 loops=1)
+              Recheck Cond: ("orgId" = ANY ($0))
+              Heap Blocks: exact=28
+              ->  Bitmap Index Scan on "item_orgId_idx"  (cost=…) (actual time=… rows=1000 loops=1)
+                    Index Cond: ("orgId" = ANY ($0))
         ->  Hash  (cost=…) (actual time=… rows=800 loops=1)
               Buckets: 1024  Batches: 1  Memory Usage: 46kB
               ->  HashAggregate  (cost=…) (actual time=… rows=800 loops=1)

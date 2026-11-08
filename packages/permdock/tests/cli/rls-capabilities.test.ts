@@ -70,7 +70,7 @@ describe("rls generate --capabilities", () => {
       [
         "quote_select",
         "authenticated",
-        `"orgId" in (select "permdock".permitted_tenant_ids('quote.read'))`,
+        `"orgId" = any(array(select "permdock".permitted_tenant_ids('quote.read')))`,
       ],
       [
         "quote_select_anon",

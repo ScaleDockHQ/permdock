@@ -77,6 +77,9 @@ alter table ${table} add constraint ${quoteIdent(`${name}_shape`)} check (
 );
 ${index}
   on ${table} (${unique}) nulls not distinct;
+-- the probe's equality columns lead, so one range scan reads a role's rows whatever its instance pin
+create index if not exists ${quoteIdent(`${name}_probe_idx`)}
+  on ${table} (tenant_id, scope, role) include (scope_id, ${column}${name === CUSTOM_ROLES.permissions ? ", effect" : ""}${leveled ? ", level" : ""});
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table ${table} add column if not exists id bigint generated always as identity primary key;
 alter table ${table} enable row level security;
@@ -537,8 +540,8 @@ type CustomRoleProbe = {
   readonly scope: string;
   readonly role: string;
   /**
-   * A SQL text the role's tenant is compared with; `undefined` for a platform
-   * role.
+   * A SQL expression of the tenant column's type, so the column is compared
+   * uncast and the unique index applies; `undefined` for a platform role.
    */
   readonly tenant: string | undefined;
   /**
@@ -563,7 +566,7 @@ export function customArraysQuery(
   const tenantMatch = (alias: string): string =>
     input.tenant === undefined
       ? `${alias}.tenant_id is null`
-      : `case when pdk_s.shared then ${alias}.tenant_id is null else ${alias}.tenant_id::text = ${input.tenant} end`;
+      : `(not pdk_s.shared and ${alias}.tenant_id = ${input.tenant} or pdk_s.shared and ${alias}.tenant_id is null)`;
   const match = (alias: string): string =>
     [
       tenantMatch(alias),

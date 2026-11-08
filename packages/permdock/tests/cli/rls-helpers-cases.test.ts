@@ -46,6 +46,24 @@ const teamMembers = {
   columns: { team: "team_id", org: "org_id" },
 };
 
+describe("set helpers", () => {
+  it("returns a scope's ids as one array and asks one tenant", () => {
+    const sql = helpers({});
+    expect(fnBody(sql, "permitted_org_id_array")).toContain(
+      "select coalesce(array_agg(i), '{}'::uuid[]) from \"permdock\".permitted_org_ids(p_grant) i",
+    );
+    expect(sql).toContain(
+      'create or replace function "permdock".permitted_org_id_array(p_grant text)\nreturns uuid[]',
+    );
+    expect(fnBody(sql, "permdock_org_has")).toContain(
+      'select p_tenant = any("permdock".permitted_org_id_array(p_grant))',
+    );
+    expect(sql).toContain(
+      'revoke execute on function "permdock".permdock_org_has(text, uuid) from public, anon;',
+    );
+  });
+});
+
 describe("accessSql and membershipTable", () => {
   it("needs the scope column for a scoped grant", () => {
     expect(() => accessSql(ctx(), "team", "doc.read", undefined)).toThrow(
@@ -104,7 +122,7 @@ describe("helpersSql scopes off the root chain", () => {
     expect(org).toContain("  union\n  select pdk_m.id from pdk_m");
     expect(org).toContain("and not (r.role = any(array['admin']::text[]))");
     expect(org).toContain(
-      "case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'org' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role",
+      "(not pdk_s.shared and c.tenant_id = (ms.id)::uuid or pdk_s.shared and c.tenant_id is null) and c.scope = 'org' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role",
     );
     expect(org.match(/permdock_is_shared_role\(/gu)).toHaveLength(1);
     expect(org).toContain(
@@ -112,7 +130,7 @@ describe("helpersSql scopes off the root chain", () => {
     );
     const team = idsBody(sql, "permitted_team_ids");
     expect(team).toContain(
-      "case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'org')::text end and c.scope = 'team'",
+      "(not pdk_s.shared and c.tenant_id = (ms.within ->> 'org')::uuid or pdk_s.shared and c.tenant_id is null) and c.scope = 'team'",
     );
   });
 });
@@ -312,7 +330,7 @@ describe("helpersSql database mode", () => {
       },
       customRoles: { declared: [], assignable: [] },
     });
-    expect(sql).toContain('c.tenant_id::text = m."org_id"::text');
+    expect(sql).toContain('c.tenant_id = (m."org_id")::uuid');
     expect(sql).toContain(`'{}'::text[]`);
   });
 

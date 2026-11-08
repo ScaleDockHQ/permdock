@@ -376,6 +376,13 @@ describe("rls generate options", () => {
       });
       expect(hook.sql).toContain('"permdock".subject_for(p_user uuid)');
       expect(hook.sql).toContain('from "permdock".custom_role_permissions p');
+      // starts from the held roles: no full union of both tables, no tenant cast on the column
+      expect(hook.sql).not.toMatch(
+        /select tenant_id, scope, scope_id, role from "permdock"\.custom_role_permissions\s+union/u,
+      );
+      expect(hook.sql).not.toContain("c.tenant_id::text = case");
+      expect(hook.sql).toContain("jsonb_array_elements_text(");
+      expect(hook.sql).toContain("t.tenant_id = h.tenant::uuid");
       const jwt = supabaseHookSql(scopeList(namedScopes.scopes), {
         supabase: {
           hook: {
@@ -447,7 +454,7 @@ export const policy = definePolicy(permissions, {
         'create or replace view "public"."quotes_visible" with (security_invoker = true) as',
       );
       expect(outcome.text).toContain(
-        `case when "orgId" in (select "permdock".permitted_tenant_ids('quote.read#1'))`,
+        `case when "orgId" = any(array(select "permdock".permitted_tenant_ids('quote.read#1')))`,
       );
       expect(outcome.text).not.toContain("create policy");
       expect(outcome.output).toContain(

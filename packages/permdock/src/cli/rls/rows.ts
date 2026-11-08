@@ -8,7 +8,7 @@ import { policyLevels } from "../../core/policy.ts";
 import { resolveScope, rootScope } from "../../core/scopes.ts";
 import { configError } from "../core/errors.ts";
 import { branchClauses } from "../sql/clauses.ts";
-import { idTypeOf } from "../sql/columns.ts";
+import { idTypeOf, scopeTypeOf } from "../sql/columns.ts";
 import { tableFor } from "../sql/compile.ts";
 import { graphSqlName } from "../sql/names.ts";
 import {
@@ -371,6 +371,27 @@ grant execute on function ${fn}(text, ${idType}[]) to authenticated;`;
 }
 
 /**
+ * The column of a resource that holds its root-scope id, from a `memberOf`
+ * relation.
+ */
+export function tenantColumnOf(
+  ctx: RlsSqlContext,
+  node: ResourceNode,
+): string | undefined {
+  const root = rootScope(ctx.scopes);
+  if (root === undefined) {
+    return undefined;
+  }
+  const column = Object.values(node.relations).find(
+    (relation) =>
+      "field" in relation &&
+      relation.memberOf !== undefined &&
+      resolveScope(ctx.scopes, relation.memberOf) === root,
+  );
+  return column !== undefined && "field" in column ? column.field : undefined;
+}
+
+/**
  * For a key whose every allow is a role held at the root scope, the check that
  * the row's tenant column is among the tenants where the caller holds the key.
  * It sits first in the key's branch and its subquery does not depend on the
@@ -385,19 +406,11 @@ function tenantFirstOf(
   node: ResourceNode,
 ): ((key: string) => string | undefined) | undefined {
   const root = rootScope(ctx.scopes);
-  if (root === undefined) {
+  const field = tenantColumnOf(ctx, node);
+  if (root === undefined || field === undefined) {
     return undefined;
   }
-  const column = Object.values(node.relations).find(
-    (relation) =>
-      "field" in relation &&
-      relation.memberOf !== undefined &&
-      resolveScope(ctx.scopes, relation.memberOf) === root,
-  );
-  if (column === undefined || !("field" in column)) {
-    return undefined;
-  }
-  const check = `${quoteIdent(column.field)} in (select ${qualified(ctx, permittedByPermissionHelper(root))}(p_permission, true))`;
+  const check = `${quoteIdent(field)} = any(array(select ${qualified(ctx, permittedByPermissionHelper(root))}(p_permission, true)))`;
   return (key) => {
     const allows = policy.grants.filter(
       (grant) => grant.effect === "allow" && grant.permission.key === key,
@@ -416,6 +429,34 @@ function tenantFirstOf(
       );
     return bound ? check : undefined;
   };
+}
+
+/**
+ * The ids of a resource's rows a permission reaches, as one uncorrelated
+ * `select` for `<fk> = any(array(<select>))`, or `undefined` when the
+ * permission cannot be read one tenant at a time. Only a permission every allow
+ * of which is a root-scope role can: it reads `permitted_<resource>_rows(p, t)`
+ * over the tenants the caller holds it in, through the tenant column's index.
+ * Any other permission would need the whole platform's rows to answer one
+ * lookup, so the caller keeps its per-row form.
+ */
+export function tenantRowSetSql(
+  ctx: RlsSqlContext,
+  policy: Policy,
+  node: ResourceNode,
+  permission: string,
+): string | undefined {
+  const root = rootScope(ctx.scopes);
+  if (
+    root === undefined ||
+    tenantFirstOf(ctx, policy, node)?.(permission) === undefined
+  ) {
+    return undefined;
+  }
+  const literal = quoteLiteral(permission);
+  const rows = qualified(ctx, rowsHelper(node.name));
+  const tenants = qualified(ctx, permittedByPermissionHelper(root));
+  return `select r from unnest(array(select ${tenants}(${literal}, true))) t(id) cross join lateral ${rows}(${literal}, t.id) r`;
 }
 
 /**
@@ -478,6 +519,95 @@ function rowsWhereSql(
     : `case p_permission\n${arms.join("\n")}\n    else ${match}\n  end`;
 }
 
+/**
+ * `permitted_<resource>_ids_in(p_permission, p_ids)`: the given ids the caller
+ * may act on, the id-list form of the set.
+ */
+function idsInSql(
+  ctx: RlsSqlContext,
+  node: ResourceNode,
+  rows: string,
+  idType: string,
+): string {
+  const fn = qualified(ctx, idsInHelper(node.name));
+  return `create or replace function ${fn}(p_permission text, p_ids ${idType}[])
+returns setof ${idType}
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  select i from ${rows}(p_permission, p_ids) i
+$$;
+revoke execute on function ${fn}(text, ${idType}[]) from public, anon;
+grant execute on function ${fn}(text, ${idType}[]) to authenticated;
+`;
+}
+
+/** `permitted_<resource>_ids_in`. */
+export function idsInHelper(resource: string): string {
+  return rowsHelper(resource).replace(/_rows$/u, "_ids_in");
+}
+
+/** `permitted_<resource>_count`. */
+export function countHelper(resource: string): string {
+  return rowsHelper(resource).replace(/_rows$/u, "_count");
+}
+
+/**
+ * `permitted_<resource>_rows(p_permission, p_tenant)`, which reads one tenant's
+ * rows through the tenant column's index, and `permitted_<resource>_count`,
+ * which counts them up to a cap. Empty for a resource with no tenant column.
+ */
+function tenantRowsSql(
+  ctx: RlsSqlContext,
+  policy: Policy,
+  node: ResourceNode,
+  rows: string,
+  table: string,
+  idType: string,
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
+  narrowed: ReadonlyMap<string, readonly CompiledBranch[]>,
+): string {
+  const column = tenantColumnOf(ctx, node);
+  const root = rootScope(ctx.scopes);
+  if (column === undefined || root === undefined) {
+    return "";
+  }
+  const tenantType = scopeTypeOf(ctx, root);
+  const count = qualified(ctx, countHelper(node.name));
+  return `-- ${node.name}: the same set within one ${root}, by the index on ${column}
+create or replace function ${rows}(p_permission text, p_tenant ${tenantType})
+returns setof ${idType}
+language sql
+stable
+security definer
+${plannerOf(ctx)}
+set search_path = ''
+as $$
+  select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
+  where ${ROW}.${quoteIdent(column)} = p_tenant
+    and ${rowsWhereSql(ctx, policy, node, branches, narrowed)}
+$$;
+revoke execute on function ${rows}(text, ${tenantType}) from public, anon;
+grant execute on function ${rows}(text, ${tenantType}) to authenticated;
+-- ${node.name}: how many of them the caller may act on, counted up to p_cap
+create or replace function ${count}(p_permission text, p_tenant ${tenantType}, p_cap integer)
+returns integer
+language sql
+stable
+security definer
+${plannerOf(ctx)}
+set search_path = ''
+as $$
+  select count(*)::integer from (select 1 from ${rows}(p_permission, p_tenant) limit greatest(p_cap, 0)) s
+$$;
+revoke execute on function ${count}(text, ${tenantType}, integer) from public, anon;
+grant execute on function ${count}(text, ${tenantType}, integer) to authenticated;
+`;
+}
+
 function resourceSql(
   ctx: RlsSqlContext,
   policy: Policy,
@@ -508,7 +638,8 @@ $$;
 revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;
 ${candidatesSql(fn, table, quoteIdent(node.id), idType, match)}
-${rowSql(ctx, node, table)}
+${idsInSql(ctx, node, fn, idType)}
+${tenantRowsSql(ctx, policy, node, fn, table, idType, branches, narrowed)}${rowSql(ctx, node, table)}
 ${rowByIdSql(ctx, node, table, idType)}`;
   if (ctx.dialect === "neon") {
     return rows;

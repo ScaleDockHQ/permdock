@@ -13,6 +13,7 @@ create or replace function "permdock".permdock_user_id()
 returns uuid
 language sql
 stable
+parallel safe
 set search_path = ''
 as $$
   select nullif(
@@ -71,6 +72,9 @@ alter table "permdock".custom_role_permissions add constraint "custom_role_permi
 alter table "permdock".custom_role_permissions add column if not exists level text check (level ~ '^[a-z][a-z0-9_]*$');
 create unique index "custom_role_permissions_nnd_key"
   on "permdock".custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect, level) nulls not distinct;
+-- the probe's equality columns lead, so one range scan reads a role's rows whatever its instance pin
+create index "custom_role_permissions_probe_idx"
+  on "permdock".custom_role_permissions (tenant_id, scope, role) include (scope_id, permission, effect, level);
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table "permdock".custom_role_permissions add column if not exists id bigint generated always as identity primary key;
 alter table "permdock".custom_role_permissions enable row level security;
@@ -92,6 +96,9 @@ alter table "permdock".custom_role_includes add constraint "custom_role_includes
 );
 create unique index "custom_role_includes_nnd_key"
   on "permdock".custom_role_includes (tenant_id, scope, scope_id, role, include_role) nulls not distinct;
+-- the probe's equality columns lead, so one range scan reads a role's rows whatever its instance pin
+create index "custom_role_includes_probe_idx"
+  on "permdock".custom_role_includes (tenant_id, scope, role) include (scope_id, include_role);
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table "permdock".custom_role_includes add column if not exists id bigint generated always as identity primary key;
 alter table "permdock".custom_role_includes enable row level security;
@@ -280,14 +287,14 @@ begin
   cross join lateral (select p.allow, p.deny, i.incl
         from (select "permdock".permdock_is_shared_role('tenant', r.role) as shared offset 0) pdk_s
         cross join lateral (
-          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+          select array(select i.include_role from "permdock".custom_role_includes i where (not pdk_s.shared and i.tenant_id = (ms.id)::uuid or pdk_s.shared and i.tenant_id is null) and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
         ) i
         cross join lateral (
           select
             coalesce(array_agg(c.permission || coalesce('@' || c.level, '') order by c.permission || coalesce('@' || c.level, '')) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
             coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
           from "permdock".custom_role_permissions c
-          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+          where (not pdk_s.shared and c.tenant_id = (ms.id)::uuid or pdk_s.shared and c.tenant_id is null) and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
         ) p) pdk_e
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'tenant'
@@ -325,12 +332,43 @@ $$;
 revoke execute on function "permdock".permitted_tenant_ids(text) from public, anon;
 grant execute on function "permdock".permitted_tenant_ids(text) to authenticated;
 
+-- tenant ids a grant key reaches, as one array, for `<column> = any(...)`
+create or replace function "permdock".permitted_tenant_id_array(p_grant text)
+returns uuid[]
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select coalesce(array_agg(i), '{}'::uuid[]) from "permdock".permitted_tenant_ids(p_grant) i
+$$;
+revoke execute on function "permdock".permitted_tenant_id_array(text) from public, anon;
+grant execute on function "permdock".permitted_tenant_id_array(text) to authenticated;
+-- whether a grant key reaches one tenant
+create or replace function "permdock".permdock_tenant_has(p_grant text, p_tenant uuid)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select p_tenant = any("permdock".permitted_tenant_id_array(p_grant))
+$$;
+revoke execute on function "permdock".permdock_tenant_has(text, uuid) from public, anon;
+grant execute on function "permdock".permdock_tenant_has(text, uuid) to authenticated;
+
 create or replace function "permdock".member_tenant_ids()
 returns setof uuid
 language plpgsql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
 declare
@@ -401,12 +439,29 @@ $$;
 revoke execute on function "permdock".permitted_team_ids(text) from public, anon;
 grant execute on function "permdock".permitted_team_ids(text) to authenticated;
 
+-- team ids a grant key reaches, as one array, for `<column> = any(...)`
+create or replace function "permdock".permitted_team_id_array(p_grant text)
+returns uuid[]
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select coalesce(array_agg(i), '{}'::uuid[]) from "permdock".permitted_team_ids(p_grant) i
+$$;
+revoke execute on function "permdock".permitted_team_id_array(text) from public, anon;
+grant execute on function "permdock".permitted_team_id_array(text) to authenticated;
+
 create or replace function "permdock".member_team_ids()
 returns setof uuid
 language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select null::uuid where false -- no team memberships table configured
@@ -515,14 +570,14 @@ begin
   cross join lateral (select p.allow, p.deny, i.incl
         from (select "permdock".permdock_is_shared_role('tenant', r.role) as shared offset 0) pdk_s
         cross join lateral (
-          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+          select array(select i.include_role from "permdock".custom_role_includes i where (not pdk_s.shared and i.tenant_id = (ms.id)::uuid or pdk_s.shared and i.tenant_id is null) and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
         ) i
         cross join lateral (
           select
             coalesce(array_agg(c.permission || coalesce('@' || c.level, '') order by c.permission || coalesce('@' || c.level, '')) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
             coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
           from "permdock".custom_role_permissions c
-          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+          where (not pdk_s.shared and c.tenant_id = (ms.id)::uuid or pdk_s.shared and c.tenant_id is null) and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
         ) p) pdk_e
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'tenant'
@@ -1563,14 +1618,14 @@ begin
       from (select p.allow, p.deny, i.incl
         from (select "permdock".permdock_is_shared_role('tenant', r.role) as shared offset 0) pdk_s
         cross join lateral (
-          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+          select array(select i.include_role from "permdock".custom_role_includes i where (not pdk_s.shared and i.tenant_id = (ms.id)::uuid or pdk_s.shared and i.tenant_id is null) and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
         ) i
         cross join lateral (
           select
             coalesce(array_agg(c.permission || coalesce('@' || c.level, '') order by c.permission || coalesce('@' || c.level, '')) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
             coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
           from "permdock".custom_role_permissions c
-          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+          where (not pdk_s.shared and c.tenant_id = (ms.id)::uuid or pdk_s.shared and c.tenant_id is null) and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
         ) p) pdk_e
       cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'tenant') k(grant_key)) ck(grant_key)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
@@ -1683,14 +1738,14 @@ begin
       from (select p.allow, p.deny, i.incl
         from (select "permdock".permdock_is_shared_role('tenant', r.role) as shared offset 0) pdk_s
         cross join lateral (
-          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+          select array(select i.include_role from "permdock".custom_role_includes i where (not pdk_s.shared and i.tenant_id = (ms.id)::uuid or pdk_s.shared and i.tenant_id is null) and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
         ) i
         cross join lateral (
           select
             coalesce(array_agg(c.permission || coalesce('@' || c.level, '') order by c.permission || coalesce('@' || c.level, '')) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
             coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
           from "permdock".custom_role_permissions c
-          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+          where (not pdk_s.shared and c.tenant_id = (ms.id)::uuid or pdk_s.shared and c.tenant_id is null) and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
         ) p) pdk_e
       cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'tenant') k(grant_key)) ck(grant_key)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
@@ -2085,14 +2140,14 @@ begin
       from (select p.allow, p.deny, i.incl
         from (select "permdock".permdock_is_shared_role('tenant', r.role) as shared offset 0) pdk_s
         cross join lateral (
-          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+          select array(select i.include_role from "permdock".custom_role_includes i where (not pdk_s.shared and i.tenant_id = (ms.id)::uuid or pdk_s.shared and i.tenant_id is null) and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
         ) i
         cross join lateral (
           select
             coalesce(array_agg(c.permission || coalesce('@' || c.level, '') order by c.permission || coalesce('@' || c.level, '')) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
             coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
           from "permdock".custom_role_permissions c
-          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+          where (not pdk_s.shared and c.tenant_id = (ms.id)::uuid or pdk_s.shared and c.tenant_id is null) and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
         ) p) pdk_e
       cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'tenant') k(grant_key)) ck(grant_key)
   where coalesce(p_user::text, '') <> ''
@@ -2202,14 +2257,14 @@ begin
       from (select p.allow, p.deny, i.incl
         from (select "permdock".permdock_is_shared_role('tenant', r.role) as shared offset 0) pdk_s
         cross join lateral (
-          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+          select array(select i.include_role from "permdock".custom_role_includes i where (not pdk_s.shared and i.tenant_id = (ms.id)::uuid or pdk_s.shared and i.tenant_id is null) and i.scope = 'tenant' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
         ) i
         cross join lateral (
           select
             coalesce(array_agg(c.permission || coalesce('@' || c.level, '') order by c.permission || coalesce('@' || c.level, '')) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
             coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
           from "permdock".custom_role_permissions c
-          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+          where (not pdk_s.shared and c.tenant_id = (ms.id)::uuid or pdk_s.shared and c.tenant_id is null) and c.scope = 'tenant' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
         ) p) pdk_e
       cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'tenant') k(grant_key)) ck(grant_key)
   where coalesce(p_user::text, '') <> ''
@@ -2462,7 +2517,7 @@ set search_path = ''
 as $$
   with permdock_candidates as (select (p_row).*)
   select exists (select 1 from permdock_candidates where case p_permission
-    when 'jobs.read' then coalesce((("organization_id" in (select "permdock".permitted_tenant_ids('jobs.read'))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" in (select "permdock".permitted_tenant_ids('jobs.read@own'))) and ("owner_id" = (select "permdock".permdock_user_id()))) or (("organization_id" in (select "permdock".permitted_tenant_ids('jobs.read@team'))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" in (select "permdock".permitted_tenant_ids('jobs.read@all'))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = (select "permdock".permdock_user_id()))) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
+    when 'jobs.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read')))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@own')))) and ("owner_id" = (select "permdock".permdock_user_id()))) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@team')))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@all')))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = (select "permdock".permdock_user_id()))) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
     else false
   end)
 $$;
@@ -2480,7 +2535,7 @@ set search_path = ''
 as $$
   select "id"::uuid from "public"."jobs" as permdock_row
   where case p_permission
-    when 'jobs.read' then coalesce((("organization_id" in (select "permdock".permitted_tenant_ids('jobs.read'))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" in (select "permdock".permitted_tenant_ids('jobs.read@own'))) and ("owner_id" = (select "permdock".permdock_user_id()))) or (("organization_id" in (select "permdock".permitted_tenant_ids('jobs.read@team'))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" in (select "permdock".permitted_tenant_ids('jobs.read@all'))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = (select "permdock".permdock_user_id()))) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
+    when 'jobs.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read')))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@own')))) and ("owner_id" = (select "permdock".permdock_user_id()))) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@team')))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@all')))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = (select "permdock".permdock_user_id()))) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
     else "permdock".permitted_jobs_match(permdock_row, p_permission)
   end
 $$;
@@ -2525,6 +2580,52 @@ end
 $$;
 revoke execute on function "permdock".permitted_jobs_rows(text, uuid[]) from public, anon;
 grant execute on function "permdock".permitted_jobs_rows(text, uuid[]) to authenticated;
+create or replace function "permdock".permitted_jobs_ids_in(p_permission text, p_ids uuid[])
+returns setof uuid
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  select i from "permdock".permitted_jobs_rows(p_permission, p_ids) i
+$$;
+revoke execute on function "permdock".permitted_jobs_ids_in(text, uuid[]) from public, anon;
+grant execute on function "permdock".permitted_jobs_ids_in(text, uuid[]) to authenticated;
+
+-- jobs: the same set within one tenant, by the index on organization_id
+create or replace function "permdock".permitted_jobs_rows(p_permission text, p_tenant uuid)
+returns setof uuid
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select "id"::uuid from "public"."jobs" as permdock_row
+  where permdock_row."organization_id" = p_tenant
+    and case p_permission
+    when 'jobs.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read')))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@own')))) and ("owner_id" = (select "permdock".permdock_user_id()))) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@team')))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@all')))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = (select "permdock".permdock_user_id()))) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
+    else "permdock".permitted_jobs_match(permdock_row, p_permission)
+  end
+$$;
+revoke execute on function "permdock".permitted_jobs_rows(text, uuid) from public, anon;
+grant execute on function "permdock".permitted_jobs_rows(text, uuid) to authenticated;
+-- jobs: how many of them the caller may act on, counted up to p_cap
+create or replace function "permdock".permitted_jobs_count(p_permission text, p_tenant uuid, p_cap integer)
+returns integer
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select count(*)::integer from (select 1 from "permdock".permitted_jobs_rows(p_permission, p_tenant) limit greatest(p_cap, 0)) s
+$$;
+revoke execute on function "permdock".permitted_jobs_count(text, uuid, integer) from public, anon;
+grant execute on function "permdock".permitted_jobs_count(text, uuid, integer) to authenticated;
 create or replace function "permdock".can_jobs(p_row "public"."jobs", p_permission text)
 returns boolean
 language sql

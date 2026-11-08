@@ -9,7 +9,13 @@ import {
 } from "../../src/cli/rls/follows.ts";
 import { tablelessResources } from "../../src/cli/sql/tables.ts";
 import { scopeList } from "../../src/core/scopes.ts";
-import { definePermissions, definePolicy, resource } from "../../src/index.ts";
+import {
+  allow,
+  definePermissions,
+  definePolicy,
+  resource,
+  role,
+} from "../../src/index.ts";
 
 const permissions = definePermissions({
   job: resource({
@@ -61,6 +67,22 @@ describe("rls.tables follows and walk", () => {
     expect(policies[2]?.check).toContain("can_job(p, 'job.update'::text)");
     expect(policies.map((item) => item.using).join(" ")).not.toContain(
       "jobParty",
+    );
+  });
+
+  it("reads the parent set one tenant at a time when every allow is a root-scope role", () => {
+    const rooted = definePolicy(permissions, {
+      scopes: { tenant: { key: "orgId" } },
+      roles: [role("member", [allow(permissions.job.read)], { on: "tenant" })],
+      subject: () => null,
+    });
+    const [select] = followPolicies(
+      { ...ctx, scopes: scopeList(rooted.scopes) },
+      rooted,
+      tables,
+    );
+    expect(select?.using).toBe(
+      `"job_parties"."job_id" = any(array(select r from unnest(array(select "permdock".permitted_tenant_ids_by_permission('job.read', true))) t(id) cross join lateral "permdock".permitted_job_rows('job.read', t.id) r))`,
     );
   });
 

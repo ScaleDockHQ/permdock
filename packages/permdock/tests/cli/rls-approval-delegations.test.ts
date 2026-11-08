@@ -27,7 +27,7 @@ describe("rls.approvals.delegations", () => {
       'grant select, insert, update, delete on table "permdock".approval_delegations to authenticated;',
     );
     expect(sql).toMatch(
-      /create policy "approval_delegations_insert"[\s\S]*with check \(delegator::text = .* and \(tenant is null or tenant in \(select m\.id::text from "permdock"\.member_tenant_ids\(\) m\(id\)\)\)\)/u,
+      /create policy "approval_delegations_insert"[\s\S]*with check \(delegator = .* and \(tenant is null or tenant in \(select m\.id::text from "permdock"\.member_tenant_ids\(\) m\(id\)\)\)\)/u,
     );
     expect(sql).toContain(
       'create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text, p_requester text, p_resource text)',

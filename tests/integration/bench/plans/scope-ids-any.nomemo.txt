@@ -1,0 +1,12 @@
+Aggregate  (cost=…) (actual time=… rows=1 loops=1)
+  InitPlan 1 (returns $0)
+    ->  ProjectSet  (cost=…) (actual time=… rows=1 loops=1)
+          ->  Result  (cost=…) (actual time=… rows=1 loops=1)
+  InitPlan 2 (returns $1)
+    ->  ProjectSet  (cost=…) (actual time=… rows=1 loops=1)
+          ->  Result  (cost=…) (actual time=… rows=1 loops=1)
+  ->  Bitmap Heap Scan on item  (cost=…) (actual time=… rows=500 loops=1)
+        Recheck Cond: (("orgId" = ANY ($1)) AND ("orgId" = ANY ($0)))
+        Heap Blocks: exact=32
+        ->  Bitmap Index Scan on "item_orgId_idx"  (cost=…) (actual time=… rows=500 loops=1)
+              Index Cond: (("orgId" = ANY ($1)) AND ("orgId" = ANY ($0)))

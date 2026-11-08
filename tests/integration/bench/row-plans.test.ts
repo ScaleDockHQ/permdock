@@ -34,6 +34,10 @@ const SHAPES = [
     name: "scope-ids",
     sql: `select count(*) from public.item where "orgId" in (select permdock.permitted_tenant_ids('item.read'))`,
   },
+  {
+    name: "scope-ids-any",
+    sql: `select count(*) from public.item where "orgId" = any(array(select permdock.permitted_tenant_ids('item.read')))`,
+  },
 ] as const;
 
 /**

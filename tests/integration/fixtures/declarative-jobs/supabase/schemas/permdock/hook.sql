@@ -297,7 +297,7 @@ begin
     insert into "permdock"."permdock_authz_version" as v (user_id, version)
     select distinct h.user_id, 1
     from (
-      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h where h."organization_id" = new."organization_id" and h."user_id" = new."user_id"
+      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h join permdock_new r on h."organization_id" = r."organization_id" and h."user_id" = r."user_id"
     ) h
     where h.user_id is not null
       and exists (select 1 from auth.users au where au.id = h.user_id)
@@ -306,22 +306,18 @@ begin
     insert into "permdock"."permdock_authz_version" as v (user_id, version)
     select distinct h.user_id, 1
     from (
-      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h where h."organization_id" = old."organization_id" and h."user_id" = old."user_id"
+      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h join permdock_old r on h."organization_id" = r."organization_id" and h."user_id" = r."user_id"
     ) h
     where h.user_id is not null
       and exists (select 1 from auth.users au where au.id = h.user_id)
     on conflict (user_id) do update set version = v.version + 1;
-  elsif new."role" is not distinct from old."role"
-      and new."organization_id" is not distinct from old."organization_id"
-      and new."user_id" is not distinct from old."user_id" then
-    return null;
   else
     insert into "permdock"."permdock_authz_version" as v (user_id, version)
     select distinct h.user_id, 1
     from (
-      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h where h."organization_id" = old."organization_id" and h."user_id" = old."user_id"
+      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h join (select "role", "organization_id", "user_id" from permdock_old except select "role", "organization_id", "user_id" from permdock_new) r on h."organization_id" = r."organization_id" and h."user_id" = r."user_id"
       union
-      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h where h."organization_id" = new."organization_id" and h."user_id" = new."user_id"
+      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h join (select "role", "organization_id", "user_id" from permdock_new except select "role", "organization_id", "user_id" from permdock_old) r on h."organization_id" = r."organization_id" and h."user_id" = r."user_id"
     ) h
     where h.user_id is not null
       and exists (select 1 from auth.users au where au.id = h.user_id)
@@ -331,9 +327,18 @@ begin
 end;
 $$;
 revoke execute on function "permdock".permdock_bump_authz_version_role_keys() from public, anon, authenticated;
-create or replace trigger "permdock_authz_version"
-  after insert or update or delete on "better_supabase"."membership_roles"
-  for each row execute function "permdock".permdock_bump_authz_version_role_keys();
+create or replace trigger "permdock_authz_version_insert"
+  after insert on "better_supabase"."membership_roles"
+  referencing new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version_role_keys();
+create or replace trigger "permdock_authz_version_update"
+  after update on "better_supabase"."membership_roles"
+  referencing old table as permdock_old new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version_role_keys();
+create or replace trigger "permdock_authz_version_delete"
+  after delete on "better_supabase"."membership_roles"
+  referencing old table as permdock_old
+  for each statement execute function "permdock".permdock_bump_authz_version_role_keys();
 
 -- the subject the hook would mint for p_user, for a backend acting for a stored user; no client role may execute it
 create or replace function "permdock".subject_for(p_user uuid)
@@ -382,22 +387,32 @@ begin
     )) order by c.tenant_id::text, c.scope, c.scope_id, c.role), '[]'::jsonb)
     into custom
     from (
-      select tenant_id, scope, scope_id, role from "permdock".custom_role_permissions
-      union
-      select tenant_id, scope, scope_id, role from "permdock".custom_role_includes
-    ) c
-    where (c.scope = 'global' and c.tenant_id is null and held ? c.role)
-      or exists (
-        select 1
+      select p.tenant_id, p.scope, p.scope_id, p.role
+      from (
+        select m ->> 'scope' as scope, m ->> 'id' as id,
+          case when m ->> 'scope' = 'tenant' then m ->> 'id' else m -> 'within' ->> 'tenant' end as tenant,
+          r.role
         from jsonb_array_elements(memberships) m
-        where m -> 'roles' ? c.role
-          and m ->> 'scope' = c.scope
-          and (
-            (c.tenant_id is null and c.scope_id is null)
-            or c.tenant_id::text = case when m ->> 'scope' = 'tenant' then m ->> 'id' else m -> 'within' ->> 'tenant' end
-          )
-          and (c.scope_id is null or c.scope_id = m ->> 'id')
-      );
+        cross join lateral jsonb_array_elements_text(case when jsonb_typeof(m -> 'roles') = 'array' then m -> 'roles' else '[]'::jsonb end) r(role)
+      ) h
+      cross join lateral (
+        select t.tenant_id, t.scope, t.scope_id, t.role from "permdock".custom_role_permissions t
+        where t.scope = h.scope and t.role = h.role
+          and (t.tenant_id is null and t.scope_id is null or t.tenant_id = h.tenant::uuid)
+          and (t.scope_id is null or t.scope_id = h.id)
+        union
+        select t.tenant_id, t.scope, t.scope_id, t.role from "permdock".custom_role_includes t
+        where t.scope = h.scope and t.role = h.role
+          and (t.tenant_id is null and t.scope_id is null or t.tenant_id = h.tenant::uuid)
+          and (t.scope_id is null or t.scope_id = h.id)
+      ) p
+      union
+      select t.tenant_id, t.scope, t.scope_id, t.role from "permdock".custom_role_permissions t
+      where t.scope = 'global' and t.tenant_id is null and t.role in (select jsonb_array_elements_text(held))
+      union
+      select t.tenant_id, t.scope, t.scope_id, t.role from "permdock".custom_role_includes t
+      where t.scope = 'global' and t.tenant_id is null and t.role in (select jsonb_array_elements_text(held))
+    ) c;
   select v.version into ver from "permdock"."permdock_authz_version" v where v.user_id = uid;
   ver := coalesce(ver, 0);
   select coalesce((
