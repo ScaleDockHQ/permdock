@@ -364,6 +364,11 @@ export const verify: Leaf = defineLeaf({
       type: "boolean",
       description: "Run the Supabase security and performance advisors",
     },
+    "grant-calls": {
+      type: "boolean",
+      description:
+        "With --advisors and --db-url-stdin, count executions per permission key from pg_stat_statements",
+    },
     ignore: {
       type: "string",
       repeatable: true,
@@ -384,6 +389,7 @@ export const verify: Leaf = defineLeaf({
       tree: flags.tree,
       introspect: flags.introspect,
       advisors: flags.advisors,
+      grantCalls: flags["grant-calls"],
       ignore: flags.ignore,
     });
   },

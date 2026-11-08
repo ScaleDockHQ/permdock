@@ -4,9 +4,11 @@ import { spawn } from "node:child_process";
 import { delimiter, join } from "node:path";
 
 import type { CommandResult } from "../core/result.ts";
+import type { SqlConnect } from "../pg.ts";
 
 import { nonEmptyOr } from "../core/output.ts";
 import { addLine, packageManagerOf } from "../core/peer.ts";
+import { grantCallLines, grantCalls } from "./grant-calls.ts";
 
 type ExecResult = {
   readonly status: number | null;
@@ -120,6 +122,11 @@ export async function runRlsAdvisors(input: {
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly exec?: CliExec;
   readonly signal?: AbortSignal;
+  /**
+   * With `db`, also reads executions per permission key from
+   * `pg_stat_statements`.
+   */
+  readonly grantCalls?: SqlConnect;
 }): Promise<CommandResult> {
   const exec = input.exec ?? defaultExec;
   const bin = join(input.cwd, "node_modules", ".bin");
@@ -182,6 +189,15 @@ export async function runRlsAdvisors(input: {
       }
     }
   }
+  let calls: Awaited<ReturnType<typeof grantCalls>> | undefined;
+  if (input.grantCalls !== undefined && input.db !== undefined) {
+    const client = await input.grantCalls(input.db);
+    try {
+      calls = await grantCalls(client);
+    } finally {
+      await client.end();
+    }
+  }
   const failing = findings.filter(
     (finding) => finding.level === "WARN" || finding.level === "ERROR",
   );
@@ -196,16 +212,21 @@ export async function runRlsAdvisors(input: {
             .length,
           warnings: findings.filter((finding) => finding.level === "WARN")
             .length,
+          ...(calls === undefined ? {} : { grantCalls: calls }),
         },
         null,
         2,
       ),
     };
   }
+  const callLines = calls === undefined ? [] : grantCallLines(calls);
   if (findings.length === 0) {
     return {
       code,
-      output: "supabase db advisors: no security or performance findings",
+      output: [
+        "supabase db advisors: no security or performance findings",
+        ...callLines,
+      ].join("\n"),
     };
   }
   const lines = findings.map(
@@ -214,6 +235,6 @@ export async function runRlsAdvisors(input: {
   );
   return {
     code,
-    output: `${lines.join("\n")}\n\n${String(failing.length)} finding(s) at WARN or above`,
+    output: `${lines.join("\n")}\n\n${String(failing.length)} finding(s) at WARN or above${callLines.length === 0 ? "" : `\n\n${callLines.join("\n")}`}`,
   };
 }
