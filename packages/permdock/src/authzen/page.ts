@@ -19,7 +19,8 @@ export type AuthzenPage<T> = {
      */
     readonly next_token: string;
     readonly count: number;
-    readonly total: number;
+    /** Absent when the lister made the page itself and cannot count the rest. */
+    readonly total?: number;
   };
 };
 
@@ -44,6 +45,23 @@ export function readAuthzenPage(body: unknown): AuthzenPageRequest {
       ? Math.min(sizeRaw, AUTHZEN_MAX_PAGE)
       : DEFAULT_PAGE;
   return { offset: Number.isFinite(parsed) && parsed > 0 ? parsed : 0, size };
+}
+
+/**
+ * The `page.token`, else `page.next_token`, a body carries, as the client sent
+ * it; none when it is absent or empty. A lister that makes its own pages reads
+ * it as its cursor.
+ */
+export function readAuthzenPageToken(body: unknown): string | undefined {
+  const page =
+    isRecord(body) && isRecord(body["page"]) ? body["page"] : undefined;
+  const token =
+    typeof page?.["token"] === "string"
+      ? page["token"]
+      : typeof page?.["next_token"] === "string"
+        ? page["next_token"]
+        : undefined;
+  return token === "" ? undefined : token;
 }
 
 /** One page of `items` with the AuthZEN `page` object. */
