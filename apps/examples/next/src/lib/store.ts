@@ -3,6 +3,7 @@ import type { Membership } from "permdock";
 import type { Quote, RoleName } from "../permissions.ts";
 
 import { latency } from "./latency.ts";
+import { scaleFromEnv } from "./seed-scale.ts";
 
 export type Organization = { readonly id: string; readonly name: string };
 export type Customer = {
@@ -82,14 +83,16 @@ const seedQuotes = (): Quote[] => [
 ];
 
 function seed(): Store {
+  const scale = scaleFromEnv();
   return {
     staff: [
       { user: "olivia", organization: "acme", role: "admin" },
       { user: "olivia", organization: "globex", role: "member" },
       { user: "max", organization: "acme", role: "member" },
+      ...(scale?.staff ?? []),
     ],
     contacts: [{ user: "carol", organization: "acme", customer: "north" }],
-    quotes: seedQuotes(),
+    quotes: [...seedQuotes(), ...(scale?.quotes ?? [])],
   };
 }
 

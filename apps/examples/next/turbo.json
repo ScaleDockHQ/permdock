@@ -7,6 +7,8 @@
       "env": [
         "$TURBO_EXTENDS$",
         "DEMO_LATENCY_MS",
+        "DEMO_SEED_QUOTES",
+        "DEMO_SEED_STAFF",
         "EXPOSE_TESTING_API",
         "SESSION_SECRET"
       ]

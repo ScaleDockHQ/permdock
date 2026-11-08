@@ -3,6 +3,7 @@ import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 
 import { startDatabase } from "./database.ts";
+import { defaultsFor, seedScaleAt } from "./seed-scale.ts";
 
 const cwd = path.join(import.meta.dirname, "..");
 const next = path.join(cwd, "node_modules/.bin/next");
@@ -12,8 +13,13 @@ const port = process.env["PORT"] ?? "3489";
  * The demo server: a throwaway Postgres with the migrations and seed, a fresh
  * ES256 key whose public half the app verifies against inline, then `next
  * build` and `next start` (only a production server prefetches).
+ * `SEED_QUOTES=<n>` adds the deterministic rows of `seed-scale.ts` first.
  */
 const database = await startDatabase();
+const scaleQuotes = Number(process.env["SEED_QUOTES"] ?? "0");
+if (scaleQuotes > 0) {
+  await seedScaleAt(database.url, defaultsFor(scaleQuotes));
+}
 const { publicKey, privateKey } = await generateKeyPair("ES256", {
   extractable: true,
 });
