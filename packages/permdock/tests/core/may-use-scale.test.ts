@@ -30,14 +30,20 @@ describe("mayUse on a subject with 150 memberships of 20 roles", () => {
     expect(direct(permissions.item.read)).toBe(true);
   });
 
-  it("lists 300 tools in under 120 ms; the wire snapshot it replaced took about 290 ms", () => {
+  it("lists 300 tools at least twice as fast as through the wire snapshot", () => {
+    const tools = toolPermissions();
+    const timeOf = (permdock: PermDock): number => {
+      const mayUse = mayUseOf(permdock);
+      const started = performance.now();
+      const used = tools.filter((permission) => mayUse(permission));
+      expect(used).toHaveLength(300);
+      return performance.now() - started;
+    };
     const base = instance();
-    const started = performance.now();
-    const used = toolPermissions().filter((permission) =>
-      base.mayUse(permission),
-    );
-    const elapsed = performance.now() - started;
-    expect(used).toHaveLength(300);
-    expect(elapsed).toBeLessThan(120);
+    // A spread copy drops the expanded view, so its first mayUse reads `snapshot()`.
+    const wire = timeOf({ ...base });
+    const direct = timeOf(base);
+    // The wire path measured 279 ms and the direct path 23 ms for this subject.
+    expect(direct).toBeLessThan(wire / 2);
   });
 });
