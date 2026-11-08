@@ -107,36 +107,84 @@ function readsRow(args: string): boolean {
   return /[A-Za-z_]/u.test(bare);
 }
 
+const SET_CALL = /\bpermitted_(\w+)_rows\s*\(\s*'((?:[^']|'')*)'\s*\)/giu;
+const SET_FUNCTION =
+  /^create\s+(?:or\s+replace\s+)?function\s+(?:(?:"[^"]+"|\w+)\s*\.\s*)?permitted_(\w+)_rows\s*\(\s*p_permission\s+text\s*\)/iu;
+
+/**
+ * The bodies of the one-argument set helpers `permitted_<resource>_rows(p)` the
+ * project defines, the last definition of each winning as a later migration
+ * does.
+ */
+function setHelperBodies(
+  statements: readonly Statement[],
+): ReadonlyMap<string, string> {
+  const out = new Map<string, string>();
+  for (const statement of statements) {
+    const match = SET_FUNCTION.exec(header(statement.text));
+    if (match !== null) {
+      out.set(group(match, 1).toLowerCase(), statement.text);
+    }
+  }
+  return out;
+}
+
+/**
+ * Whether a policy reads a set helper through its fallback: the helper's body
+ * has no `when '<key>'` arm for a key the policy passes, so it falls to
+ * `permitted_<resource>_match`, a `security definer` function that runs once
+ * per row.
+ */
+function callsSetPerRow(
+  text: string,
+  helpers: ReadonlyMap<string, string>,
+): string | undefined {
+  return [...text.matchAll(SET_CALL)]
+    .find((call) => {
+      const body = helpers.get(group(call, 1).toLowerCase());
+      return (
+        body !== undefined &&
+        !body.includes(`when '${group(call, 2)}'`) &&
+        /\bpermitted_\w+_match\s*\(/iu.test(body)
+      );
+    })?.[0]
+    .replaceAll(/\s+/gu, " ");
+}
+
 /**
  * PD103: a policy calls a PermDock helper once per row: the row form
- * `permitted_<resource>_row(row, …)`, or `can_<resource>(…)` on a column of the
- * row. The helpers are `security definer`, so the planner cannot inline them
- * and a table scan makes one call per row.
+ * `permitted_<resource>_row(row, …)`, `can_<resource>(…)` on a column of the
+ * row, or a set helper `permitted_<resource>_rows('key')` whose body has no arm
+ * for the key and so calls `permitted_<resource>_match` for every row. The
+ * helpers are `security definer`, so the planner cannot inline them and a table
+ * scan makes one call per row.
  */
 export function pd103(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  return policiesOf(statementsOf(cwd, config, files)).flatMap(
-    (policy): DoctorFinding[] => {
-      const text = header(policy.text);
-      const perRow =
-        ROW_HELPER.test(text) ||
-        [...text.matchAll(CAN_CALL)].some((call) => readsRow(group(call, 1)));
-      return perRow
-        ? [
-            {
-              code: "PD103",
-              severity: "warning",
-              target: `${policy.file}:${policy.table}:${policy.name}`,
-              message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policy.table} calls a PermDock helper once per row`,
-              fix: "lead with the tenant: <tenant column> = any((select permdock.permitted_<scope>_id_array('<key>'))); run permdock rls generate for a generated policy",
-            },
-          ]
-        : [];
-    },
-  );
+  const statements = statementsOf(cwd, config, files);
+  const helpers = setHelperBodies(statements);
+  return policiesOf(statements).flatMap((policy): DoctorFinding[] => {
+    const text = header(policy.text);
+    const setCall = callsSetPerRow(text, helpers);
+    const perRow =
+      ROW_HELPER.test(text) ||
+      [...text.matchAll(CAN_CALL)].some((call) => readsRow(group(call, 1))) ||
+      setCall !== undefined;
+    return perRow
+      ? [
+          {
+            code: "PD103",
+            severity: "warning",
+            target: `${policy.file}:${policy.table}:${policy.name}`,
+            message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policy.table} calls a PermDock helper once per row${setCall === undefined ? "" : `: ${setCall} has no arm for its key and calls permitted_*_match for every row`}`,
+            fix: "lead with the tenant: <tenant column> = any((select permdock.permitted_<scope>_id_array('<key>'))); run permdock rls generate for a generated policy, which writes a set helper that states each key's arm",
+          },
+        ]
+      : [];
+  });
 }
 
 /**
