@@ -123,6 +123,11 @@ export type SnapshotGrantTerms = Omit<SnapshotGrant, "permission">;
  */
 export type Snapshot = Omit<ExpandedSnapshot, "grants"> & {
   readonly conditions: readonly SnapshotGrantTerms[];
+  /**
+   * Grants the snapshot leaves to a `ClientBundle`, built with `omitStatic`.
+   * Absent when every grant is inline.
+   */
+  readonly static?: SnapshotStatic;
   readonly grants: readonly {
     readonly permission: string;
     /**
@@ -131,6 +136,40 @@ export type Snapshot = Omit<ExpandedSnapshot, "grants"> & {
      */
     readonly cond: number | readonly number[];
   }[];
+};
+
+/**
+ * The role grants a snapshot refers to instead of carrying. `held` lists one
+ * `[role, membership]` per group: the role's bundle grants with that entry of
+ * `subject.principal.memberships` attached, or none for a global role.
+ * `digests` pins the bundle each role was checked against; a client whose
+ * bundle differs resolves nothing for that role.
+ */
+export type SnapshotStatic = {
+  readonly held: readonly (readonly [string, number | null])[];
+  readonly digests: Readonly<Record<string, string>>;
+};
+
+/**
+ * The static grants of declared roles, written once per policy by
+ * `clientBundle(policy)` and shipped as a cached script instead of in every
+ * snapshot. A role's grants are what a holder of only that role receives.
+ */
+export type ClientBundle = {
+  readonly v: 1;
+  readonly conditions: readonly SnapshotGrantTerms[];
+  readonly roles: Readonly<
+    Record<
+      string,
+      {
+        readonly digest: string;
+        readonly grants: readonly {
+          readonly permission: string;
+          readonly cond: number | readonly number[];
+        }[];
+      }
+    >
+  >;
 };
 
 /** The permission keys a rowless check grants or sends to an approver. */

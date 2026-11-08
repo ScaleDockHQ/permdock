@@ -9,6 +9,7 @@ import type {
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
 import type { Instant } from "./time.ts";
 
+import { compactWithBundle } from "./client-bundle.ts";
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
@@ -36,6 +37,8 @@ export type SnapshotForOptions = {
   readonly include?: SnapshotInclude;
   readonly tenants?: SnapshotTenants;
   readonly omitAssignable?: boolean;
+  /** See `SnapshotOptions.omitStatic`. */
+  readonly omitStatic?: boolean;
   /**
    * The wire version. `1` is the only one that exists, so the option pins it;
    * any other value is a `TypeError` rather than a silently ignored request.
@@ -84,7 +87,11 @@ export function snapshotFor<
       `PermDock: snapshotFor() writes snapshot wire version 1 only, got v: ${String(version)}`,
     );
   }
-  return compactSnapshot(expandedSnapshotFor(policy, user, options));
+  const expanded = expandedSnapshotFor(policy, user, options);
+  // SAFETY: the generics only type the caller's side; the bundle reads the erased policy.
+  return options.omitStatic === true
+    ? compactWithBundle(policy as unknown as Policy, expanded)
+    : compactSnapshot(expanded);
 }
 
 function expandedSnapshotFor<

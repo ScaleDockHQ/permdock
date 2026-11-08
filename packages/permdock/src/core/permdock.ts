@@ -218,6 +218,13 @@ export type SnapshotOptions = {
    * roles or custom-role permissions to hand out.
    */
   readonly omitAssignable?: boolean;
+  /**
+   * Leaves the grants of declared roles to `clientBundle(policy)`: the snapshot
+   * lists which role and membership each stands for, and the client resolves
+   * them from the bundle it holds. A group that differs from the bundle stays
+   * inline. Without the bundle on the client those roles grant nothing.
+   */
+  readonly omitStatic?: boolean;
   readonly signer?: TokenSigner;
   readonly audience?: string | readonly string[];
 };

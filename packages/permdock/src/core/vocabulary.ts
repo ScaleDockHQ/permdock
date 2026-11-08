@@ -25,7 +25,15 @@ export type VocabularyOptions<X = never> = {
  * `'portal'`, `'platform'`); `permdock.audiences()` lists the distinct
  * audiences of the roles held in the active scope.
  */
-export type RoleMeta = ActionMeta & { readonly audience?: string };
+export type RoleMeta = ActionMeta & {
+  readonly audience?: string;
+  /**
+   * `false` keeps the role's grants inline in a snapshot built with
+   * `omitStatic`, out of `clientBundle(policy)`, so a browser never holds them
+   * in a cached script.
+   */
+  readonly clientBundle?: boolean;
+};
 
 export type Role<K extends string = string> = {
   readonly key: K;

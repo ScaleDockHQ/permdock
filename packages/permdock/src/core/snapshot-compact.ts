@@ -1,8 +1,10 @@
 import type {
+  ClientBundle,
   Snapshot,
   ExpandedSnapshot,
   SnapshotGrant,
   SnapshotGrantTerms,
+  SnapshotStatic,
 } from "./snapshot-types.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
@@ -10,12 +12,13 @@ import { isRecord } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 
 /**
- * The wire form of an expanded snapshot: each distinct set of grant terms is
- * written once, in order of first use, so the same policy always serialises to
- * the same bytes.
+ * Each distinct set of grant terms once, in order of first use, and the grants
+ * as `{ permission, cond }` with runs of one permission merged.
  */
-export function compactSnapshot(snapshot: ExpandedSnapshot): Snapshot {
-  const { grants, ...rest } = snapshot;
+export function internGrants(grants: readonly SnapshotGrant[]): {
+  readonly conditions: SnapshotGrantTerms[];
+  readonly grants: { permission: string; cond: number | number[] }[];
+} {
   const indexes = new Map<string, number>();
   const conditions: SnapshotGrantTerms[] = [];
   const compacted: { permission: string; cond: number | number[] }[] = [];
@@ -36,7 +39,26 @@ export function compactSnapshot(snapshot: ExpandedSnapshot): Snapshot {
       last.cond.push(cond);
     }
   }
-  return freezeDeep({ ...rest, conditions, grants: compacted });
+  return { conditions, grants: compacted };
+}
+
+/**
+ * The wire form of an expanded snapshot: each distinct set of grant terms is
+ * written once, in order of first use, so the same policy always serialises to
+ * the same bytes. `held` names the role grants left to a `ClientBundle`.
+ */
+export function compactSnapshot(
+  snapshot: ExpandedSnapshot,
+  held?: SnapshotStatic,
+): Snapshot {
+  const { grants, ...rest } = snapshot;
+  const interned = internGrants(grants);
+  return freezeDeep({
+    ...rest,
+    conditions: interned.conditions,
+    grants: interned.grants,
+    ...(held === undefined ? {} : { static: held }),
+  });
 }
 
 function bad(detail: string): Error {
@@ -87,8 +109,71 @@ export function expandGrants(record: Readonly<Record<string, unknown>>): {
   };
 }
 
-/** The flat form the evaluator reads, from a validated wire `Snapshot`. */
-export function expandSnapshot(snapshot: Snapshot): ExpandedSnapshot {
-  const { conditions: _conditions, grants: _grants, ...rest } = snapshot;
-  return freezeDeep({ ...rest, ...expandGrants(snapshot) });
+function bundleGrants(
+  bundle: ClientBundle,
+  role: string,
+): readonly SnapshotGrant[] | undefined {
+  const entry = Object.hasOwn(bundle.roles, role)
+    ? bundle.roles[role]
+    : undefined;
+  return entry === undefined
+    ? undefined
+    : expandGrants({ conditions: bundle.conditions, grants: entry.grants })
+        .grants;
+}
+
+/**
+ * The grants `held` refers to, from `bundle`. A role the bundle lacks, or holds
+ * under another digest, resolves to nothing, so a stale bundle denies.
+ */
+function staticGrants(
+  snapshot: Snapshot,
+  bundle: ClientBundle | undefined,
+): readonly SnapshotGrant[] {
+  const held = snapshot.static;
+  if (held === undefined || bundle === undefined) {
+    return [];
+  }
+  const memberships = snapshot.subject.principal?.memberships ?? [];
+  return held.held.flatMap(([role, index]): SnapshotGrant[] => {
+    const entry = Object.hasOwn(bundle.roles, role)
+      ? bundle.roles[role]
+      : undefined;
+    const expected = Object.hasOwn(held.digests, role)
+      ? held.digests[role]
+      : undefined;
+    if (entry === undefined || entry.digest !== expected) {
+      return [];
+    }
+    const membership = index === null ? undefined : memberships[index];
+    if (index !== null && membership === undefined) {
+      return [];
+    }
+    return (bundleGrants(bundle, role) ?? []).map((grant): SnapshotGrant =>
+      membership === undefined ? grant : { ...grant, membership },
+    );
+  });
+}
+
+/**
+ * The flat form the evaluator reads, from a validated wire `Snapshot`. A
+ * snapshot built with `omitStatic` needs the `bundle` its server generated;
+ * grants it refers to are appended after the inline ones.
+ */
+export function expandSnapshot(
+  snapshot: Snapshot,
+  options: { readonly bundle?: ClientBundle | undefined } = {},
+): ExpandedSnapshot {
+  const {
+    conditions: _conditions,
+    grants: _grants,
+    static: _static,
+    ...rest
+  } = snapshot;
+  const inline = expandGrants(snapshot).grants;
+  const held = staticGrants(snapshot, options.bundle);
+  return freezeDeep({
+    ...rest,
+    grants: held.length === 0 ? inline : [...inline, ...held],
+  });
 }

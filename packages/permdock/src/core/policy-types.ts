@@ -15,6 +15,7 @@ import type {
 import type { POLICY_X } from "./policy-fingerprint.ts";
 import type { ResolveIndex } from "./resolve-index.ts";
 import type { Scope, PolicyScopesInput, ScopeNames } from "./scopes.ts";
+import type { ClientBundle } from "./snapshot-types.ts";
 import type { Principal, Actor, Delegation } from "./subject.ts";
 import type { Instant } from "./time.ts";
 import type { RoleMeta, RoleTree, PlanTree } from "./vocabulary.ts";
@@ -641,6 +642,18 @@ export type PolicyIndex = {
   readonly grantsByKey: ReadonlyMap<string, readonly Grant[]>;
   /** What custom-role resolution shares: ceilings and grants by role. */
   readonly resolve: ResolveIndex;
+  /**
+   * `clientBundle(policy)` and the canonical grants it was built from, filled
+   * on first use under the policy itself. A `WeakMap`, so freezing the index
+   * leaves it writable.
+   */
+  readonly bundle: WeakMap<object, BundleMemo>;
+};
+
+/** What `clientBundle` derives once per policy. */
+export type BundleMemo = {
+  readonly bundle: ClientBundle;
+  readonly expected: ReadonlyMap<string, readonly string[]>;
 };
 
 export type GrantCondition<T, K extends PermissionKind> = K extends "collection"

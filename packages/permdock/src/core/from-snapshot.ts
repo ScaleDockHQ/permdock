@@ -6,7 +6,11 @@ import type {
   SnapshotOptions,
 } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
-import type { ExpandedSnapshot, Snapshot } from "./snapshot-types.ts";
+import type {
+  ClientBundle,
+  ExpandedSnapshot,
+  Snapshot,
+} from "./snapshot-types.ts";
 import type { Membership } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 
@@ -54,10 +58,15 @@ function resourceRef(
 
 export function fromSnapshot(
   input: Snapshot,
-  options: { readonly tenant?: string; readonly team?: string } = {},
+  options: {
+    readonly tenant?: string;
+    readonly team?: string;
+    /** The `clientBundle(policy)` of a snapshot built with `omitStatic`. */
+    readonly bundle?: ClientBundle;
+  } = {},
 ): PermDock {
   const wire = parseSnapshot(input);
-  const snapshot = expandSnapshot(wire);
+  const snapshot = expandSnapshot(wire, compact({ bundle: options.bundle }));
   const subject = subjectFromSnapshot(snapshot, options.tenant);
   const team = options.team;
 
@@ -277,10 +286,16 @@ export function fromSnapshot(
       return (): void => undefined;
     },
     tenant(id: string): PermDock {
-      return fromSnapshot(wire, compact({ tenant: id, team }));
+      return fromSnapshot(
+        wire,
+        compact({ tenant: id, team, bundle: options.bundle }),
+      );
     },
     team(id: string): PermDock {
-      return fromSnapshot(wire, compact({ tenant: options.tenant, team: id }));
+      return fromSnapshot(
+        wire,
+        compact({ tenant: options.tenant, team: id, bundle: options.bundle }),
+      );
     },
     grantedPermissions() {
       return [];
