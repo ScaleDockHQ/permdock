@@ -13,7 +13,7 @@ permdock doctor --json         # report with $schema, for agents
 permdock doctor --only imports,references
 permdock doctor --fix          # apply safe fixes (install skills, regenerate the catalog)
 permdock doctor --ignore PD017:post.delete   # accept one finding for this run
-printf %s "$DATABASE_URL" | permdock doctor --db-url-stdin   # also run the checks that query the database (PD085)
+printf %s "$DATABASE_URL" | permdock doctor --db-url-stdin   # also run the checks that query the database (PD085, PD110)
 ```
 
 Exit code `1` on any error, `0` otherwise; warnings only fail with `--fail-on warning`. A finding is an `error`, a `warning` or an `info` hint. `info` never fails the run, renders as `::notice` with `--format github` and as a SARIF `note`, and the summary counts it as a note.
@@ -154,6 +154,15 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD100` | A source file imports `definePermDock` from `permdock/supabase` while a better-supabase config exists, so the app keeps two version, instance and subject caches                                                                                                                                                                     | error           |
 | `PD101` | A schema file defines a permissive policy on a `follows` child table for a command the generated `follows` policies already allow                                                                                                                                                                                                    | warning         |
 | `PD102` | `roles: "many"` while `sync-config.yaml` still filters the junction with `membership_roles.user_id = auth.user_id()`, so a member syncs only their own role rows                                                                                                                                                                     | warning         |
+| `PD103` | A policy calls a PermDock helper once per row: `permitted_<resource>_row(row, …)` or `can_<resource>(…)` on a column of the row                                                                                                                                                                                                      | warning         |
+| `PD104` | Two permissive policies cover one command of a table and the app wrote one of them                                                                                                                                                                                                                                                   | warning         |
+| `PD105` | A `follows` foreign key, a `via` column or a `walk` user column leads no index                                                                                                                                                                                                                                                       | warning         |
+| `PD106` | A statement of the app casts a key column to `text` (`id::text = any(…)`), which hides the column from its index                                                                                                                                                                                                                     | warning         |
+| `PD107` | A statement reads a custom-role table and compares `tenant_id` through a `text` cast or `is not distinct from`                                                                                                                                                                                                                       | warning         |
+| `PD108` | A policy calls `permitted_<resource>_rows(p)` with no tenant argument and no tenant-led predicate                                                                                                                                                                                                                                    | warning         |
+| `PD109` | `rls.customRoles` with `rls.authorize: "jwt"` and no `supabase.hook.claims` function, so no token carries `grants`                                                                                                                                                                                                                   | error           |
+| `PD110` | With `--db-url-stdin`, the access token the hook builds for a sample user is over 4,096 characters                                                                                                                                                                                                                                   | warning         |
+| `PD111` | A list endpoint takes an optional `limit`: an `openapi.doc` `GET` on a collection path, or an MCP tool schema with `limit: …optional()`                                                                                                                                                                                              | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -690,6 +699,46 @@ The generated helpers are called as prepared statements. Supabase's transaction 
 ### PD099: an update policy with no select policy
 
 Postgres reads a row before it updates it, so an `update` policy on a table with no `select` policy matches no rows and returns none, with no error. `permdock generate` writes a `select` policy beside every write policy it writes; this check covers hand-written policies in `supabase/schemas` and `supabase/migrations`.
+
+### Performance checks
+
+PD103 to PD108 read the statements of `supabase/schemas`, `rls.out` and the migration folders. The generated files are included, so output from an older release is reported until you run `permdock rls generate`. `--only performance` runs PD103 to PD111.
+
+#### PD103: a PermDock call per row
+
+`permitted_<resource>_row(row, 'key')` and `can_<resource>(row.id, 'key')` are `security definer` functions. Postgres cannot inline them, so a scan makes one call per row, and a table of 1M rows makes 1M calls. Lead the policy with the tenant, `tenant_id = any((select permdock.permitted_<scope>_id_array('key')))`, which Postgres evaluates once and matches against the tenant index. PD103 is a warning for each policy that calls either form. A `can_` call whose arguments are all literals or `auth.uid()` is not reported.
+
+#### PD104: multiple permissive policies
+
+Postgres evaluates every permissive policy for a command and ORs the results. PD104 is a warning when two or more permissive policies cover one command of a table and at least one is hand-written. Generated policies alone never trigger it, so `rls.policyPerRole` output is not reported. `as restrictive` policies are not counted. Merge the policy into the generated predicate or make it restrictive.
+
+#### PD105: an unindexed lookup column
+
+`follows` child tables, `via` parents and `walk` chains filter and join on one column each. PD105 is a warning when `rls.tables` names a `follows` foreign key, a `via.key`, the parent's `via.column` or a `walk` `user` column that no `create index` leads in the schema files or migrations. `permdock rls generate` writes these indexes to `indexes.sql`; an index whose first column is another column does not count.
+
+#### PD106: a `text` cast on a key
+
+`id::text = any(ids)` compares text, so the index on `id` cannot serve it. PD106 is a warning for each statement in a file the app wrote that casts a column named `id` or ending in `id` to `text`. Cast the other side instead: `id = any(ids::uuid[])`. PD088 reports the same cast around a generated helper call.
+
+#### PD107: an unsargable custom-role probe
+
+`custom_role_permissions` and `custom_role_includes` carry a `(tenant_id, …)` index. A probe written as `tenant_id::text = p_tenant` or `tenant_id is not distinct from p_tenant` cannot use it and scans every tenant's roles: 4M rows at 1,000 tenants with 20 roles of 200 permissions. Compare `tenant_id = p_tenant::uuid`, with explicit `is null` branches for shared roles. PD107 is a warning for each such statement, including generated files from before the fix.
+
+#### PD108: `_rows(p)` without a tenant
+
+`permitted_<resource>_rows(p)` returns the rows of every tenant the caller can read, so a query for one tenant still scans all of them. Pass the tenant, `permitted_<resource>_rows(p, tenant_id)`, or lead the policy with `permitted_<scope>_id_array`. PD108 is a warning for each policy that calls the one-argument form with neither.
+
+#### PD109: custom roles in jwt mode
+
+With `rls.authorize: "jwt"` the helpers read `memberships[].grants` from the token, and the generated hook writes no `grants`. A custom role therefore resolves to no permissions. PD109 is an error until `rls.authorize` is `database` or `supabase.hook.claims` names a function that writes `grants`. This is a known gap, not a planned feature: custom roles resolve only in `database` mode.
+
+#### PD110: token size
+
+With `--db-url-stdin`, doctor runs `custom_access_token_hook` for the sample users in `doctor.claims` inside a transaction it rolls back, adds the claims a Supabase token carries beside the hook's, and measures the compact JWT in characters. better-supabase's BS405 measures the claims against `tokenHook.budget` in the same way. PD110 is a warning above 4,096 characters: the token is sent in every `Authorization` header, and `@supabase/ssr` splits a session cookie into 3,180-byte chunks. `supabase.hook.budget` (1,024 bytes by default) bounds `memberships`; the claims it does not bound are `hook.claims` entries and `team_ids`.
+
+#### PD111: an optional `limit`
+
+A list that takes no limit returns every row the policies allow, and Lienlink's jobs API did so at 1M rows. PD111 is a warning for a `GET` on a collection path in an `openapi.doc` document whose `limit` query parameter is not `required`, and for a source file that builds an MCP server (`permdock/mcp`, `registerTool(`, `.tool(`) with `limit: …optional()` on a line that sets no `default`. Make `limit` required, or give it a default and a maximum.
 
 ## Side effects
 

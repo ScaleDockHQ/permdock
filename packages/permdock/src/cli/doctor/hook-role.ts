@@ -11,9 +11,9 @@ import { quoteIdent } from "../sql/quote.ts";
 /** A user id no account has: the hook still reads every table it reads. */
 const NOBODY = "00000000-0000-0000-0000-000000000000";
 
-type HookEvent = { readonly label: string; readonly event: unknown };
+export type HookEvent = { readonly label: string; readonly event: unknown };
 
-function eventsOf(project: Project): readonly HookEvent[] {
+export function eventsOf(project: Project): readonly HookEvent[] {
   const nobody: HookEvent = {
     label: "a user with no rows",
     event: {

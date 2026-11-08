@@ -12,7 +12,7 @@ const MIGRATIONS = "supabase/migrations";
 
 type SqlFile = { readonly path: string; readonly text: string };
 
-function permdockSchema(cwd: string, file: SqlFile): boolean {
+export function permdockSchema(cwd: string, file: SqlFile): boolean {
   const label = rel(cwd, file.path);
   return (
     label.includes("/permdock/") ||
