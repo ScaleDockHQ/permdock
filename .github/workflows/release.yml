@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  # The job accepts only a successful push from this repository and checks
+  # out the default branch. zizmor flags every workflow_run.
+  # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: [CI]
     types: [completed]

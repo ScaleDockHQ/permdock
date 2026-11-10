@@ -11,7 +11,7 @@ On the push of `a4d6c53b7`, CI run 42527608931 and the Release run each ran `ver
 
 ## Decision
 
-`.github/workflows/release.yml` starts from `workflow_run` when the CI workflow completes on `main`. It does not call `verify.yml`. The job runs only when that CI run succeeded, its event was `push`, and its head repository is this one. The checkout is the default branch, the ref `workflow_run` trusts. The job publishes only when that commit is `workflow_run.head_sha`, so a newer push on `main` does not publish an older CI result. `cache-mode` is `read` on the workflow and `none` on the job. The publish stays in `release.yml`, so the trusted publisher's workflow filename does not change.
+`.github/workflows/release.yml` starts from `workflow_run` when the CI workflow completes on `main`. It does not call `verify.yml`. The job runs only when that CI run succeeded, its event was `push`, and its head repository is this one. The checkout is the default branch, the ref `workflow_run` trusts. The job publishes only when that commit is `workflow_run.head_sha`, so a newer push on `main` does not publish an older CI result. zizmor's `dangerous-triggers` audit flags every `workflow_run`; the trigger line ignores that one finding. `cache-mode` is `read` on the workflow and `none` on the job. The publish stays in `release.yml`, so the trusted publisher's workflow filename does not change.
 
 ## Consequences
 
