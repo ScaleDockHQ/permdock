@@ -156,7 +156,7 @@ jobs:
   integration:
     name: Integration (Postgres ${{ matrix.shard }}/3)
     needs: changes
-    if: needs.changes.outputs.integration == 'true' || github.head_ref == 'ci/faster-pipeline'
+    if: needs.changes.outputs.integration == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
