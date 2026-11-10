@@ -69,8 +69,6 @@ export default defineConfig({
         extends: true,
         test: {
           name: "node",
-          // One module scope in CI. Imports were 43% of the 180s one-worker run.
-          isolate: process.env["CI"] === undefined,
           // The first CLI `run()` in a worker transforms and instruments `src/cli` from
           // source; with coverage on and two suites running in parallel it measured 4.6 s.
           testTimeout: 15_000,
