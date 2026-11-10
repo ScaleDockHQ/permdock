@@ -32,6 +32,8 @@ jobs:
           persist-credentials: false
 
       - uses: $/.github/actions/setup
+        with:
+          remote-cache: "false"
 
       # The title becomes the squash commit.
       - name: Conventional commit header
@@ -39,17 +41,18 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}
         run: printf '%s\n' "$TITLE" | pnpm exec commitlint
 
-  # Every later job needs only `permdock#build`; the app and example builds run beside them in `build`.
-  dist:
-    name: Package build
+  # Exit 0 from `turbo query affected` means unaffected. Exit 1 (affected) and
+  # exit 2 (error) both run the suite. A push to main runs every suite.
+  changes:
+    name: Changes
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write
     outputs:
       integration: ${{ steps.affected.outputs.integration }}
       runtimes: ${{ steps.affected.outputs.runtimes }}
+      instant: ${{ steps.affected.outputs.instant }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -60,31 +63,34 @@ jobs:
 
       - uses: $/.github/actions/setup
         with:
-          turbo-team: ${{ vars.TURBO_TEAM }}
+          install: "false"
+          remote-cache: "false"
 
-      - name: Build
-        run: pnpm exec turbo run build --filter=permdock
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: dist
-          path: packages/*/dist
-          retention-days: 1
-          if-no-files-found: error
-
-      # Exit 0 means unaffected; 1 (affected) and 2 (error) both run the suite. Pushes to main run everything.
       - name: Affected suites
         id: affected
         env:
           EVENT: ${{ github.event_name }}
         run: |
+          version="$(sed -n 's/^  turbo: //p' pnpm-workspace.yaml)"
+          if [ -z "$version" ]; then
+            echo "pnpm-workspace.yaml has no turbo catalog pin"
+            exit 1
+          fi
+          affected() {
+            [ "$EVENT" != "pull_request" ] || ! pnpm dlx "turbo@$version" query affected --packages "$1" --exit-code >/dev/null
+          }
           for suite in integration runtimes; do
-            run=true
-            if [ "$EVENT" = pull_request ] && pnpm exec turbo query affected --packages "@permdock/$suite" --exit-code >/dev/null; then
-              run=false
+            if affected "@permdock/$suite"; then
+              echo "$suite=true" | tee -a "$GITHUB_OUTPUT"
+            else
+              echo "$suite=false" | tee -a "$GITHUB_OUTPUT"
             fi
-            echo "$suite=$run" | tee -a "$GITHUB_OUTPUT"
           done
+          if affected "@permdock/example-next"; then
+            echo "instant=true" | tee -a "$GITHUB_OUTPUT"
+          else
+            echo "instant=false" | tee -a "$GITHUB_OUTPUT"
+          fi
 
   build:
     name: Production builds
@@ -109,7 +115,8 @@ jobs:
   # build and start the example themselves (apps/examples/next/playwright.config.ts).
   instant:
     name: Instant navigation specs
-    needs: dist
+    needs: changes
+    if: needs.changes.outputs.instant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -124,10 +131,8 @@ jobs:
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
-      - uses: actions/download-artifact@v8
-        with:
-          name: dist
-          path: packages
+      - name: Build
+        run: pnpm exec turbo run build --filter=permdock
 
       - name: Browser
         run: pnpm exec playwright install --with-deps chromium
@@ -139,7 +144,6 @@ jobs:
 
   verify:
     name: Verify
-    needs: dist
     permissions:
       contents: read
       id-token: write
@@ -151,8 +155,8 @@ jobs:
 
   integration:
     name: Integration (Postgres ${{ matrix.shard }}/3)
-    needs: dist
-    if: needs.dist.outputs.integration == 'true'
+    needs: changes
+    if: needs.changes.outputs.integration == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -171,10 +175,8 @@ jobs:
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
-      - uses: actions/download-artifact@v8
-        with:
-          name: dist
-          path: packages
+      - name: Build
+        run: pnpm exec turbo run build --filter=permdock
 
       - name: Integration
         run: pnpm run test:integration --shard=${{ matrix.shard }}/3
@@ -183,7 +185,6 @@ jobs:
   # (tests/package/better-supabase-peer-range.test.ts).
   better-supabase:
     name: better-supabase ${{ matrix.better-supabase }}
-    needs: dist
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -210,10 +211,8 @@ jobs:
           pnpm install --no-frozen-lockfile
           node -p "require('./packages/permdock/node_modules/better-supabase/package.json').version" | grep -qx "$VERSION"
 
-      - uses: actions/download-artifact@v8
-        with:
-          name: dist
-          path: packages
+      - name: Build
+        run: pnpm exec turbo run build --filter=permdock
 
       - name: Provider tests
         run: pnpm exec vitest run tests/better-supabase
@@ -225,8 +224,8 @@ jobs:
 
   runtimes:
     name: Runtimes (Bun, Deno, workerd)
-    needs: dist
-    if: needs.dist.outputs.runtimes == 'true'
+    needs: changes
+    if: needs.changes.outputs.runtimes == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -243,10 +242,8 @@ jobs:
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      - uses: actions/download-artifact@v8
-        with:
-          name: dist
-          path: packages
+      - name: Build
+        run: pnpm exec turbo run build --filter=permdock
 
       - name: Runtimes
         run: pnpm run test:runtimes
