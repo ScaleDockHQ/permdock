@@ -273,3 +273,29 @@ jobs:
 
       - name: Runtimes
         run: pnpm run test:runtimes
+
+  # A skipped matrix never creates "Integration (Postgres 1/3)", so branch
+  # protection cannot require those names. This job always reports.
+  heavy-suites:
+    name: Heavy suites
+    needs: [changes, integration, runtimes]
+    if: always() && needs.changes.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Shards and runtimes
+        env:
+          INTEGRATION: ${{ needs.integration.result }}
+          RUNTIMES: ${{ needs.runtimes.result }}
+        run: |
+          for result in "$INTEGRATION" "$RUNTIMES"; do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "a heavy suite finished $result"
+                exit 1
+                ;;
+            esac
+          done
