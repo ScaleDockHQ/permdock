@@ -62,6 +62,8 @@ function compileReact(): Plugin {
 
 export default defineConfig({
   test: {
+    // A 2-vCPU runner otherwise starts one worker (`availableParallelism() - 1`).
+    ...(process.env["CI"] === undefined ? {} : { maxWorkers: 2 }),
     // CI fetches the official AuthZEN vectors first; a missing file there fails.
     provide: { requireAuthzenVectors: process.env["CI"] !== undefined },
     projects: [
