@@ -57,7 +57,7 @@ pnpm test:integration      # testcontainers Postgres (Docker)
 pnpm test:runtimes         # Bun, Deno, workerd; CI requires all three
 pnpm lint && pnpm format   # oxlint, oxfmt; `pnpm fix` applies both
 pnpm knip                  # unused files, exports, dependencies
-pnpm size                  # per-entry gzip against the baseline
+pnpm size                  # per-entry gzip, failing 1% above the record
 pnpm generate:perf         # generator time and peak RSS against scripts/generate-perf.json
 pnpm runtime:perf && pnpm rls-bench   # runtime matrix, plan-shape gate (Docker)
 pnpm gen:check && pnpm doctor   # catalogs and SQL current; doctors
@@ -136,11 +136,11 @@ Records in `docs/decisions`:
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
 - 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0052 Ultracite kept-off rules
 - 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
-- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048, 0050-0051, 0053-0054, 0059 better-supabase pins; 0044 lint rules kept off; 0045 open peer ranges; 0049 hook gate
+- 0031 tests outside Vitest projects; 0032 no actions.lock; 0033 jsx react-jsx; 0034 Instant over Temporal; 0037 CLI contract; 0038-0041, 0046-0048, 0050-0051, 0053-0054, 0059 better-supabase pins; 0044 kept-off; 0045 peers; 0049 hook gate
 - 0055 `turbo.json` `global` block
 - 0056 `permdock/app` `definePermDock`; 0061 `.next` and `.authorizer` on better-supabase
 - 0057 `oxc-parser`, `jiti` optional CLI peers; 0058 React evaluator split
-- 0062 `next-baseline.ts` suppressions; 0063 perf gates
+- 0062 `next-baseline.ts` suppressions; 0063 perf gates; 0065 after CI; 0066 store once
 
 ## Pre-release pins
 

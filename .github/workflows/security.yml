@@ -102,6 +102,7 @@ jobs:
         if: steps.lockfile.outputs.changed == 'true'
         with:
           install: "false"
+          remote-cache: "false"
 
       - name: pnpm audit signatures
         if: steps.lockfile.outputs.changed == 'true'

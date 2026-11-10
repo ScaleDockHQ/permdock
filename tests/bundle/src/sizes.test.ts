@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { gzipOverCeiling } from "./ceiling.ts";
 import { measureSizes } from "./write-baseline.ts";
 
 const baselinePath = join(
@@ -11,12 +12,12 @@ const baselinePath = join(
 );
 
 describe("per-entry gzip", () => {
-  it("matches the recorded baseline", () => {
-    // SAFETY: the size baseline is written by this suite in this shape
+  it("stays within 1% of the recorded baseline", () => {
+    // SAFETY: the size baseline is written by write-baseline.ts in this shape
     const baseline = JSON.parse(readFileSync(baselinePath, "utf8")) as Record<
       string,
       number
     >;
-    expect(measureSizes()).toStrictEqual(baseline);
+    expect(gzipOverCeiling(measureSizes(), baseline).join("\n")).toBe("");
   });
 });

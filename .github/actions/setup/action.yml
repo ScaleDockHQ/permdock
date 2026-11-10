@@ -6,14 +6,18 @@ inputs:
     description: Vercel team slug for the Remote Cache; empty (forks, before setup) means local cache only.
     required: false
     default: ""
+  remote-cache:
+    description: Configure the Remote Cache. An empty turbo-team warns instead of failing silently.
+    required: false
+    default: "true"
   cache:
     description: Restore the pnpm store.
     required: false
     default: "true"
   save-cache:
-    description: Save the pnpm store at the end of the job. Only the default branch writes it; other refs restore that entry.
+    description: Save the pnpm store at the end of the job. The static job on the default branch is the only writer.
     required: false
-    default: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    default: "false"
   install:
     description: Run `pnpm install`; false for jobs that need only pnpm.
     required: false
@@ -22,9 +26,15 @@ inputs:
 runs:
   using: composite
   steps:
-    # Needs `id-token: write` on the calling job.
+    # Needs `id-token: write` on the calling job. An empty team skips the
+    # action and Turbo then logs that the Remote Cache is disabled.
+    - name: Remote Cache
+      if: inputs.remote-cache == 'true' && inputs.turbo-team == ''
+      shell: bash
+      run: echo "::warning title=Remote Cache off::TURBO_TEAM is empty, so every task runs from scratch."
+
     - name: Turborepo Remote Cache
-      if: inputs.turbo-team != ''
+      if: inputs.remote-cache == 'true' && inputs.turbo-team != ''
       uses: vercel/setup-turborepo-remote-cache-action@49d7b1b46ba4c9251e1977986bfe18336feabc8f # v1.1.0
       with:
         team: ${{ inputs.turbo-team }}

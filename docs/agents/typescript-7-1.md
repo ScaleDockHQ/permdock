@@ -9,7 +9,7 @@ The repository builds with TypeScript 7.0.2 and `oxlint-tsgolint` 7.0.2004. Do t
 5. Run `pnpm typecheck`, which covers `tests/types/ts-*`, and `pnpm --filter permdock test` for the `*.test-d.ts` files. 7.1 reports a conditional type that is "only assignable to the non-distributed" form. The 49 conditional types in `packages/permdock/src` and `apps` were read for that pattern and none matches. `InferPermissionTree` (`tests/core/permission-types.test-d.ts`) and `MergeActionRecords` (`tests/core/presets.test-d.ts`) are the two closest and carry `expectTypeOf` cases, so a change shows up there first.
 6. Re-run the baselines and put the before and after numbers in the commit:
    - `pnpm typecheck:perf` for type instantiations and check time (`scripts/typecheck-perf.json`);
-   - `pnpm size` for per-entry gzip (`tests/bundle/src/baseline.json` and `consumers.json`); a compiler bump moves them only if emitted declarations or `tsdown` output change;
+   - `pnpm size` for per-entry gzip (`tests/bundle/src/baseline.json` and `consumers.json`); rewrite them when an entry grows more than 1% past the record. A compiler bump does that only if emitted declarations or `tsdown` output change;
    - `pnpm cli:startup` for CLI start time (`scripts/cli-startup.json`).
 7. Run `pnpm verify`.
 
