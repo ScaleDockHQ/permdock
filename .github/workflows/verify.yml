@@ -86,3 +86,9 @@ jobs:
 
       - name: ${{ matrix.name }}
         run: ${{ matrix.run }}
+
+      # After the timing gates, so it does not share their CPU. The integration
+      # shards exclude this project: custom-roles-4m alone held a shard.
+      - name: RLS bench
+        if: matrix.name == 'perf'
+        run: pnpm --filter @permdock/integration exec vitest run --project rls-bench

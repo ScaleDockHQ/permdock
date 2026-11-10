@@ -178,8 +178,13 @@ jobs:
       - name: Build
         run: pnpm exec turbo run build --filter=permdock
 
+      # `rls-bench` (bench/) runs in the perf job. Two workers on those files
+      # made shard 1 slower (240s against 163s on one worker).
       - name: Integration
-        run: pnpm run test:integration --maxWorkers=2 --shard=${{ matrix.shard }}/3
+        run: >-
+          pnpm --filter @permdock/integration exec prisma generate &&
+          pnpm --filter @permdock/integration exec vitest run
+          --project integration --maxWorkers=2 --shard=${{ matrix.shard }}/3
 
   # The peer floor and the catalog pin (0.53.0); the range has no upper bound
   # (tests/package/better-supabase-peer-range.test.ts).
