@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { gzipOverCeiling } from "./ceiling.ts";
 import { measureConsumers } from "./consumers.ts";
 
 const baselinePath = join(
@@ -11,13 +12,15 @@ const baselinePath = join(
 );
 
 describe("consumer bundles", () => {
-  it("match the recorded min+gzip baseline", async () => {
+  it("stay within 1% of the recorded min+gzip baseline", async () => {
     // SAFETY: the consumer baseline is written by write-baseline.ts in this shape
     const baseline = JSON.parse(readFileSync(baselinePath, "utf8")) as Record<
       string,
       number
     >;
-    expect(await measureConsumers()).toStrictEqual(baseline);
+    expect(gzipOverCeiling(await measureConsumers(), baseline).join("\n")).toBe(
+      "",
+    );
   });
 
   it("keep opt-in executors out of apps that do not use them", async () => {

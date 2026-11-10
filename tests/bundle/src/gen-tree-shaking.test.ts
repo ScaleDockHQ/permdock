@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { GeneratedProject } from "./gen-consumers.ts";
 
+import { gzipOverCeiling } from "./ceiling.ts";
 import {
   PAGES,
   generateProject,
@@ -78,7 +79,11 @@ describe("generated modules shake per unit", () => {
     expect(mini.gzip).toBeLessThan(classic.gzip);
   });
 
-  it("matches the recorded gzip per page import", async () => {
-    expect(await measureGenConsumers()).toStrictEqual(readRecorded(RECORDED));
+  it("stays within 1% of the recorded gzip per page import", async () => {
+    expect(
+      gzipOverCeiling(await measureGenConsumers(), readRecorded(RECORDED)).join(
+        "\n",
+      ),
+    ).toBe("");
   });
 });

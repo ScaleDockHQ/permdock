@@ -124,7 +124,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 | `pnpm test:runtimes`                   | The WinterTC app on Bun, Deno and workerd                                                                                                                   |
 | `pnpm rls-bench`                       | Plan shapes of the generated policies on the 1k scale fixture: index use, one helper call per statement, ceilings (Docker)                                  |
 | `pnpm runtime:perf`                    | The quick runtime and token matrix against `scripts/runtime-perf.json`, failing 10% above it                                                                |
-| `pnpm size`                            | Per-entry min+gzip against the recorded baseline                                                                                                            |
+| `pnpm size`                            | Per-entry gzip; fails when an entry grows more than 1% past the record                                                                                      |
 | `pnpm gen:check` / `pnpm doctor`       | Generated catalogs and SQL are current; `permdock doctor` (and `better-supabase doctor`) in every example                                                   |
 | `pnpm check:publish`                   | publint and arethetypeswrong on the published package                                                                                                       |
 | `pnpm docs:drift`                      | Docs mention every doctor code and package entry; every page is in `meta.json`. CLI flags are checked against their pages by `tests/cli/docs-flags.test.ts` |

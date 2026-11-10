@@ -57,7 +57,7 @@ pnpm test:integration      # testcontainers Postgres (Docker)
 pnpm test:runtimes         # Bun, Deno, workerd; CI requires all three
 pnpm lint && pnpm format   # oxlint, oxfmt; `pnpm fix` applies both
 pnpm knip                  # unused files, exports, dependencies
-pnpm size                  # per-entry gzip against the baseline
+pnpm size                  # per-entry gzip, failing 1% above the record
 pnpm generate:perf         # generator time and peak RSS against scripts/generate-perf.json
 pnpm runtime:perf && pnpm rls-bench   # runtime matrix, plan-shape gate (Docker)
 pnpm gen:check && pnpm doctor   # catalogs and SQL current; doctors
