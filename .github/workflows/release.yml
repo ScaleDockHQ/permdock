@@ -1,30 +1,31 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
 
-permissions: {}
+# `workflow_run` reads this file from the default branch. The job below narrows
+# it to a successful push from this repository.
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   # Every release run waits its turn; none is dropped.
   queue: max
 
-jobs:
-  verify:
-    name: Verify
-    permissions:
-      contents: read
-      id-token: write
-    uses: $/.github/workflows/verify.yml
-    secrets:
-      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+# The standard's mode for a `workflow_run`. The publish job sets `none`.
+cache-mode: read
 
-  # No pnpm store cache and no Turborepo remote cache here: a publishing job builds from a cold start.
+jobs:
   release:
     name: Release
-    needs: verify
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # A poisoned cache never reaches a publish.
@@ -37,33 +38,53 @@ jobs:
       # the workflow holds no npm token. The trusted publisher is `release.yml`.
       id-token: write
     steps:
+      # The default checkout is the tip of the default branch, which is the
+      # only ref `workflow_run` trusts. Publishing uses it only when that tip
+      # is the commit CI just verified.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Tip of main
+        id: tip
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "$(git rev-parse HEAD)" = "$SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "main is at $(git rev-parse HEAD); $SHA is not the tip, so this run does not publish"
+          fi
+
       - uses: $/.github/actions/setup
+        if: steps.tip.outputs.current == 'true'
         with:
           cache: "false"
 
       # The pnpm runtime ships Node without npm; the Node.js distribution bundles it.
       - uses: actions/setup-node@v7
+        if: steps.tip.outputs.current == 'true'
         with:
           node-version-file: .node-version
           package-manager-cache: false
 
       # Trusted publishing needs npm 11.5.1 or later.
       - name: npm
+        if: steps.tip.outputs.current == 'true'
         run: |
           version="$(npm --version)"
           echo "npm $version"
           node -e "const [a,b,c]=process.argv[1].split('.').map(Number);process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)" "$version"
 
       - name: Build
+        if: steps.tip.outputs.current == 'true'
         run: pnpm run build
 
       - name: Create release pull request or publish
         id: changesets
+        if: steps.tip.outputs.current == 'true'
         uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         env:
           # @changesets/changelog-github links each entry to its PR and author.
@@ -78,7 +99,7 @@ jobs:
 
       # The tag is the one changesets/action gave the GitHub release it created.
       - name: Attach SBOM
-        if: steps.changesets.outputs.published == 'true'
+        if: steps.tip.outputs.current == 'true' && steps.changesets.outputs.published == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PUBLISHED: ${{ steps.changesets.outputs.published-packages }}
@@ -91,7 +112,7 @@ jobs:
           fi
 
       - name: Merge main back into develop
-        if: steps.changesets.outputs.published == 'true'
+        if: steps.tip.outputs.current == 'true' && steps.changesets.outputs.published == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}

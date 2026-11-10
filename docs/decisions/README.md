@@ -68,3 +68,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0062](./0062-next-baseline-file-lint-suppressions.md)            | File-level lint suppressions in `scripts/next-baseline.ts`                                             |
 | [0063](./0063-perf-gates-machine-and-docker.md)                   | The runtime and `rls-bench` gates: timings on one machine, Docker in the perf job                      |
 | [0064](./0064-authorizer-claims-key-per-scope.md)                 | The better-supabase authorizer serialises a claims object once per request scope                       |
+| [0065](./0065-release-after-ci.md)                                | Release runs after CI, without a second verify                                                         |
