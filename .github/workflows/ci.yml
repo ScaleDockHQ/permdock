@@ -202,6 +202,8 @@ jobs:
       - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
+          # This step rewrites the catalog pin, so its store must not be saved.
+          save-cache: "false"
 
       - name: Install better-supabase ${{ matrix.better-supabase }}
         env:

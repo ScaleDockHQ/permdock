@@ -141,7 +141,7 @@ Records in `docs/decisions`:
 - 0056 `permdock/app` `definePermDock`; 0061 `.next` and `.authorizer` on better-supabase
 - 0057 `oxc-parser`, `jiti` optional CLI peers; 0058 React evaluator split
 - 0062 `next-baseline.ts` suppressions; 0063 perf gates
-- 0065 release after CI, no second verify
+- 0065 release after CI, no second verify; 0066 pnpm store saved from one job
 
 ## Pre-release pins
 
