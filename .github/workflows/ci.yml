@@ -199,13 +199,29 @@ jobs:
         with:
           persist-credentials: false
 
+      # The unit suite and the integration shards already run the catalog pin.
+      - name: Catalog pin
+        id: pin
+        env:
+          VERSION: ${{ matrix.better-supabase }}
+        run: |
+          pin="$(sed -n 's/^  better-supabase: \([0-9.]*\)$/\1/p' pnpm-workspace.yaml)"
+          if [ "$VERSION" = "$pin" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "better-supabase $VERSION is the catalog pin; the other suites already run it"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: $/.github/actions/setup
+        if: steps.pin.outputs.skip != 'true'
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
           # This step rewrites the catalog pin, so its store must not be saved.
           save-cache: "false"
 
       - name: Install better-supabase ${{ matrix.better-supabase }}
+        if: steps.pin.outputs.skip != 'true'
         env:
           VERSION: ${{ matrix.better-supabase }}
         run: |
@@ -214,13 +230,16 @@ jobs:
           node -p "require('./packages/permdock/node_modules/better-supabase/package.json').version" | grep -qx "$VERSION"
 
       - name: Build
+        if: steps.pin.outputs.skip != 'true'
         run: pnpm exec turbo run build --filter=permdock
 
       - name: Provider tests
+        if: steps.pin.outputs.skip != 'true'
         run: pnpm exec vitest run tests/better-supabase
         working-directory: packages/permdock
 
       - name: Provider integration
+        if: steps.pin.outputs.skip != 'true'
         run: pnpm exec vitest run --project integration src/better-supabase-
         working-directory: tests/integration
 
