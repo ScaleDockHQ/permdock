@@ -179,7 +179,7 @@ jobs:
         run: pnpm exec turbo run build --filter=permdock
 
       - name: Integration
-        run: pnpm run test:integration --shard=${{ matrix.shard }}/3
+        run: pnpm run test:integration --maxWorkers=2 --shard=${{ matrix.shard }}/3
 
   # The peer floor and the catalog pin (0.53.0); the range has no upper bound
   # (tests/package/better-supabase-peer-range.test.ts).
