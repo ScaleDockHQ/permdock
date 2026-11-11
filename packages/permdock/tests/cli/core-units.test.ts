@@ -8,7 +8,11 @@ import { didYouMean, parseFlags } from "../../src/cli/core/args.ts";
 import { defineLeaf } from "../../src/cli/core/command.ts";
 import { candidates } from "../../src/cli/core/completion.ts";
 import { redact } from "../../src/cli/core/credentials.ts";
-import { exitCodeOf, kindOfCode } from "../../src/cli/core/errors.ts";
+import {
+  exitCodeOf,
+  failureOf,
+  kindOfCode,
+} from "../../src/cli/core/errors.ts";
 import { dirtyFiles } from "../../src/cli/core/files.ts";
 import { leafHelp, leafJson } from "../../src/cli/core/help.ts";
 import { progressReporter, readSecret } from "../../src/cli/core/io.ts";
@@ -16,6 +20,7 @@ import { resolve } from "../../src/cli/core/manifest.ts";
 import {
   dataOf,
   githubAnnotations,
+  resultDocument,
   sarifLog,
 } from "../../src/cli/core/output.ts";
 import { run } from "../../src/cli/core/run.ts";
@@ -129,6 +134,32 @@ describe("core units", () => {
     });
   });
 
+  describe(resultDocument, () => {
+    it("leaves out data, empty warnings and empty next steps", () => {
+      expect(resultDocument({ status: "success" })).toStrictEqual({
+        $schema: "https://permdock.com/schemas/cli-result-v2.json",
+        status: "success",
+      });
+      expect(
+        resultDocument({ status: "error", data: {}, warnings: [], next: [] }),
+      ).toStrictEqual({
+        $schema: "https://permdock.com/schemas/cli-result-v2.json",
+        status: "error",
+        data: {},
+      });
+      expect(
+        resultDocument({
+          status: "success",
+          warnings: ["stale"],
+          next: [{ when: "to write", command: "permdock generate --force" }],
+        }),
+      ).toMatchObject({
+        warnings: ["stale"],
+        next: [{ when: "to write", argv: ["permdock", "generate", "--force"] }],
+      });
+    });
+  });
+
   describe("exit codes", () => {
     it("map each kind to its code and back", () => {
       expect(exitCodeOf("cancelled")).toBe(130);
@@ -136,6 +167,24 @@ describe("core units", () => {
       expect(
         ([0, 1, 2, 130, 143] as const).map((code) => kindOfCode(code)),
       ).toStrictEqual(["failed", "failed", "usage", "cancelled", "cancelled"]);
+      expect(
+        (["usage", "unavailable", "failed", "internal"] as const).map((kind) =>
+          exitCodeOf(kind),
+        ),
+      ).toStrictEqual([2, 1, 1, 1]);
+    });
+
+    it("reads a definition PermDock rejects as config_invalid and any other throw as internal", () => {
+      expect(failureOf(new Error("PermDock: unknown role 'x'"))).toMatchObject({
+        code: "config_invalid",
+        exitCode: 2,
+      });
+      expect(failureOf(new Error("boom"))).toMatchObject({
+        code: "internal",
+        exitCode: 1,
+        message: "boom",
+      });
+      expect(failureOf("plain")).toMatchObject({ code: "internal" });
     });
   });
 

@@ -387,6 +387,32 @@ describe("doctor better-supabase", () => {
       expect(findings[0]?.message).toContain("modulePermissionKeys");
     });
 
+    it("treats a modulePermissionKeys that answers no list or throws another error as missing", async () => {
+      for (const body of [
+        "export const modulePermissionKeys = () => 'none';\n",
+        "export const modulePermissionKeys = () => { throw new Error('unknown block'); };\n",
+      ]) {
+        const cwd = policyProject(
+          { policy: POLICY },
+          {
+            "permissions.catalog.json": CATALOG,
+            "better-supabase.config.mjs": betterSupabaseConfig({
+              audit: { permissions: { read: "audit.read" } },
+            }),
+            "node_modules/better-supabase/package.json": JSON.stringify({
+              name: "better-supabase",
+              version: "0.0.0",
+              type: "module",
+              exports: { "./sql": "./sql.mjs" },
+            }),
+            "node_modules/better-supabase/sql.mjs": body,
+          },
+        );
+        const findings = await pd079({ cwd, config });
+        expect(findings[0]?.message).toContain("modulePermissionKeys");
+      }
+    });
+
     it("reports a former block action key apart from a missing modulePermissionKeys", async () => {
       const cwd = policyProject(
         { policy: POLICY },

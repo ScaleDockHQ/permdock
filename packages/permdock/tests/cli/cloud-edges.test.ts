@@ -331,6 +331,34 @@ describe("cloud edges", () => {
       });
     });
 
+    it("stores the refresh token and scope the answer returns", async () => {
+      const config = home();
+      const env = login(config, expired);
+      const result = await pull(
+        stubCloud({
+          [`GET ${METADATA_PATH}`]: metadata(),
+          "POST /api/oauth/token": () =>
+            Response.json({
+              access_token: "at_new",
+              refresh_token: "rt_2",
+              scope: "projects:read",
+              expires_in: 3600,
+            }),
+          [`GET ${POLICY_PATH}`]: projectPolicy(),
+        }),
+        ["--project", "prj_1"],
+        env,
+      );
+      expect(result.code).toBe(0);
+      expect(
+        readCredentials({ service: "permdock" }, ISSUER, { env }),
+      ).toMatchObject({
+        access_token: "at_new",
+        refresh_token: "rt_2",
+        scope: "projects:read",
+      });
+    });
+
     it("asks for a login with exit 2 when the refresh is refused", async () => {
       const result = await pull(
         stubCloud({

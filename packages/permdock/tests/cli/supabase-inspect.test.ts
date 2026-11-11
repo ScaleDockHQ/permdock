@@ -55,6 +55,20 @@ describe("supabase inspect", () => {
       expect(inspect(seeds)).toStrictEqual(["owner", "viewer"]);
     });
 
+    it("reads only string roles and skips a fixture membership without roles", () => {
+      // SAFETY: a seeds module a project wrote by hand, which the config loader only checks to be an object.
+      const seeds = {
+        fixtures: {
+          memberships: [
+            { user: "ann", tenant: "acme", roles: ["viewer", 7] },
+            { user: "bob", tenant: "acme" },
+            "carol",
+          ],
+        },
+      } as unknown as Seeds;
+      expect(inspect(seeds)).toStrictEqual(["viewer"]);
+    });
+
     it("falls back to the root scope's roles and the global roles", () => {
       expect(inspect()).toStrictEqual([
         "admin",

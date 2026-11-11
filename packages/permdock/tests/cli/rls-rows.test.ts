@@ -332,6 +332,22 @@ describe("permitted_<resource>_rows", () => {
     expect(set).toContain(
       `exists (select 1 from "permdock".grant_keys('doc.read', 'global') g(k) where "permdock".permdock_has(g.k)) or exists (select 1 from "permdock".grant_keys('doc.read', 'global', 'conditioned-allow') g(k) where "permdock".permdock_has(g.k))`,
     );
+    const support = definePolicy(permissions, {
+      roles: [role("support", [allow(doc.read)])],
+      subject: () => null,
+    });
+    const untenanted = support.resources.get("doc");
+    if (untenanted === undefined) {
+      throw new Error("PermDock test: the policy declares doc");
+    }
+    expect(
+      rowSetSql(
+        { ...context("supabase"), scopes: [] },
+        support,
+        untenanted,
+        "doc.read",
+      ),
+    ).toBe(`select r from "permdock".permitted_doc_rows('doc.read') r`);
   });
 
   it("sets the guc user and claims for a named user and restores them", () => {
