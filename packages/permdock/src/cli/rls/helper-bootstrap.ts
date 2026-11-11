@@ -1,7 +1,7 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { ShimGrants } from "./shims.ts";
 
-import { memberIdsHelper } from "../sql/names.ts";
+import { BOOTSTRAP_PERMISSIONS, memberIdsHelper } from "../sql/names.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { rootName } from "../sql/shared.ts";
 import {
@@ -9,9 +9,6 @@ import {
   PERMISSION_HELPERS,
   permissionKeysHelper,
 } from "./permission-keys.ts";
-
-/** better-supabase's `bootstrapPermissions` reader. Part of the SQL contract. */
-export const BOOTSTRAP_PERMISSIONS = "permdock_bootstrap_permissions";
 
 function textArray(values: readonly string[]): string {
   return values.length === 0

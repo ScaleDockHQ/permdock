@@ -154,6 +154,9 @@ export function memberOfHelper(name: string): string {
   return `${memberIdsHelper(name)}_of`;
 }
 
+/** better-supabase's `bootstrapPermissions` reader. Part of the SQL contract. */
+export const BOOTSTRAP_PERMISSIONS = "permdock_bootstrap_permissions";
+
 /** A scope better-supabase reads as its teams: `team` or `teams` (doctor BS417). */
 export function isTeamScope(name: string): boolean {
   return /^teams?$/u.test(name);

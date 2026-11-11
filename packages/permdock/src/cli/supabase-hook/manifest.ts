@@ -16,7 +16,7 @@ import type {
 import type { Parts } from "./parts.ts";
 
 import { hasConditionOp } from "../../conditions/ast.ts";
-import { isSeeds } from "../../core/seeds.ts";
+import { isRecord } from "../../core/compact.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
 import { SUPABASE_MANIFEST_SCHEMA } from "../core/version.ts";
@@ -24,7 +24,6 @@ import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
 import { MANAGES } from "../rls/approval-managers.ts";
 import { IS_APPROVER } from "../rls/approvals.ts";
 import { guardedTables } from "../rls/assignments.ts";
-import { BOOTSTRAP_PERMISSIONS } from "../rls/helper-bootstrap.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "../rls/ownership-names.ts";
 import { ownershipRules } from "../rls/ownership.ts";
 import { permittedUsersHelper } from "../rls/permission-holders.ts";
@@ -37,6 +36,7 @@ import { firstScopeType, scopeTypeOf, tenantTypeOf } from "../sql/columns.ts";
 import { decidingColumns } from "../sql/deciding-columns.ts";
 import { HOOK_MARKER } from "../sql/markers.ts";
 import {
+  BOOTSTRAP_PERMISSIONS,
   isTeamScope,
   memberForHelper,
   memberIdsHelper,
@@ -401,9 +401,22 @@ function fixtureRolesOf(
   root: string,
 ): readonly string[] {
   const declared = new Set(policy.roles.map((binding) => binding.name));
-  const seeded = isSeeds(config.seeds)
-    ? config.seeds.fixtures.memberships.flatMap((entry) => entry.roles)
-    : [];
+  // `config.seeds` is only checked to be an object when the config loads.
+  const fixtures: unknown =
+    config.seeds === undefined
+      ? undefined
+      : Reflect.get(config.seeds, "fixtures");
+  const entries: unknown = isRecord(fixtures)
+    ? fixtures["memberships"]
+    : undefined;
+  const seeded = (Array.isArray(entries) ? entries : []).flatMap(
+    (entry: unknown): string[] => {
+      const held: unknown = isRecord(entry) ? entry["roles"] : undefined;
+      return Array.isArray(held)
+        ? held.filter((role): role is string => typeof role === "string")
+        : [];
+    },
+  );
   const roles =
     seeded.length > 0
       ? seeded.filter((role) => declared.has(role))
