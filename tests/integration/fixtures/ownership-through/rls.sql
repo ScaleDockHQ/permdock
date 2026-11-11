@@ -820,7 +820,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select coalesce((select current_setting('app.user_id', true))::text, '') <> '' and (
+  select coalesce((select current_setting('app.user_id', true))::text, '') <> '' and (p_role <> all (array['primary']::text[]) or ((nullif((select current_setting('app.api_key', true)), '')::jsonb is null or nullif((select current_setting('app.api_key', true)), '')::jsonb = 'null'::jsonb) and coalesce((select current_setting('app.client_id', true)), '') = '' and (nullif((select current_setting('app.act', true)), '')::jsonb is null or nullif((select current_setting('app.act', true)), '')::jsonb = 'null'::jsonb))) and (
     exists (
       select 1 from "public"."org_members" m
       join "public"."org_roles" mk on mk."id" = m."role_id"
