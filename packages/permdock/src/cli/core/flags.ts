@@ -47,6 +47,36 @@ export const policyFlag = {
   },
 } as const;
 
+/** `permdock generate`'s own flags, beside check, dry-run, policy and db-url. */
+export const generateFlags = {
+  only: {
+    type: "string",
+    description: "Run this plugin; repeat for more than one",
+    valueHint: "plugin",
+    repeatable: true,
+  },
+  "no-cache": {
+    type: "boolean",
+    description: "Emit and write even when a cache entry matches",
+  },
+  "cache-dir": {
+    type: "string",
+    description:
+      "Cache directory (default node_modules/.cache/permdock or PERMDOCK_CACHE_DIR)",
+    valueHint: "dir",
+  },
+  concurrency: {
+    type: "string",
+    description:
+      "How many tasks run at once. 1 runs them one at a time. Default is one less than the CPU count.",
+    valueHint: "n",
+  },
+  watch: {
+    type: "boolean",
+    description: "Generate again when a policy, config or plugin input changes",
+  },
+} as const;
+
 export const permissionsFlag = {
   permissions: {
     type: "string",

@@ -2,6 +2,15 @@ import type { GroupEntry } from "../core/manifest.ts";
 import type { FlagRename } from "./cli-renames-0.5.ts";
 import type { CodemodChange, CodemodFollowUp } from "./context.ts";
 
+import { flagSpellings } from "../core/args.ts";
+import { GLOBAL_FLAGS } from "../core/context.ts";
+import {
+  checkFlag,
+  dbUrlFlags,
+  dryRunFlag,
+  generateFlags,
+  policyFlag,
+} from "../core/flags.ts";
 import { ROOT } from "../core/manifest.ts";
 import { flagRename, renameMessage } from "./cli-renames-0.5.ts";
 
@@ -144,10 +153,22 @@ function commandOf(tokens: readonly Token[]): string | undefined {
   return undefined;
 }
 
+const GENERATE_FLAGS: ReadonlySet<string> = new Set(
+  flagSpellings({
+    ...GLOBAL_FLAGS,
+    ...checkFlag,
+    ...dryRunFlag,
+    ...policyFlag,
+    ...dbUrlFlags,
+    ...generateFlags,
+  }),
+);
+
 function flagEdits(
   command: string,
   tokens: readonly Token[],
   notes: { readonly at: number; readonly message: string }[],
+  removed: boolean,
 ): readonly Edit[] {
   const edits: Edit[] = [];
   for (const token of tokens) {
@@ -157,6 +178,13 @@ function flagEdits(
     const eq = token.text.indexOf("=");
     const name = eq === -1 ? token.text : token.text.slice(0, eq);
     const rename = flagRename(command, name);
+    if (removed && !GENERATE_FLAGS.has(rename?.to ?? name)) {
+      notes.push({
+        at: token.start,
+        message: `${command}: permdock generate takes no ${name}; move it onto the plugin in permdock.config.ts and drop it from the call.`,
+      });
+      continue;
+    }
     if (rename === undefined) {
       continue;
     }
@@ -175,19 +203,7 @@ function flagEdit(
   token: Token,
   eq: number,
 ): readonly Edit[] | undefined {
-  if (rename.rewrite !== undefined) {
-    return eq === -1
-      ? [
-          {
-            start: token.start,
-            end: token.end,
-            text: rename.rewrite,
-            from: token.text,
-          },
-        ]
-      : undefined;
-  }
-  if (rename.to === undefined || rename.hint !== undefined) {
+  if (rename.hint !== undefined) {
     return undefined;
   }
   const value = eq === -1 ? "" : token.text.slice(eq);
@@ -230,7 +246,7 @@ export function rewriteCliCalls(
         from: removed.from,
       });
     }
-    edits.push(...flagEdits(named, tokens, notes));
+    edits.push(...flagEdits(named, tokens, notes, removed !== undefined));
   }
   const changes: CodemodChange[] = [];
   let out = text;

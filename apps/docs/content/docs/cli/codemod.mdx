@@ -67,7 +67,7 @@ Some 0.5.0 changes move more than a name. The codemod rewrites these where the i
 
 The same run rewrites `permdock` command lines renamed in 0.5.0 in `package.json`, `Makefile`, `justfile`, `Dockerfile`, `.yml`, `.yaml` and `.sh` files: moved commands (`permdock openapi` becomes `permdock openapi emit`), renamed flags and values (`usage --strict` becomes `usage --fail-on warning`, `catalog --format schema` becomes `catalog --kind json-schema`), and a changed default (`rls migrate` without `--write` or `--retire-out` gains `--dry-run`, since it now writes by default). It matches `permdock`, `npx permdock`, `pnpm exec permdock` and a versioned `permdock@0.4`, and stops a command at `&&`, `||`, `;`, a pipe, a redirect or a comment.
 
-A flag that needs a person's choice is a follow-up, not a rewrite: `cloud push --environment` asks for the project id. In `.md` and `.mdx` files every call is a follow-up, since prose around it may need the same edit. The rows are on the [Naming](/docs/getting-started/naming#renamed-in-050) page.
+A flag that needs a person's choice is a follow-up, not a rewrite: `cloud push --environment` asks for the project id. A removed generate command (`rls generate`, `gen` and the others) becomes `permdock generate --only <plugin>`, and each flag `permdock generate` does not take, such as `--out` or `--force-rls`, stays on the line as a follow-up to move onto the plugin's options in `permdock.config.ts`. In `.md` and `.mdx` files every call is a follow-up, since prose around it may need the same edit. The rows are on the [Naming](/docs/getting-started/naming#renamed-in-050) page.
 
 ## Config keys in 0.8
 

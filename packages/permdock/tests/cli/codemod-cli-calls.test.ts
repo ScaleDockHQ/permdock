@@ -58,14 +58,6 @@ describe("codemod cli calls", () => {
         "permdock powersync generate --from policy.ts",
         "permdock generate --only powersync --policy policy.ts",
       ],
-      [
-        "permdock rls generate --force",
-        "permdock generate --only rls --force-rls",
-      ],
-      [
-        "permdock rls generate --rbac-scaffold",
-        "permdock generate --only rls --rbac supabase",
-      ],
     ])("rewrites a removed generate command %s", (before, after) => {
       expect(shell(before)).toBe(after);
     });
@@ -94,7 +86,34 @@ describe("codemod cli calls", () => {
       expect(scaffold.text).toBe(
         "permdock generate --only rls --rbac-scaffold=supabase",
       );
-      expect(scaffold.followUps[0]?.message).toContain("--rbac supabase");
+      expect(scaffold.followUps[0]?.message).toContain(
+        "permdock generate takes no --rbac-scaffold",
+      );
+    });
+
+    it.each([
+      ["permdock rls generate --force", "--force"],
+      ["permdock rls generate --rbac-scaffold", "--rbac-scaffold"],
+      ["permdock rls generate --out supabase/permdock.sql", "--out"],
+      ["permdock rls generate --no-seeds", "--no-seeds"],
+      ["permdock gen --kind zod", "--kind"],
+    ])("reports a flag permdock generate does not take in %s", (text, flag) => {
+      const result = rewriteCliCalls(text, { json: false });
+      expect(result.changes.map((item) => item.from)).not.toContain(flag);
+      expect(result.followUps.map((item) => item.message)).toStrictEqual([
+        expect.stringContaining(`permdock generate takes no ${flag};`),
+      ]);
+    });
+
+    it("keeps the flags permdock generate takes without a follow-up", () => {
+      const result = rewriteCliCalls(
+        "permdock rls generate --check --dry-run --json --policy p.ts",
+        { json: false },
+      );
+      expect(result.text).toBe(
+        "permdock generate --only rls --check --dry-run --json --policy p.ts",
+      );
+      expect(result.followUps).toStrictEqual([]);
     });
 
     it("leaves a connection string on a removed generate command to a person", () => {
@@ -116,7 +135,7 @@ describe("codemod cli calls", () => {
 
     it("reports each generate-command change with its line and column", () => {
       expect(
-        rewriteCliCalls("run: |\n  permdock rls generate --force\n", {
+        rewriteCliCalls("run: |\n  permdock rls generate --from p.ts\n", {
           json: false,
         }).changes,
       ).toStrictEqual([
@@ -126,7 +145,7 @@ describe("codemod cli calls", () => {
           from: "rls generate",
           to: "generate --only rls",
         },
-        { line: 2, column: 25, from: "--force", to: "--force-rls" },
+        { line: 2, column: 25, from: "--from", to: "--policy" },
       ]);
     });
   });
