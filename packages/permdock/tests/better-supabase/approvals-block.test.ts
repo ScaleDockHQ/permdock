@@ -220,6 +220,36 @@ describe(blockApprovalStore, () => {
     expect(await store.consume(request.token)).toBeNull();
   });
 
+  it("reads a consumed request as approved and spent, with or without consumed_at", async () => {
+    const block = fakeBlock();
+    const store = blockApprovalStore(block);
+    const bare = await openRequest(store);
+    const stamped = await openRequest(store, approvalFingerprint("stamped"));
+    const decidedAt = instant("2026-10-28T09:30:00.000Z");
+    block.records.splice(
+      0,
+      block.records.length,
+      ...block.records.map((record) => ({
+        ...record,
+        status: "consumed" as const,
+        decidedAt,
+        ...(record.id === "b2"
+          ? { consumedAt: instant("2026-10-28T10:00:00.000Z") }
+          : {}),
+      })),
+    );
+    expect(await store.get(bare.token)).toMatchObject({
+      status: "approved",
+      resolvedAt: "2026-10-28T09:30:00.000Z",
+      consumedAt: "2026-10-28T09:30:00.000Z",
+    });
+    expect(await store.get(stamped.token)).toMatchObject({
+      status: "approved",
+      consumedAt: "2026-10-28T10:00:00.000Z",
+    });
+    expect(await store.consume(bare.token)).toBeNull();
+  });
+
   it("maps a cancelled request to rejected and pages list oldest first", async () => {
     const block = fakeBlock();
     const store = blockApprovalStore(block);
