@@ -1,12 +1,9 @@
 -- better-supabase module: updated-at
 -- @bsb-block updated-at@1 managed
--- @bsb-hash sha256:850861a74b49fc1d9140d42e6e659e08a9c153eee79999ecc8904d34aaa0fc6a
+-- @bsb-hash sha256:bcd28016d049f206a4ddfcace4943748f72faa36f8dc1a31ee4cf2a1eadf91ce
 -- Keeps an updated_at column current on every update.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
-
-create schema if not exists better_supabase;
-grant usage on schema better_supabase to anon, authenticated, service_role;
 
 create or replace function better_supabase.set_updated_at()
 returns trigger
@@ -24,60 +21,6 @@ begin
   return new;
 end;
 $$;
-
-
-create or replace function better_supabase.replace_equivalent_triggers(
-  target regclass,
-  module_trigger text,
-  pattern text,
-  replace_trigger boolean
-)
-returns void
-language plpgsql
-set search_path = ''
-as $$
-declare
-  found record;
-begin
-  for found in
-    select t.tgname as name, p.proname as fn
-    from pg_catalog.pg_trigger t
-    join pg_catalog.pg_proc p on p.oid = t.tgfoid
-    where t.tgrelid = replace_equivalent_triggers.target
-      and not t.tgisinternal
-      and t.tgname <> replace_equivalent_triggers.module_trigger
-      and p.proname ~* replace_equivalent_triggers.pattern
-  loop
-    if replace_trigger then
-      execute format('drop trigger %I on %s', found.name, target);
-    else
-      raise warning '% already has trigger % (%), which does what % does. Pass replace_trigger => true to drop it.',
-        target, found.name, found.fn, module_trigger;
-    end if;
-  end loop;
-end;
-$$;
-revoke execute on function better_supabase.replace_equivalent_triggers(regclass, text, text, boolean) from public, anon, authenticated;
-
-create or replace function better_supabase.memo_get(key text)
-returns text
-language sql
-volatile
-set search_path = ''
-as $$
-  select nullif(pg_catalog.current_setting('better_supabase.memo.' || key, true), '')
-$$;
-
-create or replace function better_supabase.memo_set(key text, value text)
-returns text
-language sql
-volatile
-set search_path = ''
-as $$
-  select pg_catalog.set_config('better_supabase.memo.' || key, value, true)
-$$;
-
-drop function if exists better_supabase.track_updated_at(regclass, text);
 
 -- select better_supabase.track_updated_at('public.customers');
 -- replace_trigger => true drops another trigger that sets updated_at (moddatetime, touch_*).
@@ -104,16 +47,3 @@ end;
 $$;
 
 revoke execute on function better_supabase.track_updated_at(regclass, text, boolean) from public, anon, authenticated;
-
-create schema if not exists better_supabase;
-create table if not exists better_supabase.blocks (
-  name text primary key,
-  block text,
-  version integer not null,
-  mode text not null,
-  installed_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-alter table better_supabase.blocks enable row level security;
-revoke all on better_supabase.blocks from public, anon, authenticated;
-grant select on better_supabase.blocks to service_role;
