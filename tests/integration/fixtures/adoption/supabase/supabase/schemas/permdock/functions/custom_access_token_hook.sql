@@ -432,7 +432,7 @@ begin
     or coalesce(jsonb_array_length(subject -> 'memberships'), 0) = 0 then
     return null;
   end if;
-  return subject;
+  return subject || jsonb_build_object('tenant', v_tenant::text);
 end;
 $$;
 revoke execute on function "permdock".permdock_subject(text) from public, anon, authenticated;
