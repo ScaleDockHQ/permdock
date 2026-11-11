@@ -4,7 +4,6 @@ import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
 import type { BetterSupabaseActiveTenant } from "../../better-supabase/active-tenant.ts";
-import type { PermDockAuthorizationProvider } from "../../better-supabase/provider.ts";
 import type {
   DoctorFinding,
   DoctorInput,
@@ -348,7 +347,7 @@ export async function pd087(
 }
 
 type Provider = Pick<
-  PermDockAuthorizationProvider,
+  ReturnType<typeof authorizationProvider>,
   "roleSources" | "suspension"
 >;
 
