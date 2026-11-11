@@ -53,8 +53,8 @@ function readManifest(
 }
 
 /**
- * The built catalog, or a `catalog_invalid` problem listing every issue with
- * its path.
+ * The built catalog, or an `invalid_input` error listing every issue with its
+ * path.
  */
 function checkedCatalog(output: string): CatalogDocument {
   try {
