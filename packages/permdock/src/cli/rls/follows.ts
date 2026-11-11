@@ -212,16 +212,26 @@ function folderOf(
   table: string,
 ): string | undefined {
   let byName: string | undefined;
-  for (const resource of policy.resources.keys()) {
+  let first: string | undefined;
+  const folders: string[] = [];
+  for (const [resource, node] of policy.resources) {
     const named = tableNameOf(tables?.[resource], resource, tables);
     if (sameTable(named, table)) {
-      return resource;
+      first ??= resource;
+      if (node.parent?.resource === resource) {
+        folders.push(resource);
+      }
     }
     if (resource === bare(table)) {
       byName = resource;
     }
   }
-  return byName;
+  if (folders.length > 1) {
+    throw configError(
+      `PermDock CLI: rls.treeValues.${table} maps to more than one self-parented resource (${folders.join(", ")}), so the folder is ambiguous`,
+    );
+  }
+  return folders[0] ?? first ?? byName;
 }
 
 function tenantField(

@@ -169,6 +169,41 @@ describe("rls.tables follows and walk", () => {
     );
   });
 
+  it("picks the self-parented resource when several resources share the treeValues table", () => {
+    const shared = definePermissions({
+      file: resource({
+        actions: ["read"],
+        relations: { org: { field: "orgId", memberOf: "tenant" } },
+      }),
+      fileNode: resource({
+        actions: ["read"],
+        parent: { field: "parentId", resource: "fileNode" },
+        relations: { org: { field: "orgId", memberOf: "tenant" } },
+      }),
+      folder: resource({
+        actions: ["read"],
+        parent: { field: "parentId", resource: "folder" },
+        relations: { org: { field: "orgId", memberOf: "tenant" } },
+      }),
+    });
+    const sharedPolicy = definePolicy(shared, { subject: () => null });
+    const onNodes = {
+      file: { table: "public.file_nodes" },
+      fileNode: { table: "public.file_nodes" },
+    } as const;
+    expect(
+      treeHelperSql(ctx, sharedPolicy, onNodes, { "public.file_nodes": {} }),
+    ).toContain('"permdock".permdock_tree_file_node()');
+    expect(() =>
+      treeHelperSql(
+        ctx,
+        sharedPolicy,
+        { ...onNodes, folder: { table: "public.file_nodes" } },
+        { "public.file_nodes": {} },
+      ),
+    ).toThrow(/more than one self-parented resource \(fileNode, folder\)/u);
+  });
+
   it("skips a child table and refuses a follows or walk the policy cannot name", () => {
     expect(
       followPolicies(ctx, policy, {
