@@ -6,13 +6,13 @@ import { freezeDeep } from "../core/freeze.ts";
 const MAX_ID_LENGTH = 256;
 
 /**
- * better-supabase's `RecordRef`: the record a workflow run belongs to, a
- * subject type from `config.subjects` and its id. Structural, so the
- * better-supabase type satisfies it without an import.
+ * better-supabase's `RecordRef`: the record a workflow run belongs to, a record
+ * type from `config.recordTypes` and its id. Structural, so the better-supabase
+ * type satisfies it without an import.
  */
 export type WorkflowRecordRef = { readonly type: string; readonly id: string };
 
-/** A subject type from `config.subjects` to the PermDock resource name it is. */
+/** A record type from `config.recordTypes` to the PermDock resource name it is. */
 export type WorkflowSubjectTypes = Readonly<Record<string, string>>;
 
 export type WorkflowResourceResult =

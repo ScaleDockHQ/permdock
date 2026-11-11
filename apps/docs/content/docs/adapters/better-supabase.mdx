@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.53 or later as a peer (`>=0.53.0`). The range has no upper bound: CI tests 0.53.0 on every pull request, and a daily job tests the newest release. Coming from 0.31 or earlier, run `better-supabase codemod 0.32` for the auth renames (`requireTenant`, `auth.tenant`, `bsb.claims()`, `bsb.evictSession()`). Coming from 0.52 or earlier, run `better-supabase codemod 0.53`, then `gen` and `upgrade`; block clients take one object per call since 0.47.
+The entry needs `better-supabase` 0.58 or later as a peer (`>=0.58.0`). The range has no upper bound: CI tests 0.58.0 and 0.58.1 on every pull request, and a daily job tests the newest release. Coming from 0.54 to 0.57, follow better-supabase's [0.57 to 0.58 guide](https://bettersupabase.com/docs/migration/0.57-to-0.58): run `better-supabase codemod naming` first and the other codemods it lists, then `gen`, `upgrade` and a schema diff. An app older than 0.54 follows the 0.53 to 0.54 guide first.
 
 Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
@@ -74,7 +74,7 @@ import {
 - `approver` is a permission. It becomes the `'ai-tool'` entry of `approvers` unless `approvers` names one. A key the catalog lacks is a problem.
 - In a project with a readable `better-supabase.config.*` object export, found from the directory of `permdock.config.ts` up to the workspace root (nearest first), found from the directory of `permdock.config.ts` up to the workspace root (nearest first), the CLI defaults the hook's active source to `app_metadata.<claim>`, where the claim is better-supabase's `auth.tenant.claim` (or `claims.tenant` in a flat config), then `rls.tenantClaim`, then `tenant_id`. An explicit `supabase.hook.activeFrom` or `--active-from` wins. Plain Supabase keeps `app_metadata.active_<first scope>`. This makes generation, inspection and PD078 agree without changing plain Supabase projects.
 - `activeTenant` is better-supabase's `blocks.permissions.activeTenant`. When the token hook reads the active tenant from another place than better-supabase writes it, `problems` names the `supabase.hook.activeFrom` to set: `app_metadata.<tenant claim>` for `"claim"`, or the profile column for `{ profileColumn }`. Doctor reports the same as PD078.
-- `rowHelpers: true` fills better-supabase's `rowsWith` and `rowsWithFor` from the `permitted_<resource>_rows` helpers that `rls.rowHelpers` writes and the manifest names. A better-supabase subject type whose action in `subjects.<type>.permissions` names `rows: "<resource SQL name>"` with a `key` then checks the rows the caller holds that key on, through the candidate form `permitted_<resource>_rows(permission, ids)` with better-supabase's text ids cast to the manifest's `idType` (`uuid` when a manifest written before 0.22.1 omits it, and the one-argument form when the row helpers disagree on it), and for another user through `permitted_<resource>_rows_for`. Without row helpers in the manifest, `problems` names the step to run.
+- `rowHelpers: true` fills better-supabase's `rowsWith` and `rowsWithFor` from the `permitted_<resource>_rows` helpers that `rls.rowHelpers` writes and the manifest names. A better-supabase record type whose action in `recordTypes.<type>.permissions` names `rows: "<resource SQL name>"` with a `key` then checks the rows the caller holds that key on, through the candidate form `permitted_<resource>_rows(permission, ids)` with better-supabase's text ids cast to the manifest's `idType` (`uuid` when a manifest written before 0.22.1 omits it, and the one-argument form when the row helpers disagree on it), and for another user through `permitted_<resource>_rows_for`. Without row helpers in the manifest, `problems` names the step to run.
 - `tokenHook.activeOrganizationFrom` names where the token hook reads the active tenant, from the manifest's `hook.activeFrom`: `"claim"` for `app_metadata.<tenant claim>`, or `{ profileColumn, key? }` for a profile column. better-supabase's doctor BS409 warns when it differs from `blocks.permissions.activeTenant`. It stays unset for an `app_metadata` key other than the tenant claim, which better-supabase has no name for, and when `activeTenant` is `"resolver"`, where the tenant comes from the request.
 - `approvers` maps each better-supabase request kind to `user()`, `holder()` or `anyOf()` approvers and fills `isApprover`, which better-supabase asks for every request that waits on an approval ([Approvers](#approvers)). It needs `permdock_is_approver`, which `rls.approvals` writes; without it `isApprover` is unset and `problems` names the helper. The provider never sets `canApprove`.
 - The provider leaves `portalSubjects` and `portalParties` unset: PermDock has no guest grants, so better-supabase's `guests` block decides which records and parties a guest reaches.
@@ -143,12 +143,12 @@ The provider templates call the generated helpers as prepared statements. Connec
 Validate sessions with the claim contract's Standard Schema, extended with the app's own claims:
 
 ```ts title="src/lib/supabase/index.ts"
-import { defineSupabase } from "better-supabase";
+import { createSupabase } from "better-supabase";
 import { supabaseClaims } from "permdock/supabase";
 import { z } from "zod";
-import { schema } from "./generated";
+import { schema } from "./generated-schema";
 
-export const betterSupabase = defineSupabase(schema).claims(
+export const betterSupabase = createSupabase(schema).claims(
   supabaseClaims().extend(
     z.object({ datetime_preferences: z.object({ timezone: z.string() }) }),
   ),
@@ -668,7 +668,7 @@ await authorizeHook(hook, {
 });
 ```
 
-A better-supabase workflow run belongs to a record: its `subject` is a `RecordRef`, stored as the `bsb.subject` attribute (`type/id`), and the workflow editor starts a run on one with `start(subject_type, subject_id)`. `workflowResource(subject, types)` maps it to the `resource` PermDock's `start` takes, so the run's permissions on that type hold on that row only ([bind a run to a record](/docs/concepts/automations#bind-a-run-to-a-record)). `types` maps each `config.subjects` type to the PermDock resource name:
+A better-supabase workflow run belongs to a record: its `subject` is a `RecordRef`, stored as the `bsb.subject` attribute (`type/id`), and the workflow editor starts a run on one with `start(subject_type, subject_id)`. `workflowResource(subject, types)` maps it to the `resource` PermDock's `start` takes, so the run's permissions on that type hold on that row only ([bind a run to a record](/docs/concepts/automations#bind-a-run-to-a-record)). `types` maps each `config.recordTypes` type to the PermDock resource name:
 
 ```ts
 import { workflowResource } from "permdock/better-supabase";
@@ -1078,7 +1078,7 @@ delegations: [
 
 better-supabase's SQL modules check permission keys, such as `audit.read`, `api_keys.manage` and the AI, workflow and inbox modules' keys. Its doctor reports a key the provider's `permissions` lacks, so pass `catalog` and declare each key the installed modules check in the policy. Rename a key with `blocks.<block>.permissions` in `better-supabase.config.ts`; doctor PD079 lists each key a configured block checks that the catalog lacks ([doctor](/docs/cli/doctor)). The example declares the audit block's `audit.read` and `audit.revert` on an `audit` resource with no table: set `rls.tables.audit: false`, or `rls generate` writes policies for a `public.audit` table the block does not create.
 
-The attachments and comments blocks take per-subject keys from the subject registry, `subjects.<type>.permissions` in `better-supabase.config.ts`: `upload` and `manage` for attachments, `create` and `moderate` for comments. Point each at a catalog key of the subject's resource, such as `contracts.update` for `upload`, so a member who may not update a contract cannot attach files to it. The registry's `read` stays the key for the subject row; set the files' own `read` in `blocks.attachments.on.<type>.permissions`. Without per-subject keys, any tenant member with `attachments.read` reads every subject's files, and better-supabase's doctor warns with BS345 when the subject table's policies check more than tenant membership.
+The attachments and comments blocks take per-subject keys from the subject registry, `recordTypes.<type>.permissions` in `better-supabase.config.ts`: `upload` and `manage` for attachments, `create` and `moderate` for comments. Point each at a catalog key of the subject's resource, such as `contracts.update` for `upload`, so a member who may not update a contract cannot attach files to it. The registry's `read` stays the key for the subject row; set the files' own `read` in `blocks.attachments.on.<type>.permissions`. Without per-subject keys, any tenant member with `attachments.read` reads every subject's files, and better-supabase's doctor warns with BS345 when the subject table's policies check more than tenant membership.
 
 ## Audit the PermDock tables
 
@@ -1127,7 +1127,7 @@ Pin both packages to the pair a release lists, and update the table in the same 
 
 ## Example app
 
-`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.53.0.
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.4 with Cache Components. It runs on better-supabase 0.58.1.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
 - `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version, intent })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, `version` is `authzVersion({ query })`, and `intent` makes a `read`, `list` or `view` permission `read` and every other check `write`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
