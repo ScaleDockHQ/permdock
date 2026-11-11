@@ -47,8 +47,8 @@ describe("better-supabase example forward migrations", () => {
             "utf8",
           );
           // Declarative files drop `if not exists` and `drop policy`. Replaying
-          // them over the migrations has to skip objects the migrations created
-          // and replace policies.
+          // them over the migrations has to skip objects and columns the
+          // migrations created and replace policies.
           const sql = source
             .replaceAll(
               /create policy ("[^"]+") on ([^\n]+)\n/giu,
@@ -56,6 +56,10 @@ describe("better-supabase example forward migrations", () => {
             )
             .replaceAll(
               /^(create (?:schema|table)) (?!if not exists)/gmu,
+              "$1 if not exists ",
+            )
+            .replaceAll(
+              /^(alter table [^\n]+ add column) (?!if not exists)/gmu,
               "$1 if not exists ",
             );
           await client.query(sql);

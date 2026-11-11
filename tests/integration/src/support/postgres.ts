@@ -1,6 +1,8 @@
 import { PostgreSqlContainer } from "@testcontainers/postgresql";
 import { Client } from "pg";
 
+import { startPostgres17 } from "./postgres-17.ts";
+
 export type AsOptions = {
   readonly role?: string;
   readonly settings?: Readonly<Record<string, string>>;
@@ -80,24 +82,37 @@ create role tester login password 'tester' nosuperuser nobypassrls inherit;
 grant usage on schema public to tester;
 `;
 
+async function startServer(): Promise<{
+  readonly uri: string;
+  readonly stop: () => Promise<void>;
+}> {
+  const bin = process.env["PERMDOCK_POSTGRES_BIN"];
+  if (bin !== undefined && bin !== "") {
+    const native = await startPostgres17();
+    return { uri: native.url, stop: native.stop };
+  }
+  const container = await new PostgreSqlContainer("postgres:16-alpine").start();
+  return {
+    uri: container.getConnectionUri(),
+    stop: async () => {
+      await container.stop();
+    },
+  };
+}
+
 /**
  * One throwaway Postgres 16 per suite; `setup` runs as superuser, in order, in
- * one simple query.
+ * one simple query. `PERMDOCK_POSTGRES_BIN` runs a local Postgres 17 instead of
+ * Docker, as in `startPostgres17`.
  */
 export async function startPostgres(
   setup: readonly string[] = [],
 ): Promise<Postgres> {
-  const container = await new PostgreSqlContainer("postgres:16-alpine").start();
-  const admin = new Client({ connectionString: container.getConnectionUri() });
+  const server = await startServer();
+  const admin = new Client({ connectionString: server.uri });
   await admin.connect();
   await admin.query([TESTER, ...setup].join(";\n"));
-  const tester = new Client({
-    host: container.getHost(),
-    port: container.getPort(),
-    user: "tester",
-    password: "tester",
-    database: container.getDatabase(),
-  });
+  const tester = new Client({ connectionString: testerUri(server.uri) });
   await tester.connect();
   const as = inTransaction(async (text, values) => {
     await tester.query(text, values === undefined ? undefined : [...values]);
@@ -105,12 +120,12 @@ export async function startPostgres(
   return {
     admin,
     tester,
-    uri: container.getConnectionUri(),
+    uri: server.uri,
     as,
     async stop() {
       await tester.end();
       await admin.end();
-      await container.stop();
+      await server.stop();
     },
   };
 }

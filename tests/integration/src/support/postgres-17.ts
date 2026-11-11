@@ -64,8 +64,9 @@ async function startNative(bin: string): Promise<Postgres17> {
 
 /**
  * One throwaway Postgres 17 cluster per suite, with no Supabase roles or
- * schemas: the suite installs its own stub. `PERMDOCK_POSTGRES_BIN` names a
- * directory with `initdb` and `pg_ctl` to run without Docker; the cluster is
+ * schemas: the suite installs its own stub. The superuser is `postgres`, as on
+ * Supabase, where it owns the migrated functions. `PERMDOCK_POSTGRES_BIN` names
+ * a directory with `initdb` and `pg_ctl` to run without Docker; the cluster is
  * new either way, because roles are cluster-wide.
  */
 export async function startPostgres17(): Promise<Postgres17> {
@@ -73,7 +74,9 @@ export async function startPostgres17(): Promise<Postgres17> {
   if (bin !== undefined && bin !== "") {
     return startNative(bin);
   }
-  const container = await new PostgreSqlContainer("postgres:17-alpine").start();
+  const container = await new PostgreSqlContainer("postgres:17-alpine")
+    .withUsername("postgres")
+    .start();
   return {
     url: container.getConnectionUri(),
     stop: async () => {
