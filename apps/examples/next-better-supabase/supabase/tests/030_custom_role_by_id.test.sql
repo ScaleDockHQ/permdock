@@ -42,7 +42,7 @@ select extensions.is(
   (select count(*)::int from better_supabase.audit_events
    where event_type = 'permdock.custom_role.replaced'
      and record_id = '00000000-0000-4000-8000-0000000000e1'
-     and organization_id = '00000000-0000-4000-8000-0000000000b1'),
+     and tenant_id = '00000000-0000-4000-8000-0000000000b1'),
   1,
   'the save writes one audit event in Acme'
 );
