@@ -9,7 +9,7 @@ paths:
 
 # CLI
 
-The `permdock` binary follows the contract better-supabase's CLI defines (`docs/decisions/0037-cli-contract-shared-with-better-supabase.md`). Keep the names below identical in both repositories.
+The `permdock` binary follows the contract better-supabase's CLI defines (`docs/decisions/0037-cli-contract-shared-with-better-supabase.md`). Keep the names below identical in both repositories. better-supabase 0.58 moved to CLI contract 3 (`cli-result-v2`, errors on stderr, no exit 3, `confirmation_required`); `permdock` stays on contract v1 until its own breaking change (`docs/decisions/0068-cli-contract-v1-after-better-supabase-0-58.md`).
 
 ## Layout
 

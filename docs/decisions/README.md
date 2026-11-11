@@ -71,3 +71,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0065](./0065-release-after-ci.md)                                | Release runs after CI, without a second verify                                                         |
 | [0066](./0066-pnpm-store-saved-once.md)                           | The pnpm store is saved from the static job only                                                       |
 | [0067](./0067-better-supabase-0-58-0-floor-and-release-age.md)    | better-supabase 0.58.0 is the peer floor, 0.58.1 the catalog pin, and both skip the release age        |
+| [0068](./0068-cli-contract-v1-after-better-supabase-0-58.md)      | PermDock keeps CLI contract v1 after better-supabase 0.58 moves to contract 3                          |

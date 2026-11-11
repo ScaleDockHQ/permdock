@@ -14,37 +14,59 @@ import {
 import { run } from "../../src/cli/core/run.ts";
 
 // The contract both CLIs share (decision 0037): a code better-supabase has
-// keeps its name, title and exit code here; PermDock adds codes only under
-// names better-supabase does not use.
+// keeps its name and title here; PermDock adds codes only under names
+// better-supabase does not use. better-supabase 0.58 moved to CLI contract 3
+// and PermDock stays on the `cli-result-v1` envelope (decision 0068), so the
+// envelope is checked against the last v1 schema better-supabase published
+// (0.57.0) and the codes against the pinned release.
 const require = createRequire(import.meta.url);
 
-function upstreamSchema(): Record<string, unknown> {
-  const parsed: unknown = JSON.parse(
-    readFileSync(
-      require.resolve("better-supabase/schemas/cli-result-v1.json"),
-      "utf8",
-    ),
-  );
-  // SAFETY: the published file is a JSON Schema object; ajv rejects anything else when it compiles it
+function readSchema(path: string | URL): Record<string, unknown> {
+  const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
+  // SAFETY: both files are JSON Schema objects; ajv rejects anything else when it compiles them
   return parsed as Record<string, unknown>;
 }
 
-const schema = upstreamSchema();
-// SAFETY: the published schema keeps the problem object under $defs.problem.
+const envelopeSchema = readSchema(
+  new URL("../fixtures/better-supabase/cli-result-v1.json", import.meta.url),
+);
+// SAFETY: the v1 schema keeps the problem object under $defs.problem.
 const problem = (
-  schema["$defs"] as {
-    problem: {
-      properties: Record<string, unknown> & { code: { enum: string[] } };
-    };
+  envelopeSchema["$defs"] as {
+    problem: { properties: Record<string, unknown> };
   }
 ).problem;
-const upstreamCodes = new Set(problem.properties.code.enum);
+
+const pinnedSchema = readSchema(
+  require.resolve("better-supabase/schemas/cli-result-v2.json"),
+);
+// SAFETY: the v2 schema keeps the error document under $defs.error, its codes in `reason`.
+const pinnedError = (
+  pinnedSchema["$defs"] as {
+    error: { properties: { reason: { enum: string[] } } };
+  }
+).error;
+const upstreamCodes = new Set(pinnedError.properties.reason.enum);
 
 /** PermDock's own codes, which better-supabase never uses for another meaning. */
 const EXTENSIONS: ReadonlySet<ProblemCode> = new Set([
   "catalog_invalid",
   "dirty_worktree",
   "write_failed",
+]);
+
+/** Codes contract 3 renamed, PermDock's name to better-supabase's. */
+const RENAMED_UPSTREAM: ReadonlyMap<ProblemCode, string> = new Map([
+  ["consent_required", "confirmation_required"],
+]);
+
+/**
+ * Codes that exit 3 in PermDock, where contract 3 exits 2 with
+ * `userActionRequired: true`.
+ */
+const ACTION_REQUIRED: ReadonlySet<ProblemCode> = new Set([
+  "auth_required",
+  "input_required",
 ]);
 
 /**
@@ -57,7 +79,7 @@ const shared = PROBLEM_CODES.filter((code) => upstreamCodes.has(code));
 
 const ajv = new Ajv2020({ allErrors: true, strictRequired: false });
 ajv.addFormat("uri", true);
-const validate = ajv.compile(schema);
+const validate = ajv.compile(envelopeSchema);
 
 /**
  * The envelope with only the problem members better-supabase defines, so
@@ -84,6 +106,7 @@ describe("the CLI contract shared with better-supabase", () => {
       (code) =>
         !upstreamCodes.has(code) &&
         !EXTENSIONS.has(code) &&
+        !RENAMED_UPSTREAM.has(code) &&
         !PENDING_UPSTREAM.has(code),
     );
     expect(unexplained).toStrictEqual([]);
@@ -95,17 +118,40 @@ describe("the CLI contract shared with better-supabase", () => {
     ).toStrictEqual([]);
   });
 
+  it.each([...RENAMED_UPSTREAM])(
+    "keeps %s, which the pinned better-supabase names %s",
+    (code, renamed) => {
+      expect(upstreamCodes.has(code)).toBe(false);
+      expect(upstreamCodes.has(renamed)).toBe(true);
+    },
+  );
+
   it.each(shared)("gives %s better-supabase's title and exit code", (code) => {
-    // SAFETY: `shared` only holds codes the published schema's enum lists.
+    // SAFETY: `shared` only holds codes the pinned schema's `reason` enum lists.
     const upstream = new BetterSupabaseError(
       code as ConstructorParameters<typeof BetterSupabaseError>[0],
       "x",
     );
-    expect(exitCodeOfProblem(code)).toBe(upstream.exitCode);
     expect(cliProblem("usage", "x", undefined, { code }).title).toBe(
       upstream.problem.title,
     );
+    expect(exitCodeOfProblem(code)).toBe(
+      ACTION_REQUIRED.has(code) ? 3 : upstream.exitCode,
+    );
   });
+
+  it.each([...ACTION_REQUIRED])(
+    "exits 3 on %s, where contract 3 exits 2",
+    (code) => {
+      // SAFETY: better-supabase's constructor throws on a code its contract lacks, which fails the test.
+      const upstream = new BetterSupabaseError(
+        code as ConstructorParameters<typeof BetterSupabaseError>[0],
+        "x",
+      );
+      expect(upstream.exitCode).toBe(2);
+      expect(exitCodeOfProblem(code)).toBe(3);
+    },
+  );
 
   it.each([
     [["nope", "--json"], 2],
@@ -113,7 +159,7 @@ describe("the CLI contract shared with better-supabase", () => {
     [["rls", "--json"], 2],
     [["preset", "decode", "--json"], 3],
   ])(
-    "prints %j as an envelope better-supabase's schema accepts",
+    "prints %j as an envelope better-supabase's v1 schema accepts",
     async (argv, exit) => {
       const { code, stdout } = await run(argv);
       expect(code).toBe(exit);
