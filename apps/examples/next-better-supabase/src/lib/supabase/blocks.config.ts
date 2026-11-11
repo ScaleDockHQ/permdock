@@ -2,58 +2,27 @@
 
 import type { GeneratedBlocks } from "better-supabase/blocks";
 
+import {
+  permissionsConfig,
+  auditConfig,
+  pgtapConfig,
+  shareLinksConfig,
+  membershipsConfig,
+  updatedAtConfig,
+} from "./blocks/slices.ts";
+
+/** The permission keys, re-exported from `blocks/permissions.ts`. @public */
+export { permissions, type PermissionKey } from "./blocks/permissions.ts";
+
 /**
- * The installed blocks' settings from the `blocks` config, for
- * `defineBlocks(blockConfig, { ... })`: each block's schema, API schema
- * and the options its SQL and TypeScript halves share.
+ * Every installed instance's config slice, for the server. Client code
+ * imports the slices it uses from `blocks/<instance>.ts`.
  */
 export const blockConfig = {
-  permissions: {
-    schema: "better_supabase",
-    options: {},
-  },
-  audit: {
-    schema: "better_supabase",
-    options: {},
-  },
-  pgtap: {
-    schema: "better_supabase",
-    options: {},
-  },
-  "share-links": {
-    schema: "better_supabase",
-    options: {},
-  },
-  memberships: {
-    schema: "better_supabase",
-    options: {},
-  },
-  "updated-at": {
-    schema: "better_supabase",
-    options: {},
-  },
+  permissions: permissionsConfig,
+  audit: auditConfig,
+  pgtap: pgtapConfig,
+  "share-links": shareLinksConfig,
+  memberships: membershipsConfig,
+  "updated-at": updatedAtConfig,
 } as const satisfies GeneratedBlocks;
-
-/**
- * The permission keys the installed blocks, subjects and app tables check,
- * by owner and action.
- * @public
- */
-export const permissions = {
-  audit: {
-    read: "audit.read",
-    readAll: "audit.read",
-    revert: "audit.revert",
-  },
-  "share-links": {
-    create: "quotes.update",
-    read: "quotes.read",
-  },
-} as const;
-
-/**
- * Every permission key, for `defineAuthorizer<PermissionKey>()` and
- * the `permission` of actions and routes.
- * @public
- */
-export type PermissionKey = "audit.read" | "audit.revert" | "quotes.read" | "quotes.update";

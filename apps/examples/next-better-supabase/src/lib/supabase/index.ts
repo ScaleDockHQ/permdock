@@ -2,7 +2,7 @@ import { createSupabase } from "better-supabase";
 import { supabaseClaims } from "permdock/supabase";
 import { z } from "zod";
 
-import { schema } from "./generated.ts";
+import { schema } from "./generated-schema.ts";
 
 /**
  * The app's own claim (`supabase.hook.claims`); `supabaseClaims()` covers
