@@ -493,7 +493,6 @@ grant execute on function "permdock".custom_access_token_hook(jsonb) to supabase
 revoke execute on function "permdock".custom_access_token_hook(jsonb) from authenticated, anon, public;
 grant execute on function "permdock".memberships_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".global_roles_for(uuid) to supabase_auth_admin;
-grant execute on function "permdock".member_tenant_ids_for(uuid) to supabase_auth_admin;
 grant select on table "permdock"."permdock_authz_version" to supabase_auth_admin;
 create policy "permdock_auth_admin_read_version" on "permdock"."permdock_authz_version"
   as permissive for select
