@@ -27,7 +27,7 @@ create table if not exists "app"."user_roles" (
 alter table "app"."user_roles" enable row level security;
 revoke all on table "app"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (jwt: reads the role and memberships claims) sha-256:MfNjS0BUc4kKCbPFKFC5BChSGqIQ7I98mB9lW3iUN1A
+-- permdock helpers (jwt: reads the role and memberships claims) sha-256:QLaMw5AJ0M7R4IIxi98tcuTuKziM5udpDrkFo9iQdMw
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "app";
@@ -229,6 +229,8 @@ as $$
     and m."role" is not null
 $$;
 revoke execute on function "app".member_tenant_ids_for(uuid) from public, anon, authenticated;
+grant usage on schema "app" to supabase_auth_admin;
+grant execute on function "app".member_tenant_ids_for(uuid) to supabase_auth_admin;
 
 -- every declared permission key
 create or replace function "app".permdock_permission_keys()

@@ -80,10 +80,7 @@ function helperList(
                   ? "p_user uuid, p_active text"
                   : "p_user uuid",
                 returns,
-                parts.extra.length > 0 ||
-                  (parts.hook.teams !== undefined && isTeamScope(scope.name))
-                  ? ["supabase_auth_admin"]
-                  : [],
+                ["supabase_auth_admin"],
               ),
             ]
           : []),
