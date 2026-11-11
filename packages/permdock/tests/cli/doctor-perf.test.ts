@@ -80,6 +80,30 @@ create policy x on public.t for select using (permdock.permitted_t_row(t, 'k'));
       });
       expect(pd103(cwd, NONE, nodeFiles)).toHaveLength(1);
     });
+
+    it("flags a set helper passed a column of the row, not one led by the tenants", () => {
+      const cwd = project({
+        "supabase/schemas/blocks.sql": `
+create policy rows_by_id on public.deals for select to authenticated
+  using (id::text in (select r.id::text from permdock.permitted_deal_rows('deal.read', (array[id::text])::uuid[]) as r(id)));
+create policy rows_by_tenant on public.notes for select
+  using (permdock.permitted_note_rows('note.read', "notes"."organization_id") is not null);
+create policy keys_for on public.orgs for select
+  using ('org.read' = any (array(select permdock.permitted_tenant_permission_keys(id))));
+create policy follows_set on public.job_parties for select to authenticated
+  using ("job_parties"."job_id" = any(array(select r from unnest(array(select "permdock".permitted_tenant_ids_by_permission('job.read', true))) t(id) cross join lateral "permdock".permitted_job_rows('job.read', t.id) r union all select r from "permdock".permitted_job_rows('job.read') r where exists (select 1 from "permdock".grant_keys('job.read', 'global') g(k) where "permdock".permdock_has(g.k)))));
+`,
+      });
+      const findings = pd103(cwd, NONE, nodeFiles);
+      expect(targets(findings)).toStrictEqual([
+        "supabase/schemas/blocks.sql:public.deals:rows_by_id",
+        "supabase/schemas/blocks.sql:public.notes:rows_by_tenant",
+        "supabase/schemas/blocks.sql:public.orgs:keys_for",
+      ]);
+      expect(findings[0]?.message).toContain(
+        "permitted_deal_rows('deal.read', (array[id::text])::uuid[]) takes a column of the row",
+      );
+    });
   });
 
   describe("PD103 set helper that calls the match once per row", () => {
