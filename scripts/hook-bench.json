@@ -1,0 +1,223 @@
+{
+  "$comment": "node scripts/hook-bench.ts --write; times are a median and p95 of server-side clock_timestamp() around each hook call, bytes are exact",
+  "measuredOn": "darwin arm64, Apple M5 Max",
+  "runs": 25,
+  "cells": [
+    {
+      "mode": "on",
+      "memberships": 1,
+      "fullReadMs": {
+        "median": 0.069,
+        "p95": 0.164
+      },
+      "refreshMs": {
+        "median": 0.016,
+        "p95": 0.032
+      },
+      "claimsBytes": 614,
+      "membershipsClaimBytes": 57,
+      "keptMemberships": 1,
+      "truncated": false,
+      "cookieBytes": 2519,
+      "cookieChunks": 1
+    },
+    {
+      "mode": "on",
+      "memberships": 50,
+      "fullReadMs": {
+        "median": 0.212,
+        "p95": 0.227
+      },
+      "refreshMs": {
+        "median": 0.206,
+        "p95": 0.24
+      },
+      "claimsBytes": 1491,
+      "membershipsClaimBytes": 905,
+      "keptMemberships": 16,
+      "truncated": true,
+      "cookieBytes": 3688,
+      "cookieChunks": 2
+    },
+    {
+      "mode": "on",
+      "memberships": 150,
+      "fullReadMs": {
+        "median": 0.447,
+        "p95": 0.604
+      },
+      "refreshMs": {
+        "median": 0.453,
+        "p95": 0.49
+      },
+      "claimsBytes": 1491,
+      "membershipsClaimBytes": 905,
+      "keptMemberships": 16,
+      "truncated": true,
+      "cookieBytes": 3688,
+      "cookieChunks": 2
+    },
+    {
+      "mode": "on",
+      "memberships": 500,
+      "fullReadMs": {
+        "median": 1.321,
+        "p95": 1.39
+      },
+      "refreshMs": {
+        "median": 1.305,
+        "p95": 1.43
+      },
+      "claimsBytes": 1491,
+      "membershipsClaimBytes": 905,
+      "keptMemberships": 16,
+      "truncated": true,
+      "cookieBytes": 3688,
+      "cookieChunks": 2
+    },
+    {
+      "mode": "unbounded",
+      "memberships": 1,
+      "fullReadMs": {
+        "median": 0.069,
+        "p95": 0.165
+      },
+      "refreshMs": {
+        "median": 0.016,
+        "p95": 0.034
+      },
+      "claimsBytes": 614,
+      "membershipsClaimBytes": 57,
+      "keptMemberships": 1,
+      "truncated": false,
+      "cookieBytes": 2519,
+      "cookieChunks": 1
+    },
+    {
+      "mode": "unbounded",
+      "memberships": 50,
+      "fullReadMs": {
+        "median": 0.256,
+        "p95": 0.335
+      },
+      "refreshMs": {
+        "median": 0.086,
+        "p95": 0.095
+      },
+      "claimsBytes": 3383,
+      "membershipsClaimBytes": 2826,
+      "keptMemberships": 50,
+      "truncated": false,
+      "cookieBytes": 6211,
+      "cookieChunks": 2
+    },
+    {
+      "mode": "unbounded",
+      "memberships": 150,
+      "fullReadMs": {
+        "median": 0.618,
+        "p95": 1.112
+      },
+      "refreshMs": {
+        "median": 0.273,
+        "p95": 0.334
+      },
+      "claimsBytes": 9033,
+      "membershipsClaimBytes": 8476,
+      "keptMemberships": 150,
+      "truncated": false,
+      "cookieBytes": 13744,
+      "cookieChunks": 5
+    },
+    {
+      "mode": "unbounded",
+      "memberships": 500,
+      "fullReadMs": {
+        "median": 2.438,
+        "p95": 2.706
+      },
+      "refreshMs": {
+        "median": 0.844,
+        "p95": 1.152
+      },
+      "claimsBytes": 28808,
+      "membershipsClaimBytes": 28251,
+      "keptMemberships": 500,
+      "truncated": false,
+      "cookieBytes": 40111,
+      "cookieChunks": 13
+    },
+    {
+      "mode": "off",
+      "memberships": 1,
+      "fullReadMs": {
+        "median": 0.055,
+        "p95": 0.131
+      },
+      "refreshMs": {
+        "median": 0.054,
+        "p95": 0.063
+      },
+      "claimsBytes": 588,
+      "membershipsClaimBytes": 2,
+      "keptMemberships": 0,
+      "truncated": true,
+      "cookieBytes": 2484,
+      "cookieChunks": 1
+    },
+    {
+      "mode": "off",
+      "memberships": 50,
+      "fullReadMs": {
+        "median": 0.151,
+        "p95": 0.169
+      },
+      "refreshMs": {
+        "median": 0.155,
+        "p95": 0.17
+      },
+      "claimsBytes": 588,
+      "membershipsClaimBytes": 2,
+      "keptMemberships": 0,
+      "truncated": true,
+      "cookieBytes": 2484,
+      "cookieChunks": 1
+    },
+    {
+      "mode": "off",
+      "memberships": 150,
+      "fullReadMs": {
+        "median": 0.328,
+        "p95": 0.364
+      },
+      "refreshMs": {
+        "median": 0.326,
+        "p95": 0.345
+      },
+      "claimsBytes": 588,
+      "membershipsClaimBytes": 2,
+      "keptMemberships": 0,
+      "truncated": true,
+      "cookieBytes": 2484,
+      "cookieChunks": 1
+    },
+    {
+      "mode": "off",
+      "memberships": 500,
+      "fullReadMs": {
+        "median": 1.006,
+        "p95": 1.043
+      },
+      "refreshMs": {
+        "median": 1.01,
+        "p95": 1.042
+      },
+      "claimsBytes": 588,
+      "membershipsClaimBytes": 2,
+      "keptMemberships": 0,
+      "truncated": true,
+      "cookieBytes": 2484,
+      "cookieChunks": 1
+    }
+  ]
+}
