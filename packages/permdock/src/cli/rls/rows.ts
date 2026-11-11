@@ -17,9 +17,13 @@ import {
   quoteLiteral,
   quoteQualified,
 } from "../sql/quote.ts";
+import { HELPERS } from "../sql/shared.ts";
 import { subjectIdSql } from "../sql/subject.ts";
 import { memoHitList, memoizes } from "./helper-bodies.ts";
-import { permittedByPermissionHelper } from "./permission-keys.ts";
+import {
+  PERMISSION_HELPERS,
+  permittedByPermissionHelper,
+} from "./permission-keys.ts";
 import { orSql } from "./policies.ts";
 import { memoRowTriggersSql } from "./row-memo.ts";
 
@@ -392,71 +396,96 @@ function tenantColumnOf(
 }
 
 /**
- * For a key whose every allow is a role held at the root scope, the check that
- * the row's tenant column is among the tenants where the caller holds the key.
- * It sits first in the key's branch and its subquery does not depend on the
- * row, so Postgres runs it once and the index on the column applies.
- * `undefined` when the resource has no tenant column (a relation `memberOf` the
- * root scope) or an allow reaches the key through a global role, a sub-scope or
- * instance role, a relation, a link or an `anyone` grantee.
+ * How the allows of a permission reach the caller: every one through a role at
+ * the root scope, through such roles and global roles, through anything else,
+ * or not at all.
  */
-function tenantFirstOf(
+function allowReach(
   ctx: RlsSqlContext,
   policy: Policy,
-  node: ResourceNode,
-): ((key: string) => string | undefined) | undefined {
+  permission: string,
+): "root" | "root-or-global" | "other" | "none" {
   const root = rootScope(ctx.scopes);
-  const field = tenantColumnOf(ctx, node);
-  if (root === undefined || field === undefined) {
-    return undefined;
+  const items = policy.grants
+    .filter(
+      (grant) =>
+        grant.effect === "allow" && grant.permission.key === permission,
+    )
+    .map((grant) => flattenGrantee(grant.to));
+  if (items.length === 0) {
+    return "none";
   }
-  const check = `${quoteIdent(field)} = any(array(select ${qualified(ctx, permittedByPermissionHelper(root))}(p_permission, true)))`;
-  return (key) => {
-    const allows = policy.grants.filter(
-      (grant) => grant.effect === "allow" && grant.permission.key === key,
-    );
-    const bound =
-      allows.length > 0 &&
-      allows.every(
-        (grant) =>
-          flattenGrantee(grant.to).length > 0 &&
-          flattenGrantee(grant.to).every(
-            (item) =>
-              item.kind === "role" &&
-              typeof item.scope === "string" &&
-              resolveScope(ctx.scopes, item.scope) === root,
-          ),
-      );
-    return bound ? check : undefined;
-  };
+  const kinds = new Set(
+    items.flatMap((list) =>
+      list.length === 0
+        ? ["other"]
+        : list.map((item) => {
+            if (item.kind !== "role" || typeof item.scope !== "string") {
+              return "other";
+            }
+            if (item.scope === "global") {
+              return "global";
+            }
+            return root !== undefined &&
+              resolveScope(ctx.scopes, item.scope) === root
+              ? "root"
+              : "other";
+          }),
+    ),
+  );
+  if (kinds.has("other")) {
+    return "other";
+  }
+  return kinds.has("global") ? "root-or-global" : "root";
 }
 
 /**
  * The ids of a resource's rows a permission reaches, as one uncorrelated
- * `select` for `<fk> = any(array(<select>))`, or `undefined` when the
- * permission cannot be read one tenant at a time. Only a permission every allow
- * of which is a root-scope role can: it reads `permitted_<resource>_rows(p, t)`
- * over the tenants the caller holds it in, through the tenant column's index.
- * Any other permission would need the whole platform's rows to answer one
- * lookup, so the caller keeps its per-row form.
+ * `select` for `<fk> = any(array(<select>))`, so a policy runs it once per
+ * statement instead of a `can_<resource>` call per row. A permission held
+ * through root-scope roles reads `permitted_<resource>_rows(p, t)` over the
+ * tenants the caller holds it in, through the tenant column's index. Global
+ * roles add the whole set, only for a caller who holds one of their grant keys.
+ * Any other grantee reads the whole set `permitted_<resource>_rows(p)`.
  */
-export function tenantRowSetSql(
+export function rowSetSql(
   ctx: RlsSqlContext,
   policy: Policy,
   node: ResourceNode,
   permission: string,
-): string | undefined {
-  const root = rootScope(ctx.scopes);
-  if (
-    root === undefined ||
-    tenantFirstOf(ctx, policy, node)?.(permission) === undefined
-  ) {
-    return undefined;
-  }
+): string {
   const literal = quoteLiteral(permission);
   const rows = qualified(ctx, rowsHelper(node.name));
-  const tenants = qualified(ctx, permittedByPermissionHelper(root));
-  return `select r from unnest(array(select ${tenants}(${literal}, true))) t(id) cross join lateral ${rows}(${literal}, t.id) r`;
+  const reach = allowReach(ctx, policy, permission);
+  const root = rootScope(ctx.scopes);
+  const tenantLed =
+    root !== undefined && tenantColumnOf(ctx, node) !== undefined;
+  switch (reach) {
+    case "none":
+      return `select null::${idTypeOf(ctx, node.name)} where false`;
+    case "other":
+      return `select r from ${rows}(${literal}) r`;
+    case "root":
+    case "root-or-global": {
+      if (!tenantLed) {
+        return `select r from ${rows}(${literal}) r`;
+      }
+      const tenants = qualified(ctx, permittedByPermissionHelper(root));
+      const led = `select r from unnest(array(select ${tenants}(${literal}, true))) t(id) cross join lateral ${rows}(${literal}, t.id) r`;
+      if (reach === "root") {
+        return led;
+      }
+      const keys = qualified(ctx, PERMISSION_HELPERS.grantKeys);
+      const has = qualified(ctx, HELPERS.has);
+      const held = (effect: string): string =>
+        `exists (select 1 from ${keys}(${literal}, 'global'${effect}) g(k) where ${has}(g.k))`;
+      return `${led} union all select r from ${rows}(${literal}) r where ${held("")} or ${held(", 'conditioned-allow'")}`;
+    }
+    default: {
+      const exhaustive: never = reach;
+      return exhaustive;
+    }
+  }
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   allow,
   definePermissions,
   definePolicy,
+  relation,
   resource,
   role,
 } from "../../src/index.ts";
@@ -49,7 +50,7 @@ describe("rls.tables follows and walk", () => {
     expect(tablelessResources(tables)).toStrictEqual(new Set(["jobParty"]));
   });
 
-  it("writes child policies that call can_job and no child permission", () => {
+  it("writes child policies over a set of parent rows and no child permission", () => {
     const policies = followPolicies(ctx, policy, tables);
     expect(policies.map((item) => item.command)).toStrictEqual([
       "select",
@@ -59,14 +60,31 @@ describe("rls.tables follows and walk", () => {
     ]);
     const select = policies[0];
     expect(select?.table).toBe("public.job_parties");
-    expect(select?.using).toContain(
-      `exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_job(p, 'job.read'::text))`,
+    expect(select?.using).toBe(
+      `"job_parties"."job_id" = any(array(select null::uuid where false))`,
     );
-    expect(policies[1]?.check).toContain("can_job(p, 'job.update'::text)");
-    expect(policies[2]?.using).toContain("can_job(p, 'job.update'::text)");
-    expect(policies[2]?.check).toContain("can_job(p, 'job.update'::text)");
-    expect(policies.map((item) => item.using).join(" ")).not.toContain(
-      "jobParty",
+    const joined = policies
+      .flatMap((item) => [item.using ?? "", item.check ?? ""])
+      .join(" ");
+    expect(joined).not.toContain("can_job");
+    expect(joined).not.toContain("jobParty");
+  });
+
+  it("reads the whole parent set once per statement for a permission no tenant leads", () => {
+    const related = definePolicy(permissions, {
+      grants: [
+        allow([permissions.job.read, permissions.job.update], {
+          to: relation(permissions.job, "org"),
+        }),
+      ],
+      subject: () => null,
+    });
+    const [select, insert] = followPolicies(ctx, related, tables);
+    expect(select?.using).toBe(
+      `"job_parties"."job_id" = any(array(select r from "permdock".permitted_job_rows('job.read') r))`,
+    );
+    expect(insert?.check).toBe(
+      `"job_parties"."job_id" = any(array(select r from "permdock".permitted_job_rows('job.update') r))`,
     );
   });
 
