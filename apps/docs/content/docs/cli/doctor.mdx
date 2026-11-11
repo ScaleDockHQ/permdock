@@ -130,7 +130,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD076` | `rls.actions` entries set to `'none'` on a verb that compiles to `'none'` anyway, or entries for a verb no permission uses                                                                                                                                                                                                           | info            |
 | `PD077` | A config key or value names a scope, resource or action the policy does not declare, such as a Realtime topic `{organisation}` placeholder; or two of them give one SQL helper name                                                                                                                                                  | error           |
 | `PD078` | better-supabase's `blocks.permissions.activeTenant` writes the active tenant to another place than `supabase.hook.activeFrom` reads it                                                                                                                                                                                               | warning         |
-| `PD079` | A permission key a configured better-supabase block checks is not in the catalog, or `better-supabase/sql` has no `modulePermissionKeys` to list them                                                                                                                                                                                | error           |
+| `PD079` | A permission key a configured better-supabase block checks is not in the catalog, a block action key is one better-supabase renamed, or `better-supabase/sql` has no `modulePermissionKeys` to list them                                                                                                                             | error           |
 | `PD080` | `postgrestSources`, `memoryVersionCache` or `claimsFirst` is created inside a function body, so no read or instance is shared                                                                                                                                                                                                        | warning         |
 | `PD081` | `instanceCache` is created inside a function body, so no instance is reused                                                                                                                                                                                                                                                          | warning         |
 | `PD082` | `supabase.hook` keeps `permdock_authz_version` while better-supabase's `blocks.sessions.authzVersions` keeps a second version table                                                                                                                                                                                                  | warning         |
@@ -552,7 +552,13 @@ Each better-supabase block checks permission keys through the provider: its defa
 error PD079  notifications.send (blocks.notifications.permissions.send) is not in permissions.catalog.json, so no role holds it and better-supabase's SQL check denies it
 ```
 
-Declare the key in the policy and run `permdock collect`, or map the block action to a key the catalog lists. PD079 is also an error when `better-supabase/sql` does not export `modulePermissionKeys`: the keys cannot be listed, and an unchecked key is a block that denies. `defineBlocksConfig<typeof policy>()` from `permdock/better-supabase` rejects an unknown key at compile time. `--only catalog` (or `--only better-supabase`) runs PD079.
+Declare the key in the policy and run `permdock collect`, or map the block action to a key the catalog lists. PD079 is also an error when `better-supabase/sql` does not export `modulePermissionKeys`: the keys cannot be listed, and an unchecked key is a block that denies. A block action key that better-supabase 0.58 renamed (`view` is `read`, `viewAll` is `readAll`, `viewSensitive` is `readSensitive`, `edit` is `write`, `admin` is `manage`) is a separate PD079 error, because better-supabase refuses the config with `former_permission_key` before it lists a key:
+
+```txt
+error PD079  blocks.audit.permissions.view is a former block action key: better-supabase renamed it to read and refuses the config
+```
+
+Run `better-supabase codemod naming` to rename it. `defineBlocksConfig<typeof policy>()` from `permdock/better-supabase` rejects an unknown key at compile time. `--only catalog` (or `--only better-supabase`) runs PD079.
 
 ### PD080 and PD081: sources and caches created per call
 

@@ -131,15 +131,40 @@ function isBlockPermissionKey(value: unknown): value is BlockPermissionKey {
   );
 }
 
+type BlockPermissionKeys =
+  | { readonly kind: "keys"; readonly keys: readonly BlockPermissionKey[] }
+  | { readonly kind: "former"; readonly path: string; readonly renamed: string }
+  | { readonly kind: "unavailable" };
+
+/**
+ * better-supabase's `FormerPermissionKeyError`, matched by its stable `code`
+ * because the project's copy of the class is not PermDock's import.
+ */
+function formerPermissionKey(
+  error: unknown,
+): { readonly path: string; readonly renamed: string } | undefined {
+  if (
+    isRecord(error) &&
+    error["code"] === "former_permission_key" &&
+    typeof error["path"] === "string" &&
+    typeof error["renamed"] === "string"
+  ) {
+    return { path: error["path"], renamed: error["renamed"] };
+  }
+  return undefined;
+}
+
 /**
  * Every permission key the configured blocks check, from the project's own
- * `better-supabase/sql`; `undefined` when it does not resolve or refuses the
- * config.
+ * `better-supabase/sql`. `former` is a `blocks.<name>.permissions` key that
+ * better-supabase renamed and refuses; `unavailable` is a `better-supabase/sql`
+ * that does not resolve, lacks `modulePermissionKeys` or refuses the config for
+ * another reason.
  */
 async function blockPermissionKeys(
   cwd: string,
   blocks: Record<string, unknown>,
-): Promise<readonly BlockPermissionKey[] | undefined> {
+): Promise<BlockPermissionKeys> {
   try {
     const file = createRequire(resolve(cwd, "package.json")).resolve(
       "better-supabase/sql",
@@ -148,12 +173,17 @@ async function blockPermissionKeys(
     const sql: Record<string, unknown> = await import(pathToFileURL(file).href);
     const list = sql["modulePermissionKeys"];
     if (!isKeyLister(list)) {
-      return undefined;
+      return { kind: "unavailable" };
     }
     const keys: unknown = list(blocks, Object.keys(blocks));
-    return Array.isArray(keys) ? keys.filter(isBlockPermissionKey) : undefined;
-  } catch {
-    return undefined;
+    return Array.isArray(keys)
+      ? { kind: "keys", keys: keys.filter(isBlockPermissionKey) }
+      : { kind: "unavailable" };
+  } catch (error) {
+    const former = formerPermissionKey(error);
+    return former === undefined
+      ? { kind: "unavailable" }
+      : { kind: "former", ...former };
   }
 }
 
@@ -168,7 +198,9 @@ function isKeyLister(
  * does not list: no role holds it, so the block's SQL checks deny it. The check
  * cannot run without `modulePermissionKeys` from the project's
  * `better-supabase/sql`, and then it is an error: a key that goes unchecked is
- * a block that denies.
+ * a block that denies. A block action key better-supabase renamed (`view`,
+ * `edit`, `admin` and the rest) is its own error, because better-supabase
+ * refuses the config before it lists a key.
  */
 export async function pd079(
   input: DoctorInput,
@@ -178,18 +210,43 @@ export async function pd079(
   if (!isRecord(blocks)) {
     return [];
   }
-  const keys = await blockPermissionKeys(input.cwd, blocks);
-  if (keys === undefined) {
-    return [
-      {
-        code: "PD079",
-        severity: "error",
-        message:
-          "better-supabase/sql does not export modulePermissionKeys, so PermDock cannot list the permission keys the configured blocks check",
-        fix: "install a better-supabase release that exports modulePermissionKeys from better-supabase/sql",
-      },
-    ];
+  const result = await blockPermissionKeys(input.cwd, blocks);
+  switch (result.kind) {
+    case "keys": {
+      return missingBlockKeys(input, result.keys);
+    }
+    case "former": {
+      return [
+        {
+          code: "PD079",
+          severity: "error",
+          message: `${result.path} is a former block action key: better-supabase renamed it to ${result.renamed} and refuses the config`,
+          fix: "run better-supabase codemod naming, or rename the key by hand",
+        },
+      ];
+    }
+    case "unavailable": {
+      return [
+        {
+          code: "PD079",
+          severity: "error",
+          message:
+            "better-supabase/sql does not export modulePermissionKeys, so PermDock cannot list the permission keys the configured blocks check",
+          fix: "install a better-supabase release that exports modulePermissionKeys from better-supabase/sql",
+        },
+      ];
+    }
+    default: {
+      const unexpected: never = result;
+      return unexpected;
+    }
   }
+}
+
+function missingBlockKeys(
+  input: DoctorInput,
+  keys: readonly BlockPermissionKey[],
+): readonly DoctorFinding[] {
   const files = filesOf(input);
   const path = catalogPath(input.config, input.cwd);
   if (!files.exists(path)) {
