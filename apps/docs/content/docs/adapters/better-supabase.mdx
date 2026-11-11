@@ -218,6 +218,28 @@ export default {
 
 With `roles: "many"`, the manifest records the role set's `through.on`, and `authorizationProvider` names it as the membership's `rolesTable`, so better-supabase's role checks read every role and doctor BS411 stays quiet.
 
+A role read through a roles table that also holds system roles, whose tenant column is null, needs an explicit `blocks.memberships.options.sameTenant` entry. better-supabase derives an entry for each foreign key between two tables with the tenant column, but the derived entry differs inside PermDock's peer range: 0.58.0 refuses every row with a null tenant, and 0.58.1 and later allow it when the referenced tenant column may be null. Write `shared` yourself so the check is the same on every release:
+
+```ts title="better-supabase.config.ts"
+export default defineConfig({
+  blocks: {
+    memberships: {
+      options: {
+        sameTenant: [
+          {
+            table: "public.organization_memberships",
+            column: "role_id",
+            references: { table: "public.roles", shared: true },
+          },
+        ],
+      },
+    },
+  },
+});
+```
+
+With `shared: true` a member may hold a system role, and another tenant's role still fails with `TENANT_MISMATCH`; with `shared: false` both fail.
+
 Don't let the block write the claims. `better-supabase add memberships` stops while the provider's `tokenHook.ownedClaims` lists `memberships`, and better-supabase's doctor reports BS407 for a hook that calls `membership_claims()` next to PermDock's. The `features` claim above goes through `supabase.hook.claims`.
 
 With the provider set, the entitlements module reads membership through `member_<scope>_ids` and its `_for` form, so an expired membership or a suspended organization loses its features in the same token that loses the membership ([claims other packages own](/docs/adapters/supabase-hook#claims-other-packages-own)).
