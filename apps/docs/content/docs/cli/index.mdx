@@ -22,19 +22,19 @@ The binary is `permdock`; `permdock --version` prints its version. A config file
 
 Every command takes these, before or after its own flags.
 
-| Flag                    | Meaning                                                                                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--cwd <dir>`           | Run as if started in this directory; paths in reports are relative to it                                                                   |
-| `--config <file>`       | Config file; default `permdock.config.{ts,mts,js,mjs}` in `--cwd`. Only the commands that read the config load it                          |
-| `--json`                | Print the [`cli-result-v1`](/docs/concepts/wire-formats#cli-result) envelope on stdout; `--no-json` turns agent mode's default off         |
-| `--format <format>`     | `text`, `json`, `github` or `sarif`. `github` prints workflow annotations and `sarif` a SARIF 2.1.0 log, for commands that report findings |
-| `--yes`, `-y`           | Never prompt; take the answer the flags give                                                                                               |
-| `--confirm <token>`     | The token a `consent_required` result gave, once the person agreed ([agent mode](/docs/cli/agent-mode#consent))                            |
-| `--agent <mode>`        | `auto` (default), `yes` or `no`; also `PERMDOCK_AGENT`. See [agent mode](/docs/cli/agent-mode)                                             |
-| `--debug`               | Log each step, and the cause of an error, on stderr                                                                                        |
-| `--color`, `--no-color` | Styled or plain output; the default follows the terminal, `FORCE_COLOR` and `NO_COLOR`                                                     |
-| `--help`, `-h`          | Print the command's flags, examples, side effects and docs page                                                                            |
-| `--version`, `-v`       | Print the version                                                                                                                          |
+| Flag                        | Meaning                                                                                                                                                    |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--cwd <dir>`               | Run as if started in this directory; paths in reports are relative to it                                                                                   |
+| `--config <file>`           | Config file; default `permdock.config.{ts,mts,js,mjs}` in `--cwd`. Only the commands that read the config load it                                          |
+| `--json`                    | Print [`cli-result-v2`](/docs/concepts/wire-formats#cli-result) JSON: the result on stdout, an error on stderr; `--no-json` turns agent mode's default off |
+| `--format <format>`         | `text`, `json`, `github` or `sarif`. `github` prints workflow annotations and `sarif` a SARIF 2.1.0 log, for commands that report findings                 |
+| `--yes`, `-y`               | Never prompt; take the answer the flags give                                                                                                               |
+| `--effects-digest <digest>` | With `--yes`, the digest a `confirmation_required` error gave, once the person agreed ([agent mode](/docs/cli/agent-mode#consent))                         |
+| `--agent <mode>`            | `auto` (default), `yes` or `no`; also `PERMDOCK_AGENT`. See [agent mode](/docs/cli/agent-mode)                                                             |
+| `--debug`                   | Log each step, and the cause of an error, on stderr                                                                                                        |
+| `--color`, `--no-color`     | Styled or plain output; the default follows the terminal, `FORCE_COLOR` and `NO_COLOR`                                                                     |
+| `--help`, `-h`              | Print the command's flags, examples, side effects and docs page                                                                                            |
+| `--version`, `-v`           | Print the version                                                                                                                                          |
 
 An unknown flag or command exits `2` with the nearest match. [`permdock codemod 0.26`](/docs/cli/codemod) rewrites a stored catalog and the generate commands 0.26 removed.
 
@@ -96,30 +96,31 @@ The Next.js build hook `createPermDockPlugin` is documented on [Next.js plugin](
 
 All commands share one contract so CI steps can be written without parsing output.
 
-| Code  | Meaning                                                                                                                                                                           |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`   | Success; for `--check` and `verify`, no drift and no findings                                                                                                                     |
-| `1`   | Findings: drift detected, parity failures, unused or ungranted permissions, doctor errors. Also a database or the Cloud that did not answer, and an unexpected error (`internal`) |
-| `2`   | Usage or configuration error: unknown flag, missing config, unreadable definition module, unsupported TypeScript version                                                          |
-| `3`   | Action required: the run needs input, a login or the person's consent; the JSON result lists the commands that continue it in `next`                                              |
-| `130` | Interrupted: Ctrl-C (SIGINT), or a cancelled prompt                                                                                                                               |
-| `143` | Terminated (SIGTERM)                                                                                                                                                              |
+| Code  | Meaning                                                                                                                                                                                                                                                                         |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`   | Success; for `--check` and `verify`, no drift and no findings                                                                                                                                                                                                                   |
+| `1`   | Findings: drift detected, parity failures, unused or ungranted permissions, doctor errors. Also a database or the Cloud that did not answer, and an unexpected error (`internal`)                                                                                               |
+| `2`   | Usage or configuration error: unknown flag, missing config, unreadable definition module, unsupported TypeScript version. Also action required: the run needs input, a login or the person's confirmation, and the error document lists the commands that continue it in `next` |
+| `130` | Interrupted: Ctrl-C (SIGINT), or a cancelled prompt                                                                                                                                                                                                                             |
+| `143` | Terminated (SIGTERM)                                                                                                                                                                                                                                                            |
 
-Warnings never change the exit code unless `--fail-on warning` is passed. [Errors](/docs/cli/errors) lists every problem code with its exit code.
+Warnings never change the exit code unless `--fail-on warning` is passed. [Errors](/docs/cli/errors) lists every reason with its exit code.
 
 ## Output
 
-stdout carries the command's data and nothing else; progress, warnings and logs go to stderr. Every command prints a text report by default. `--json` (or `--format json`, or [agent mode](/docs/cli/agent-mode)) prints one [`cli-result-v1`](/docs/concepts/wire-formats#cli-result) envelope instead, success or not:
+stdout carries the command's data and nothing else; progress, warnings and logs go to stderr. Every command prints a text report by default. `--json` (or `--format json`, or [agent mode](/docs/cli/agent-mode)) prints JSON in better-supabase's CLI contract 3 format, [`cli-result-v2`](/docs/concepts/wire-formats#cli-result), instead. A run that succeeds prints the result document on stdout:
 
 ```json
 {
-  "$schema": "https://permdock.com/schemas/cli-result-v1.json",
+  "$schema": "https://permdock.com/schemas/cli-result-v2.json",
   "status": "success",
   "data": { "...": "the report the command's page describes" }
 }
 ```
 
-`status` is `success`, `error` or `action_required`. A failure carries `error`, RFC 9457 Problem Details with `type`, `title`, `detail`, `command`, `exitCode` and a stable snake_case `code` such as `unknown_flag`, `config_invalid`, `dependency_missing`, `dirty_worktree`, `network_error` or `check_failed`; `type` is the code's section on the [errors page](/docs/cli/errors), such as `https://permdock.com/docs/cli/errors#unknown_flag`. The codes match the better-supabase CLI's wherever both report the same condition. `next` lists the commands that continue the run. The JSON Schema ships as `schemas/cli-result-v1.json` in the package, next to `catalog-v2.json` and `supabase-manifest-v1.json`.
+`status` is `success`, or `error` for a report that exits `1`, such as `collect --check` finding drift; `data` holds the report either way. `warnings` lists config keys PermDock does not read, and `next` the commands that continue the run, each with `command`, `argv` and `when`.
+
+A run that fails prints nothing on stdout and one line on stderr, the error document: `status` (`error`, or `action_required` when a person has to act), `reason`, `message`, `type`, `next`, `data`, `userActionRequired` and `retryable`. `reason` is a stable snake_case value such as `unknown_flag`, `config_invalid`, `dependency_missing`, `file_conflict`, `network_error` or `confirmation_required`, and `type` is its section on the [errors page](/docs/cli/errors), such as `https://permdock.com/docs/cli/errors#unknown_flag`. Every reason is one of better-supabase's, with the same exit code. The JSON Schema ships as `schemas/cli-result-v2.json` in the package, next to `catalog-v2.json` and `supabase-manifest-v1.json`.
 
 `--format github` prints the findings of `doctor`, `usage`, `config`, `scan` and `arazzo check` as GitHub Actions annotations, and `--format sarif` as a SARIF 2.1.0 log for code scanning. Paths in reports are relative to `--cwd`. `collect --watch` prints one JSON line per rebuild under `--json`.
 
@@ -145,7 +146,7 @@ Each command declares what it may change, and `--help` prints it on the `Side ef
 
 A command names its main output `--out`, as better-supabase does. `--out -` prints it on stdout for `catalog`, `rls generate`, `supabase inspect` and `scim generate`, with notes and warnings on stderr; a command that only writes a file (`collect`, `rls import`, `supabase hook generate`, `powersync`, `openapi emit` and `openapi import`, the importers) refuses `-` with `invalid_value`. A second file it can split off is a named output with its own flag (`--grants-out`, `--seeds-out`, `--backfill-out`, `--retire-out`), which writes nothing unless set.
 
-A command that writes files takes `--dry-run` to print the plan, or `--check` to compare with the files on disk, and writes nothing in either case. It never overwrites a file PermDock did not write unless `--force` is set. A `rewrite` command refuses a file with uncommitted changes in a git work tree (`dirty_worktree`, exit `3`) unless `--force` is set, so the edit can be reviewed and undone with git. In agent mode, `rewrite`, `cloud:write` and `--force` need the person's [consent](/docs/cli/agent-mode#consent).
+A command that writes files takes `--dry-run` to print the plan, or `--check` to compare with the files on disk, and writes nothing in either case. It never overwrites a file PermDock did not write unless `--force` is set. A `rewrite` command refuses a file with uncommitted changes in a git work tree (`file_conflict`, exit `1`) unless `--force` is set, so the edit can be reviewed and undone with git. In agent mode, `rewrite`, `cloud:write` and `--force` need the person's [confirmation](/docs/cli/agent-mode#consent).
 
 ## CI usage
 

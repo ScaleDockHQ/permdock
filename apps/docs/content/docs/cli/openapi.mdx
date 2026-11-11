@@ -193,7 +193,7 @@ Every key is checked against `--permissions` (or `permissions` in the config). T
 | `operation-invalid-extension`   | A malformed `x-permdock-*`, `x-authorization` or `x-oauth-scopes` |
 | `operation-id-duplicate`        | Two operations share an `operationId`                             |
 
-`operation-id-missing` and `operation-no-tenant` (an operation without the `--tenant-path` parameter) are warnings. An operation with `security: []` is public and is left out of the map. `--check` exits `1` when the file on disk differs from what the document produces. Without a vocabulary the command exits `3` with `input_required` and `missing: ["--permissions"]`.
+`operation-id-missing` and `operation-no-tenant` (an operation without the `--tenant-path` parameter) are warnings. An operation with `security: []` is public and is left out of the map. `--check` exits `1` when the file on disk differs from what the document produces. Without a vocabulary the command exits `2` with `input_required` and `data.missing: ["--permissions"]`.
 
 ## `--check` in CI
 

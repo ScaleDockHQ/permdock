@@ -29,7 +29,7 @@ printf '%s' "$KEY" | permdock cloud push --key-stdin   # the key from a secret s
 | `--token-stdin` | `pull`: read `PERMDOCK_CLOUD_TOKEN` from stdin                                                                                                                                                                                                                           |
 | `--manifest`    | `push`: the manifest to send (default `permdock.manifest.json`, sent when present); `pull`: where to write it                                                                                                                                                            |
 | `--dry-run`     | `push`: build the catalog and print its fingerprint without posting it                                                                                                                                                                                                   |
-| `--json`        | `data` in the envelope. `push`: `{ fingerprint, permissions, hostable, roles, plans, grants, manifest, environment, status }`; `pull`: `{ project, version, fingerprint, permdockVersion, catalog, manifest }`                                                           |
+| `--json`        | `data` in the result. `push`: `{ fingerprint, permissions, hostable, roles, plans, grants, manifest, environment, status }`; `pull`: `{ project, version, fingerprint, permdockVersion, catalog, manifest }`                                                             |
 
 ## Push
 
@@ -50,7 +50,7 @@ permdock cloud push: the catalog has 2 issues
   grants.0.permission: grant 'post.delete' is not a declared permission key
 ```
 
-With `--json`, `error` is a [`catalog_invalid`](/docs/cli/errors#catalog_invalid) Problem whose `issues` lists each one as `{ path, message }`. `cloud push --dry-run --json` in CI therefore fails on the same catalog the Cloud would refuse.
+With `--json`, the error document's `reason` is [`invalid_input`](/docs/cli/errors#invalid_input) and `data.issues` holds the same `path: message` lines. `cloud push --dry-run --json` in CI therefore fails on the same catalog the Cloud would refuse.
 
 ## Pull
 
@@ -63,7 +63,7 @@ With `--json`, `error` is a [`catalog_invalid`](/docs/cli/errors#catalog_invalid
 
 The bearer is `PERMDOCK_CLOUD_TOKEN` when it is set, otherwise the stored login. With the token and no `--project`, `cloud pull` reads `GET /v1/projects` and uses its one project. A project with nothing pushed answers `404` with the `https://permdock.com/problems/policy-not-published` problem, and `cloud pull` exits `1`.
 
-Exit codes follow the shared contract: `0` pushed, pulled or `--dry-run`; `1` the catalog broke a validation rule (`catalog_invalid`), the Cloud was unreachable (`network_error`), answered with a non-2xx status, or sent bytes that failed the fingerprint check; `2` no key, token or login, or an unreadable definition module or manifest; `3` the Cloud rejected the credential with `401` or `403` (`auth_required`, with `permdock login` in `next`). In [agent mode](/docs/cli/agent-mode), `cloud push` without `--dry-run` first asks for the person's consent (`cloud:write`).
+Exit codes follow the shared contract: `0` pushed, pulled or `--dry-run`; `1` the catalog broke a validation rule (`invalid_input`), the Cloud was unreachable (`network_error`), answered with a non-2xx status, or sent bytes that failed the fingerprint check; `2` no key, token or login, an unreadable definition module or manifest, or the Cloud rejected the credential with `401` or `403` (`auth_required`, with `permdock login` in `next`). In [agent mode](/docs/cli/agent-mode), `cloud push` without `--dry-run` first asks for the person's confirmation (`cloud:write`).
 
 ## In CI
 

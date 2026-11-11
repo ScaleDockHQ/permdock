@@ -97,7 +97,7 @@ export default defineConfig({
 
 ## Validation
 
-Every command checks the config before it runs. A module key that is neither a path nor an imported value, or a section (`collect`, `rls`, `doctor`, …) that is not an object, exits `2` with the key named, as Problem Details under `--json`. A key PermDock reads that holds a value of the wrong kind, such as `rls.tables: ["staff"]`, exits `2` with the code `config_invalid`: `permdock.config.ts: rls.tables must be an object, not an array`. A key PermDock does not read is a warning on stderr, `permdock: warning: permdock.config.ts: unknown key collect.srcPaths; PermDock reads srcPath, out, barrel`, and the command still runs.
+Every command checks the config before it runs. A module key that is neither a path nor an imported value, or a section (`collect`, `rls`, `doctor`, …) that is not an object, exits `2` with the key named, as an error document under `--json`. A key PermDock reads that holds a value of the wrong kind, such as `rls.tables: ["staff"]`, exits `2` with the code `config_invalid`: `permdock.config.ts: rls.tables must be an object, not an array`. A key PermDock does not read is a warning on stderr, `permdock: warning: permdock.config.ts: unknown key collect.srcPaths; PermDock reads srcPath, out, barrel`, and the command still runs.
 
 ## Keys
 

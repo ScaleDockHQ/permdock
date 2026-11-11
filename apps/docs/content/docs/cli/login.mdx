@@ -17,14 +17,14 @@ permdock whoami
 permdock logout
 ```
 
-| Flag         | Meaning                                                                                                                                                   |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--url`      | The issuer; defaults to `PERMDOCK_CLOUD_URL`, then `https://permdock.com/api`                                                                             |
-| `--scope`    | `login`: scopes beyond `projects:read policy:read`; `catalog:write` for `cloud push`, repeatable                                                          |
-| `--loopback` | `login`: use the RFC 8252 loopback redirect even when the issuer offers the device flow                                                                   |
-| `--open`     | `login`: open the browser at the verification URL; the default on a terminal                                                                              |
-| `--no-open`  | `login`: print the URL without opening a browser; a non-interactive run never opens one                                                                   |
-| `--json`     | `data` in the envelope. `login`: `{ issuer, scope, storage }`; `logout`: `{ issuer, status }`; `whoami`: `{ issuer, source, scopes, expiresAt, expired }` |
+| Flag         | Meaning                                                                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--url`      | The issuer; defaults to `PERMDOCK_CLOUD_URL`, then `https://permdock.com/api`                                                                           |
+| `--scope`    | `login`: scopes beyond `projects:read policy:read`; `catalog:write` for `cloud push`, repeatable                                                        |
+| `--loopback` | `login`: use the RFC 8252 loopback redirect even when the issuer offers the device flow                                                                 |
+| `--open`     | `login`: open the browser at the verification URL; the default on a terminal                                                                            |
+| `--no-open`  | `login`: print the URL without opening a browser; a non-interactive run never opens one                                                                 |
+| `--json`     | `data` in the result. `login`: `{ issuer, scope, storage }`; `logout`: `{ issuer, status }`; `whoami`: `{ issuer, source, scopes, expiresAt, expired }` |
 
 ## How it signs in
 
@@ -49,7 +49,7 @@ Credentials are stored through the [`permdock/terminal`](/docs/adapters/terminal
 
 ## Whoami
 
-`permdock whoami` reads no network. It names the credential the Cloud commands would send: `PERMDOCK_CLOUD_KEY` or `PERMDOCK_CLOUD_TOKEN` from the environment, else the stored login for `--url` with its scopes and expiry. Without any it exits `3` with `auth_required` and `permdock login` in `next`.
+`permdock whoami` reads no network. It names the credential the Cloud commands would send: `PERMDOCK_CLOUD_KEY` or `PERMDOCK_CLOUD_TOKEN` from the environment, else the stored login for `--url` with its scopes and expiry. Without any it exits `2` with `auth_required` and `permdock login` in `next`.
 
 Exit codes: `0` logged in or out; `1` no RFC 8414 metadata, no usable flow, or no token from the issuer; `2` a credentials path inside the repository.
 

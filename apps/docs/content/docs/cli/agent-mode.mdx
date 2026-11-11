@@ -1,18 +1,18 @@
 ---
 title: Agent mode
-description: How the permdock CLI behaves when an AI agent runs it - JSON results by default, no prompts, exit 3 with next steps, and a consent token before it rewrites files, publishes to the Cloud or overwrites with --force.
+description: How the permdock CLI behaves when an AI agent runs it - JSON results by default, no prompts, action_required errors with next steps, and an effects digest before it rewrites files, publishes to the Cloud or overwrites with --force.
 ---
 
-When an AI coding agent runs `permdock`, the CLI prints the [`cli-result-v1`](/docs/concepts/wire-formats#cli-result) envelope instead of text, never prompts, and stops with exit `3` when the run needs something only a person can give: input, a login, or consent.
+When an AI coding agent runs `permdock`, the CLI prints [`cli-result-v2`](/docs/concepts/wire-formats#cli-result) JSON instead of text and never prompts. When the run needs something only a person can give (input, a login, or a confirmation), it exits `2` with an `action_required` error document on stderr.
 
 ## Usage
 
 ```bash
-permdock doctor                     # JSON envelope when an agent runs it
+permdock doctor                     # JSON result when an agent runs it
 permdock doctor --format text       # text even in agent mode
 permdock doctor --agent no          # turn agent mode off for this run
 PERMDOCK_AGENT=1 permdock collect   # turn it on, as in a test harness
-permdock codemod 0.5 --confirm 6f3a9c0e41b2   # run again after the person agreed
+permdock codemod 0.5 --yes --effects-digest 6f3a9c0e41b27d58   # run again after the person agreed
 ```
 
 ## Detection
@@ -38,9 +38,9 @@ permdock codemod 0.5 --confirm 6f3a9c0e41b2   # run again after the person agree
 
 ## What changes
 
-- **Output.** stdout carries the envelope; `--format text` or `--no-json` brings text back. Progress and logs go to stderr without spinners.
+- **Output.** stdout carries the result document and stderr one error document line when the run fails; `--format text` or `--no-json` brings text back. Progress and logs go to stderr without spinners.
 - **Prompts.** None. A command that would ask takes the answer its flags give, or stops with `input_required`.
-- **Exit 3.** `status` is `action_required` and `error.code` is `input_required`, `auth_required`, `consent_required` or `dirty_worktree`. `next` lists the commands that continue the run, each with the condition under which to run it.
+- **Action required.** The run exits `2`; the error document's `status` is `action_required`, `userActionRequired` is `true` and `reason` is `input_required`, `auth_required` or `confirmation_required`. `next` lists the commands that continue the run, each with `command`, `argv` and the condition under which to run it.
 - **Completion.** `permdock completion` and the hidden `__complete` print text for the shell even in agent mode.
 
 ## Consent
@@ -53,17 +53,47 @@ An agent may not start three kinds of run without the person's go-ahead:
 | `cloud:write` | The command publishes to a PermDock Cloud project | `cloud push`                                       |
 | `overwrite`   | `--force` replaces files PermDock did not write   | `init --force`, any `files` command with `--force` |
 
-The first run exits `3` with `consent_required`, the reasons and a token. The agent shows the person what will happen, and after they agree runs the command in `next`, which is the same command line with `--confirm <token>`. A run with `--dry-run` or `--check` writes nothing and needs no consent.
+The first run exits `2` with `confirmation_required`. Its `data.effects` says what the run would change, one line per reason, and `data.digest` is the effects digest. The agent shows the person what will happen, and after they agree runs the command in `next`, which is the same command line with `--yes --effects-digest <digest>`. A run with `--dry-run` or `--check` writes nothing and needs no confirmation.
 
-The token is the first 16 hex characters of a SHA-256 of the consent reasons, the working directory and the command line, `--confirm` left out. A token for one command line does not confirm another, and `--yes` does not stand in for it. A secret only arrives on stdin (`--db-url-stdin`, `--key-stdin`, `--token-stdin`) or from the environment, so the token never depends on it and the line in `next` never prints it.
+```json
+{
+  "$schema": "https://permdock.com/schemas/cli-result-v2.json",
+  "status": "action_required",
+  "reason": "confirmation_required",
+  "message": "permdock codemod edits files the project owns. Ask the person to agree, then run it again with --yes --effects-digest 6f3a9c0e41b27d58.",
+  "type": "https://permdock.com/docs/cli/errors#confirmation_required",
+  "next": [
+    {
+      "command": "permdock codemod 0.5 --yes --effects-digest 6f3a9c0e41b27d58",
+      "argv": [
+        "permdock",
+        "codemod",
+        "0.5",
+        "--yes",
+        "--effects-digest",
+        "6f3a9c0e41b27d58"
+      ],
+      "when": "after the person agrees"
+    }
+  ],
+  "data": {
+    "digest": "6f3a9c0e41b27d58",
+    "effects": ["permdock codemod edits files the project owns"]
+  },
+  "userActionRequired": true,
+  "retryable": false
+}
+```
 
-`auth_required` follows the same shape: a `401` or `403` from the Cloud exits `3` with `permdock login` in `next`.
+The digest is the first 16 hex characters of a SHA-256 of the reasons, the working directory and the command line without the global flags. A digest for one command line or directory does not confirm another, and the message says so; `--yes` alone, or the digest without `--yes`, does not confirm either. The removed `--confirm` flag fails with `flag_renamed`. A secret only arrives on stdin (`--db-url-stdin`, `--key-stdin`, `--token-stdin`) or from the environment, so the digest never depends on it and the line in `next` never prints it.
+
+`auth_required` follows the same shape: a `401` or `403` from the Cloud exits `2` with `permdock login` in `next`.
 
 ## Why
 
-- **JSON by default for agents.** An agent parses text by guessing; one envelope with a stable `code` per failure lets it branch without matching prose. `--format text` stays one flag away for an agent that shows the output to a person.
-- **Exit 3, not 1.** `1` means a check found a problem the code must fix. A login or a consent is neither, and a separate code lets a script or an agent tell "fix the code" from "ask the person".
-- **A token, not `--yes`.** `--yes` answers prompts, and an agent adds it to every command it runs. The token binds the consent to one command line in one directory, so the agent has to show the person that line first.
+- **JSON by default for agents.** An agent parses text by guessing; one document with a stable `reason` per failure lets it branch without matching prose. `--format text` stays one flag away for an agent that shows the output to a person.
+- **better-supabase's contract 3.** An agent that runs both CLIs reads one format: the same documents, reasons, exit codes and `--yes --effects-digest` confirmation ([decision 0068](https://github.com/ScaleDockHQ/PermDock/blob/main/docs/decisions/0068-cli-contract-3.md)). `userActionRequired` tells "ask the person" from "fix the code" without a separate exit code.
+- **A digest, not `--yes` alone.** `--yes` answers prompts, and an agent adds it to every command it runs. The digest binds the confirmation to one command line in one directory, so the agent has to show the person that line first.
 - **Detection follows `@vercel/detect-agent`.** Agents set their own variables, and one shared list means `permdock`, the Vercel CLI and better-supabase switch to agent mode for the same agents. The list is copied rather than depended on so the CLI's startup loads no extra package.
 
 ## Related
