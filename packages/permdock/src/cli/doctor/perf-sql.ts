@@ -95,7 +95,11 @@ function lineOf(statement: Statement, text: string, index: number): number {
 }
 
 const ROW_HELPER = /\bpermitted_\w+_row\s*\(/iu;
-const CAN_CALL = /\bcan_\w+\s*\(([^)]*)\)/giu;
+/**
+ * A `can_<resource>(…)` call. better-supabase's own `can_subject` checks one
+ * row per call by design, so a call qualified by its schema is not PermDock's.
+ */
+const CAN_CALL = /(?<!\bbetter_supabase"?\s*\.\s*"?)\bcan_\w+\s*\(([^)]*)\)/giu;
 
 /** Whether a `can_<resource>(…)` call takes a column of the row it guards. */
 function readsRow(args: string): boolean {
