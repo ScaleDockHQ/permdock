@@ -19,7 +19,7 @@ import {
 } from "../sql/quote.ts";
 import { HELPERS } from "../sql/shared.ts";
 import { subjectIdSql } from "../sql/subject.ts";
-import { memoHitList, memoizes } from "./helper-bodies.ts";
+import { memoHitList, memoizedSetofSql, memoizes } from "./helper-bodies.ts";
 import {
   PERMISSION_HELPERS,
   permittedByPermissionHelper,
@@ -488,6 +488,56 @@ export function rowSetSql(
   }
 }
 
+/** Row sets above this many ids are evaluated per call instead of stored. */
+const ROW_MEMO_CAP = 10_000;
+
+/**
+ * A row set: `stable sql`, or under `rls.memo` the volatile memo the scope
+ * helpers use, so every policy that reads it in one statement shares one
+ * evaluation.
+ */
+function rowSetFunctionSql(
+  ctx: RlsSqlContext,
+  input: {
+    readonly fn: string;
+    readonly node: ResourceNode;
+    readonly params: readonly (readonly [string, string])[];
+    readonly idType: string;
+    readonly query: string;
+  },
+): string {
+  const { fn, node, params, idType, query } = input;
+  const types = params.map(([, type]) => type).join(", ");
+  const grants = `revoke execute on function ${fn}(${types}) from public, anon;
+grant execute on function ${fn}(${types}) to authenticated;`;
+  if (memoizes(ctx)) {
+    return memoizedSetofSql({
+      fn,
+      param: params.map(([name, type]) => `${name} ${type}`).join(", "),
+      returns: `setof ${idType}`,
+      idType,
+      scope: `rows${String(params.length)}.${node.name}`,
+      keySql: params.map(([name]) => `${name}::text`).join(" || '|' || "),
+      userSql: subjectIdSql(ctx),
+      query: `    ${query.replaceAll("\n", "\n    ")}`,
+      ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
+      grants,
+      cap: ROW_MEMO_CAP,
+    });
+  }
+  return `create or replace function ${fn}(${params.map(([name, type]) => `${name} ${type}`).join(", ")})
+returns setof ${idType}
+language sql
+stable
+security definer
+${plannerOf(ctx)}
+set search_path = ''
+as $$
+  ${query}
+$$;
+${grants}`;
+}
+
 /**
  * The `where` of `permitted_<resource>_rows(p_permission)`: one arm per key, as
  * the table's policy states it, and the match for a key the resource does not
@@ -564,20 +614,18 @@ function tenantRowsSql(
   const tenantType = scopeTypeOf(ctx, root);
   const count = qualified(ctx, countHelper(node.name));
   return `-- ${node.name}: the same set within one ${root}, by the index on ${column}
-create or replace function ${rows}(p_permission text, p_tenant ${tenantType})
-returns setof ${idType}
-language sql
-stable
-security definer
-${plannerOf(ctx)}
-set search_path = ''
-as $$
-  select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
+${rowSetFunctionSql(ctx, {
+  fn: rows,
+  node,
+  params: [
+    ["p_permission", "text"],
+    ["p_tenant", tenantType],
+  ],
+  idType,
+  query: `select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
   where ${ROW}.${quoteIdent(column)} = p_tenant
-    and ${rowsWhereSql(ctx, node, branches)}
-$$;
-revoke execute on function ${rows}(text, ${tenantType}) from public, anon;
-grant execute on function ${rows}(text, ${tenantType}) to authenticated;
+    and ${rowsWhereSql(ctx, node, branches)}`,
+})}
 -- ${node.name}: how many of them the caller may act on, counted up to p_cap
 create or replace function ${count}(p_permission text, p_tenant ${tenantType}, p_cap integer)
 returns integer
@@ -609,19 +657,14 @@ function resourceSql(
   const rows = `-- ${node.name}: one predicate, called by the set, the id list and both row forms
 ${matchSql(ctx, node, table, narrowed)}
 -- ${node.name}: ids of the rows the caller may act on with p_permission, as the table's policies decide it
-create or replace function ${fn}(p_permission text)
-returns setof ${idType}
-language sql
-stable
-security definer
-${plannerOf(ctx)}
-set search_path = ''
-as $$
-  select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
-  where ${rowsWhereSql(ctx, node, branches)}
-$$;
-revoke execute on function ${fn}(text) from public, anon;
-grant execute on function ${fn}(text) to authenticated;
+${rowSetFunctionSql(ctx, {
+  fn,
+  node,
+  params: [["p_permission", "text"]],
+  idType,
+  query: `select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
+  where ${rowsWhereSql(ctx, node, branches)}`,
+})}
 ${candidatesSql(fn, table, quoteIdent(node.id), idType, match)}
 ${idsInSql(ctx, node, fn, idType)}
 ${tenantRowsSql(ctx, node, fn, table, idType, branches)}${rowSql(ctx, node, table)}
@@ -694,7 +737,9 @@ export function rowHelpersSql(
     );
   }
   const triggers =
-    names.length === 0 ? "" : memoRowTriggersSql(ctx, policy, tables);
+    names.length === 0
+      ? ""
+      : memoRowTriggersSql(ctx, policy, tables, chunks.join("\n"));
   if (triggers !== "") {
     chunks.push(
       `-- a relation write changes what the row helpers' memo holds inside the statement\n${triggers}`,

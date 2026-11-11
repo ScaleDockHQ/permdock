@@ -182,6 +182,12 @@ describe("permitted_<resource>_row memo against Postgres", () => {
       'create trigger "permdock_memo_generation"\n  after insert or update or delete on "public"."doc_shares"',
     );
     expect(sql).toContain(
+      'create or replace function "permdock".permitted_doc_rows(p_permission text)\nreturns setof text\nlanguage plpgsql\nvolatile',
+    );
+    expect(sql).toContain(
+      'create trigger "permdock_memo_generation"\n  after insert or update or delete on "public"."doc"',
+    );
+    expect(sql).toContain(
       'create trigger "permdock_memo_generation"\n  after insert or update or delete on "public"."organization_members"',
     );
   });
@@ -193,6 +199,15 @@ describe("permitted_<resource>_row memo against Postgres", () => {
           const expected = await setAnswers(tx, permission);
           expect(await rowAnswers(tx, permission)).toStrictEqual(expected);
           expect(await idAnswers(tx, permission)).toStrictEqual(expected);
+          const memoized = async (): Promise<readonly string[]> =>
+            (
+              await tx.query<{ readonly id: string }>(
+                "select id from permdock.permitted_doc_rows($1) id order by id",
+                [permission],
+              )
+            ).rows.map((row) => row.id);
+          expect(await memoized()).toStrictEqual(expected);
+          expect(await memoized()).toStrictEqual(expected);
         });
       }
     }
@@ -318,5 +333,80 @@ describe("permitted_<resource>_row memo against Postgres", () => {
       permitted_doc_ids: 1,
       permdock_has_permission: 1,
     });
+  });
+
+  it("evaluates permitted_doc_rows once per statement however many policies read it", async () => {
+    const db = database();
+    await db.exec("begin");
+    try {
+      await db.exec(`
+create table public.note (id text primary key, doc_id text not null);
+insert into public.note select 'n' || id, id from public.doc;
+grant select on public.note to authenticated;
+alter table public.note enable row level security;
+${[1, 2, 3, 4]
+  .map(
+    (n) =>
+      `create policy note_${String(n)} on public.note as ${n === 1 ? "permissive" : "restrictive"} for select to authenticated using (doc_id in (select permdock.permitted_doc_rows('doc.read')) or id = 'x${String(n)}');`,
+  )
+  .join("\n")}
+`);
+      await db.query("select set_config('request.jwt.claims', $1, true)", [
+        CLAIMS(MEMBER),
+      ]);
+      const expected = (
+        await db.query<{ readonly id: string }>(
+          "select 'n' || d.id as id from public.doc d where permdock.can_doc(d, 'doc.read') order by 1",
+        )
+      ).rows.map((row) => row.id);
+      await db.exec("set local track_functions = 'all'");
+      const counts = async (): Promise<Readonly<Record<string, number>>> =>
+        Object.fromEntries(
+          (
+            await db.query<{
+              readonly funcname: string;
+              readonly calls: number;
+            }>(
+              "select funcname, calls::int from pg_stat_xact_user_functions where schemaname = 'permdock'",
+            )
+          ).rows.map((row) => [row.funcname, row.calls]),
+        );
+      const before = await counts();
+      await db.exec("set local role authenticated");
+      const notes = (
+        await db.query<{ readonly id: string }>(
+          "select id from public.note order by id",
+        )
+      ).rows.map((row) => row.id);
+      await db.exec("reset role");
+      const after = await counts();
+      const calls = (name: string): number =>
+        (after[name] ?? 0) - (before[name] ?? 0);
+      expect(notes).toStrictEqual(expected);
+      // Four policies call the set; its body (one permdock_has_permission call) runs once.
+      expect(calls("permitted_doc_rows")).toBe(4);
+      expect(calls("permdock_has_permission")).toBe(1);
+    } finally {
+      await db.exec("rollback");
+    }
+  });
+
+  it("sees a row written earlier in the same function through permitted_doc_rows", async () => {
+    const result = await rolledBack(MEMBER, async (tx) => {
+      await tx.exec(`
+create function public.rows_around() returns table (first boolean, second boolean)
+language plpgsql as $$
+begin
+  first := 'n9' in (select permdock.permitted_doc_rows('doc.read'));
+  insert into public.doc values ('n9', 'acme', null, false);
+  second := 'n9' in (select permdock.permitted_doc_rows('doc.read'));
+  return next;
+end;
+$$;`);
+      return tx.query<{ readonly first: boolean; readonly second: boolean }>(
+        "select * from public.rows_around()",
+      );
+    });
+    expect(result.rows[0]).toStrictEqual({ first: false, second: true });
   });
 });
