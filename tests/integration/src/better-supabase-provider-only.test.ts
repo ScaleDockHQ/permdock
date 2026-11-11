@@ -192,12 +192,10 @@ describe("a better-supabase app that takes every authorization slot from the pro
                then has_function_privilege($2, $1, 'execute') end as executable`,
           [signature, role],
         );
-        // The hook file grants supabase_auth_admin execute only once a supabase.hook.claims function may call the helper.
-        const executable = role !== "supabase_auth_admin";
         expect({ signature, ...rows[0] }).toStrictEqual({
           signature,
           found: true,
-          executable,
+          executable: true,
         });
       }
     } finally {

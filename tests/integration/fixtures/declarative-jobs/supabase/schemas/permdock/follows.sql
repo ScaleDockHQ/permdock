@@ -10,26 +10,26 @@ create policy "permdock_follow_job_parties_select"
   as permissive
   for select
   to authenticated
-  using (exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_jobs(p, 'jobs.read'::text)));
+  using ("job_parties"."job_id" = any(array(select r from unnest(array(select "permdock".permitted_tenant_ids_by_permission('jobs.read', true))) t(id) cross join lateral "permdock".permitted_jobs_rows('jobs.read', t.id) r union all select r from "permdock".permitted_jobs_rows('jobs.read') r where exists (select 1 from "permdock".grant_keys('jobs.read', 'global') g(k) where "permdock".permdock_has(g.k)) or exists (select 1 from "permdock".grant_keys('jobs.read', 'global', 'conditioned-allow') g(k) where "permdock".permdock_has(g.k)))));
 
 create policy "permdock_follow_job_parties_insert"
   on "public"."job_parties"
   as permissive
   for insert
   to authenticated
-  with check (exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_jobs(p, 'jobs.update'::text)));
+  with check ("job_parties"."job_id" = any(array(select null::uuid where false)));
 
 create policy "permdock_follow_job_parties_update"
   on "public"."job_parties"
   as permissive
   for update
   to authenticated
-  using (exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_jobs(p, 'jobs.update'::text)))
-  with check (exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_jobs(p, 'jobs.update'::text)));
+  using ("job_parties"."job_id" = any(array(select null::uuid where false)))
+  with check ("job_parties"."job_id" = any(array(select null::uuid where false)));
 
 create policy "permdock_follow_job_parties_delete"
   on "public"."job_parties"
   as permissive
   for delete
   to authenticated
-  using (exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_jobs(p, 'jobs.update'::text)));
+  using ("job_parties"."job_id" = any(array(select null::uuid where false)));

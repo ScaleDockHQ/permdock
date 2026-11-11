@@ -113,7 +113,7 @@
         "name": "member_organization_ids_for",
         "args": "p_user uuid",
         "returns": "setof text",
-        "execute": []
+        "execute": ["supabase_auth_admin"]
       },
       {
         "name": "permdock_user_id",
