@@ -124,7 +124,7 @@ describe(authorizationProvider, () => {
       catalog: emptyCatalog,
     });
     expect(provider.functions).toMatchObject({
-      subject: "permdock.permdock_subject()",
+      subject: "permdock.permdock_subject",
       subjectForTenant: "permdock.permdock_subject(({tenant})::text)",
       bootstrapPermissions:
         "permdock.permdock_bootstrap_permissions(({tenant})::text)",
@@ -147,9 +147,18 @@ describe(authorizationProvider, () => {
       }),
       catalog: emptyCatalog,
     });
-    expect(older.functions.subject).toBe("permdock.permdock_subject()");
+    expect(older.functions.subject).toBe("permdock.permdock_subject");
     expect(older.functions).not.toHaveProperty("subjectForTenant");
     expect(older.functions).not.toHaveProperty("bootstrapPermissions");
+  });
+
+  it("writes subject as schema.function, the bare name better-supabase calls with ()", () => {
+    const { functions } = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      catalog: emptyCatalog,
+    });
+    expect(functions.subject).toMatch(/^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$/u);
+    expect(`${functions.subject}()`).toBe("permdock.permdock_subject()");
   });
 
   it("leaves the one-tenant readers out below the root scope", () => {
@@ -653,7 +662,7 @@ describe(authorizationProvider, () => {
       }),
     });
     expect(provider.functions).toMatchObject({
-      subject: "permdock.permdock_subject()",
+      subject: "permdock.permdock_subject",
     });
     expect(provider.memberships?.[0]).toMatchObject({
       disabledAt: "disabled_at",
