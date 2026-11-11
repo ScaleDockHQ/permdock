@@ -19,7 +19,7 @@ const internal = [
 ] as const;
 
 export default defineConfig({
-  gen: { output: "src/lib/supabase/generated.ts" },
+  gen: { file: "src/lib/supabase/generated.ts" },
   auth: {
     authorization: authorizationProvider({
       manifest: readFileSync(

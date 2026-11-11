@@ -1,4 +1,4 @@
-import { defineSupabase } from "better-supabase";
+import { createSupabase } from "better-supabase";
 import { supabaseClaims } from "permdock/supabase";
 import { z } from "zod";
 
@@ -19,7 +19,7 @@ const appClaims = z.object({
     .optional(),
 });
 
-export const betterSupabase = defineSupabase(schema).claims(
+export const betterSupabase = createSupabase(schema).claims(
   supabaseClaims().extend(appClaims),
 );
 
