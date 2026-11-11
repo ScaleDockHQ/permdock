@@ -3,7 +3,7 @@ title: Errors
 description: What each CLI problem code means, its exit code, and how to fix it.
 ---
 
-Every error the CLI reports has a reason. In a terminal it prints the message on stderr. With `--json`, `--format json` or in [agent mode](/docs/cli/agent-mode), it prints the [error document](/docs/cli#json-output) as one line on stderr and nothing on stdout. Its `type` links to the reason's section on this page:
+Every error the CLI reports has a reason. In a terminal it prints the message on stderr. With `--json`, `--format json` or in [agent mode](/docs/cli/agent-mode), it prints the [error document](/docs/cli#output) as one line on stderr and nothing on stdout. Its `type` links to the reason's section on this page:
 
 ```json
 {
@@ -87,7 +87,7 @@ The command needs a PermDock Cloud credential and has none, or the credential wa
 
 ## `check_failed`
 
-`--check` found a generated file that is missing or out of date. Run the command without `--check` to write it. A check that prints its report, such as `collect --check`, prints the [result document](/docs/cli#json-output) with `status: "error"` on stdout instead of an error document. Exit code 1.
+`--check` found a generated file that is missing or out of date. Run the command without `--check` to write it. A check that prints its report, such as `collect --check`, prints the [result document](/docs/cli#output) with `status: "error"` on stdout instead of an error document. Exit code 1.
 
 ## `file_conflict`
 

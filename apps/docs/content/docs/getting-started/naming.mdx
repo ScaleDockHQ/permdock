@@ -630,31 +630,34 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 
 ## Renamed in 0.26.0
 
-`permdock codemod 0.26` rewrites the helper calls, `{ tableOf }`, inferred `rls.actions` entries, a stored catalog, imports of the generated files and `gen.fieldMeta`; the generated identifiers are a follow-up to edit by hand. The old generate commands have no alias.
+`permdock codemod 0.26` rewrites the helper calls, `{ tableOf }`, inferred `rls.actions` entries, a stored catalog, imports of the generated files and `gen.fieldMeta`; the generated identifiers are a follow-up to edit by hand. The old generate commands have no alias. The `--json` output, its reasons and `--confirm` have no codemod: a script that reads them changes by hand ([CLI output](/docs/cli#output)).
 
-| Old                                                                       | New                                                  |
-| ------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `permitted_<resource>_row(`                                               | `can_<resource>(`                                    |
-| `membership_entries_for`                                                  | `memberships_for`                                    |
-| catalog `catalog-v1.json`, `version: 1`                                   | `catalog-v2.json`, `version: 2`                      |
-| `permdock rls generate`                                                   | `permdock generate --only rls`                       |
-| `permdock supabase hook generate`                                         | `permdock generate --only supabase-hook`             |
-| `permdock powersync generate`                                             | `permdock generate --only powersync`                 |
-| `permdock scim generate`                                                  | `permdock generate --only scim`                      |
-| `permdock openapi emit`                                                   | `permdock generate --only openapi`                   |
-| `rls.tables.<child>: { tableOf: '<owner>' }`                              | `also` on the owner                                  |
-| `definePermDock` from `permdock/app` for a better-supabase app            | `definePermDock` from `permdock/better-supabase`     |
-| `permdock.generated.ts` (gen `constants`)                                 | `constants.ts`, with `types.ts` and `sql.ts`         |
-| `permdock.zod.ts`, `permdock.valibot.ts`, `permdock.arktype.ts`           | `zod.ts`, `valibot.ts`, `arktype.ts`                 |
-| `permdock.schemas.ts`, `permdock.schemas.json`                            | `standard-schema.ts`, `json-schema.json`             |
-| `permdock.factories.ts`, `permdock.react.ts`, `permdock.svelte-stores.ts` | `factories.ts`, `react.ts`, `svelte.ts`              |
-| `scopes`, `roles` (generated constants)                                   | `scopeNames`, `roleNames`                            |
-| `topics.<name>`, `paths.<name>` (generated builders)                      | `<name>Topic`, `<name>Path`                          |
-| `sqlNames.scopes.<scope>.<helper>`, `sqlNames.resources.<resource>.table` | one export per helper in `sql.ts`, `<resource>Table` |
-| `factories.<resource>`, `factories.subject`                               | `<resource>Factory`, `subjectFactory`                |
-| `AppVocabulary`, `AppScope`, `AppRolesOptions` (generated hooks)          | `Vocabulary`, `ScopeName`, `RolesOptions`            |
-| `gen.fieldMeta`, `<resource>Fields` in each validator file                | `gen.fields`, `fields.ts`                            |
-| `gen.out` default `src/generated`                                         | `src/permdock`                                       |
+| Old                                                                       | New                                                                                               |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `permitted_<resource>_row(`                                               | `can_<resource>(`                                                                                 |
+| `membership_entries_for`                                                  | `memberships_for`                                                                                 |
+| catalog `catalog-v1.json`, `version: 1`                                   | `catalog-v2.json`, `version: 2`                                                                   |
+| `permdock rls generate`                                                   | `permdock generate --only rls`                                                                    |
+| `permdock supabase hook generate`                                         | `permdock generate --only supabase-hook`                                                          |
+| `permdock powersync generate`                                             | `permdock generate --only powersync`                                                              |
+| `permdock scim generate`                                                  | `permdock generate --only scim`                                                                   |
+| `permdock openapi emit`                                                   | `permdock generate --only openapi`                                                                |
+| `rls.tables.<child>: { tableOf: '<owner>' }`                              | `also` on the owner                                                                               |
+| `definePermDock` from `permdock/app` for a better-supabase app            | `definePermDock` from `permdock/better-supabase`                                                  |
+| `permdock.generated.ts` (gen `constants`)                                 | `constants.ts`, with `types.ts` and `sql.ts`                                                      |
+| `permdock.zod.ts`, `permdock.valibot.ts`, `permdock.arktype.ts`           | `zod.ts`, `valibot.ts`, `arktype.ts`                                                              |
+| `permdock.schemas.ts`, `permdock.schemas.json`                            | `standard-schema.ts`, `json-schema.json`                                                          |
+| `permdock.factories.ts`, `permdock.react.ts`, `permdock.svelte-stores.ts` | `factories.ts`, `react.ts`, `svelte.ts`                                                           |
+| `scopes`, `roles` (generated constants)                                   | `scopeNames`, `roleNames`                                                                         |
+| `topics.<name>`, `paths.<name>` (generated builders)                      | `<name>Topic`, `<name>Path`                                                                       |
+| `sqlNames.scopes.<scope>.<helper>`, `sqlNames.resources.<resource>.table` | one export per helper in `sql.ts`, `<resource>Table`                                              |
+| `factories.<resource>`, `factories.subject`                               | `<resource>Factory`, `subjectFactory`                                                             |
+| `AppVocabulary`, `AppScope`, `AppRolesOptions` (generated hooks)          | `Vocabulary`, `ScopeName`, `RolesOptions`                                                         |
+| `gen.fieldMeta`, `<resource>Fields` in each validator file                | `gen.fields`, `fields.ts`                                                                         |
+| `gen.out` default `src/generated`                                         | `src/permdock`                                                                                    |
+| `cli-result-v1` on stdout, `error.code`, `error.detail`, exit `3`         | `cli-result-v2`: errors on stderr with `reason` and `message`, exit `2` with `userActionRequired` |
+| `consent_required`, `--confirm <token>`                                   | `confirmation_required`, `--yes --effects-digest <digest>`                                        |
+| `dirty_worktree`, `write_failed`, `catalog_invalid`                       | `file_conflict`, `failed`, `invalid_input`                                                        |
 
 ## Renamed in 0.22.0
 
