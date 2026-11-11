@@ -1,5 +1,5 @@
 import type { Policy } from "../../core/policy-types.ts";
-import type { PermDockConfig } from "../types.ts";
+import type { PermDockConfig, RlsConfig } from "../types.ts";
 import type { ProjectContext } from "./context.ts";
 import type { PolicyModel } from "./model.ts";
 
@@ -122,6 +122,11 @@ export type PermDockPlugin = {
     ctx: ProjectContext,
   ) => readonly PluginFinding[] | Promise<readonly PluginFinding[]>;
   readonly commands?: readonly PluginCommand[];
+  /**
+   * The config with the plugin's output options folded in, so doctor and
+   * `supabase inspect` read the files generate writes.
+   */
+  readonly config?: (config: PermDockConfig) => PermDockConfig;
 };
 
 export type PluginInit = {
@@ -135,6 +140,7 @@ export type PluginInit = {
   readonly seeds?: PermDockPlugin["seeds"];
   readonly doctor?: PermDockPlugin["doctor"];
   readonly commands?: PermDockPlugin["commands"];
+  readonly config?: PermDockPlugin["config"];
 };
 
 /**
@@ -169,7 +175,54 @@ export function definePlugin(init: PluginInit): PermDockPlugin {
     ...(init.commands === undefined
       ? {}
       : { commands: Object.freeze([...init.commands]) }),
+    ...(init.config === undefined ? {} : { config: init.config }),
   });
+}
+
+/** `config` with each configured plugin's output options folded in, in order. */
+export function withPluginOutputs(config: PermDockConfig): PermDockConfig {
+  let folded = config;
+  for (const plugin of (config.plugins ?? []).filter(isPermDockPlugin)) {
+    folded = plugin.config?.(folded) ?? folded;
+  }
+  return folded;
+}
+
+/** `rls.out` and `rls.split` as an `rls()` plugin writes them. */
+export function withRlsOutputs(
+  config: PermDockConfig,
+  options: Pick<RlsConfig, "out" | "split">,
+): PermDockConfig {
+  const split = options.split ?? config.rls?.split;
+  // Without split or an out, rls() writes its task path.
+  const out =
+    options.out ??
+    config.rls?.out ??
+    (split === undefined ? "permdock.sql" : undefined);
+  return {
+    ...config,
+    rls: {
+      ...config.rls,
+      ...(out === undefined ? {} : { out }),
+      ...(split === undefined ? {} : { split }),
+    },
+  };
+}
+
+/** `supabase.hook.out` as a hook plugin writes it. */
+export function withHookOut(
+  config: PermDockConfig,
+  out: string | undefined,
+): PermDockConfig {
+  return out === undefined
+    ? config
+    : {
+        ...config,
+        supabase: {
+          ...config.supabase,
+          hook: { ...config.supabase?.hook, out },
+        },
+      };
 }
 
 export function isPermDockPlugin(value: unknown): value is PermDockPlugin {

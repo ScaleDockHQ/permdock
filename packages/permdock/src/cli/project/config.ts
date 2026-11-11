@@ -7,6 +7,7 @@ import type { ParsedConfig } from "./config-schema.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { CliError } from "../core/errors.ts";
+import { withPluginOutputs } from "../generate/plugin.ts";
 import {
   betterSupabaseConfig,
   betterSupabaseDefaults,
@@ -84,7 +85,7 @@ export async function readConfig(
   return {
     ...parsed,
     config: betterSupabaseDefaults(
-      parsed.config,
+      withPluginOutputs(parsed.config),
       await betterSupabaseConfig(lookup),
       betterSupabaseInstalled(lookup),
     ),

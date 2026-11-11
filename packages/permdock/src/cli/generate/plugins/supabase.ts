@@ -3,7 +3,13 @@ import type { PermDockPlugin } from "../plugin.ts";
 import type { RlsPluginOptions } from "./rls-options.ts";
 
 import { compact } from "../../../core/compact.ts";
-import { definePlugin, quietIo, schemaInputs } from "../plugin.ts";
+import {
+  definePlugin,
+  quietIo,
+  schemaInputs,
+  withHookOut,
+  withRlsOutputs,
+} from "../plugin.ts";
 import { outcomeNotes } from "./supabase-outcome.ts";
 import { pluginVersion } from "./version.ts";
 
@@ -66,6 +72,7 @@ export function supabase(options: SupabasePluginOptions = {}): PermDockPlugin {
         ? []
         : [{ id: "manifest", out: manifestOut }]),
     ],
+    config: (config) => withHookOut(withRlsOutputs(config, options), hookOut),
     emit: async (task, _model, source) => {
       if (task.id === "sql") {
         // Lazy: the SQL compiler loads only when this plugin emits.
