@@ -436,6 +436,56 @@ describe("supabase.hook.teams", () => {
       });
     });
 
+    it("skips disabled rows, a suspended user and a suspended tenant, and orders the active tenant first", () => {
+      const sql = hookTeamReadersSql({
+        dialect: "supabase",
+        scopes,
+        tenantClaim: "tenant_id",
+        gucPrefix: "app",
+        hookTeams: {
+          table: "team_members",
+          user: "user_id",
+          team: "team_id",
+          tenant: "organization_id",
+          disabledAt: "removed_at",
+        },
+        suspension: {
+          users: { table: "profiles", id: "user_id", disabledAt: "banned_at" },
+          scopes: {
+            organization: {
+              table: "organizations",
+              id: "id",
+              status: "status",
+              active: ["active"],
+            },
+          },
+        },
+      });
+      expect(sql).toContain('    and t."removed_at" is null');
+      expect(sql).toContain(
+        `    and coalesce(p_user in (select s."user_id" from "public"."profiles" s where s."banned_at" is null), false)`,
+      );
+      expect(sql).toContain(
+        `    and coalesce(t."organization_id" in (select s."id" from "public"."organizations" s where s."status"::text = any(array['active']::text[])), false)`,
+      );
+      expect(sql).toContain(
+        'order by (p_active is not null and t."organization_id"::text is not distinct from p_active) desc, t."team_id"',
+      );
+      expect(
+        hookTeamReadersSql({
+          dialect: "supabase",
+          scopes: [],
+          tenantClaim: "tenant_id",
+          gucPrefix: "app",
+          hookTeams: {
+            table: "team_members",
+            user: "user_id",
+            team: "team_id",
+          },
+        }),
+      ).toContain('order by t."team_id"');
+    });
+
     it("grants member_team_ids_for to supabase_auth_admin only for an invoker hook", () => {
       const scopesFor = {
         dialect: "supabase" as const,
