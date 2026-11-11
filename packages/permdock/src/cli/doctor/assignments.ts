@@ -1,7 +1,7 @@
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 
 import { scopeList } from "../../core/scopes.ts";
-import { partPath } from "../core/output-files.ts";
+import { outFiles } from "../core/output-files.ts";
 import { sqlFiles } from "../files.ts";
 import { guardedTables } from "../rls/assignments.ts";
 import { ownershipRules } from "../rls/ownership.ts";
@@ -24,11 +24,7 @@ function triggeredTables(input: DoctorInput): ReadonlySet<string> {
   const out = input.config.rls?.out ?? "rls.sql";
   const files = sqlFiles(input.cwd, [
     ...(input.config.doctor?.migrations ?? MIGRATION_DIRS),
-    ...new Set(
-      [out, partPath(out, "helpers"), partPath(out, "policies")].filter(
-        (file) => file.endsWith(".sql"),
-      ),
-    ),
+    ...outFiles(out).filter((file) => file.endsWith(".sql")),
   ]);
   const tables = new Set<string>();
   for (const file of files) {

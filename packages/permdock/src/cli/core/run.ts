@@ -10,7 +10,11 @@ import type { GroupEntry, LeafEntry } from "./manifest.ts";
 import type { CommandResult, NextStep } from "./result.ts";
 
 import { dateAt } from "../../core/time.ts";
-import { readConfig, resolveCwd } from "../project/config.ts";
+import {
+  readConfig,
+  resolveCwd,
+  withPluginOutputs,
+} from "../project/config.ts";
 import { beforeFirst } from "../shared/text.ts";
 import { agentMode } from "./agent.ts";
 import { parseFlags, parseLeaf, suggestion } from "./args.ts";
@@ -587,7 +591,10 @@ export async function run(
     if (options?.plugins !== undefined) {
       loaded = {
         ...loaded,
-        config: { ...loaded.config, plugins: options.plugins },
+        config: withPluginOutputs({
+          ...loaded.config,
+          plugins: options.plugins,
+        }),
       };
     }
     const signal = io.signal ?? new AbortController().signal;

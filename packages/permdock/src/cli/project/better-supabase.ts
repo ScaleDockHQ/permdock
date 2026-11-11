@@ -31,6 +31,19 @@ type Lookup = Pick<DoctorInput, "cwd" | "files"> & {
 export async function betterSupabaseConfig(
   input: Lookup,
 ): Promise<Record<string, unknown> | undefined> {
+  return (await loadBetterSupabaseConfig(input)).config;
+}
+
+/**
+ * `betterSupabaseConfig`, plus the error when the file exists but does not
+ * load, for example while it reads a manifest PermDock has not written yet.
+ */
+export async function loadBetterSupabaseConfig(
+  input: Lookup,
+): Promise<{
+  readonly config?: Record<string, unknown>;
+  readonly failed?: { readonly path: string; readonly error: unknown };
+}> {
   const files = filesOf(input);
   const path =
     input.path === undefined
@@ -39,15 +52,15 @@ export async function betterSupabaseConfig(
           .find((file) => files.exists(file))
       : [resolve(input.cwd, input.path)].find((file) => files.exists(file));
   if (path === undefined) {
-    return undefined;
+    return {};
   }
   try {
     // Lazy: preserve the CLI help startup graph; jiti loads only for a detected config.
     const { loadModule } = await import("./load.ts");
     const loaded = (await loadModule(path))["default"];
-    return isRecord(loaded) ? loaded : undefined;
-  } catch {
-    return undefined;
+    return isRecord(loaded) ? { config: loaded } : {};
+  } catch (error) {
+    return { failed: { path, error } };
   }
 }
 

@@ -462,6 +462,40 @@ create policy permdock_follow_parts_select on public.parts for select
             ],
           },
         },
+        "/tasks": {
+          get: {
+            operationId: "listTasks",
+            parameters: [
+              {
+                name: "limit",
+                in: "query",
+                required: false,
+                schema: { type: "integer", default: 50, maximum: 200 },
+              },
+            ],
+          },
+        },
+        "/files": {
+          get: {
+            operationId: "listFiles",
+            parameters: [
+              { name: "limit", in: "query", default: 20, maximum: 100 },
+            ],
+          },
+        },
+        "/notes": {
+          get: {
+            operationId: "listNotes",
+            parameters: [
+              {
+                name: "limit",
+                in: "query",
+                required: false,
+                schema: { type: "integer", default: 50 },
+              },
+            ],
+          },
+        },
         "/jobs/{id}": {
           get: {
             parameters: [
@@ -477,7 +511,7 @@ create policy permdock_follow_parts_select on public.parts for select
       },
     });
 
-    it("flags GET collection operations whose limit is not required", () => {
+    it("flags GET collection operations whose limit is neither required nor bounded by a default and a maximum", () => {
       const cwd = project({ "openapi.json": doc });
       const findings = pd111({
         cwd,
@@ -488,6 +522,7 @@ create policy permdock_follow_parts_select on public.parts for select
       expect(targets(findings)).toStrictEqual([
         "openapi.json:GET /jobs",
         "openapi.json:GET /orgs",
+        "openapi.json:GET /notes",
       ]);
     });
 

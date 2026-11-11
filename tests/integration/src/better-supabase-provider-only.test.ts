@@ -162,7 +162,7 @@ describe("a better-supabase app that takes every authorization slot from the pro
       "owner",
     ]);
     expect(provider.functions).toMatchObject({
-      subject: "permdock.permdock_subject()",
+      subject: "permdock.permdock_subject",
       subjectForTenant: "permdock.permdock_subject(({tenant})::text)",
       bootstrapPermissions:
         "permdock.permdock_bootstrap_permissions(({tenant})::text)",
@@ -210,7 +210,7 @@ describe("a better-supabase app that takes every authorization slot from the pro
       for (const [name, template] of Object.entries(provider.functions)) {
         if (template === undefined) continue;
         for (const { name: scope } of provider.scopes) {
-          const sql = template
+          const sql = (name === "subject" ? `${template}()` : template)
             .replaceAll("{scope}", scope)
             .replaceAll(
               /\{(\w+)\}/gu,

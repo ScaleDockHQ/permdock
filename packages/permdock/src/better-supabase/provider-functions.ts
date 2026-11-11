@@ -435,7 +435,7 @@ export function providerFunctions(
   const subjects = options.subject !== false;
   const subject =
     subjects && overload(OWN_SUBJECT, "")
-      ? call(OWN_SUBJECT, "", "authenticated")
+      ? call(OWN_SUBJECT, "", "authenticated").slice(0, -2)
       : undefined;
   const subjectForTenant =
     subjects && rootTenant && overload(OWN_SUBJECT, "p_tenant text")

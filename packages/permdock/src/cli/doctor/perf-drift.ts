@@ -1,6 +1,7 @@
 import type { DoctorFiles, DoctorFinding } from "../shared/doctor-types.ts";
 import type { PermDockConfig } from "../types.ts";
 
+import { outFiles } from "../core/output-files.ts";
 import { rel, sqlFiles } from "../files.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 
@@ -36,11 +37,7 @@ export function pd115(
   files: DoctorFiles,
 ): readonly DoctorFinding[] {
   const out = config.rls?.out;
-  const schema = stamped(
-    cwd,
-    ["supabase/schemas", ...(out === undefined ? [] : [out])],
-    files,
-  );
+  const schema = stamped(cwd, ["supabase/schemas", ...outFiles(out)], files);
   const migrations = stamped(
     cwd,
     (config.doctor?.migrations ?? MIGRATION_DIRS).filter(

@@ -1,6 +1,7 @@
 import type { SupabaseSchemas } from "../../types.ts";
 import type { PermDockPlugin } from "../plugin.ts";
 
+import { withHookOut } from "../plugin-outputs.ts";
 import { definePlugin, quietIo, schemaInputs } from "../plugin.ts";
 import { outcomeNotes } from "./supabase-outcome.ts";
 import { pluginVersion } from "./version.ts";
@@ -27,6 +28,7 @@ export function supabaseHook(
     plan: () => [
       { id: "hook", out: options.out ?? "supabase/permdock-hook.sql" },
     ],
+    config: (config) => withHookOut(config, options.out),
     emit: async (_task, _model, source) => {
       if (source === undefined) {
         return [];

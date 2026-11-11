@@ -28,6 +28,18 @@ function resolveParameter(
   return isRecord(node) ? node : undefined;
 }
 
+/**
+ * A required `limit`, or one with a default and a maximum (on its schema in
+ * OpenAPI 3).
+ */
+function bounded(document: Record<string, unknown>, limit: Parameter): boolean {
+  if (limit["required"] === true) {
+    return true;
+  }
+  const schema = resolveParameter(document, limit["schema"]) ?? limit;
+  return schema["default"] !== undefined && schema["maximum"] !== undefined;
+}
+
 function openApiFindings(
   doc: string,
   document: unknown,
@@ -48,7 +60,7 @@ function openApiFindings(
     const limit = parameters
       .map((parameter: unknown) => resolveParameter(document, parameter))
       .find((parameter) => parameter?.["name"] === "limit");
-    if (limit === undefined || limit["required"] === true) {
+    if (limit === undefined || bounded(document, limit)) {
       continue;
     }
     findings.push({

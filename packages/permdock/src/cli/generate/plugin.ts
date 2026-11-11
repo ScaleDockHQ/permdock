@@ -122,6 +122,11 @@ export type PermDockPlugin = {
     ctx: ProjectContext,
   ) => readonly PluginFinding[] | Promise<readonly PluginFinding[]>;
   readonly commands?: readonly PluginCommand[];
+  /**
+   * The config with the plugin's output options folded in, so doctor and
+   * `supabase inspect` read the files generate writes.
+   */
+  readonly config?: (config: PermDockConfig) => PermDockConfig;
 };
 
 export type PluginInit = {
@@ -135,6 +140,7 @@ export type PluginInit = {
   readonly seeds?: PermDockPlugin["seeds"];
   readonly doctor?: PermDockPlugin["doctor"];
   readonly commands?: PermDockPlugin["commands"];
+  readonly config?: PermDockPlugin["config"];
 };
 
 /**
@@ -169,6 +175,7 @@ export function definePlugin(init: PluginInit): PermDockPlugin {
     ...(init.commands === undefined
       ? {}
       : { commands: Object.freeze([...init.commands]) }),
+    ...(init.config === undefined ? {} : { config: init.config }),
   });
 }
 

@@ -1,16 +1,18 @@
 import { existsSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 
+import type { PermDockPlugin } from "../generate/plugin.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { ConfigChecks, PermDockConfigInput } from "./config-checks.ts";
 import type { ParsedConfig } from "./config-schema.ts";
 
 import { isRecord } from "../../core/compact.ts";
+import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { CliError } from "../core/errors.ts";
 import {
-  betterSupabaseConfig,
   betterSupabaseDefaults,
   betterSupabaseInstalled,
+  loadBetterSupabaseConfig,
 } from "./better-supabase.ts";
 import { parseConfig } from "./config-schema.ts";
 import { MODULE_KEYS } from "./config-shape.ts";
@@ -81,15 +83,52 @@ export async function readConfig(
       ? {}
       : { path: parsed.config.betterSupabase.config }),
   };
+  const betterSupabase = await loadBetterSupabaseConfig(lookup);
+  const { failed } = betterSupabase;
   return {
     ...parsed,
+    // A config that does not load still counts, so the hook defaults do not
+    // depend on whether the files it reads exist yet.
     config: betterSupabaseDefaults(
-      parsed.config,
-      await betterSupabaseConfig(lookup),
+      withPluginOutputs(parsed.config),
+      failed === undefined ? betterSupabase.config : {},
       betterSupabaseInstalled(lookup),
     ),
+    warnings:
+      failed === undefined || parsed.config.supabase?.hook === undefined
+        ? parsed.warnings
+        : [...parsed.warnings, unloadedWarning(cwd, failed, parsed.config)],
     file: path,
   };
+}
+
+function foldsConfig(
+  plugin: unknown,
+): plugin is Required<Pick<PermDockPlugin, "config">> {
+  return isRecord(plugin) && typeof plugin["config"] === "function";
+}
+
+/** `config` with each configured plugin's output options folded in, in order. */
+export function withPluginOutputs(config: PermDockConfig): PermDockConfig {
+  let folded = config;
+  for (const plugin of config.plugins ?? []) {
+    if (foldsConfig(plugin)) {
+      folded = plugin.config(folded);
+    }
+  }
+  return folded;
+}
+
+function unloadedWarning(
+  cwd: string,
+  failed: { readonly path: string; readonly error: unknown },
+  config: PermDockConfig,
+): string {
+  const file = relative(cwd, failed.path).replaceAll("\\", "/");
+  const reason =
+    failed.error instanceof Error ? failed.error.message : String(failed.error);
+  const claim = config.rls?.tenantClaim ?? supabaseTenantClaim;
+  return `[better_supabase_config] ${file} did not load (${reason}); the hook reads app_metadata.${claim} unless supabase.hook.activeFrom is set`;
 }
 
 function hasModuleValue(

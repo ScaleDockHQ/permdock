@@ -134,6 +134,19 @@ export function partPath(out: string, part: SplitPart | "follows"): string {
 }
 
 /**
+ * `rls.out` as the files doctor reads: the file, or each part of a `{part}`
+ * template.
+ */
+export function outFiles(out: string | undefined): readonly string[] {
+  if (out === undefined) {
+    return [];
+  }
+  return out.includes("{part}")
+    ? [...SPLIT_PARTS, "follows" as const].map((part) => partPath(out, part))
+    : [out];
+}
+
+/**
  * pg-delta's per-schema, unnumbered layout: pg-delta orders statements by their
  * dependencies, so no file needs a number to apply first.
  */

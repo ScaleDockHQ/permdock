@@ -7,6 +7,8 @@ import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { RlsCustomRoleTable } from "../../src/cli/types.ts";
 
 import { pd072 } from "../../src/cli/doctor/rls.ts";
+import { rls } from "../../src/cli/generate/plugins/rls.ts";
+import { withPluginOutputs } from "../../src/cli/project/config.ts";
 import { customRoleNameGuardSql } from "../../src/cli/rls/custom-role-guard.ts";
 import { helpersSql } from "../../src/cli/rls/helpers.ts";
 import { junctionMembershipSource } from "../../src/supabase/index.ts";
@@ -157,6 +159,18 @@ describe("PD072", () => {
         "create or replace trigger permdock_custom_role_name_guard before insert on app_roles for each row execute function g();",
       );
       expect(pd072({ cwd, config: config(table) })).toStrictEqual([]);
+    });
+
+    it("finds the trigger in the helpers part of an rls() plugin's {part} out", () => {
+      const cwd = projectWith(
+        "db/helpers.sql",
+        'create trigger "permdock_custom_role_name_guard" before insert on app_roles for each row execute function g();',
+      );
+      const folded = withPluginOutputs({
+        ...config(table),
+        plugins: [rls({ out: "db/{part}.sql", split: ["helpers"] })],
+      });
+      expect(pd072({ cwd, config: folded })).toStrictEqual([]);
     });
 
     it("warns when the SQL files hold no such trigger", () => {

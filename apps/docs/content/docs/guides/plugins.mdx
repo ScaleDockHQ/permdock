@@ -15,13 +15,14 @@ description: definePlugin is the contract permdock generate runs. Each plugin pl
 
 The model carries each resource's `schema` (JSON Schema 2020-12 through `~standard.jsonSchema`, `null` when the schema library has none) and `meta`, and stays `structuredClone`-safe, so a schema plugin runs without the policy. A schema plugin notes each resource it skips for that reason.
 
-Three optional members complete the contract:
+Four optional members complete the contract:
 
-| Member     | Meaning                                                                                                                                                              |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `seeds`    | `(model, ctx)` returns seed files the plugin owns; they are written with the emitted files                                                                           |
-| `doctor`   | `(model, ctx)` returns `{ code, severity, message }` findings; the run prints them after the Generated line                                                          |
-| `commands` | `{ name, summary, run }` entries. `permdock <name> ...args` calls `run({ cwd, config, args })` when no built-in command has that name; it answers `{ code, output }` |
+| Member     | Meaning                                                                                                                                                                                                                                             |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `seeds`    | `(model, ctx)` returns seed files the plugin owns; they are written with the emitted files                                                                                                                                                          |
+| `doctor`   | `(model, ctx)` returns `{ code, severity, message }` findings; the run prints them after the Generated line                                                                                                                                         |
+| `commands` | `{ name, summary, run }` entries. `permdock <name> ...args` calls `run({ cwd, config, args })` when no built-in command has that name; it answers `{ code, output }`                                                                                |
+| `config`   | `(config)` returns the config with the plugin's output options folded in, so doctor and `supabase inspect` read the files the plugin writes. `rls()`, `supabaseHook()` and `supabase()` set `rls.out`, `rls.split` and `supabase.hook.out` this way |
 
 The cache key hashes each plugin's name and version, its canonical `options`, the content of every `inputs.files` entry (a directory counts every file under it), the config without `plugins`, `supabase/config.toml` and the model. A changed plugin option, schema-directory file or `config.toml` is a miss.
 

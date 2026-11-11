@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { DoctorFiles } from "../../src/cli/shared/doctor-types.ts";
@@ -11,6 +14,7 @@ import {
   betterSupabaseInstalled,
   betterSupabaseTenantClaim,
 } from "../../src/cli/project/better-supabase.ts";
+import { readConfig } from "../../src/cli/project/config.ts";
 
 /** An in-memory tree: a path ending in `/` is a directory. */
 function tree(entries: Readonly<Record<string, string>>): DoctorFiles {
@@ -231,5 +235,54 @@ describe(betterSupabaseDefaults, () => {
         {},
       ).supabase?.hook?.broadcast,
     ).toBe(false);
+  });
+});
+
+describe("readConfig with a better-supabase config", () => {
+  it("writes the same hook defaults whether the better-supabase config loads or not", async () => {
+    const project = (betterSupabase: string): string => {
+      const cwd = mkdtempSync(join(tmpdir(), "permdock-bs-load-"));
+      writeFileSync(
+        join(cwd, "permdock.config.mjs"),
+        "export default { supabase: { hook: {} } };\n",
+      );
+      writeFileSync(join(cwd, "better-supabase.config.mjs"), betterSupabase);
+      return cwd;
+    };
+    const failing = project(
+      'throw new Error("no permdock.manifest.json yet");\n',
+    );
+    const loading = project("export default {};\n");
+    const named = project("export default {};\n");
+    try {
+      const failed = await readConfig(failing);
+      const loaded = await readConfig(loading);
+      expect(failed.config.supabase?.hook).toStrictEqual(
+        loaded.config.supabase?.hook,
+      );
+      expect(failed.config.supabase?.hook?.activeFrom).toBe(
+        "app_metadata.tenant_id",
+      );
+      expect(failed.warnings).toStrictEqual([
+        "[better_supabase_config] better-supabase.config.mjs did not load (no permdock.manifest.json yet); the hook reads app_metadata.tenant_id unless supabase.hook.activeFrom is set",
+      ]);
+      expect(loaded.warnings).toStrictEqual([]);
+      writeFileSync(
+        join(named, "permdock.config.mjs"),
+        'export default { rls: { tenantClaim: "org_id" }, supabase: { hook: {} } };\n',
+      );
+      writeFileSync(
+        join(named, "better-supabase.config.mjs"),
+        'throw "no catalog";\n',
+      );
+      const thrown = await readConfig(named);
+      expect(thrown.warnings.at(-1)).toContain(
+        "did not load (no catalog); the hook reads app_metadata.org_id",
+      );
+    } finally {
+      rmSync(failing, { recursive: true, force: true });
+      rmSync(loading, { recursive: true, force: true });
+      rmSync(named, { recursive: true, force: true });
+    }
   });
 });
