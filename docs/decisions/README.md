@@ -70,5 +70,5 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0064](./0064-authorizer-claims-key-per-scope.md)                 | The better-supabase authorizer serialises a claims object once per request scope                       |
 | [0065](./0065-release-after-ci.md)                                | Release runs after CI, without a second verify                                                         |
 | [0066](./0066-pnpm-store-saved-once.md)                           | The pnpm store is saved from the static job only                                                       |
-| [0067](./0067-better-supabase-0-58-0-floor-and-release-age.md)    | better-supabase 0.58.0 is the peer floor, 0.58.1 the catalog pin, and both skip the release age        |
+| [0067](./0067-better-supabase-0-58-0-floor-and-release-age.md)    | better-supabase 0.58.0 is the peer floor, 0.58.3 the catalog pin, and both skip the release age        |
 | [0068](./0068-cli-contract-3.md)                                  | PermDock moves to better-supabase's CLI contract 3                                                     |

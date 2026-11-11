@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.58 or later as a peer (`>=0.58.0`). The range has no upper bound: CI tests 0.58.0 and 0.58.1 on every pull request, and a daily job tests the newest release. Coming from 0.54 to 0.57, follow better-supabase's [0.57 to 0.58 guide](https://bettersupabase.com/docs/migration/0.57-to-0.58): run `better-supabase codemod naming` first and the other codemods it lists, then `gen`, `upgrade` and a schema diff. An app older than 0.54 follows the 0.53 to 0.54 guide first.
+The entry needs `better-supabase` 0.58 or later as a peer (`>=0.58.0`). The range has no upper bound: CI tests 0.58.0 and 0.58.3 on every pull request, and a daily job tests the newest release. Coming from 0.54 to 0.57, follow better-supabase's [0.57 to 0.58 guide](https://bettersupabase.com/docs/migration/0.57-to-0.58): run `better-supabase codemod naming` first and the other codemods it lists, then `gen`, `upgrade` and a schema diff. An app older than 0.54 follows the 0.53 to 0.54 guide first.
 
 Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
@@ -1127,7 +1127,7 @@ Pin both packages to the pair a release lists, and update the table in the same 
 
 ## Example app
 
-`apps/examples/next-better-supabase`: better-supabase on Next.js 16.4 with Cache Components. It runs on better-supabase 0.58.1.
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.4 with Cache Components. It runs on better-supabase 0.58.3.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
 - `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version, intent })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, `version` is `authzVersion({ query })`, and `intent` makes a `read`, `list` or `view` permission `read` and every other check `write`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.

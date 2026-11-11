@@ -161,7 +161,7 @@ catalog:
   "@ai-sdk/otel": 1.0.159
   dotenv-cli: 11.1.0
   portless: 0.15.12
-  better-supabase: 0.58.1
+  better-supabase: 0.58.3
   better-result: 3.0.1
   "@supabase/postgrest-typegen": 0.6.0
   supabase: 2.122.0
@@ -275,8 +275,8 @@ minimumReleaseAgeExclude:
   # Adopted the day they shipped; drop each entry after its date (decision 0067).
   # Drop after 2026-11-12 08:49 UTC.
   - better-supabase@0.58.0
-  # Drop after 2026-11-12 11:37 UTC.
-  - better-supabase@0.58.1
+  # Drop after 2026-11-12 13:34 UTC.
+  - better-supabase@0.58.3
 # Drops excludes the lockfile no longer resolves.
 minimumReleaseAgeExcludePrune: true
 # Transitive dependencies resolve only from the registry, never from git or tarball URLs.
