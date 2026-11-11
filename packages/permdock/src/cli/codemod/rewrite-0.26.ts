@@ -129,78 +129,6 @@ function matchingClose(source: string, open: number): number {
   return source.length - 1;
 }
 
-function endOfValue(source: string, start: number): number {
-  const char = source[start];
-  if (char === '"' || char === "'" || char === "`") {
-    return stringEnd(source, start) + 1;
-  }
-  if (char === "{" || char === "[" || char === "(") {
-    return matchingClose(source, start) + 1;
-  }
-  let index = start;
-  while (
-    index < source.length &&
-    source[index] !== "," &&
-    source[index] !== "\n" &&
-    source[index] !== "}"
-  ) {
-    index += 1;
-  }
-  return index;
-}
-
-function skipSpace(source: string, index: number): number {
-  let cursor = index;
-  while (source[cursor] === " " || source[cursor] === "\t") {
-    cursor += 1;
-  }
-  return cursor;
-}
-
-function removeProperty(
-  source: string,
-  key: string,
-  when?: (value: string, index: number) => boolean,
-): { text: string; removed: boolean } {
-  const pattern = PROPERTY(key);
-  let text = source;
-  let cursor = 0;
-  let removed = false;
-  while (cursor < text.length) {
-    pattern.lastIndex = cursor;
-    const match = pattern.exec(text);
-    if (match === null) {
-      break;
-    }
-    const valueStart = skipSpace(text, match.index + match[0].length);
-    const valueEnd = endOfValue(text, valueStart);
-    if (
-      when !== undefined &&
-      !when(text.slice(valueStart, valueEnd), match.index)
-    ) {
-      cursor = valueEnd;
-      continue;
-    }
-    let end = valueEnd;
-    if (text[end] === ",") {
-      end += 1;
-    }
-    if (text[end] === "\r") {
-      end += 1;
-    }
-    if (text[end] === "\n") {
-      end += 1;
-    }
-    const lineBreak = text.lastIndexOf("\n", match.index - 1);
-    const prefix = text.slice(lineBreak + 1, match.index);
-    const start = /^[ \t]*$/u.test(prefix) ? lineBreak + 1 : match.index;
-    text = text.slice(0, start) + text.slice(end);
-    removed = true;
-    cursor = start;
-  }
-  return { text, removed };
-}
-
 function inferredOf(action: string): SqlCommand | undefined {
   const exact = defaultSqlCommand(action);
   if (exact !== undefined) {
@@ -275,11 +203,7 @@ function insidePermissions(source: string, index: number): boolean {
   return false;
 }
 
-function dropSupplied(
-  file: string,
-  source: string,
-): { text: string; changes: CodemodChange[]; followUps: CodemodFollowUp[] } {
-  const changes: CodemodChange[] = [];
+function suppliedFollowUps(file: string, source: string): CodemodFollowUp[] {
   const followUps: CodemodFollowUp[] = [];
   const keep = (name: string, message: string): void => {
     followUps.push({
@@ -309,22 +233,26 @@ function dropSupplied(
       break;
     }
   }
-  const assign = removeProperty(source, "canAssign", (value) =>
-    value.includes("permdock_can_assign_any"),
-  );
-  if (assign.removed) {
-    changes.push(change("platformRoles.canAssign", ""));
+  if (
+    PROPERTY("canAssign").test(source) &&
+    source.includes("permdock_can_assign_any")
+  ) {
+    keep(
+      "canAssign",
+      "canAssign naming permdock_can_assign_any is kept: the provider fills platformRoles.canAssign only for its own tenant scope, and another scope or a through.where narrows it; delete it when permdock doctor reports it as PD094",
+    );
   }
-  return { text: assign.text, changes, followUps };
+  return followUps;
 }
 
 /**
  * 0.26 text rewrites: `permitted_<resource>_row(` becomes `can_<resource>(`,
  * `::text` around a helper call is removed, `own_subject()` is deleted, and `{
  * tableOf }` moves onto the owner's `also` list. Inferred `rls.actions` entries
- * are dropped. A `better-supabase.config.*` file loses a `canAssign` that names
- * `permdock_can_assign_any`; `roleThrough` and `permissions.disabled` become
- * follow-ups, because the provider supplies them only in some setups.
+ * are dropped. In a `better-supabase.config.*` file, `roleThrough`,
+ * `permissions.disabled` and a `canAssign` that names `permdock_can_assign_any`
+ * become follow-ups, because the provider supplies them only in some setups and
+ * PD094 decides whether a value equals the provider's.
  */
 /** Old `permdock gen` file names (without extension) to the 0.26 names. */
 const GEN_FILES: Readonly<Record<string, string>> = {
@@ -417,10 +345,7 @@ export function rewrite026(file: string, source: string): RewriteResult {
     changes.push(change(`rls.actions ${entry}`, "inferred"));
   }
   if (file.includes("better-supabase.config.")) {
-    const supplied = dropSupplied(file, text);
-    text = supplied.text;
-    changes.push(...supplied.changes);
-    followUps.push(...supplied.followUps);
+    followUps.push(...suppliedFollowUps(file, text));
   }
   return { source: text, changes, followUps };
 }

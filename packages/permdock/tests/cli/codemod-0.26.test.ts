@@ -61,7 +61,7 @@ select permitted_doc_rows('doc.read')::text;
     expect(rewritten.source).toContain('view: "select"');
   });
 
-  it("deletes canAssign and reports roleThrough and permissions.disabled in better-supabase.config", () => {
+  it("reports roleThrough, permissions.disabled and canAssign in better-supabase.config", () => {
     const source = `export default {
   blocks: {
     memberships: { options: { roleThrough: { table: "public.roles", id: "id" } } },
@@ -73,13 +73,12 @@ select permitted_doc_rows('doc.read')::text;
     const rewritten = rewrite026("better-supabase.config.ts", source);
     expect(rewritten.source).toContain("roleThrough");
     expect(rewritten.source).toContain('disabled: { tenant: "suspended_at" }');
-    expect(rewritten.source).not.toContain("canAssign");
-    expect(rewritten.changes.map((change) => change.from)).toStrictEqual([
-      "platformRoles.canAssign",
-    ]);
+    expect(rewritten.source).toBe(source);
+    expect(rewritten.changes).toStrictEqual([]);
     expect(rewritten.followUps.map((item) => item.name)).toStrictEqual([
       "roleThrough",
       "permissions.disabled",
+      "canAssign",
     ]);
   });
 
@@ -181,20 +180,24 @@ select permitted_doc_rows('doc.read')::text;
     expect(kept.changes).toStrictEqual([]);
   });
 
-  it("drops only a canAssign that names permdock_can_assign_any", () => {
-    const rewritten = rewrite026(
-      "better-supabase.config.ts",
-      `export default {\r\n  disabled: true,\r\n  blocks: {\r\n    other: { disabled: true },\r\n  },\r\n  platformRoles: { canAssign: "custom" },\r\n  orgRoles: { canAssign: "a\\\\permdock_can_assign_any", keep: 1 },\r\n};\r\n`,
-    );
-    expect(rewritten.source).toContain('canAssign: "custom"');
-    expect(rewritten.source).toContain("keep: 1");
-    expect(rewritten.source.match(/canAssign/gu)).toHaveLength(1);
-    expect(rewritten.followUps).toStrictEqual([]);
-    const crlf = rewrite026(
-      "better-supabase.config.ts",
-      `export default {\r\n  canAssign: "permdock_can_assign_any",\r\n  keep: 1,\r\n};\r\n`,
-    );
-    expect(crlf.source).toBe(`export default {\r\n  keep: 1,\r\n};\r\n`);
+  it("keeps every canAssign and reports one that names permdock_can_assign_any", () => {
+    const platformRoles = (scope: string, where: string): string =>
+      `export default {\n  blocks: {\n    invitations: {\n      options: {\n        platformRoles: {\n          canAssign:\n            "permdock.permdock_can_assign_any({role}, null::uuid, '${scope}', null::text)",\n          through: { table: "public.roles", id: "id", column: "key"${where} },\n        },\n      },\n    },\n  },\n};\n`;
+    for (const source of [
+      platformRoles("organization", ""),
+      platformRoles("global", `, where: "{row}.scope = 'system'"`),
+    ]) {
+      const rewritten = rewrite026("better-supabase.config.ts", source);
+      expect(rewritten.source).toBe(source);
+      expect(rewritten.changes).toStrictEqual([]);
+      expect(rewritten.followUps.map((item) => item.name)).toStrictEqual([
+        "canAssign",
+      ]);
+    }
+    const custom = `export default {\r\n  disabled: true,\r\n  blocks: {\r\n    other: { disabled: true },\r\n  },\r\n  platformRoles: { canAssign: "custom" },\r\n};\r\n`;
+    const kept = rewrite026("better-supabase.config.ts", custom);
+    expect(kept.source).toBe(custom);
+    expect(kept.followUps).toStrictEqual([]);
     const nestedDisabled = rewrite026(
       "better-supabase.config.ts",
       `export default {\n  blocks: {\n    permissions: {\n      keep: { a: 1 },\n      disabled: true,\n    },\n  },\n};\n`,
@@ -203,28 +206,6 @@ select permitted_doc_rows('doc.read')::text;
     expect(nestedDisabled.followUps.map((item) => item.name)).toStrictEqual([
       "permissions.disabled",
     ]);
-    const nested = rewrite026(
-      "better-supabase.config.ts",
-      'export default {\n  canAssign: [{ name: "permdock_can_assign_any" }],\n  keep: 1,\n};\n',
-    );
-    expect(nested.source).not.toContain("canAssign");
-    expect(nested.source).toContain("keep: 1");
-    const called = rewrite026(
-      "better-supabase.config.ts",
-      `export default {\n  canAssign: foo("permdock_can_assign_any"),\n  keep: 1,\n};\n`,
-    );
-    expect(called.source).toContain("keep: 1");
-    expect(called.source).not.toContain("canAssign");
-    const open = rewrite026(
-      "better-supabase.config.ts",
-      `export default {\n  canAssign: { fn: "permdock_can_assign_any"\n`,
-    );
-    expect(open.source).not.toContain("canAssign");
-    const quote = rewrite026(
-      "better-supabase.config.ts",
-      `export default {\n  canAssign: "permdock_can_assign_any\n`,
-    );
-    expect(quote.source).not.toContain("canAssign");
   });
 
   it("moves imports of the old generated files to the new names", () => {
