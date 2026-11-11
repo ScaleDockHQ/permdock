@@ -29,6 +29,16 @@ describe(lightInstance, () => {
     expect(light.roles).toStrictEqual(built.vocabulary?.roles ?? {});
     expect(light.tenant("o_1").snapshot()).toBe(built);
   });
+
+  it("answers the snapshot reads as the evaluator does, without expanding the grants", () => {
+    const built = snapshot();
+    const light = lightInstance(built, {});
+    const full = eagerEvaluator.build()?.(built, {});
+    expect(light.memberships()).toStrictEqual(full?.memberships());
+    expect(light.tenants()).toStrictEqual(full?.tenants());
+    expect(light.heldRoles()).toStrictEqual(full?.heldRoles());
+    expect(light.subject).toStrictEqual(full?.subject);
+  });
 });
 
 describe("the eager evaluator", () => {

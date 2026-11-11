@@ -6,8 +6,8 @@ import type { Subject } from "../core/subject.ts";
 import type { StoreRequest } from "./request.ts";
 import type { ClientStatus } from "./types.ts";
 
+import { canonicalJson } from "../core/canonical-json.ts";
 import { rowIdOf } from "../core/row-pair.ts";
-import { payloadDigest } from "../core/token.ts";
 
 export type CacheEntry = {
   readonly decision: Decision;
@@ -40,7 +40,9 @@ function rowId(
   return id === "*" ? undefined : id;
 }
 
-// A row without an id is keyed by its content, so two such rows never share an answer.
+// A row without an id is keyed by its canonical JSON, so two such rows never
+// share an answer; a digest would pull SHA-256 into the client's first chunk.
+// An id is quoted, so no id reads as another row's JSON.
 export function cacheKey(
   snapshot: Snapshot,
   permission: Permission,
@@ -49,7 +51,8 @@ export function cacheKey(
   if (data === undefined) {
     return `${permission.key}:*`;
   }
-  return `${permission.key}:${rowId(snapshot, permission, data) ?? `#${payloadDigest(data)}`}`;
+  const id = rowId(snapshot, permission, data);
+  return `${permission.key}:${id === undefined ? `#${canonicalJson(data)}` : JSON.stringify(id)}`;
 }
 
 /** Evaluations in one request. */

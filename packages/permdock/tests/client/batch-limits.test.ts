@@ -7,6 +7,7 @@ import {
   MAX_ANSWERS,
   MAX_BATCH_BYTES,
   MAX_BATCH_ITEMS,
+  cacheKey,
   createBatch,
 } from "../../src/client/batch.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
@@ -46,6 +47,24 @@ function harness() {
   };
   return { posts, answers, batch, settle };
 }
+
+describe(cacheKey, () => {
+  it("keys a row without an id by its content and never as another row's id", () => {
+    const snapshot = emptySnapshot();
+    const draft = { name: "a", tags: ["x"] };
+    expect(cacheKey(snapshot, read, draft)).toBe(
+      cacheKey(snapshot, read, { tags: ["x"], name: "a" }),
+    );
+    expect(cacheKey(snapshot, read, draft)).not.toBe(
+      cacheKey(snapshot, read, { name: "b", tags: ["x"] }),
+    );
+    expect(cacheKey(snapshot, read, { id: "p1" })).toBe(`${read.key}:"p1"`);
+    expect(
+      cacheKey(snapshot, read, { id: `#${JSON.stringify(draft)}` }),
+    ).not.toBe(cacheKey(snapshot, read, draft));
+    expect(cacheKey(snapshot, read, undefined)).toBe(`${read.key}:*`);
+  });
+});
 
 describe("client batch limits", () => {
   it("posts at most MAX_BATCH_ITEMS evaluations per request", async () => {
