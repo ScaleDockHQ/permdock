@@ -27,7 +27,7 @@ create table if not exists "permdock"."user_roles" (
 alter table "permdock"."user_roles" enable row level security;
 revoke all on table "permdock"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (database: reads the membership and user_roles tables) sha-256:DRoVPlLNnw7XvWaBPJQTcefuTjo2Nt9IHD9_KGGoRQE
+-- permdock helpers (database: reads the membership and user_roles tables) sha-256:rbhQtfnMJdU7ywoUsDKGXdNRy4MZVDVXZ-AlPYg7Uh4
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "permdock";
@@ -202,6 +202,13 @@ as $$
     and m."role" is not null
 $$;
 revoke execute on function "permdock".member_tenant_ids_for(uuid) from public, anon, authenticated;
+do $permdock$ begin
+  if exists (select 1 from pg_catalog.pg_roles where rolname = 'supabase_auth_admin') then
+    grant usage on schema "permdock" to supabase_auth_admin;
+    grant execute on function "permdock".member_tenant_ids_for(uuid) to supabase_auth_admin;
+  end if;
+end
+$permdock$;
 
 -- the helpers for a user the caller names: trusted SQL acting for a stored user; no client role may execute them
 create or replace function "permdock".permdock_has_for(p_user uuid, p_grant text)

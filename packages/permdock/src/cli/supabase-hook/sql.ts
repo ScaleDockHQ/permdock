@@ -400,15 +400,21 @@ function beforeGrantsSql(
 }
 
 /**
- * Execute on each `member_<scope>_ids_for` for `supabase_auth_admin`: the
- * `hook.claims` functions and `hook.teams` call them as that role, and
- * `authorizationProvider` fills better-supabase's `memberIdsFor` from a helper
- * the manifest lists with this grant. The helpers file stays free of
- * Supabase-only roles.
+ * Execute on each `member_<scope>_ids_for` for the `hook.claims` functions,
+ * which run as `supabase_auth_admin` and may call them, and on a team scope's
+ * one when `hook.teams` reads it for `team_ids`. Only then: the grant needs the
+ * helpers migration applied first, and a hook that calls none does not. The
+ * helpers file grants the same on a database that has the role.
  */
 function memberForGrantsSql(parts: Parts): string {
   const { schema, memberFor } = parts.helpers;
-  if (memberFor.length === 0) {
+  const granted =
+    parts.extra.length > 0
+      ? memberFor
+      : memberFor.filter(
+          (scope) => parts.hook.teams !== undefined && isTeamScope(scope),
+        );
+  if (granted.length === 0) {
     return "";
   }
   return [
@@ -417,7 +423,7 @@ function memberForGrantsSql(parts: Parts): string {
       : [
           `\ngrant usage on schema ${quoteIdent(schema)} to supabase_auth_admin;`,
         ]),
-    ...memberFor.map(
+    ...granted.map(
       (scope) =>
         `\ngrant execute on function ${quoteIdent(schema)}.${memberForHelper(scope)}(${isTeamScope(scope) ? "uuid, text" : "uuid"}) to supabase_auth_admin;`,
     ),

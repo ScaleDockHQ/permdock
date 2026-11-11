@@ -541,17 +541,7 @@ export function databaseManifestOf(
     memberships: _memberships,
     ...rest
   } = manifestOf(parts, out, config, policy);
-  // Without a hook nothing grants `supabase_auth_admin` execute on these.
-  const ungranted = new Set(parts.helpers.memberFor.map(memberForHelper));
-  return {
-    ...rest,
-    rls: {
-      ...rest.rls,
-      helpers: rest.rls.helpers.map((helper) =>
-        ungranted.has(helper.name) ? { ...helper, execute: [] } : helper,
-      ),
-    },
-  };
+  return rest;
 }
 
 /**

@@ -14,7 +14,13 @@ import {
   scopeSources,
   scopeTable,
 } from "../sql/names.ts";
-import { qualified, quoteLiteral, quoteQualified } from "../sql/quote.ts";
+import {
+  helperSchema,
+  qualified,
+  quoteIdent,
+  quoteLiteral,
+  quoteQualified,
+} from "../sql/quote.ts";
 import { rootName, signedIn } from "../sql/shared.ts";
 import {
   keyTenantSql,
@@ -231,11 +237,14 @@ ${grants}`;
  * `member_<scope>_ids_for(p_user uuid)`: `member_<scope>_ids()` for a user the
  * caller names, read from the membership sources (or the mapped table) in
  * either mode, so a token hook can call it before any claim exists. Naming the
- * user is why no client role may execute it; the hook's grants give
- * `supabase_auth_admin` execute. A `team` or `teams` scope takes `p_active text
- * default null` too, the one signature the hook's `team_ids` claim calls with
- * the active tenant; its one-argument form is dropped so a call with the user
- * alone stays unambiguous.
+ * user is why no client role may execute it. `supabase_auth_admin` may: the
+ * hook's claims functions and better-supabase's `memberIdsFor` call it as that
+ * role. The grant sits next to the function, so no migration order matters, and
+ * runs only where the role exists, so plain Postgres loads the file too. A
+ * `team` or `teams` scope takes `p_active text default null` too, the one
+ * signature the hook's `team_ids` claim calls with the active tenant; its
+ * one-argument form is dropped so a call with the user alone stays
+ * unambiguous.
  */
 export function memberForFunction(
   ctx: RlsSqlContext,
@@ -255,7 +264,44 @@ export function memberForFunction(
   return `${team ? `drop function if exists ${fn}(uuid);\n` : ""}create or replace function ${fn}(p_user uuid${team ? ", p_active text default null" : ""})
 returns setof ${type}
 ${functionBody(body)}
-revoke execute on function ${fn}(${types}) from public, anon, authenticated;`;
+revoke execute on function ${fn}(${types}) from public, anon, authenticated;
+${authAdminGrants([
+  `grant usage on schema ${quoteIdent(helperSchema(ctx))} to supabase_auth_admin;`,
+  `grant execute on function ${fn}(${types}) to supabase_auth_admin;`,
+])}`;
+}
+
+const AUTH_ADMIN_GUARD = `do $permdock$ begin
+  if exists (select 1 from pg_catalog.pg_roles where rolname = 'supabase_auth_admin') then
+`;
+const AUTH_ADMIN_END = `  end if;
+end
+$permdock$;`;
+
+/** Grants to `supabase_auth_admin` that run only on a database with the role. */
+function authAdminGrants(grants: readonly string[]): string {
+  return `${AUTH_ADMIN_GUARD}${grants.map((grant) => `    ${grant}\n`).join("")}${AUTH_ADMIN_END}`;
+}
+
+/**
+ * The `authAdminGrants` blocks of `sql` as plain grants, for a split helpers
+ * file: a declarative schema keeps no `do` block, and Supabase always has the
+ * role.
+ */
+export function unguardAuthAdminGrants(sql: string): string {
+  let out = "";
+  let from = 0;
+  for (;;) {
+    const start = sql.indexOf(AUTH_ADMIN_GUARD, from);
+    if (start === -1) {
+      return out + sql.slice(from);
+    }
+    const end = sql.indexOf(AUTH_ADMIN_END, start);
+    const body = sql.slice(start + AUTH_ADMIN_GUARD.length, end);
+    out += sql.slice(from, start);
+    out += body.replaceAll(/^ {4}/gmu, "").trimEnd();
+    from = end + AUTH_ADMIN_END.length;
+  }
 }
 
 /**

@@ -2,4 +2,4 @@
 "permdock": patch
 ---
 
-The hook file grants `supabase_auth_admin` execute on every `member_<scope>_ids_for` the helpers write, not only with `supabase.hook.claims` or `supabase.hook.teams`, and the manifest lists the role. `authorizationProvider` fills better-supabase's `memberIdsFor` only where the manifest lists that grant, so it never declares a grant the SQL lacks: an `rls.authorize: 'database'` project without a hook leaves `memberIdsFor` unset. Run `permdock generate`.
+`rls generate` grants `supabase_auth_admin` execute on every `member_<scope>_ids_for` it writes, next to the function, and the manifest lists the role. better-supabase's `memberIdsFor`, which `authorizationProvider` fills whenever the manifest lists the helper, now has the grant it declares without `supabase.hook.claims` or `supabase.hook.teams`, and in `rls.authorize: 'database'` mode without a hook. A single migration file wraps the grant in a `do` block that runs only where the role exists; a `--split` schema file grants it outright. Run `permdock generate`.
