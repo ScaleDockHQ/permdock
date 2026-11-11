@@ -115,7 +115,7 @@ It drops expired memberships, suspended users and suspended instances by the sam
 
 #### Permission holders
 
-In `database` mode, `generate` writes `permitted_<scope>_users(p_permission, p_id)` for each scope with an `rls.memberships` table or a `tableMembershipSource` / `junctionMembershipSource` source. It returns the users, sorted, who hold the permission key in that instance: the members of the instance and the holders of a global role, each checked with `permitted_<scope>_ids_by_permission_for` and `permdock_has_permission_for`. The answer matches `can()` for the allows without a row condition, minus any deny. A notification fan-out or an approver list reads it from server SQL:
+In `database` mode, `generate` writes `permitted_<scope>_users(p_permission, p_id)` for each scope with an `rls.memberships` table or a `tableMembershipSource` / `junctionMembershipSource` source. It returns the users, sorted, who hold the permission key in that instance: the members of the instance and the holders of a global role, kept when `permitted_<scope>_ids_by_permission_for` would list the instance or `permdock_has_permission_for` would answer true. With an `rls.memberships` table it is one query that reads every candidate's grant keys on the instance and globally, so its cost grows with the instance's members, not with the instances each member reaches; with membership sources it calls the two helpers per candidate. The answer matches `can()` for the allows without a row condition, minus any deny. A notification fan-out or an approver list reads it from server SQL:
 
 ```sql
 select user_id from "permdock".permitted_organization_users('billing.view', $1) as user_id;

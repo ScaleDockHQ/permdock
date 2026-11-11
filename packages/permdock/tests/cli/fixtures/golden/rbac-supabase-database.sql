@@ -699,20 +699,55 @@ stable
 security definer
 set search_path = ''
 as $$
-  select c.user_id
-  from (
-    select m."user_id"::uuid
-    from "public"."organization_members" m
-    where m."organization_id" = p_id
+  with pdk_u(user_id) as (
+    select c.user_id
+    from (
+      select m."user_id"::uuid
+      from "public"."organization_members" m
+      where m."organization_id" = p_id
+      union
+      select ur.user_id::uuid
+      from "permdock".user_roles ur
+    ) c(user_id)
+    where c.user_id is not null
+  ),
+  pdk_k(grant_key, global, effect) as (
+    select g.grant_key, false, 'allow' from "permdock".grant_keys(p_permission, 'tenant') g(grant_key)
+    union all
+    select g.grant_key, false, 'deny' from "permdock".grant_keys(p_permission, 'tenant', 'deny') g(grant_key)
+    union all
+    select g.grant_key, true, 'allow' from "permdock".grant_keys(p_permission, 'global') g(grant_key)
+    union all
+    select g.grant_key, true, 'deny' from "permdock".grant_keys(p_permission, 'global', 'deny') g(grant_key)
+  ),
+  pdk_h(user_id, global, effect) as (
+    select pdk_u.user_id, pdk_k.global, pdk_k.effect
+    from pdk_u
+    cross join lateral (
+      select m."organization_id"::uuid, rp.grant_key
+      from "public"."organization_members" m
+      cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
+      where m."user_id" = pdk_u.user_id
+    ) pdk_i(id, grant_key)
+    join pdk_k on pdk_k.grant_key = pdk_i.grant_key and not pdk_k.global
+    where pdk_i.id = p_id
     union
-    select ur.user_id::uuid
-    from "permdock".user_roles ur
-  ) c(user_id)
-  where c.user_id is not null
-    and (
-      p_id in (select "permdock".permitted_tenant_ids_by_permission_for(c.user_id, p_permission))
-      or "permdock".permdock_has_permission_for(c.user_id, p_permission)
-    )
+    select pdk_u.user_id, pdk_k.global, pdk_k.effect
+    from pdk_u
+    cross join lateral (
+      select rp.grant_key
+      from "permdock".user_roles ur
+      cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
+      where ur.user_id = pdk_u.user_id
+    ) pdk_g(grant_key)
+    join pdk_k on pdk_k.grant_key = pdk_g.grant_key and pdk_k.global
+  )
+  select pdk_u.user_id
+  from pdk_u
+  where (exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = false and pdk_h.effect = 'allow')
+      and not exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = false and pdk_h.effect = 'deny'))
+    or (exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = true and pdk_h.effect = 'allow')
+      and not exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = true and pdk_h.effect = 'deny'))
   order by 1
 $$;
 revoke execute on function "permdock".permitted_tenant_users(text, uuid) from public, anon, authenticated;
