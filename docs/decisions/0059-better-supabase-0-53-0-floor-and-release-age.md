@@ -1,6 +1,6 @@
 # 0059. better-supabase 0.53.0 is the peer floor and the catalog pin, and skips the one-day release age
 
-- Status: accepted
+- Status: superseded by 0067
 - Date: 2026-11-04
 - Supersedes: the floor, catalog pin, exclude and CI matrix of 0054
 
