@@ -1,3 +1,4 @@
+import { resolvePersonas } from "better-supabase/config";
 import { moduleIdType } from "better-supabase/sql";
 import { testAuthorizationProvider } from "better-supabase/testing";
 import { readFileSync } from "node:fs";
@@ -6,12 +7,14 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import { authorizationProvider } from "../../src/better-supabase/index.ts";
+import { supabaseHookManifest } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { anyOf, holder, manager, user } from "../../src/core/approvers.ts";
 import { PermDockValidationError } from "../../src/core/validation-error.ts";
 import {
   definePermissions,
   resource as permissionResource,
 } from "../../src/index.ts";
+import { junctionMembershipSource } from "../../src/supabase/index.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 import { defined } from "../support/defined.ts";
 
@@ -102,6 +105,114 @@ describe(authorizationProvider, () => {
         role: "supabase_auth_admin",
       },
       { function: "permdock.permdock_subject", role: "authenticated" },
+      {
+        function: "permdock.permdock_subject",
+        args: "text",
+        role: "authenticated",
+      },
+      {
+        function: "permdock.permdock_bootstrap_permissions",
+        args: "text",
+        role: "authenticated",
+      },
+    ]);
+  });
+
+  it("fills subjectForTenant, bootstrapPermissions and canIn at the root scope", () => {
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      catalog: emptyCatalog,
+    });
+    expect(provider.functions).toMatchObject({
+      subject: "permdock.permdock_subject()",
+      subjectForTenant: "permdock.permdock_subject(({tenant})::text)",
+      bootstrapPermissions:
+        "permdock.permdock_bootstrap_permissions(({tenant})::text)",
+      canIn:
+        "{tenant} in (select permdock.permitted_tenant_ids_by_permission({permission}))",
+    });
+    const off = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      catalog: emptyCatalog,
+      subject: false,
+    });
+    expect(off.functions).not.toHaveProperty("subject");
+    expect(off.functions).not.toHaveProperty("subjectForTenant");
+    expect(off.functions.bootstrapPermissions).toBeDefined();
+    const older = authorizationProvider({
+      manifest: withRls({
+        helpers: supabaseHookManifestFixture.rls.helpers.filter(
+          (helper) => helper.args !== "p_tenant text",
+        ),
+      }),
+      catalog: emptyCatalog,
+    });
+    expect(older.functions.subject).toBe("permdock.permdock_subject()");
+    expect(older.functions).not.toHaveProperty("subjectForTenant");
+    expect(older.functions).not.toHaveProperty("bootstrapPermissions");
+  });
+
+  it("leaves the one-tenant readers out below the root scope", () => {
+    const provider = authorizationProvider({
+      manifest: withRls({
+        scopes: [
+          { name: "tenant", type: "uuid" },
+          { name: "team", type: "uuid", within: "tenant" },
+        ],
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          {
+            name: "permitted_team_ids",
+            args: "p_grant text",
+            returns: "setof uuid",
+            execute: ["authenticated"],
+          },
+        ],
+      }),
+      catalog: emptyCatalog,
+      scope: "team",
+    });
+    expect(provider.functions).not.toHaveProperty("subjectForTenant");
+    expect(provider.functions).not.toHaveProperty("bootstrapPermissions");
+    expect(provider.functions.canIn).toBe(
+      "{tenant} in (select permdock.permitted_team_ids_by_permission({permission}))",
+    );
+  });
+
+  it("carries a permission's levels from the catalog", () => {
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      catalog: {
+        ...emptyCatalog,
+        resources: { file: { id: "id", schema: null } },
+        permissions: [
+          {
+            key: "file.read",
+            scope: "file:read",
+            resource: "file",
+            action: "read",
+            arity: "instance",
+            meta: {},
+            usages: [],
+            rowConditions: false,
+            levels: ["own", "team"],
+          },
+          {
+            key: "file.update",
+            scope: "file:update",
+            resource: "file",
+            action: "update",
+            arity: "instance",
+            meta: {},
+            usages: [],
+            rowConditions: false,
+          },
+        ],
+      },
+    });
+    expect(provider.permissions).toStrictEqual([
+      { key: "file.read", sqlComplete: true, levels: ["own", "team"] },
+      { key: "file.update", sqlComplete: true },
     ]);
   });
 
@@ -740,26 +851,294 @@ describe(authorizationProvider, () => {
     expect(provider.roleSources?.[0]?.role.through.where).toBe(
       "{row}.key in ('owner') or {row}.tenant_id is not null",
     );
-    expect(provider.personas).toStrictEqual([
+    expect(provider.personas).toBe("roles");
+    expect(provider.fixtureRoles).toStrictEqual([
       {
         name: "owner",
         setup:
-          "insert into public.memberships (user_id, tenant_id, role_id) values ({user}, {tenant}, 'owner')",
+          "insert into public.memberships (user_id, tenant_id, role_id) values ({user}, {tenant}, (select r.id from public.roles r where r.key = 'owner' and r.tenant_id is null))",
         permissions: ["post.read"],
       },
       {
         name: "platform",
         setup:
-          "insert into public.memberships (user_id, tenant_id, role_id) values ({user}, {tenant}, 'platform')",
+          "insert into permdock.user_roles (user_id, role) values ({user}, 'platform')",
         permissions: [],
       },
     ]);
+    expect(
+      resolvePersonas(provider).map((persona) => persona.name),
+    ).toStrictEqual(["owner", "platform"]);
     expect(provider.functions.approverFor).toBe(
       "permdock.permdock_approver_for_ids()",
     );
     expect(provider.functions.managedUsers).toBe(
       "permdock.permdock_managed_user_ids({tenant})",
     );
+  });
+
+  describe("fixtureRoles", () => {
+    const grant = (
+      role: string,
+      permission: string,
+      extra: Record<string, unknown> = {},
+    ) => ({
+      permission,
+      effect: "allow" as const,
+      role,
+      to: { role },
+      scope: "tenant",
+      ...extra,
+    });
+    const catalog = {
+      ...emptyCatalog,
+      resources: { post: { id: "id", schema: null } },
+      permissions: ["archive", "delete", "read", "update"].map((action) => ({
+        key: `post.${action}`,
+        scope: `post:${action}`,
+        resource: "post",
+        action,
+        arity: "instance",
+        meta: {},
+        usages: [],
+        rowConditions: action === "delete",
+      })),
+      roles: [
+        { key: "owner", on: "tenant", for: ["staff"] },
+        { key: "viewer", on: "tenant" },
+        { key: "lead", on: "team" },
+        { key: "support" },
+      ],
+      grants: [
+        grant("owner", "post.read"),
+        grant("owner", "post.update"),
+        grant("owner", "post.update", { effect: "deny" }),
+        grant("owner", "post.delete", { where: { status: "draft" } }),
+        grant("owner", "post.archive", { scope: "team" }),
+        grant("viewer", "post.read"),
+      ],
+    };
+    const membership = (
+      entry: Partial<SupabaseHookManifest["rls"]["memberships"][number]>,
+    ) => ({
+      table: "public.memberships",
+      user: { column: "user_id" },
+      scope: { column: "scope" },
+      id: { column: "scope_id" },
+      role: { column: "role" },
+      via: { column: "kind" },
+      columns: ["user_id", "scope", "scope_id", "role", "kind"],
+      ...entry,
+    });
+    const build = (
+      rls: Partial<SupabaseHookManifest["rls"]>,
+      fixtureRoles?: readonly string[],
+      withoutRoles = false,
+    ) => {
+      const { roles, ...manifestRls } = withRls(rls).rls;
+      return authorizationProvider({
+        manifest: {
+          ...supabaseHookManifestFixture,
+          rls: withoutRoles ? manifestRls : { ...manifestRls, roles },
+          ...(fixtureRoles === undefined ? {} : { fixtureRoles }),
+        },
+        catalog,
+        personas: "roles",
+      });
+    };
+
+    it("writes the scope, the kind a role is held for, and the keys held at the tenant", () => {
+      const provider = build({ memberships: [membership({})] }, ["owner"]);
+      expect(provider.fixtureRoles).toStrictEqual([
+        {
+          name: "owner",
+          setup:
+            "insert into public.memberships (user_id, scope_id, scope, kind, role) values ({user}, {tenant}, 'tenant', 'staff', 'owner')",
+          permissions: ["post.read"],
+        },
+      ]);
+      expect(provider.problems).toBeUndefined();
+    });
+
+    it("falls back to the catalog's tenant and global roles without the manifest field", () => {
+      const provider = build({ memberships: [membership({})] });
+      expect(provider.fixtureRoles?.map((role) => role.name)).toStrictEqual([
+        "owner",
+        "viewer",
+        "support",
+      ]);
+      expect(provider.fixtureRoles?.[2]).toStrictEqual({
+        name: "support",
+        setup:
+          "insert into permdock.user_roles (user_id, role) values ({user}, 'support')",
+        permissions: [],
+      });
+    });
+
+    it("writes a mapped value, fixed roles and a composite role set", () => {
+      expect(
+        build(
+          {
+            memberships: [
+              membership({
+                role: { column: "tier", map: { admin: "owner", user: null } },
+              }),
+            ],
+          },
+          ["owner"],
+        ).fixtureRoles?.[0]?.setup,
+      ).toBe(
+        "insert into public.memberships (user_id, scope_id, scope, kind, tier) values ({user}, {tenant}, 'tenant', 'staff', 'admin')",
+      );
+      expect(
+        build(
+          {
+            memberships: [
+              membership({ role: { column: "kind", map: { admin: "owner" } } }),
+            ],
+          },
+          ["owner"],
+        ).problems,
+      ).toStrictEqual([
+        "fixtureRoles: owner through public.memberships: kind would hold two values.",
+      ]);
+      expect(
+        build(
+          {
+            memberships: [
+              membership({
+                scope: { value: "tenant" },
+                via: { value: "staff" },
+                role: { value: ["viewer"] },
+              }),
+            ],
+          },
+          ["viewer"],
+        ).fixtureRoles?.[0]?.setup,
+      ).toBe(
+        "insert into public.memberships (user_id, scope_id) values ({user}, {tenant})",
+      );
+      expect(
+        build(
+          {
+            memberships: [
+              membership({
+                scope: { value: "tenant" },
+                via: { value: "staff" },
+                id: { column: "organization_id" },
+                role: {
+                  column: "organization_id",
+                  through: {
+                    table: "better_supabase.membership_roles",
+                    id: "organization_id",
+                    column: "role",
+                    on: {
+                      organization_id: "organization_id",
+                      user_id: "user_id",
+                    },
+                  },
+                },
+              }),
+            ],
+          },
+          ["viewer"],
+        ).fixtureRoles?.[0]?.setup,
+      ).toBe(
+        "insert into public.memberships (user_id, organization_id) values ({user}, {tenant}); insert into better_supabase.membership_roles (organization_id, user_id, role) values ({tenant}, {user}, 'viewer')",
+      );
+    });
+
+    it("names the roles it can write no setup for and leaves them out", () => {
+      const provider = build(
+        {
+          memberships: [
+            membership({ role: { column: "kind", map: { admin: "owner" } } }),
+          ],
+        },
+        ["viewer", "lead", "support", "ghost"],
+        true,
+      );
+      expect(provider.fixtureRoles).toStrictEqual([]);
+      expect(provider.problems).toStrictEqual([
+        "fixtureRoles: viewer through public.memberships: no role column can hold the role.",
+        "fixtureRoles: lead is a team role, not one of the tenant scope tenant.",
+        "fixtureRoles: global role support: the manifest has no rls.roles table.",
+        "fixtureRoles: the catalog has no role ghost.",
+      ]);
+      expect(
+        build(
+          {
+            memberships: [
+              membership({
+                user: {
+                  column: "profile_id",
+                  through: {
+                    table: "public.profiles",
+                    id: "id",
+                    column: "user_id",
+                  },
+                },
+              }),
+            ],
+          },
+          ["owner"],
+        ).problems,
+      ).toContainEqual(
+        "fixtureRoles: owner through public.memberships: the user id is read through another table.",
+      );
+    });
+  });
+
+  it("counts every column of a composite role reference as deciding", () => {
+    const manifest = supabaseHookManifest(
+      [{ name: "organization", key: "organization_id" }],
+      {
+        policy: "p.ts",
+        supabase: {
+          hook: {
+            memberships: [
+              junctionMembershipSource({
+                table: "memberships",
+                scope: "organization",
+                id: "organization_id",
+                roles: {
+                  through: "membership_roles",
+                  on: {
+                    organization_id: "organization_id",
+                    user_id: "user_id",
+                  },
+                  column: "role",
+                },
+              }),
+            ],
+          },
+        },
+      },
+    );
+    expect(authorizationProvider({ manifest }).decidingColumns).toStrictEqual([
+      "public.membership_roles.organization_id",
+      "public.membership_roles.role",
+      "public.membership_roles.user_id",
+      "public.memberships.organization_id",
+      "public.memberships.user_id",
+    ]);
+  });
+
+  it("names team_ids_truncated as tokenHook.teamIdsTruncatedClaim when the hook writes teams", () => {
+    const claims = [
+      ...supabaseHookManifestFixture.claims,
+      { name: "team_ids", source: "permdock", budget: true },
+      { name: "team_ids_truncated", source: "permdock", budget: false },
+    ];
+    expect(
+      authorizationProvider({
+        manifest: { ...supabaseHookManifestFixture, claims },
+      }).tokenHook?.teamIdsTruncatedClaim,
+    ).toBe("team_ids_truncated");
+    expect(
+      authorizationProvider({ manifest: supabaseHookManifestFixture })
+        .tokenHook,
+    ).not.toHaveProperty("teamIdsTruncatedClaim");
   });
 
   it("types provider keys from the permission tree", () => {

@@ -32,6 +32,13 @@ describe(authorizationProvider, () => {
     >();
   });
 
+  it("types the fixtureRoles keys from the permission tree", () => {
+    const typed = authorizationProvider({ manifest: {}, permissions: tree });
+    expectTypeOf<
+      NonNullable<(typeof typed)["fixtureRoles"]>[number]["permissions"]
+    >().toEqualTypeOf<readonly PermissionKeyOf<typeof permissions>[]>();
+  });
+
   it("sets every key the contract requires", () => {
     expectTypeOf<RequiredKeys<Provider>>().toEqualTypeOf<
       RequiredKeys<AuthorizationProvider>
