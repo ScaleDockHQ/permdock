@@ -441,6 +441,21 @@ When better-supabase passes `runtime.seed` (`{ userId, version, subject }`), the
 
 `bsb.bootstrap()` reads `authz_ver` with the app's bootstrap data once per request and seeds `versions` through `AuthzVersionCache.seed`, which PermDock's `VersionCache` implements. A later read in the same process skips the version call, and `permdockFor` passes a bootstrap's version as `version: { known }`, so the request that read it skips it too.
 
+### One tenant's snapshot
+
+`definePermDock(...).next()` returns `getSnapshot(source, { tenant, omitStatic? })` next to `authorization`, `authorizer` and `versions`. It builds the snapshot of one tenant for a session, a `bsb.bootstrap()` or `bsb.getAccess()` result, or a subject, and lists only that tenant's memberships. A tenant without a membership, or `null`, lists none. A bootstrap that read `permdock_subject(p_tenant)` (the provider's `subjectForTenant`) seeds the subject read:
+
+```ts title="src/app/layout.tsx"
+const { getSnapshot } = permdock.next();
+const access = await bsb.bootstrap();
+const snapshot = await getSnapshot(access, {
+  tenant: access.tenant,
+  omitStatic: true,
+});
+```
+
+With `omitStatic`, pass the generated `clientBundle` to the provider's `bundle` prop. The snapshot stays 4,832 bytes for a user with 1, 50 or 150 memberships, where the default snapshot of every tenant grows to 12,472 bytes at 150 ([snapshots](/docs/concepts/snapshots)).
+
 ### One instance per version
 
 `permdockFor` and an [`instanceCache`](/docs/concepts/extension-interfaces#instance-cache) at module scope give every island, action and authorizer check of a user the same instance while the user's authorization version holds. Pass the resolver to `authorizer` and `authorizationHooks`, and spread `permdock.sources(versions)` into `createPermDock`:
@@ -1125,16 +1140,24 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 
 ## Compatibility
 
-Each `permdock` release fills the provider fields that its better-supabase peer knows. A field is ignored by an older better-supabase, except `functions.subject`, which the conformance kit of a release without it rejects, so it is opt-in.
+Each `permdock` release fills the provider fields its better-supabase peer floor knows. The floor is 0.58.0, which knows every field below, and `authorizationProvider` returns better-supabase's own `AuthorizationProvider` type. A field whose helper the manifest does not list stays unset.
 
-| Provider option or field   | `permdock`   | better-supabase | Notes                                                                                                         |
-| -------------------------- | ------------ | --------------- | ------------------------------------------------------------------------------------------------------------- |
-| `memberships[].disabledAt` | next release | next release    | Filled from the membership source's `disabledAt` column.                                                      |
-| `platformRoles`            | next release | next release    | Opt in with `platformRoles: true`; filled from `rls.roles` when the manifest lists `permdock_can_assign_any`. |
-| `personas`                 | next release | next release    | Pass `personas` to `authorizationProvider`; `accessMatrixTests` writes one pgTAP file each.                   |
-| `functions.subject`        | next release | next release    | Opt in with `subject: true`; names `permdock_subject()`.                                                      |
+| Provider option or field          | `permdock` | better-supabase | Notes                                                                                                                                      |
+| --------------------------------- | ---------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `memberships[].disabledAt`        | 0.25.0     | 0.53.0          | Filled from the membership source's `disabledAt` column.                                                                                   |
+| `platformRoles`                   | 0.25.0     | 0.53.0          | Filled from `rls.roles` when the manifest lists `permdock_can_assign_any`; `platformRoles: false` leaves it out.                           |
+| `functions.subject`               | 0.25.0     | 0.53.0          | Names `permdock_subject()`; `subject: false` leaves it out.                                                                                |
+| `functions.memberIdsFor`          | 0.25.0     | 0.53.0          | Names `member_<scope>_ids_for`. From 0.26.0 the helpers file grants it to `supabase_auth_admin` whenever it writes the function.           |
+| `personas: "roles"`               | 0.26.0     | 0.58.0          | Sent as written, with one `fixtureRoles` entry per role the manifest's `fixtureRoles` lists; `permdock supabase inspect` writes that list. |
+| `functions.subjectForTenant`      | 0.26.0     | 0.58.0          | Names `permdock_subject(p_tenant)`, which answers `null` for a tenant the caller is no member of; `subject: false` leaves it out.          |
+| `functions.bootstrapPermissions`  | 0.26.0     | 0.58.0          | Names `permdock_bootstrap_permissions(p_tenant)`, the compact `BootstrapPermissionsWire`.                                                  |
+| `functions.canIn`                 | 0.26.0     | 0.58.0          | The set form over `permitted_<scope>_ids_by_permission`, so an access policy makes no per-row call.                                        |
+| `functions.approverFor`           | 0.26.0     | 0.58.0          | Names `permdock_approver_for_ids()` when the manifest lists it.                                                                            |
+| `functions.managedUsers`          | 0.26.0     | 0.58.0          | Names `permdock_managed_user_ids({tenant})` when the manifest lists it; better-supabase fills `{tenant}` from 0.58.1.                      |
+| `permissions[].levels`            | 0.26.0     | 0.58.0          | Filled from the catalog's `levels`.                                                                                                        |
+| `tokenHook.teamIdsTruncatedClaim` | 0.26.0     | 0.58.0          | Set when the hook writes `team_ids`.                                                                                                       |
 
-Pin both packages to the pair a release lists, and update the table in the same pull request as a provider change.
+`definePermDock(...).next().getSnapshot` arrives in 0.26.0 ([one tenant's snapshot](#one-tenants-snapshot)). Pin both packages to the pair a release lists, and update the table in the same pull request as a provider change.
 
 ## Sessions and actors
 
