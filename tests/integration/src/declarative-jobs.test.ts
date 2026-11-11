@@ -62,7 +62,7 @@ insert into better_supabase.memberships (organization_id, user_id, role) values
 insert into better_supabase.membership_roles (organization_id, user_id, role) values
   ('${ORG_A}', '${LEAD_1}', 'lead'),
   ('${ORG_A}', '${LEAD_2}', 'lead');
-insert into better_supabase.team_members (team_id, organization_id, user_id) values
+insert into better_supabase.team_members (team_id, tenant_id, user_id) values
   ('${TEAM_1}', '${ORG_A}', '${LEAD_1}'),
   ('${TEAM_2}', '${ORG_A}', '${LEAD_2}');
 insert into public.jobs (id, organization_id, owner_id, team_id) values

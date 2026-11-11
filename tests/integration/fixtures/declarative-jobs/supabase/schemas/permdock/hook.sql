@@ -571,7 +571,7 @@ begin
       select team_id from "permdock".member_team_ids_for(uid) as team(team_id)
       where team_id in (
         select t."team_id" from "better_supabase"."team_members" t
-        where t."organization_id"::text = p_tenant::text
+        where t."tenant_id"::text = p_tenant::text
       )
     )) with ordinality as u(id, n)
   ), '[]'::jsonb) end

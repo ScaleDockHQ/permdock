@@ -683,7 +683,7 @@ as $$
   from "better_supabase"."team_members" t
   where t."user_id" = p_user
 
-  order by (p_active is not null and t."organization_id"::text is not distinct from p_active) desc, t."team_id"
+  order by (p_active is not null and t."tenant_id"::text is not distinct from p_active) desc, t."team_id"
 $$;
 revoke execute on function "permdock"."member_team_ids_for"(uuid, text) from public, anon, authenticated;
 
