@@ -168,14 +168,17 @@ select permitted_doc_rows('doc.read')::text;
     expect(inferred.source).not.toContain("resumeSync");
     expect(inferred.source).not.toContain("writeOffInvoice");
     expect(inferred.source).toContain('custom: "select"');
+    expect(inferred.changes.map(({ from, to }) => [from, to])).toStrictEqual([
+      ['rls.actions pauseSync: "update"', "inferred"],
+      ['rls.actions resumeSync: "update"', "inferred"],
+      ['rls.actions writeOffInvoice: "update"', "inferred"],
+    ]);
     const kept = rewrite026(
       "permdock.config.ts",
       `export default {\n  actions: {\n    view: "select",\n  },\n};\n`,
     );
     expect(kept.source).toContain('view: "select"');
-    expect(kept.changes.map((change) => change.from)).not.toContain(
-      "rls.actions",
-    );
+    expect(kept.changes).toStrictEqual([]);
   });
 
   it("drops only a canAssign that names permdock_can_assign_any", () => {

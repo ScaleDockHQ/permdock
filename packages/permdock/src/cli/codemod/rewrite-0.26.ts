@@ -216,29 +216,29 @@ function inferredOf(action: string): SqlCommand | undefined {
   return defaultSqlCommand(verb);
 }
 
-function withoutInferred(body: string): { text: string; changed: boolean } {
-  let changed = false;
+function withoutInferred(body: string): { text: string; dropped: string[] } {
+  const dropped: string[] = [];
   const text = body.replaceAll(
     ACTION_LINE,
     (line, _indent, name, _quote, value) => {
       if (inferredOf(String(name)) !== value) {
         return line;
       }
-      changed = true;
+      dropped.push(`${String(name)}: "${String(value)}"`);
       return "";
     },
   );
-  return { text, changed };
+  return { text, dropped };
 }
 
 function dropInferredActions(source: string): {
   text: string;
-  changed: boolean;
+  dropped: string[];
 } {
   const pattern = /\bactions\s*:\s*\{/gu;
   let text = source;
   let cursor = 0;
-  let changed = false;
+  const dropped: string[] = [];
   while (cursor < text.length) {
     pattern.lastIndex = cursor;
     const match = pattern.exec(text);
@@ -248,15 +248,15 @@ function dropInferredActions(source: string): {
     const open = text.indexOf("{", match.index);
     const close = matchingClose(text, open);
     const next = withoutInferred(text.slice(open + 1, close));
-    if (!next.changed) {
+    if (next.dropped.length === 0) {
       cursor = close + 1;
       continue;
     }
-    changed = true;
+    dropped.push(...next.dropped);
     text = text.slice(0, open + 1) + next.text + text.slice(close);
     cursor = open + 1;
   }
-  return { text, changed };
+  return { text, dropped };
 }
 
 function insidePermissions(source: string, index: number): boolean {
@@ -413,8 +413,8 @@ export function rewrite026(file: string, source: string): RewriteResult {
   }
   const actions = dropInferredActions(text);
   text = actions.text;
-  if (actions.changed) {
-    changes.push(change("rls.actions", ""));
+  for (const entry of actions.dropped) {
+    changes.push(change(`rls.actions ${entry}`, "inferred"));
   }
   if (file.includes("better-supabase.config.")) {
     const supplied = dropSupplied(file, text);

@@ -173,11 +173,10 @@ export function codemod(options: CodemodOptions): CodemodReport {
       });
       continue;
     }
-    if (result.changes.length > 0) {
+    // A change that leaves the text as it was is a no-op, so it is not reported.
+    if (result.changes.length > 0 && result.source !== source) {
       changed.push({ file: name, changes: result.changes });
-      if (result.source !== source) {
-        writes.push({ path: file, text: result.source });
-      }
+      writes.push({ path: file, text: result.source });
     }
     for (const followUp of result.followUps) {
       followUps.push({ file: name, ...followUp });
