@@ -348,7 +348,7 @@ export async function pd087(
 
 type Provider = Pick<
   ReturnType<typeof authorizationProvider>,
-  "roleSources" | "suspension"
+  "roleSources" | "suspension" | "platformRoles"
 >;
 
 /**
@@ -385,10 +385,26 @@ function at(value: unknown, ...keys: readonly string[]): unknown {
 }
 
 /**
+ * `value` with SQL strings compared by shape: runs of whitespace and a cast on
+ * `null` do not change what a template calls.
+ */
+function sqlShape(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value.replaceAll(/\bnull::\w+/gu, "null").replaceAll(/\s+/gu, " ");
+  }
+  return isRecord(value)
+    ? Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [key, sqlShape(entry)]),
+      )
+    : value;
+}
+
+/**
  * The config values better-supabase would otherwise fill from the provider with
  * the same value: a role source's `through`, and a suspension row under
  * `blocks.permissions.model: "provider"`. A different value overrides the
- * provider, so it stays.
+ * provider, so it stays. `platformRoles` counts only when every key equals the
+ * provider's: a different scope or a `through.where` narrows it.
  */
 function restated(
   config: Record<string, unknown>,
@@ -403,6 +419,20 @@ function restated(
     )
   ) {
     names.push("blocks.memberships.options.roleThrough");
+  }
+  const platformRoles = at(
+    config,
+    "blocks",
+    "invitations",
+    "options",
+    "platformRoles",
+  );
+  if (
+    platformRoles !== undefined &&
+    provider?.platformRoles !== undefined &&
+    isDeepStrictEqual(sqlShape(platformRoles), sqlShape(provider.platformRoles))
+  ) {
+    names.push("blocks.invitations.options.platformRoles");
   }
   if (at(config, "blocks", "permissions", "model") === "provider") {
     for (const subject of ["tenant", "user"] as const) {
@@ -427,15 +457,14 @@ export async function pd094(
   if (config === undefined) {
     return [];
   }
-  const names = [
-    ...(at(config, "blocks", "memberships", "options", "roleThrough") ===
-      undefined && at(config, "blocks", "permissions", "disabled") === undefined
+  const names =
+    at(config, "blocks", "memberships", "options", "roleThrough") ===
+      undefined &&
+    at(config, "blocks", "permissions", "disabled") === undefined &&
+    at(config, "blocks", "invitations", "options", "platformRoles") ===
+      undefined
       ? []
-      : restated(config, await providerOf(input))),
-    ...(JSON.stringify(config).includes("permdock_can_assign_any")
-      ? ["permdock_can_assign_any"]
-      : []),
-  ];
+      : restated(config, await providerOf(input));
   return names.map((name) => ({
     code: "PD094",
     severity: "error" as const,

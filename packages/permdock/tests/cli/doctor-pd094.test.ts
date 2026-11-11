@@ -95,14 +95,57 @@ describe("PD094", () => {
     memberships: { options: { roleThrough: ${roles} } },
     permissions: { model: "provider", disabled: { tenant: ${tenant}, user: ${user} } },
   },
-  platformRoles: { canAssign: "permdock_can_assign_any" },
 }`),
     ).toStrictEqual([
       "blocks.memberships.options.roleThrough",
       "blocks.permissions.disabled.tenant",
       "blocks.permissions.disabled.user",
-      "permdock_can_assign_any",
     ]);
+  });
+
+  describe("platformRoles", () => {
+    const withPlatform: PermDockConfig = {
+      ...permdock,
+      rls: {
+        ...permdock.rls,
+        customRoles: true,
+        roles: { table: "public.user_roles", role: through },
+      },
+    };
+    const platformRoles = (canAssign: string, where = "") => `{
+  blocks: { invitations: { options: { platformRoles: {
+    table: "public.user_roles",
+    user: "user_id",
+    role: "role_id",
+    through: { table: "public.roles", id: "id", column: "key"${where} },
+    canAssign: "permdock.permdock_can_assign_any({role}, ${canAssign}, null)",
+    canAssignFor: "permdock.permdock_can_assign_any_for({user}, {role}, ${canAssign}, null)",
+  } } } },
+}`;
+
+    it("reports platformRoles equal to the provider's", async () => {
+      expect(
+        await findings(
+          platformRoles("null::uuid, 'organization'"),
+          withPlatform,
+        ),
+      ).toStrictEqual(["blocks.invitations.options.platformRoles"]);
+      expect(
+        await findings(platformRoles("null, 'organization'"), withPlatform),
+      ).toStrictEqual(["blocks.invitations.options.platformRoles"]);
+    });
+
+    it("keeps a narrower platformRoles override", async () => {
+      expect(
+        await findings(
+          platformRoles("null, 'global'", `, where: "{row}.scope = 'system'"`),
+          withPlatform,
+        ),
+      ).toStrictEqual([]);
+      expect(
+        await findings(platformRoles("null, 'global'"), withPlatform),
+      ).toStrictEqual([]);
+    });
   });
 
   it("builds the provider from the database manifest of a project without a hook", async () => {
