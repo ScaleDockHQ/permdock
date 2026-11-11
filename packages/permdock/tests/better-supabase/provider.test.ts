@@ -40,6 +40,26 @@ const withRls = (
 });
 
 describe(authorizationProvider, () => {
+  it("fills memberIdsFor only where the manifest lists the supabase_auth_admin grant", () => {
+    const ungranted = withRls({
+      helpers: supabaseHookManifestFixture.rls.helpers.map((helper) =>
+        helper.name.endsWith("_ids_for") && helper.name.startsWith("member_")
+          ? { ...helper, execute: [] }
+          : helper,
+      ),
+    });
+    const provider = authorizationProvider({
+      manifest: ungranted,
+      catalog: emptyCatalog,
+    });
+    expect(provider.functions.memberIdsFor).toBeUndefined();
+    expect(
+      provider.requires?.some((entry) =>
+        entry.function.includes("member_tenant_ids_for"),
+      ),
+    ).toBe(false);
+  });
+
   it("passes better-supabase's conformance kit for the fixture", async () => {
     const provider = authorizationProvider({
       manifest: supabaseHookManifestFixture,

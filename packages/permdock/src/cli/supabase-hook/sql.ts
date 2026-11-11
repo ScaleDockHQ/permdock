@@ -18,6 +18,7 @@ import { beforeFirst } from "../shared/text.ts";
 import { activeRowSql, checkSuspension } from "../sql/active.ts";
 import { firstScopeType, sqlType } from "../sql/columns.ts";
 import { globalRoleSource } from "../sql/global-roles.ts";
+import { isTeamScope, memberForHelper } from "../sql/names.ts";
 import {
   quoteIdent,
   quoteLiteral,
@@ -324,7 +325,7 @@ grant execute on function ${fn}(jsonb) to supabase_auth_admin;${extraRevokesSql(
     `-- supabase_auth_admin: the grants and read policies the hook needs
 grant usage on schema ${schema} to supabase_auth_admin;
 grant execute on function ${fn}(jsonb) to supabase_auth_admin;
-revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${beforeGrantsSql(parts.before, parts.extra)}${customRolesGrantsSql(parts)}${entriesGrantsSql(parts)}${validateGrantsSql(parts)}`,
+revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${beforeGrantsSql(parts.before, parts.extra)}${customRolesGrantsSql(parts)}${entriesGrantsSql(parts)}${memberForGrantsSql(parts)}${validateGrantsSql(parts)}`,
     readsSql(parts),
     parts.version
       ? authAdminRead(`${parts.schema}.${AUTHZ_VERSION_TABLE}`, "version")
@@ -394,6 +395,31 @@ function beforeGrantsSql(
     ...before.map(
       (fn) =>
         `\nrevoke all on function ${quoteTable(fn)}(jsonb) from public, anon, authenticated;\ngrant execute on function ${quoteTable(fn)}(jsonb) to supabase_auth_admin;`,
+    ),
+  ].join("");
+}
+
+/**
+ * Execute on each `member_<scope>_ids_for` for `supabase_auth_admin`: the
+ * `hook.claims` functions and `hook.teams` call them as that role, and
+ * `authorizationProvider` fills better-supabase's `memberIdsFor` from a helper
+ * the manifest lists with this grant. The helpers file stays free of
+ * Supabase-only roles.
+ */
+function memberForGrantsSql(parts: Parts): string {
+  const { schema, memberFor } = parts.helpers;
+  if (memberFor.length === 0) {
+    return "";
+  }
+  return [
+    ...(schema === parts.schema
+      ? []
+      : [
+          `\ngrant usage on schema ${quoteIdent(schema)} to supabase_auth_admin;`,
+        ]),
+    ...memberFor.map(
+      (scope) =>
+        `\ngrant execute on function ${quoteIdent(schema)}.${memberForHelper(scope)}(${isTeamScope(scope) ? "uuid, text" : "uuid"}) to supabase_auth_admin;`,
     ),
   ].join("");
 }

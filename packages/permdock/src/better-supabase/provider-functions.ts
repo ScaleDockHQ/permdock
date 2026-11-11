@@ -329,8 +329,17 @@ export function providerFunctions(
     input.assignAny && (template === "canAssign" || template === "canAssignFor")
       ? ASSIGN_ANY[template]
       : TEMPLATES[template];
-  const listed = (template: Template, scope: string): boolean =>
-    helpers.has(listedName(entryOf(template)).replaceAll("{scope}", scope));
+  // `supabase_auth_admin` holds execute only where the manifest lists the grant
+  // the hook file writes.
+  const listed = (template: Template, scope: string): boolean => {
+    const entry = entryOf(template);
+    const helper = helpers.get(listedName(entry).replaceAll("{scope}", scope));
+    return (
+      helper !== undefined &&
+      (entry.role !== "supabase_auth_admin" ||
+        helper.execute.includes(entry.role))
+    );
+  };
   const templates: Template[] = [
     "idsWith",
     "isPlatform",

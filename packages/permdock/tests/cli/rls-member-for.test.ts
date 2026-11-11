@@ -5,6 +5,7 @@ import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { helpersSql } from "../../src/cli/rls/helpers.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
+import { supabaseDatabaseManifest } from "../../src/cli/supabase-hook/emit/hook-sql.ts";
 import { supabaseHookSql } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
@@ -69,10 +70,7 @@ describe("member_<scope>_ids_for", () => {
     expect(organization).toContain(
       'revoke execute on function "permdock".member_organization_ids_for(uuid) from public, anon, authenticated;',
     );
-    expect(organization).toContain(
-      'grant usage on schema "permdock" to supabase_auth_admin;\ngrant execute on function "permdock".member_organization_ids_for(uuid) to supabase_auth_admin;',
-    );
-    expect(organization).not.toMatch(/to (anon|authenticated)/u);
+    expect(organization).not.toMatch(/grant execute/u);
     expect(fn(sql, "member_customer_ids_for")).toContain(
       '"public"."customer_contacts"',
     );
@@ -209,7 +207,7 @@ describe("member_<scope>_ids_of", () => {
   });
 });
 
-describe("the grants for member_<scope>_ids_for", () => {
+describe("the hook grants for member_<scope>_ids_for", () => {
   const features = { features: "billing.feature_claims" };
   const config = (
     rls: PermDockConfig["rls"],
@@ -219,7 +217,7 @@ describe("the grants for member_<scope>_ids_for", () => {
     supabase: { hook: { memberships: sources, claims } },
   });
 
-  it("lists supabase_auth_admin in the manifest with or without hook.claims", () => {
+  it("grants supabase_auth_admin execute on each helper with or without hook.claims", () => {
     for (const claims of [{}, features]) {
       const { grants, sql, manifest } = supabaseHookSql(
         scopes,
@@ -227,7 +225,13 @@ describe("the grants for member_<scope>_ids_for", () => {
         {},
         "grants.sql",
       );
-      expect(`${grants}${sql}`).not.toContain("_ids_for(uuid) to");
+      expect(grants).toContain(
+        'grant execute on function "permdock".member_organization_ids_for(uuid) to supabase_auth_admin;',
+      );
+      expect(grants).toContain(
+        'grant execute on function "permdock".member_customer_ids_for(uuid) to supabase_auth_admin;',
+      );
+      expect(sql).not.toContain("member_organization_ids_for");
       for (const name of [
         "member_organization_ids_for",
         "member_customer_ids_for",
@@ -239,14 +243,29 @@ describe("the grants for member_<scope>_ids_for", () => {
     }
   });
 
-  it("grants usage on the helper schema next to each helper", () => {
-    const sql = helpers({ ...base, schema: "authz", memberSources: sources });
+  it("puts them in the hook file without --grants-out, with usage on the helper schema", () => {
+    const { sql } = supabaseHookSql(scopes, config({ schema: "authz" }), {
+      schema: "public",
+    });
     expect(sql).toContain(
-      'grant usage on schema "authz" to supabase_auth_admin;\ngrant execute on function "authz".member_organization_ids_for(uuid) to supabase_auth_admin;',
+      'grant usage on schema "authz" to supabase_auth_admin;',
     );
     expect(sql).toContain(
-      'grant execute on function "authz".member_customer_ids_for(uuid) to supabase_auth_admin;',
+      'grant execute on function "authz".member_organization_ids_for(uuid) to supabase_auth_admin;',
     );
+  });
+
+  it("lists no execute role in the manifest of a project without a hook", () => {
+    const manifest = supabaseDatabaseManifest(
+      scopes,
+      { rls: { authorize: "database", membershipSources: sources } },
+      {},
+    );
+    expect(
+      manifest.rls.helpers.find(
+        (helper) => helper.name === "member_organization_ids_for",
+      )?.execute,
+    ).toStrictEqual([]);
   });
 
   it("describes a constant via of a mapped table as a value", () => {

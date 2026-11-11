@@ -14,13 +14,7 @@ import {
   scopeSources,
   scopeTable,
 } from "../sql/names.ts";
-import {
-  helperSchema,
-  qualified,
-  quoteIdent,
-  quoteLiteral,
-  quoteQualified,
-} from "../sql/quote.ts";
+import { qualified, quoteLiteral, quoteQualified } from "../sql/quote.ts";
 import { rootName, signedIn } from "../sql/shared.ts";
 import {
   keyTenantSql,
@@ -237,10 +231,8 @@ ${grants}`;
  * `member_<scope>_ids_for(p_user uuid)`: `member_<scope>_ids()` for a user the
  * caller names, read from the membership sources (or the mapped table) in
  * either mode, so a token hook can call it before any claim exists. Naming the
- * user is why no client role may execute it. `supabase_auth_admin` may, for
- * `supabase.hook.claims` functions and for better-supabase's `memberIdsFor`,
- * which `authorizationProvider` fills whenever the manifest lists the helper,
- * with or without a hook. A `team` or `teams` scope takes `p_active text
+ * user is why no client role may execute it; the hook's grants give
+ * `supabase_auth_admin` execute. A `team` or `teams` scope takes `p_active text
  * default null` too, the one signature the hook's `team_ids` claim calls with
  * the active tenant; its one-argument form is dropped so a call with the user
  * alone stays unambiguous.
@@ -263,9 +255,7 @@ export function memberForFunction(
   return `${team ? `drop function if exists ${fn}(uuid);\n` : ""}create or replace function ${fn}(p_user uuid${team ? ", p_active text default null" : ""})
 returns setof ${type}
 ${functionBody(body)}
-revoke execute on function ${fn}(${types}) from public, anon, authenticated;
-grant usage on schema ${quoteIdent(helperSchema(ctx))} to supabase_auth_admin;
-grant execute on function ${fn}(${types}) to supabase_auth_admin;`;
+revoke execute on function ${fn}(${types}) from public, anon, authenticated;`;
 }
 
 /**

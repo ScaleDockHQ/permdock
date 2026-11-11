@@ -372,7 +372,7 @@ describe("supabase.hook.teams", () => {
       );
     });
 
-    it("calls a team scope's member_<scope>_ids_for with the active tenant, which the helpers file grants", () => {
+    it("calls a team scope's member_<scope>_ids_for with the active tenant and grants it", () => {
       const { sql, manifest } = supabaseHookSql(
         [...scopes, { name: "teams", key: "team_id", within: "organization" }],
         {
@@ -406,8 +406,8 @@ describe("supabase.hook.teams", () => {
       expect(sql).toContain(
         '"permdock"."member_teams_ids_for"(uid, active) as team(team_id)',
       );
-      expect(sql).not.toContain(
-        'grant execute on function "permdock".member_teams_ids_for',
+      expect(sql).toContain(
+        'grant execute on function "permdock".member_teams_ids_for(uuid, text) to supabase_auth_admin;',
       );
       expect(manifest.rls.helpers).toContainEqual(
         expect.objectContaining({
