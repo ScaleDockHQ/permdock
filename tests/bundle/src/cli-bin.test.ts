@@ -34,17 +34,15 @@ describe("the built permdock bin", () => {
     expect(result.stdout).toContain("Usage  permdock <command>");
   });
 
-  it("answers an unknown command with a cli-result-v1 error under --json", () => {
+  it("answers an unknown command with a cli-result-v2 error on stderr under --json", () => {
     const result = run("nope", "--json");
     expect(result.status).toBe(2);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      $schema: "https://permdock.com/schemas/cli-result-v1.json",
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      $schema: "https://permdock.com/schemas/cli-result-v2.json",
       status: "error",
-      error: {
-        type: "https://permdock.com/docs/cli/errors#unknown_command",
-        code: "unknown_command",
-        exitCode: 2,
-      },
+      reason: "unknown_command",
+      type: "https://permdock.com/docs/cli/errors#unknown_command",
     });
   });
 });
