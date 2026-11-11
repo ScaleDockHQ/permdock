@@ -1,12 +1,9 @@
 import type {
-  AuthorizationFunctions,
   AuthorizationMembership,
   AuthorizationOperation,
   AuthorizationPermission,
   AuthorizationProvider,
-  AuthorizationRequirement,
   AuthorizationRoleSource,
-  AuthorizationTokenHook,
 } from "better-supabase/contract";
 
 import type { CatalogDocument } from "../catalog/types.ts";
@@ -15,10 +12,8 @@ import type { OperationEffect } from "../core/operations.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PermissionKeyOf } from "../core/type-helpers.ts";
 import type {
-  SupabaseHookManifest,
   SupabaseManifest,
   SupabaseManifestActiveRow,
-  SupabaseManifestHelper,
   SupabaseManifestMembership,
   SupabaseManifestRole,
 } from "../supabase/manifest.ts";
@@ -26,35 +21,18 @@ import type { BetterSupabaseActiveTenant } from "./active-tenant.ts";
 import type { ProviderApprovers } from "./approvers.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
-import { holder } from "../core/approvers.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { delegatedScopeMap } from "../core/oauth-scopes.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import { hasTokenHook, parseSupabaseManifest } from "../supabase/manifest.ts";
-import {
-  activeOrganizationFrom,
-  activeTenantMismatch,
-} from "./active-tenant.ts";
-import { IS_APPROVER, MANAGES, isApproverTemplate } from "./approvers.ts";
+import { activeTenantMismatch } from "./active-tenant.ts";
+import { ASSIGN_ANY, providerFunctions } from "./provider-functions.ts";
+import { tokenHookOf } from "./provider-hook.ts";
+import { fixtureRolesOf } from "./provider-personas.ts";
 
 type ProviderKey<P> = [P] extends [undefined]
   ? string
   : PermissionKeyOf<Exclude<P, undefined>>;
-
-/** `AuthorizationProvider` plus the 0.26 templates and the suspension user key. */
-export type PermDockAuthorizationProvider<Key extends string = string> = Omit<
-  AuthorizationProvider<Key>,
-  "functions" | "suspension"
-> & {
-  readonly functions: AuthorizationFunctions & {
-    readonly approverFor?: string;
-    readonly managedUsers?: string;
-  };
-  readonly suspension?: NonNullable<AuthorizationProvider["suspension"]> & {
-    /** The user id column of `suspension.user`, from `rls.suspension.users.id`. */
-    readonly userKey?: string;
-  };
-};
 
 export type AuthorizationProviderOptions<P = undefined> = {
   /**
@@ -97,24 +75,25 @@ export type AuthorizationProviderOptions<P = undefined> = {
   /**
    * Fill better-supabase's `rowsWith` (and `rowsWithFor` when the `_for`
    * helpers exist) from the `rls.rowHelpers` helpers the manifest names, so a
-   * `config.subjects.<type>.permissions.<action>` entry with `rows` checks the
-   * rows the caller holds a permission on.
+   * `config.recordTypes.<type>.permissions.<action>` entry with `rows` checks
+   * the rows the caller holds a permission on.
    */
   readonly rowHelpers?: boolean;
   /**
    * Users better-supabase's access matrix signs in as, one pgTAP file each
    * (`providerPersonaTests`). `setup` creates the memberships and roles with
    * `{user}` and `{tenant}`; `permissions` are the keys the persona holds in
-   * the tenant, and every other `sqlComplete` key is asserted denied.
-   */
-  /**
-   * `'roles'`: one persona per catalog role, at the tenant scope and for global
-   * roles. An array is the personas as written.
+   * the tenant, and every other `sqlComplete` key is asserted denied. `'roles'`
+   * is sent as written, with one `fixtureRoles` entry per role the manifest's
+   * `fixtureRoles` names (the `defineSeeds` fixtures), or per catalog role at
+   * the tenant scope and global role without it. An array is the personas as
+   * written.
    */
   readonly personas?: "roles" | readonly ProviderPersona[];
   /**
-   * Names `permdock_subject()` as `functions.subject`. Default on when the
-   * manifest lists the helper. `false` leaves it out.
+   * Names `permdock_subject()` as `functions.subject` and
+   * `permdock_subject(p_tenant)` as `functions.subjectForTenant`. Default on
+   * when the manifest lists the helper. `false` leaves both out.
    */
   readonly subject?: boolean;
   /**
@@ -137,161 +116,9 @@ export type ProviderPersona = {
   readonly permissions: readonly string[];
 };
 
-/** `subject_for` for the signed-in user, from the hook (`permdock generate`). */
-const OWN_SUBJECT = "permdock_subject";
-
 type DisabledRow = NonNullable<
   NonNullable<AuthorizationProvider["suspension"]>["user"]
 >;
-
-/**
- * The templates that call one `rls generate` helper; the others are built
- * below.
- */
-type Template = Exclude<
-  keyof AuthorizationFunctions,
-  | "canApprove"
-  | "isApprover"
-  | "holdersOf"
-  | "teamIdsOf"
-  | "actorMayWrite"
-  | "permitted"
-  | "portalSubjects"
-  | "portalParties"
-  | "subject"
-  | RowTemplate
->;
-
-/** The row templates of `AuthorizationFunctions`, filled only with `rowHelpers`. */
-type RowTemplate = "rowsWith" | "rowsWithFor";
-
-type TemplateEntry = {
-  readonly helper: string;
-  /**
-   * The manifest's `rls.helpers` name that `rls generate` writes alongside
-   * `helper`.
-   */
-  readonly listedAs?: string;
-  readonly args: string;
-  readonly role: string;
-  /** Prefixed with the schema, or with `{schema}` where the schema goes. */
-  readonly sql: string;
-};
-
-/**
- * The helper each template calls (with `{scope}` unfilled), its default
- * argument types and the role that calls it: `postgres` for the templates
- * better-supabase runs inside its own `security definer` functions.
- */
-const TEMPLATES: Readonly<Record<Template, TemplateEntry>> = {
-  idsWith: {
-    helper: "permitted_{scope}_ids_by_permission",
-    listedAs: "permitted_{scope}_ids",
-    args: "text",
-    role: "authenticated",
-    sql: "permitted_{scope}_ids_by_permission({permission})",
-  },
-  isPlatform: {
-    helper: "permdock_has_permission",
-    listedAs: "permdock_has",
-    args: "text",
-    role: "authenticated",
-    sql: "permdock_has_permission({permission})",
-  },
-  idsWithFor: {
-    helper: "permitted_{scope}_ids_by_permission_for",
-    listedAs: "permitted_{scope}_ids_for",
-    args: "uuid, text",
-    role: "postgres",
-    sql: "permitted_{scope}_ids_by_permission_for({user}, {permission})",
-  },
-  isPlatformFor: {
-    helper: "permdock_has_permission_for",
-    listedAs: "permdock_has_for",
-    args: "uuid, text",
-    role: "postgres",
-    sql: "permdock_has_permission_for({user}, {permission})",
-  },
-  memberIds: {
-    helper: "member_{scope}_ids",
-    args: "",
-    role: "authenticated",
-    sql: "member_{scope}_ids()",
-  },
-  memberIdsFor: {
-    helper: "member_{scope}_ids_for",
-    args: "uuid",
-    role: "supabase_auth_admin",
-    sql: "member_{scope}_ids_for({user})",
-  },
-  canAssign: {
-    helper: "permdock_can_assign",
-    args: "text, text",
-    role: "authenticated",
-    sql: "permdock_can_assign({role}, {tenant}::text)",
-  },
-  canAssignFor: {
-    helper: "permdock_can_assign_for",
-    args: "uuid, text, text",
-    role: "postgres",
-    sql: "permdock_can_assign_for({user}, {role}, {tenant}::text)",
-  },
-  permissionsFor: {
-    helper: "permitted_{scope}_permission_keys_for",
-    args: "uuid, uuid",
-    role: "postgres",
-    sql: "array(select {schema}.permitted_{scope}_permission_keys_for({user}, {tenant}))",
-  },
-};
-
-const ASSIGN_ANY: Readonly<
-  Record<"canAssign" | "canAssignFor", TemplateEntry>
-> = {
-  canAssign: {
-    helper: "permdock_can_assign_any",
-    args: "text, uuid, text, text",
-    role: "authenticated",
-    sql: "permdock_can_assign_any({role}, {tenant}, '{scope}', {tenant}::text)",
-  },
-  canAssignFor: {
-    helper: "permdock_can_assign_any_for",
-    args: "uuid, text, uuid, text, text",
-    role: "postgres",
-    sql: "permdock_can_assign_any_for({user}, {role}, {tenant}, '{scope}', {tenant}::text)",
-  },
-};
-
-const listedName = (entry: TemplateEntry): string =>
-  entry.listedAs ?? entry.helper;
-
-/**
- * No client role may execute `permitted_<scope>_users`, so `holdersOf` is
- * required for `postgres`, inside better-supabase's `security definer`
- * functions; better-supabase fills it for the tenant scope only.
- */
-const HOLDERS_OF = "permitted_{scope}_users";
-/**
- * better-supabase calls `teamIdsOf` from RLS policies as `authenticated`, so it
- * fills from the caller-bound `member_<scope>_ids_of`, never from the `_for`
- * form only `supabase_auth_admin` may execute. Without a team scope, the hook
- * writes `member_team_ids_of` from `supabase.hook.teams`.
- */
-const TEAM_IDS_OF = "member_{scope}_ids_of";
-/** The scope names better-supabase reads as its teams (doctor BS417). */
-const TEAM_SCOPE = /^teams?$/u;
-const ACTOR_MAY_WRITE = "permdock_actor_may_write";
-const APPROVER_FOR = "permdock_approver_for_ids";
-const MANAGED_USERS = "permdock_managed_user_ids";
-
-const OPTIONAL: readonly Template[] = [
-  "idsWithFor",
-  "isPlatformFor",
-  "memberIds",
-  "memberIdsFor",
-  "canAssign",
-  "canAssignFor",
-  "permissionsFor",
-];
 
 /**
  * Postgres aliases of the id types better-supabase reads (`uuid`, `text`,
@@ -309,19 +136,6 @@ const ID_TYPES: Readonly<Record<string, string>> = {
   int: "integer",
   int4: "integer",
 };
-
-const withSchema = (schema: string, sql: string): string =>
-  sql.includes("{schema}")
-    ? sql.replaceAll("{schema}", schema)
-    : `${schema}.${sql}`;
-
-/** `p_user uuid, p_grant text` as `uuid, text`. */
-const argTypes = (args: string): string =>
-  args
-    .split(",")
-    .map((arg) => arg.trim().split(/\s+/u).slice(1).join(" "))
-    .filter((type) => type !== "")
-    .join(", ");
 
 function tenantScopeOf(
   manifest: SupabaseManifest,
@@ -477,51 +291,6 @@ function roleSourceOf(
   };
 }
 
-function personaName(key: string): string {
-  const name = key.toLowerCase().replaceAll(/[^a-z0-9_]/gu, "_");
-  if (name === "" || name.startsWith("_") || !/^[a-z]/u.test(name)) {
-    return `role_${name}`;
-  }
-  return name;
-}
-
-function personaSetup(
-  source: SupabaseManifestMembership | undefined,
-  roleKey: string,
-): string {
-  const literal = quoteSqlLiteral(roleKey);
-  const role = source?.role;
-  const column =
-    source !== undefined &&
-    !("through" in source.user) &&
-    !Array.isArray(role) &&
-    role !== undefined &&
-    "column" in role
-      ? role.column
-      : undefined;
-  if (source === undefined || column === undefined) {
-    return `select ${literal}`;
-  }
-  return `insert into ${source.table} (${source.user.column}, ${source.id.column}, ${column}) values ({user}, {tenant}, ${literal})`;
-}
-
-function personasFromRoles(
-  catalog: CatalogDocument,
-  memberships: readonly SupabaseManifestMembership[],
-  tenantScope: string,
-): readonly ProviderPersona[] {
-  const source = memberships.find((entry) => covers(entry, tenantScope));
-  return (catalog.roles ?? [])
-    .filter((role) => role.on === tenantScope || role.on === undefined)
-    .map((role) => ({
-      name: personaName(role.key),
-      setup: personaSetup(source, role.key),
-      permissions: (catalog.grants ?? [])
-        .filter((grant) => grant.role === role.key && grant.effect === "allow")
-        .map((grant) => grant.permission),
-    }));
-}
-
 function disabledRow(row: SupabaseManifestActiveRow): DisabledRow {
   return {
     table: row.table,
@@ -597,164 +366,11 @@ function permissionsOf(
       key: permission.key,
       sqlComplete: !permission.rowConditions,
       ...(granted.size > 0 ? { scopes: [...granted].toSorted() } : {}),
+      ...(permission.levels === undefined || permission.levels.length === 0
+        ? {}
+        : { levels: permission.levels }),
     };
   });
-}
-
-function tokenHookOf(
-  manifest: SupabaseHookManifest,
-  activeTenant: BetterSupabaseActiveTenant | undefined,
-): AuthorizationTokenHook {
-  const owned = manifest.claims.filter((claim) => claim.source === "permdock");
-  const registered = manifest.claims.filter(
-    (claim) => claim.source !== "permdock",
-  );
-  const budgeted = manifest.claims.filter((claim) => claim.budget);
-  const truncated = owned.some(
-    (claim) => claim.name === "memberships_truncated",
-  )
-    ? "memberships_truncated"
-    : undefined;
-  const activeFrom =
-    activeTenant === "resolver" || manifest.hook.activeFrom === undefined
-      ? undefined
-      : activeOrganizationFrom(manifest.hook.activeFrom, manifest.tenantClaim);
-  return {
-    function: `${manifest.hook.schema}.${manifest.hook.function}`,
-    tenantClaim: manifest.tenantClaim,
-    ...(activeFrom === undefined ? {} : { activeOrganizationFrom: activeFrom }),
-    ownedClaims: owned.map((claim) => claim.name),
-    // better-supabase takes one marker per hook: its `permissions` readers and
-    // doctor's budget check read the same claim, so a memberships cut sends
-    // permissionsOf to the database.
-    ...(truncated === undefined ? {} : { truncatedClaim: truncated }),
-    ...(registered.length > 0
-      ? {
-          registeredClaims: registered.map((claim) => ({
-            name: claim.name,
-            function: claim.source,
-          })),
-        }
-      : {}),
-    budget: {
-      claims: budgeted.map((claim) => claim.name),
-      bytes: manifest.budget.bytes,
-      ...(truncated === undefined ? {} : { truncatedClaim: truncated }),
-    },
-    markers: {
-      hook: `-- permdock:hook ${manifest.markers.hook}`,
-      grants: `-- permdock:grants ${manifest.markers.grants}`,
-    },
-    grantsCommand: grantsCommandOf(manifest.hook.schemas ?? "pg-delta"),
-  };
-}
-
-/** The command better-supabase doctor prints when the hook lacks its grants. */
-function grantsCommandOf(
-  schemas: NonNullable<SupabaseHookManifest["hook"]["schemas"]>,
-): string {
-  switch (schemas) {
-    case "pg-delta":
-      return "permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook";
-    case "migra":
-      return "permdock supabase hook generate --grants-out supabase/migrations/<timestamp>_permdock_hook_grants.sql";
-    case "migrations":
-      return "permdock supabase hook generate --out supabase/migrations/<timestamp>_permdock_hook.sql";
-    default: {
-      const exhaustive: never = schemas;
-      return exhaustive;
-    }
-  }
-}
-
-/**
- * better-supabase's `permitted` template. An instance of a scope (`{resource}`
- * names the scope) is checked against that scope's ids; any other resource at
- * the tenant, and with a catalog only for a key without row conditions. Without
- * a catalog better-supabase refuses every key anyway.
- */
-function permittedTemplate(
-  schema: string,
-  scopes: readonly string[],
-  tenantScope: string,
-  catalog: CatalogDocument | undefined,
-): string {
-  const idsOf = (scope: string): string =>
-    `select ids::text from ${schema}.${sqlIdent(`permitted_${scope}_ids_by_permission`)}({permission}) as ids`;
-  const branches = scopes.map(
-    (scope) =>
-      `when {resource} = ${quoteSqlLiteral(scope)} then {id} in (${idsOf(scope)})`,
-  );
-  const atTenant = `{tenant} in (${idsOf(tenantScope)})`;
-  const complete = catalog?.permissions
-    .filter((permission) => !permission.rowConditions)
-    .map((permission) => quoteSqlLiteral(permission.key));
-  const otherwise =
-    complete === undefined
-      ? atTenant
-      : complete.length === 0
-        ? `false and ${atTenant}`
-        : `{permission} in (${complete.join(", ")}) and ${atTenant}`;
-  return `case ${branches.join(" ")} else ${otherwise} end`;
-}
-
-/**
- * better-supabase's `rowsWith` and `rowsWithFor` over the
- * `permitted_<resource>_rows` helpers: `{resource}` is the resource's SQL name,
- * `rowsWith` takes the candidate ids being checked, and `rowsWithFor` runs the
- * helper's `_for` form, which `rls generate` writes beside it for Supabase.
- */
-function rowTemplatesOf(
-  schema: string,
-  manifest: SupabaseManifest,
-  requires: AuthorizationRequirement[],
-  problems: string[],
-): Partial<Record<RowTemplate, string>> {
-  const rows: { readonly helper: string; readonly idType: string }[] = [];
-  for (const [resource, names] of Object.entries(
-    manifest.names?.resources ?? {},
-  )) {
-    if (names.rows === undefined) {
-      continue;
-    }
-    if (names.idType === undefined || names.idType === "") {
-      problems.push(
-        `names.resources.${resource}.idType is missing. Run permdock generate.`,
-      );
-      return {};
-    }
-    rows.push({ helper: names.rows, idType: names.idType });
-  }
-  if (rows.length === 0) {
-    problems.push(
-      "rowHelpers: the manifest names no permitted_<resource>_rows helper. Set rls.rowHelpers and run permdock generate.",
-    );
-    return {};
-  }
-  const types = new Set(rows.map((row) => row.idType));
-  const [only] = types;
-  const idType = types.size === 1 ? only : undefined;
-  for (const { helper } of rows) {
-    requires.push(
-      {
-        function: `${schema}.${sqlIdent(helper)}`,
-        args: idType === undefined ? "text" : `text, ${idType}[]`,
-        role: "authenticated",
-      },
-      {
-        function: `${schema}.${sqlIdent(`${helper}_for`)}`,
-        args: "uuid, text, jsonb",
-        role: "postgres",
-      },
-    );
-  }
-  return {
-    rowsWith:
-      idType === undefined
-        ? `${schema}.permitted_{resource}_rows({permission})`
-        : `${schema}.permitted_{resource}_rows({permission}, ({ids})::${idType}[])`,
-    rowsWithFor: `${schema}.permitted_{resource}_rows_for({user}, {permission})`,
-  };
 }
 
 const RISKS: Readonly<
@@ -827,22 +443,18 @@ function delegatedScopes(
 
 /**
  * better-supabase's `authorization` config value, built from PermDock's
- * manifest and catalog: the scopes, the `rls generate` helpers as SQL
- * templates, the membership tables, suspension rows, the token hook and every
- * catalog key with `sqlComplete` set from its `rowConditions`. A `_for`
- * template and `permissionsFor` are set only when the manifest lists their
- * helper, which `rls.mode: 'database'` writes. `isApprover` is set with
- * `approvers` or `approver` and `permdock_is_approver`: `approver` fills its
- * `'ai-tool'` entry. `canApprove` is never set. `holdersOf` (`permitted_<tenant
- * scope>_users`) and `actorMayWrite` (`permdock_actor_may_write()`) are set
- * when the manifest lists their helper, and so is `teamIdsOf`
- * (`member_<scope>_ids_of({user})`) for a scope named `team` or `teams`. Throws
- * when the manifest or catalog is invalid, or when the tenant scope is
- * ambiguous.
+ * manifest and catalog: the scopes, the `rls generate` helpers as SQL templates
+ * (`providerFunctions`), the membership tables, suspension rows, the token hook
+ * and every catalog key with `sqlComplete` set from its `rowConditions` and
+ * `levels` from the catalog. `isApprover` is set with `approvers` or `approver`
+ * and `permdock_is_approver`: `approver` fills its `'ai-tool'` entry.
+ * `canApprove` is never set. `personas: 'roles'` is sent as written, with the
+ * `fixtureRoles` the manifest names. Throws when the manifest or catalog is
+ * invalid, or when the tenant scope is ambiguous.
  */
 export function authorizationProvider<P = undefined>(
   options: AuthorizationProviderOptions<P>,
-): PermDockAuthorizationProvider<ProviderKey<P>> {
+): AuthorizationProvider<ProviderKey<P>> {
   const manifest = parseSupabaseManifest(options.manifest);
   const catalog =
     options.catalog === undefined ? undefined : parseCatalog(options.catalog);
@@ -871,63 +483,20 @@ export function authorizationProvider<P = undefined>(
   }
   const tenantScope = tenantScopeOf(manifest, options.scope);
   const scopeNames = rls.scopes.map((scope) => scope.name);
-  const helpers = new Map<string, SupabaseManifestHelper>(
-    rls.helpers.map((helper) => [helper.name, helper]),
-  );
   const schema = sqlIdent(rls.schema);
   const rootTenant =
     rls.scopes.find((scope) => scope.name === tenantScope)?.within ===
     undefined;
   const assignAny = rls.customRoles === true && rootTenant;
-  const entryOf = (template: Template): TemplateEntry =>
-    assignAny && (template === "canAssign" || template === "canAssignFor")
-      ? ASSIGN_ANY[template]
-      : TEMPLATES[template];
-  const listed = (template: Template, scope: string): boolean =>
-    helpers.has(listedName(entryOf(template)).replaceAll("{scope}", scope));
-  const templates: Template[] = [
-    "idsWith",
-    "isPlatform",
-    ...OPTIONAL.filter((template) => listed(template, tenantScope)),
-  ];
-  for (const template of ["idsWith", "isPlatform"] as const) {
-    if (!listed(template, tenantScope)) {
-      problems.push(
-        `The manifest's rls.helpers has no ${rls.schema}.${listedName(TEMPLATES[template]).replaceAll("{scope}", tenantScope)}. Run \`permdock rls generate\`, then \`permdock supabase inspect --out\`.`,
-      );
-    }
-  }
-  if (
-    rls.customRoles === true &&
-    !rootTenant &&
-    templates.includes("canAssign")
-  ) {
-    problems.push(
-      `The tenant scope "${tenantScope}" is not a root scope, so canAssign checks declared roles only: ${rls.schema}.${ASSIGN_ANY.canAssign.helper}, which also answers for custom roles, takes the root tenant id.`,
-    );
-  }
-  const optional: { -readonly [K in Template]?: string } = {};
-  const requires: AuthorizationRequirement[] = [];
-  const required = new Set<string>();
-  for (const template of templates) {
-    const entry = entryOf(template);
-    optional[template] = withSchema(schema, entry.sql);
-    for (const scope of entry.helper.includes("{scope}")
-      ? scopeNames
-      : [tenantScope]) {
-      const name = entry.helper.replaceAll("{scope}", scope);
-      const fn = `${schema}.${sqlIdent(name)}`;
-      if (required.has(fn)) continue;
-      required.add(fn);
-      const helper = helpers.get(name);
-      const args = helper === undefined ? entry.args : argTypes(helper.args);
-      requires.push({
-        function: fn,
-        ...(args === "" ? {} : { args }),
-        role: entry.role,
-      });
-    }
-  }
+  const { functions, requires, canAssign } = providerFunctions({
+    manifest,
+    catalog,
+    options,
+    tenantScope,
+    rootTenant,
+    assignAny,
+    problems,
+  });
   const memberships: AuthorizationMembership[] = [];
   const roleSources: AuthorizationRoleSource[] = [];
   for (const source of rls.memberships) {
@@ -939,122 +508,10 @@ export function authorizationProvider<P = undefined>(
   }
   const users = rls.suspension?.users;
   const tenants = rls.suspension?.scopes?.[tenantScope];
-  const approver = options.approver;
-  const approvers =
-    approver === undefined
-      ? options.approvers
-      : { "ai-tool": holder(approver), ...options.approvers };
-  let isApprover: string | undefined;
-  if (approvers !== undefined || options.requestApprovers === true) {
-    const built = isApproverTemplate({
-      approvers: approvers ?? {},
-      requestApprovers: options.requestApprovers === true,
-      schema: rls.schema,
-      listed: helpers.has(IS_APPROVER),
-      covers: /\bp_requester\b/u.test(helpers.get(IS_APPROVER)?.args ?? ""),
-      managers: helpers.has(MANAGES),
-      tenantScope,
-      rootTenant,
-      catalog,
-    });
-    problems.push(...built.problems);
-    isApprover = built.template;
-    if (built.requires !== undefined) requires.push(built.requires);
-  }
-  const holdersName = HOLDERS_OF.replace("{scope}", tenantScope);
-  const holders = helpers.get(holdersName);
-  let holdersOf: string | undefined;
-  if (holders !== undefined) {
-    const fn = `${schema}.${sqlIdent(holders.name)}`;
-    holdersOf = `${fn}({permission}, {tenant})`;
-    requires.push({
-      function: fn,
-      args: argTypes(holders.args),
-      role: "postgres",
-    });
-  }
-  let teamIdsOf: string | undefined;
-  const teamHelper =
-    scopeNames
-      .filter((scope) => TEAM_SCOPE.test(scope))
-      .map((scope) => helpers.get(TEAM_IDS_OF.replace("{scope}", scope)))
-      .find((helper) => helper !== undefined) ??
-    helpers.get(TEAM_IDS_OF.replace("{scope}", "team"));
-  if (teamHelper !== undefined) {
-    const fn = `${schema}.${sqlIdent(teamHelper.name)}`;
-    teamIdsOf = `${fn}({user})`;
-    requires.push({
-      function: fn,
-      args: argTypes(teamHelper.args),
-      role: "authenticated",
-    });
-  }
-  let actorMayWrite: string | undefined;
-  if (helpers.has(ACTOR_MAY_WRITE)) {
-    const fn = `${schema}.${sqlIdent(ACTOR_MAY_WRITE)}`;
-    actorMayWrite = `${fn}()`;
-    requires.push({ function: fn, role: "authenticated" });
-  }
-  const permitted = listed("idsWith", tenantScope)
-    ? permittedTemplate(
-        schema,
-        scopeNames.filter((scope) => listed("idsWith", scope)),
-        tenantScope,
-        catalog,
-      )
-    : undefined;
-  const rowTemplates =
-    options.rowHelpers === true
-      ? rowTemplatesOf(schema, manifest, requires, problems)
-      : {};
-  const ownSubject =
-    options.subject !== false && helpers.has(OWN_SUBJECT)
-      ? `${schema}.${sqlIdent(OWN_SUBJECT)}()`
-      : undefined;
-  if (ownSubject !== undefined) {
-    requires.push({
-      function: `${schema}.${sqlIdent(OWN_SUBJECT)}`,
-      role: "authenticated",
-    });
-  }
-  const setTemplate = (name: string, call = ""): string | undefined => {
-    const helper = helpers.get(name);
-    if (helper === undefined) {
-      return undefined;
-    }
-    const fn = `${schema}.${sqlIdent(name)}`;
-    requires.push({
-      function: fn,
-      ...(helper.args === "" ? {} : { args: argTypes(helper.args) }),
-      role: "authenticated",
-    });
-    return `${fn}(${call})`;
-  };
-  const approverFor = setTemplate(APPROVER_FOR);
-  const managedUsers = setTemplate(MANAGED_USERS, "{tenant}");
-  const functions: AuthorizationFunctions = {
-    ...rowTemplates,
-    ...optional,
-    idsWith: `${schema}.${TEMPLATES.idsWith.sql}`,
-    isPlatform: `${schema}.${TEMPLATES.isPlatform.sql}`,
-    ...(holdersOf === undefined ? {} : { holdersOf }),
-    ...(teamIdsOf === undefined ? {} : { teamIdsOf }),
-    ...(actorMayWrite === undefined ? {} : { actorMayWrite }),
-    ...(isApprover === undefined ? {} : { isApprover }),
-    ...(permitted === undefined ? {} : { permitted }),
-    ...(ownSubject === undefined ? {} : { subject: ownSubject }),
-    ...(approverFor === undefined ? {} : { approverFor }),
-    ...(managedUsers === undefined ? {} : { managedUsers }),
-  };
   const platformRoles =
     options.platformRoles === false
       ? undefined
-      : platformRolesOf(
-          manifest,
-          schema,
-          tenantScope,
-          assignAny && listed("canAssign", tenantScope),
-        );
+      : platformRolesOf(manifest, schema, tenantScope, assignAny && canAssign);
   const operations = catalog === undefined ? {} : operationsOf(catalog);
   const delegated = delegatedScopes(catalog);
   const scopes = rls.scopes.map((scope) => {
@@ -1073,12 +530,18 @@ export function authorizationProvider<P = undefined>(
           parent: scope.within,
         };
   });
+  const fixtureRoles =
+    options.personas === "roles" && catalog !== undefined
+      ? fixtureRolesOf(manifest, catalog, tenantScope, problems)
+      : undefined;
   const personas =
     options.personas === "roles"
-      ? catalog === undefined
+      ? fixtureRoles === undefined
         ? undefined
-        : personasFromRoles(catalog, rls.memberships, tenantScope)
-      : options.personas;
+        : "roles"
+      : options.personas?.length === 0
+        ? undefined
+        : options.personas;
   // SAFETY: a catalog built from `permissions` uses that tree's keys; without the tree the keys stay strings.
   return freezeDeep({
     apiVersion: 1,
@@ -1101,7 +564,8 @@ export function authorizationProvider<P = undefined>(
       : {}),
     ...(roleSources.length > 0 ? { roleSources } : {}),
     ...(platformRoles === undefined ? {} : { platformRoles }),
-    ...(personas === undefined || personas.length === 0 ? {} : { personas }),
+    ...(personas === undefined ? {} : { personas }),
+    ...(fixtureRoles === undefined ? {} : { fixtureRoles }),
     ...(Object.keys(operations).length > 0 ? { operations } : {}),
     ...(Object.keys(delegated).length > 0
       ? { delegation: { scopes: delegated } }
@@ -1111,5 +575,5 @@ export function authorizationProvider<P = undefined>(
       ? { tokenHook: tokenHookOf(manifest, options.activeTenant) }
       : {}),
     ...(problems.length > 0 ? { problems } : {}),
-  }) as PermDockAuthorizationProvider<ProviderKey<P>>;
+  }) as AuthorizationProvider<ProviderKey<P>>;
 }

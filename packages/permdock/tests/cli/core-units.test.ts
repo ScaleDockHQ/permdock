@@ -8,7 +8,11 @@ import { didYouMean, parseFlags } from "../../src/cli/core/args.ts";
 import { defineLeaf } from "../../src/cli/core/command.ts";
 import { candidates } from "../../src/cli/core/completion.ts";
 import { redact } from "../../src/cli/core/credentials.ts";
-import { exitCodeOf, kindOfCode } from "../../src/cli/core/errors.ts";
+import {
+  exitCodeOf,
+  failureOf,
+  kindOfCode,
+} from "../../src/cli/core/errors.ts";
 import { dirtyFiles } from "../../src/cli/core/files.ts";
 import { leafHelp, leafJson } from "../../src/cli/core/help.ts";
 import { progressReporter, readSecret } from "../../src/cli/core/io.ts";
@@ -16,6 +20,7 @@ import { resolve } from "../../src/cli/core/manifest.ts";
 import {
   dataOf,
   githubAnnotations,
+  resultDocument,
   sarifLog,
 } from "../../src/cli/core/output.ts";
 import { run } from "../../src/cli/core/run.ts";
@@ -129,20 +134,57 @@ describe("core units", () => {
     });
   });
 
+  describe(resultDocument, () => {
+    it("leaves out data, empty warnings and empty next steps", () => {
+      expect(resultDocument({ status: "success" })).toStrictEqual({
+        $schema: "https://permdock.com/schemas/cli-result-v2.json",
+        status: "success",
+      });
+      expect(
+        resultDocument({ status: "error", data: {}, warnings: [], next: [] }),
+      ).toStrictEqual({
+        $schema: "https://permdock.com/schemas/cli-result-v2.json",
+        status: "error",
+        data: {},
+      });
+      expect(
+        resultDocument({
+          status: "success",
+          warnings: ["stale"],
+          next: [{ when: "to write", command: "permdock generate --force" }],
+        }),
+      ).toMatchObject({
+        warnings: ["stale"],
+        next: [{ when: "to write", argv: ["permdock", "generate", "--force"] }],
+      });
+    });
+  });
+
   describe("exit codes", () => {
     it("map each kind to its code and back", () => {
       expect(exitCodeOf("cancelled")).toBe(130);
-      expect(exitCodeOf("action")).toBe(3);
+      expect(exitCodeOf("action")).toBe(2);
       expect(
-        ([0, 1, 2, 3, 130, 143] as const).map((code) => kindOfCode(code)),
-      ).toStrictEqual([
-        "failed",
-        "failed",
-        "usage",
-        "action",
-        "cancelled",
-        "cancelled",
-      ]);
+        ([0, 1, 2, 130, 143] as const).map((code) => kindOfCode(code)),
+      ).toStrictEqual(["failed", "failed", "usage", "cancelled", "cancelled"]);
+      expect(
+        (["usage", "unavailable", "failed", "internal"] as const).map((kind) =>
+          exitCodeOf(kind),
+        ),
+      ).toStrictEqual([2, 1, 1, 1]);
+    });
+
+    it("reads a definition PermDock rejects as config_invalid and any other throw as internal", () => {
+      expect(failureOf(new Error("PermDock: unknown role 'x'"))).toMatchObject({
+        code: "config_invalid",
+        exitCode: 2,
+      });
+      expect(failureOf(new Error("boom"))).toMatchObject({
+        code: "internal",
+        exitCode: 1,
+        message: "boom",
+      });
+      expect(failureOf("plain")).toMatchObject({ code: "internal" });
     });
   });
 
@@ -384,8 +426,8 @@ describe("core units", () => {
         io: { ...quiet, readStdin: () => Promise.resolve("\n") },
       });
       expect(result.code).toBe(2);
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        error: { detail: "rls verify: --db-url-stdin read nothing from stdin" },
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        message: "rls verify: --db-url-stdin read nothing from stdin",
       });
     });
 
@@ -394,14 +436,14 @@ describe("core units", () => {
         ["rls", "verify", "--format", "pgtap", "--json"],
         { cwd: FIXTURE },
       );
-      expect(JSON.parse(renamed.stdout)).toMatchObject({
-        error: { code: "invalid_value" },
+      expect(JSON.parse(renamed.stderr)).toMatchObject({
+        reason: "invalid_value",
       });
       const unknown = await run(["doctor", "--format", "xml", "--json"], {
         cwd: FIXTURE,
       });
-      expect(JSON.parse(unknown.stdout)).toMatchObject({
-        error: { code: "invalid_value" },
+      expect(JSON.parse(unknown.stderr)).toMatchObject({
+        reason: "invalid_value",
       });
     });
 
@@ -421,8 +463,8 @@ describe("core units", () => {
       const shell = await run(["completion", "tcsh", "--json"], {
         cwd: FIXTURE,
       });
-      expect(JSON.parse(shell.stdout)).toMatchObject({
-        error: { code: "invalid_value" },
+      expect(JSON.parse(shell.stderr)).toMatchObject({
+        reason: "invalid_value",
       });
     });
 
@@ -443,10 +485,17 @@ describe("core units", () => {
       const result = await run(["codemod", "0.5", "it's", "--agent", "yes"], {
         cwd: FIXTURE,
       });
-      expect(result.code).toBe(3);
-      expect(result.stdout).toContain(
-        String.raw`permdock codemod 0.5 'it'\\''s' --confirm `,
+      expect(result.code).toBe(2);
+      const [next] = JSON.parse(result.stderr).next;
+      expect(next.command).toContain(
+        String.raw`permdock codemod 0.5 'it'\''s' --yes --effects-digest `,
       );
+      expect(next.argv.slice(0, 4)).toStrictEqual([
+        "permdock",
+        "codemod",
+        "0.5",
+        "it's",
+      ]);
     });
 
     it("reads an empty DATABASE_URL as unset and checks the fixtures instead", async () => {
@@ -454,10 +503,8 @@ describe("core units", () => {
         cwd: FIXTURE,
         io: { ...quiet, env: { DATABASE_URL: "" } },
       });
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        error: {
-          detail: "PermDock CLI: fixtures not found: rls.fixtures.json",
-        },
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        message: "PermDock CLI: fixtures not found: rls.fixtures.json",
       });
     });
 
@@ -466,9 +513,9 @@ describe("core units", () => {
         cwd: FIXTURE,
         io: { ...quiet, env: { DATABASE_URL: "" } },
       });
-      expect(result.code).toBe(3);
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        error: { code: "input_required" },
+      expect(result.code).toBe(2);
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        reason: "input_required",
       });
     });
 
@@ -479,9 +526,9 @@ describe("core units", () => {
 
     it("asks rls migrate for --sql", async () => {
       const result = await run(["rls", "migrate", "--json"], { cwd: FIXTURE });
-      expect(result.code).toBe(3);
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        error: { code: "input_required" },
+      expect(result.code).toBe(2);
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        reason: "input_required",
       });
     });
 
@@ -489,11 +536,17 @@ describe("core units", () => {
       const result = await run(["preset", "decode", "--json"], {
         cwd: FIXTURE,
       });
-      expect(result.code).toBe(3);
-      expect(JSON.parse(result.stdout)).toMatchObject({
+      expect(result.code).toBe(2);
+      expect(JSON.parse(result.stderr)).toMatchObject({
         status: "action_required",
-        error: { code: "input_required", missing: ["<code>"] },
-        next: [{ command: "permdock preset decode --json <code>" }],
+        next: [
+          {
+            command: "permdock preset decode --json <code> --yes",
+            argv: ["permdock", "preset", "decode", "--json", "<code>", "--yes"],
+          },
+        ],
+        reason: "input_required",
+        data: { missing: ["<code>"] },
       });
     });
 
@@ -502,20 +555,16 @@ describe("core units", () => {
         cwd: FIXTURE,
       });
       expect(flag.code).toBe(2);
-      expect(JSON.parse(flag.stdout)).toMatchObject({
-        error: {
-          code: "invalid_value",
-          detail: "--agent takes auto, yes or no, got 'maybe'",
-        },
+      expect(JSON.parse(flag.stderr)).toMatchObject({
+        reason: "invalid_value",
+        message: "--agent takes auto, yes or no, got 'maybe'",
       });
       const env = await run(["config", "--json"], {
         cwd: FIXTURE,
         io: { ...quiet, env: { PERMDOCK_AGENT: "maybe" } },
       });
       expect(env.code).toBe(2);
-      expect(JSON.parse(env.stdout)).toMatchObject({
-        error: { code: "invalid_value" },
-      });
+      expect(JSON.parse(env.stderr)).toMatchObject({ reason: "invalid_value" });
     });
 
     it("logs the stack and the cause of a failure with --debug", async () => {

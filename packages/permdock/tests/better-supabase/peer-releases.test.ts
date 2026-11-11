@@ -1,6 +1,5 @@
 import { testAuthorizationProvider } from "better-supabase/testing";
 import { readdirSync, readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 
 import type { AuthorizationProviderOptions } from "../../src/better-supabase/index.ts";
@@ -14,30 +13,6 @@ const ROOT = new URL("../../../../", import.meta.url);
 const EXAMPLE = new URL("apps/examples/next-better-supabase/", ROOT);
 const text = (url: URL): string => readFileSync(url, "utf8");
 const json = (url: URL): unknown => JSON.parse(text(url));
-const require = createRequire(import.meta.url);
-
-type Renames = Readonly<Record<string, string>>;
-
-const isRenames = (value: unknown): value is Renames =>
-  typeof value === "object" &&
-  value !== null &&
-  Object.values(value).every((name) => typeof name === "string");
-
-/** One section of better-supabase's codemod map, old name to new. */
-function renamesOf(codemod: unknown, section: string): Renames {
-  const renames =
-    typeof codemod === "object" && codemod !== null && section in codemod
-      ? Object.entries(codemod).find(([key]) => key === section)?.[1]
-      : undefined;
-  if (!isRenames(renames)) {
-    throw new TypeError(`better-supabase codemod has no ${section} section`);
-  }
-  return renames;
-}
-
-const codemod: unknown = JSON.parse(
-  readFileSync(require.resolve("better-supabase/codemods/0.32.json"), "utf8"),
-);
 
 /** The docs pages, the example's sources and PermDock's adapter. */
 function consumerFiles(): readonly (readonly [string, string])[] {
@@ -176,7 +151,7 @@ async function failedChecks(
   }
 }
 
-describe("better-supabase 0.26 to 0.53", () => {
+describe("better-supabase 0.26 to 0.58", () => {
   it.each(providers)(
     "0.27: every template of %s passes the template tokenizer",
     async (_, options) => {
@@ -249,7 +224,7 @@ describe("better-supabase 0.26 to 0.53", () => {
   it.each([
     "apps/docs/content/docs/adapters/better-supabase.mdx",
     "apps/examples/next-better-supabase/better-supabase.config.ts",
-  ])("0.29: %s names subjects, never records", (path) => {
+  ])("0.29: %s never names the removed records key", (path) => {
     const source = text(new URL(path, ROOT));
     expect(source).not.toMatch(/config\.records|\brecords\s*:|@bsb record\b/u);
   });
@@ -266,21 +241,64 @@ describe("better-supabase 0.26 to 0.53", () => {
     expect(tagged).toStrictEqual([]);
   });
 
-  it("0.32: no consumer file keeps a name the codemod renames", () => {
+  // The old names of `codemod 0.32`, whose map 0.58 stopped shipping.
+  it("0.32: no consumer file keeps a name the 0.32 codemod renames", () => {
     const old = [
-      ...Object.keys(renamesOf(codemod, "imports")).map(word),
-      ...Object.keys(renamesOf(codemod, "optionKeys")).map(word),
-      ...Object.keys(renamesOf(codemod, "members")).map(
-        (name) => new RegExp(`\\bbsb\\.${name}\\b`, "u"),
-      ),
-      ...Object.keys(renamesOf(codemod, "configKeys")).map((key) => {
-        const [parent = "", child = ""] = key.split(".");
-        return new RegExp(
-          `\\b${parent}\\.${child}\\b|\\b${parent}:\\s*\\{\\s*${child}:`,
-          "u",
-        );
-      }),
+      ...[
+        "OrganizationConfig",
+        "OAuthStart",
+        "CodeExchange",
+        "EndedSessionOptions",
+        "checkSession",
+        "requireOrganization",
+        "endedSession",
+        "refreshSkewSeconds",
+        "expiredPrefetch",
+      ].map(word),
+      ...[
+        "getRequestSession",
+        "contextForSession",
+        "invalidateSession",
+        "forgetSession",
+        "authorizeUrl",
+        "exchangeCode",
+        "cacheTags",
+        "cacheTag",
+      ].map((name) => new RegExp(`\\bbsb\\.${name}\\b`, "u")),
       /\bbsb\.session\(/u,
+      /\bauth\.organization\b|\bauth:\s*\{\s*organization:/u,
+    ];
+    const hits = consumerFiles().flatMap(([file, source]) =>
+      old
+        .filter((pattern) => pattern.test(source))
+        .map((pattern) => `${file}: ${pattern.source}`),
+    );
+    expect(hits).toStrictEqual([]);
+  });
+
+  // From the 0.57 to 0.58 migration guide; `api/naming.json` is not in the package.
+  it("0.58: no consumer file keeps a name 0.58 renames", () => {
+    const old = [
+      ...[
+        "defineSupabase",
+        "getBetterSupabase",
+        "buildJsonSchema",
+        "buildApiModel",
+        "createRuleSink",
+        "workItemRecurrenceSink",
+        "SessionEntryConfig",
+        "GuardEntryConfig",
+        "AddArgs",
+        "ListArgs",
+        "CliArgs",
+        "RateLimitSettings",
+        "AccountingSettings",
+        "BucketSettings",
+      ].map(word),
+      /better-supabase\/ai-sdk\/workflow\/react/u,
+      /\bgen\.(?:output|recordTypes)\b|\bgen:\s*\{\s*(?:output|recordTypes):/u,
+      /\bconfig\.subjects\b/u,
+      /\bbsb\.(?:uid|owns|is_member|can)\(/u,
     ];
     const hits = consumerFiles().flatMap(([file, source]) =>
       old

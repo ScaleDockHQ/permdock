@@ -521,7 +521,7 @@ export const policy = definePolicy(permissions, {
       const target = await rlsGenerate(["--target", "mysql"], { cwd });
       expect(target.code).toBe(2);
       const imported = await run(["rls", "import"], { cwd });
-      expect(imported.code).toBe(3);
+      expect(imported.code).toBe(2);
       expect(imported.stderr).toContain("--sql");
     });
 

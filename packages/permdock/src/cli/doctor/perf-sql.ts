@@ -95,7 +95,11 @@ function lineOf(statement: Statement, text: string, index: number): number {
 }
 
 const ROW_HELPER = /\bpermitted_\w+_row\s*\(/iu;
-const CAN_CALL = /\bcan_\w+\s*\(([^)]*)\)/giu;
+/**
+ * A `can_<resource>(…)` call. better-supabase's own `can_subject` checks one
+ * row per call by design, so a call qualified by its schema is not PermDock's.
+ */
+const CAN_CALL = /(?<!\bbetter_supabase"?\s*\.\s*"?)\bcan_\w+\s*\(([^)]*)\)/giu;
 
 /** Whether a `can_<resource>(…)` call takes a column of the row it guards. */
 function readsRow(args: string): boolean {
@@ -151,13 +155,88 @@ function callsSetPerRow(
     .replaceAll(/\s+/gu, " ");
 }
 
+const SET_HELPER_CALL =
+  /\b(?:permitted_\w+_(?:rows|rows_for|ids_in|count|permission_keys|permission_keys_for)|permdock_role_permissions)\s*\(/giu;
+const SQL_WORDS = new Set([
+  "array",
+  "as",
+  "false",
+  "from",
+  "in",
+  "null",
+  "select",
+  "true",
+  "where",
+]);
+
+/** The text between the parenthesis at `open` and the one that closes it. */
+function argumentsAt(text: string, open: number): string {
+  let depth = 0;
+  for (let at = open; at < text.length; at += 1) {
+    const char = text[at];
+    if (char === "(") {
+      depth += 1;
+    } else if (char === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(open + 1, at);
+      }
+    }
+  }
+  return text.slice(open + 1);
+}
+
+/**
+ * Whether arguments name a column of the guarded row: a bare identifier, or one
+ * qualified by the table's own name. A column of a subquery alias, such as
+ * `t.id` over `unnest(…) t(id)`, is not the row.
+ */
+function namesRowColumn(args: string, table: string): boolean {
+  const bare = args
+    .replaceAll(/'(?:[^']|'')*'/gu, "")
+    .replaceAll(/::\s*[\w.]+(?:\s*\[\s*\])?/gu, "")
+    .replaceAll(/\b[\w.]+\s*\(/gu, "(");
+  const own = table.slice(table.lastIndexOf(".") + 1);
+  for (const match of bare.matchAll(
+    /(?<![\w."])("?[A-Za-z_][\w$]*"?)(?:\s*\.\s*("?[A-Za-z_][\w$]*"?))?/gu,
+  )) {
+    const head = unquote(group(match, 1));
+    if (match[2] === undefined) {
+      if (!SQL_WORDS.has(head)) {
+        return true;
+      }
+    } else if (head === own) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * The first set helper a policy calls with a column of its own row, such as
+ * better-supabase's `permitted_<resource>_rows('key', array[id])`: Postgres
+ * runs a correlated subquery again for every row.
+ */
+function correlatedSetCall(text: string, table: string): string | undefined {
+  for (const call of text.matchAll(SET_HELPER_CALL)) {
+    const open = call.index + call[0].length - 1;
+    const args = argumentsAt(text, open);
+    if (namesRowColumn(args, table)) {
+      return `${call[0]}${args})`.replaceAll(/\s+/gu, " ");
+    }
+  }
+  return undefined;
+}
+
 /**
  * PD103: a policy calls a PermDock helper once per row: the row form
  * `permitted_<resource>_row(row, …)`, `can_<resource>(…)` on a column of the
- * row, or a set helper `permitted_<resource>_rows('key')` whose body has no arm
- * for the key and so calls `permitted_<resource>_match` for every row. The
- * helpers are `security definer`, so the planner cannot inline them and a table
- * scan makes one call per row.
+ * row, a set helper such as `permitted_<resource>_rows('key', array[id])`
+ * passed a column of the row, which makes it a correlated subquery, or a set
+ * helper `permitted_<resource>_rows('key')` whose body has no arm for the key
+ * and so calls `permitted_<resource>_match` for every row. The helpers are
+ * `security definer`, so the planner cannot inline them and a table scan makes
+ * one call per row.
  */
 export function pd103(
   cwd: string,
@@ -169,17 +248,27 @@ export function pd103(
   return policiesOf(statements).flatMap((policy): DoctorFinding[] => {
     const text = header(policy.text);
     const setCall = callsSetPerRow(text, helpers);
+    const correlated = correlatedSetCall(text, policy.table);
     const perRow =
       ROW_HELPER.test(text) ||
       [...text.matchAll(CAN_CALL)].some((call) => readsRow(group(call, 1))) ||
-      setCall !== undefined;
+      setCall !== undefined ||
+      correlated !== undefined;
+    const correlatedDetail =
+      correlated === undefined
+        ? ""
+        : `: ${correlated} takes a column of the row, so the set is read again for every row`;
+    const detail =
+      setCall === undefined
+        ? correlatedDetail
+        : `: ${setCall} has no arm for its key and calls permitted_*_match for every row`;
     return perRow
       ? [
           {
             code: "PD103",
             severity: "warning",
             target: `${policy.file}:${policy.table}:${policy.name}`,
-            message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policy.table} calls a PermDock helper once per row${setCall === undefined ? "" : `: ${setCall} has no arm for its key and calls permitted_*_match for every row`}`,
+            message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policy.table} calls a PermDock helper once per row${detail}`,
             fix: "lead with the tenant: <tenant column> = any((select permdock.permitted_<scope>_id_array('<key>'))); run permdock rls generate for a generated policy, which writes a set helper that states each key's arm",
           },
         ]
@@ -390,12 +479,14 @@ export function pd107(
 
 const ROWS_CALL = /\bpermitted_\w+_rows\s*\(\s*([^()]*?)\s*\)/giu;
 const TENANT_LEAD =
-  /\bpermitted_\w+_id_array\s*\(|\bpermdock_tenant_has\s*\(/iu;
+  /\bpermitted_\w+_id_array\s*\(|\bpermitted_\w+_ids_by_permission\s*\(|\bpermdock_tenant_has\s*\(/iu;
 
 /**
- * PD108: a policy calls `permitted_<resource>_rows(p)` with no tenant argument
- * and no tenant-led predicate beside it. The set covers every tenant the caller
- * can read, so a query for one tenant still scans all of them.
+ * PD108: an app policy calls `permitted_<resource>_rows(p)` with no tenant
+ * argument and no tenant-led predicate beside it. The set covers every tenant
+ * the caller can read, so a query for one tenant still scans all of them. A
+ * generated policy reads the one-argument form only where no tenant can lead
+ * it, so it is not reported.
  */
 export function pd108(
   cwd: string,
@@ -404,6 +495,9 @@ export function pd108(
 ): readonly DoctorFinding[] {
   return policiesOf(statementsOf(cwd, config, files)).flatMap(
     (policy): DoctorFinding[] => {
+      if (policy.generated) {
+        return [];
+      }
       const text = header(policy.text);
       const alone = [...text.matchAll(ROWS_CALL)].some(
         (call) => !group(call, 1).includes(","),
@@ -417,7 +511,7 @@ export function pd108(
           severity: "warning",
           target: `${policy.file}:${policy.table}:${policy.name}`,
           message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policy.table} reads permitted_*_rows without a tenant, so it covers every tenant the caller can read`,
-          fix: "pass the tenant: permitted_<resource>_rows(p, <tenant column>), or lead with <tenant column> = any((select permdock.permitted_<scope>_id_array(p)))",
+          fix: "lead with <tenant column> = any((select permdock.permitted_<scope>_id_array(p))); a tenant argument read from the row, permitted_<resource>_rows(p, <tenant column>), runs once per row (PD103)",
         },
       ];
     },

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { PermDock } from "../../src/core/permdock.ts";
+import type { Principal } from "../../src/core/subject.ts";
 import type { VocabularyOf } from "../../src/core/type-helpers.ts";
 
 import { definePermDock } from "../../src/better-supabase/index.ts";
@@ -22,6 +23,34 @@ const policy = definePolicy(permissions, {
 });
 
 type Vocabulary = VocabularyOf<typeof policy>;
+
+const tenantPermissions = definePermissions({
+  post: resource({
+    actions: ["read"],
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
+  }),
+});
+const tenantPolicy = definePolicy(tenantPermissions, {
+  scopes: { tenant: { key: "orgId" } },
+  roles: [
+    role("admin", [allow(tenantPermissions.post.read)], { on: "tenant" }),
+    role("viewer", [allow(tenantPermissions.post.read)], { on: "tenant" }),
+  ],
+  subject: (user: Principal) => user,
+});
+
+/** Admin in `org0`, viewer in every other organisation. */
+function commerceUser(count: number): Principal {
+  return {
+    id: "u-commerce",
+    roles: [],
+    memberships: Array.from({ length: count }, (_, index) => ({
+      scope: "tenant",
+      id: `org${String(index)}`,
+      roles: [index === 0 ? "admin" : "viewer"],
+    })),
+  };
+}
 
 describe(definePermDock, () => {
   it("owns a version cache per definition and loads the client once", async () => {
@@ -64,6 +93,31 @@ describe(definePermDock, () => {
     const next = app.next();
     expect(next.authorization).toBe(next.authorizer);
     expect(next.versions).toBe(app.next().versions);
+  });
+
+  it("builds one tenant's snapshot whose size stays flat with the memberships the user holds", async () => {
+    const app = definePermDock(tenantPolicy);
+    const { getSnapshot } = app.next();
+    const sizes: number[] = [];
+    for (const count of [1, 50, 150]) {
+      const snapshot = await getSnapshot(
+        { principal: commerceUser(count), context: {} },
+        { tenant: "org0", omitAssignable: true, omitStatic: true },
+      );
+      expect(snapshot.tenants).toStrictEqual(["org0"]);
+      expect(snapshot.subject.principal?.memberships).toStrictEqual([
+        { scope: "tenant", id: "org0", roles: ["admin"] },
+      ]);
+      expect(snapshot.static?.held).toStrictEqual([["admin", 0]]);
+      sizes.push(JSON.stringify(snapshot).length);
+    }
+    expect(new Set(sizes).size).toBe(1);
+    const none = await getSnapshot(
+      { principal: commerceUser(3), context: {} },
+      { tenant: null },
+    );
+    expect(none.tenants).toStrictEqual([]);
+    expect(none.subject.principal?.memberships).toStrictEqual([]);
   });
 
   it("types every instance member as PermDock of the policy vocabulary", () => {

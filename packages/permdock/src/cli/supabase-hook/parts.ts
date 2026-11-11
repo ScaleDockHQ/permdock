@@ -5,7 +5,11 @@ import type {
 } from "../../supabase/manifest.ts";
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type { RoleRows } from "../sql/global-roles.ts";
-import type { RlsActiveRow, SupabaseHookConfig } from "../types.ts";
+import type {
+  RlsActiveRow,
+  RlsSuspendedScope,
+  SupabaseHookConfig,
+} from "../types.ts";
 import type { AttrsPlan, ExtraClaim } from "./claims.ts";
 import type { activeFromSql } from "./memberships.ts";
 
@@ -15,6 +19,8 @@ export type Parts = {
   readonly root: string;
   readonly sources: readonly SqlMembershipSource[];
   readonly budget: number;
+  /** `supabase.hook.membershipsClaim`: `false` keeps no entry in the claim. */
+  readonly membershipsClaim: boolean;
   readonly version: boolean;
   /**
    * The hook reuses the incoming claims on a token refresh whose `authz_ver` is
@@ -35,6 +41,10 @@ export type Parts = {
    */
   readonly customRoles: { readonly tenantType: string } | undefined;
   readonly users: RlsActiveRow | undefined;
+  /** `rls.suspension.scopes.<root>`: the active-row table of the tenants. */
+  readonly tenants: RlsSuspendedScope | undefined;
+  /** The Postgres type of the root scope's ids. */
+  readonly tenantType: string;
   readonly hook: SupabaseHookConfig;
   /** Global roles for `user_role` and `roles`; `undefined` with `roles: false`. */
   readonly roles: RoleRows | undefined;

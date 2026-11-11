@@ -3,9 +3,16 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { PermDockConfig } from "../../src/cli/types.ts";
+import type { Seeds } from "../../src/core/seeds.ts";
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import { run } from "../../src/cli/core/run.ts";
+import { supabaseHookManifest } from "../../src/cli/supabase-hook/supabase-hook.ts";
+import { scopeList } from "../../src/core/scopes.ts";
+import { defineSeeds } from "../../src/core/seeds.ts";
+import { tableMembershipSource } from "../../src/supabase/index.ts";
+import { policy as namedScopes } from "../fixtures/named-scopes.ts";
 import { jsonData } from "./envelope.ts";
 import { rlsGenerate, hookGenerate } from "./rls-call.ts";
 import {
@@ -17,6 +24,62 @@ import {
 
 describe("supabase inspect", () => {
   afterEach(removeHookProjects);
+
+  describe("fixtureRoles", () => {
+    const config = (seeds?: Seeds): PermDockConfig => ({
+      policy: "p.ts",
+      ...(seeds === undefined ? {} : { seeds }),
+      supabase: {
+        hook: {
+          memberships: [tableMembershipSource({ table: "memberships" })],
+        },
+      },
+    });
+    const inspect = (seeds?: Seeds) =>
+      supabaseHookManifest(
+        scopeList(namedScopes.scopes),
+        config(seeds),
+        {},
+        namedScopes,
+      ).fixtureRoles;
+
+    it("lists the declared roles the defineSeeds fixtures give a member", () => {
+      const seeds = defineSeeds(namedScopes, {
+        fixtures: {
+          memberships: [
+            { user: "ann", tenant: "acme", roles: ["viewer", "owner"] },
+            { user: "bob", tenant: "acme", roles: ["owner", "mechanic"] },
+          ],
+        },
+      });
+      expect(inspect(seeds)).toStrictEqual(["owner", "viewer"]);
+    });
+
+    it("reads only string roles and skips a fixture membership without roles", () => {
+      // SAFETY: a seeds module a project wrote by hand, which the config loader only checks to be an object.
+      const seeds = {
+        fixtures: {
+          memberships: [
+            { user: "ann", tenant: "acme", roles: ["viewer", 7] },
+            { user: "bob", tenant: "acme" },
+            "carol",
+          ],
+        },
+      } as unknown as Seeds;
+      expect(inspect(seeds)).toStrictEqual(["viewer"]);
+    });
+
+    it("falls back to the root scope's roles and the global roles", () => {
+      expect(inspect()).toStrictEqual([
+        "admin",
+        "member",
+        "owner",
+        "platform-admin",
+        "platform-support",
+        "viewer",
+      ]);
+    });
+  });
 
   describe("permdock supabase inspect", () => {
     it("checks the marker line and prints the inspect manifest", async () => {
@@ -112,6 +175,9 @@ describe("supabase inspect", () => {
       });
       const text = await run(["supabase", "inspect"], { cwd });
       expect(text.stdout).toContain("tenant claim tenant_id");
+      expect(text.stdout).toContain(
+        "fixture roles admin, member, owner, platform-admin, platform-support, viewer",
+      );
       expect(text.stdout).toContain("hook_custom_access_token_enabled true");
       expect(text.stdout).toContain(
         "hook_custom_access_token_uri pg-functions://postgres/permdock/custom_access_token_hook",
@@ -236,6 +302,24 @@ describe("supabase inspect", () => {
         { cwd: database.cwd },
       );
       expect(check.code).toBe(0);
+    });
+
+    it("reads rls.memberships for the hookless manifest without membership sources", async () => {
+      const database = await generate(
+        "undefined",
+        [],
+        `{ authorize: 'database', memberships: { scopes: { organization: { table: 'organization_users', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } } } } }`,
+      );
+      const inspect = await run(["supabase", "inspect", "--json"], {
+        cwd: database.cwd,
+      });
+      expect(inspect.code).toBe(0);
+      expect(jsonData(inspect.stdout)).toMatchObject({
+        rls: {
+          mode: "database",
+          memberships: [{ table: "public.organization_users" }],
+        },
+      });
     });
 
     it("checks, prints and reports drift for the hookless manifest", async () => {
@@ -396,6 +480,33 @@ describe("supabase inspect", () => {
         name: "permdock_is_approver",
         args: "p_approvers jsonb, p_tenant text, p_requester text, p_resource text",
         returns: "boolean",
+        execute: ["authenticated"],
+      });
+      expect(manifest.rls.helpers).toContainEqual({
+        name: "permdock_approver_for_ids",
+        args: "",
+        returns: "setof uuid",
+        execute: ["authenticated"],
+      });
+      expect(manifest.rls.helpers.map((helper) => helper.name)).not.toContain(
+        "permdock_managed_user_ids",
+      );
+    });
+
+    it("lists the managed-user set with rls.approvals.managers", async () => {
+      const managed = await generate(
+        `{ memberships: [${SOURCES}] }`,
+        [],
+        `{ authorize: 'database', approvals: { managers: { table: 'public.reporting_lines', user: 'user_id', manager: 'manager_id', tenant: 'organization_id' } } }`,
+      );
+      const manifest: SupabaseHookManifest = jsonData(
+        (await run(["supabase", "inspect", "--json"], { cwd: managed.cwd }))
+          .stdout,
+      );
+      expect(manifest.rls.helpers).toContainEqual({
+        name: "permdock_managed_user_ids",
+        args: "p_tenant uuid",
+        returns: "setof uuid",
         execute: ["authenticated"],
       });
     });
@@ -598,8 +709,9 @@ describe("supabase inspect", () => {
       const refused = await hookGenerate(["--out", "-", "--json"], { cwd });
 
       expect(refused.code).toBe(2);
-      expect(JSON.parse(refused.stdout)).toMatchObject({
-        error: { code: "invalid_value", flag: "--out" },
+      expect(JSON.parse(refused.stderr)).toMatchObject({
+        reason: "invalid_value",
+        data: { flag: "--out" },
       });
     });
 

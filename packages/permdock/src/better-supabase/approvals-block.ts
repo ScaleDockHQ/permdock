@@ -40,7 +40,8 @@ type BlockStatus =
   | "approved"
   | "rejected"
   | "cancelled"
-  | "expired";
+  | "expired"
+  | "consumed";
 
 /** The approvals block's request; instants are `Temporal.Instant`. */
 export type BlockApprovalRecord<I extends BlockInstant> = {
@@ -146,6 +147,8 @@ function statusOf(status: BlockStatus): ApprovalStatus {
       return status;
     case "cancelled":
       return "rejected";
+    case "consumed":
+      return "approved";
     default: {
       const exhaustive: never = status;
       return exhaustive;
@@ -177,7 +180,12 @@ function requestOf<I extends BlockInstant>(
       expiresAt: instantOf(record.expiresAt) ?? stored.expiresAt,
       resolvedAt:
         status === "pending" ? undefined : instantOf(record.decidedAt),
-      consumedAt: instantOf(record.consumedAt),
+      // A consumed request never resumes again, even when the row has no consumed_at.
+      consumedAt:
+        instantOf(record.consumedAt) ??
+        (record.status === "consumed"
+          ? (instantOf(record.decidedAt) ?? instantOf(record.createdAt))
+          : undefined),
       fingerprint: record.fingerprint ?? stored.fingerprint,
     }),
   );

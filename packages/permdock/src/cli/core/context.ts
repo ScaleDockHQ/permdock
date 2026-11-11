@@ -37,7 +37,7 @@ export type CliContext = {
   readonly yes: boolean;
   readonly debug: boolean;
   readonly signal: AbortSignal;
-  /** The argv the leaf ran with, for `next` steps and consent tokens. */
+  /** The argv the leaf ran with, for `next` steps and consent digests. */
   readonly argv: readonly string[];
   /** Masks `value` in everything the run prints from now on. */
   readonly addSecret: (value: string) => void;
@@ -65,7 +65,8 @@ export const GLOBAL_FLAGS: Flags = {
   },
   json: {
     type: "boolean",
-    description: "Print the cli-result-v1 JSON envelope on stdout",
+    description:
+      "Print cli-result-v2 JSON: the result on stdout, an error on stderr",
   },
   format: {
     type: "enum",
@@ -77,11 +78,11 @@ export const GLOBAL_FLAGS: Flags = {
     alias: "y",
     description: "Never prompt; take the answer the flags give",
   },
-  confirm: {
+  "effects-digest": {
     type: "string",
     description:
-      "The token a consent_required result gave, once the person agreed",
-    valueHint: "token",
+      "With --yes, the digest a confirmation_required error gave, once the person agreed",
+    valueHint: "digest",
   },
   agent: {
     type: "enum",

@@ -18,7 +18,7 @@ import { beforeFirst } from "../shared/text.ts";
 import { activeRowSql, checkSuspension } from "../sql/active.ts";
 import { firstScopeType, sqlType } from "../sql/columns.ts";
 import { globalRoleSource } from "../sql/global-roles.ts";
-import { memberForHelper } from "../sql/names.ts";
+import { isTeamScope, memberForHelper } from "../sql/names.ts";
 import {
   quoteIdent,
   quoteLiteral,
@@ -49,7 +49,8 @@ import {
   positiveInteger,
   typedUsers,
 } from "./memberships.ts";
-import { oauthMode, refreshReuse } from "./refresh.ts";
+import { membershipsClaim, oauthMode, refreshReuse } from "./refresh.ts";
+import { hookTeamReader } from "./teams.ts";
 
 const MANAGED_TRIGGER = "permdock_protect_managed";
 
@@ -179,7 +180,7 @@ export function hookSql(parts: Parts): string {
     pdk_teams as (
       select coalesce(jsonb_agg(to_jsonb(u.id::text) order by u.n), '[]'::jsonb) as team_ids
       from unnest(array(
-        select team_id from ${schemaName}.member_team_ids_for(uid, active) as team(team_id)
+        select team_id from ${quoteIdent(parts.helpers.schema)}.${quoteIdent(hookTeamReader(parts))}(uid, active) as team(team_id)
       )) with ordinality as u(id, n)
     )`;
   // user_role repeats the roles (the one role, or the list), and the tenant claim is written whenever a membership is in the active tenant: both count.
@@ -187,17 +188,8 @@ export function hookSql(parts: Parts): string {
     "octet_length(case jsonb_array_length(pdk_roles.held) when 0 then '' when 1 then (pdk_roles.held -> 0)::text else pdk_roles.held::text end)";
   const fixed = `used + octet_length(pdk_roles.held::text) + ${userRoleBytes} + coalesce(octet_length(to_jsonb(active)::text), 0)${parts.customRoles === undefined ? "" : " + 20"}${parts.version ? " + octet_length(pdk_version.ver::text)" : ""}`;
   const fixedFrom = `pdk_roles${parts.version ? ", pdk_version" : ""}`;
-  const readQuery = `  -- one statement reads the roles, the memberships${teamsConfig === undefined ? "" : ", the teams"}${parts.version ? " and the authorization version" : ""}; the budget counts every slice
-  with pdk_roles as (
-      ${rolesCte}
-    )${versionCte}${teamsCte},
-    pdk_entries as (
-      select e.ord, e.entry, ${entryTenantSql(parts, "e")} as root_id
-      from ${schemaName}.${MEMBERSHIPS_FOR}(uid) e
-    ),
-    pdk_fixed as (
-      select ${fixed} as bytes from ${fixedFrom}
-    ),
+  const ranked = parts.membershipsClaim
+    ? `,
     pdk_ranked as (
       select x.entry, x.root_id is not distinct from active as current,
         row_number() over w as n,
@@ -210,12 +202,29 @@ export function hookSql(parts: Parts): string {
     ),
     pdk_kept as (
       select r.* from pdk_ranked r, pdk_fixed f where f.bytes + 2 + r.bytes + 2 * (r.n - 1) <= budget
-    )
+    )`
+    : "";
+  const keptSelect = parts.membershipsClaim
+    ? `coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
+    truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
+    active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),`
+    : `'[]'::jsonb,
+    truncated or exists (select 1 from pdk_entries),
+    active is not null and coalesce((select bool_or(x.root_id is not distinct from active) from pdk_entries x), false),`;
+  const readQuery = `  -- one statement reads the roles, the memberships${teamsConfig === undefined ? "" : ", the teams"}${parts.version ? " and the authorization version" : ""}; the budget counts every slice${parts.membershipsClaim ? "" : "\n  -- supabase.hook.membershipsClaim is false: the claim keeps no entry, and memberships_truncated sends a reader to the database"}
+  with pdk_roles as (
+      ${rolesCte}
+    )${versionCte}${teamsCte},
+    pdk_entries as (
+      select e.ord, e.entry, ${entryTenantSql(parts, "e")} as root_id
+      from ${schemaName}.${MEMBERSHIPS_FOR}(uid) e
+    ),
+    pdk_fixed as (
+      select ${fixed} as bytes from ${fixedFrom}
+    )${ranked}
   select
     (select pdk_roles.held from pdk_roles),
-    coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
-    truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
-    active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),
+    ${keptSelect}
     (select bytes from pdk_fixed)${teamsConfig === undefined ? "" : ",\n    (select pdk_teams.team_ids from pdk_teams)"}${parts.version ? ",\n    (select pdk_version.ver from pdk_version)" : ""}
   into held, kept, truncated, in_active, used${teamsConfig === undefined ? "" : ", team_ids"}${parts.version ? ", ver" : ""};`;
   const applyHeld = `  claims := jsonb_set(claims, '{roles}', held);
@@ -391,14 +400,21 @@ function beforeGrantsSql(
 }
 
 /**
- * Execute on each `member_<scope>_ids_for(uuid)` for the `hook.claims`
- * functions, which run as `supabase_auth_admin` and may call them. Only with
- * `hook.claims`: the grant needs the helpers migration applied first, and a
- * hook without extra claims does not.
+ * Execute on each `member_<scope>_ids_for` for the `hook.claims` functions,
+ * which run as `supabase_auth_admin` and may call them, and on a team scope's
+ * one when `hook.teams` reads it for `team_ids`. Only then: the grant needs the
+ * helpers migration applied first, and a hook that calls none does not. The
+ * helpers file grants the same on a database that has the role.
  */
 function memberForGrantsSql(parts: Parts): string {
   const { schema, memberFor } = parts.helpers;
-  if (memberFor.length === 0 || parts.extra.length === 0) {
+  const granted =
+    parts.extra.length > 0
+      ? memberFor
+      : memberFor.filter(
+          (scope) => parts.hook.teams !== undefined && isTeamScope(scope),
+        );
+  if (granted.length === 0) {
     return "";
   }
   return [
@@ -407,37 +423,20 @@ function memberForGrantsSql(parts: Parts): string {
       : [
           `\ngrant usage on schema ${quoteIdent(schema)} to supabase_auth_admin;`,
         ]),
-    ...memberFor.map(
+    ...granted.map(
       (scope) =>
-        `\ngrant execute on function ${quoteIdent(schema)}.${memberForHelper(scope)}(uuid) to supabase_auth_admin;`,
+        `\ngrant execute on function ${quoteIdent(schema)}.${memberForHelper(scope)}(${isTeamScope(scope) ? "uuid, text" : "uuid"}) to supabase_auth_admin;`,
     ),
   ].join("");
 }
 
+/**
+ * The tables the invoker hook reads in its own body: the `attrs` table and the
+ * suspended-user table. Memberships and global roles come through the `security
+ * definer` readers, so their tables get no grant.
+ */
 function readsSql(parts: Parts): string {
   const reads = new Map<string, string>();
-  for (const source of parts.sources) {
-    reads.set(source.sql.table, "memberships");
-  }
-  for (const source of parts.sources) {
-    for (const name of source.sql.reads) {
-      reads.set(name, reads.get(name) ?? "status");
-    }
-    for (const through of source.sql.throughs) {
-      reads.set(through.table, reads.get(through.table) ?? "role_keys");
-    }
-    const users = source.sql.userThrough;
-    if (users !== undefined) {
-      reads.set(users.table, reads.get(users.table) ?? "member_users");
-    }
-  }
-  if (parts.roles !== undefined) {
-    const { table: rolesTable, through } = parts.roles;
-    reads.set(rolesTable, reads.get(rolesTable) ?? "roles");
-    if (through !== undefined) {
-      reads.set(through.table, reads.get(through.table) ?? "role_keys");
-    }
-  }
   if (parts.attrs?.table !== undefined && parts.attrs.columns.length > 0) {
     reads.set(parts.attrs.table, reads.get(parts.attrs.table) ?? "attrs");
   }
@@ -550,8 +549,11 @@ export function hookParts(
     hook.memberships,
     config.rls?.memberships,
     scopes,
+    suspension,
   );
   checkSources({ sources, scopes });
+  const tenants = suspension?.scopes?.[root];
+  const claimed = membershipsClaim(hook, resolveAuthorize(config));
   const parts: Parts = {
     schema,
     scopes,
@@ -561,13 +563,16 @@ export function hookParts(
       overrides.budget ?? hook.budget ?? supabaseMembershipsBudget,
       "budget",
     ),
+    membershipsClaim: claimed,
     version: hook.version !== false,
-    refreshReuse: refreshReuse(
-      hook,
-      sources,
-      hook.version !== false,
-      suspension?.users?.table,
-    ),
+    refreshReuse:
+      refreshReuse(
+        hook,
+        sources,
+        hook.version !== false,
+        suspension?.users?.table,
+        tenants?.table,
+      ) && claimed,
     oauth: oauthMode(hook),
     broadcast:
       hook.version === false || hook.broadcast === false
@@ -585,6 +590,8 @@ export function hookParts(
           }
         : undefined,
     users: suspension?.users,
+    tenants,
+    tenantType: sqlType(firstScopeType(config.rls?.scopeTypes, scopes)),
     hook,
     roles:
       hook.roles === false

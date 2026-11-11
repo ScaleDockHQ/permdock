@@ -16,11 +16,13 @@ import type {
 import type { Parts } from "./parts.ts";
 
 import { hasConditionOp } from "../../conditions/ast.ts";
+import { isRecord } from "../../core/compact.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
 import { SUPABASE_MANIFEST_SCHEMA } from "../core/version.ts";
 import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
 import { MANAGES } from "../rls/approval-managers.ts";
+import { APPROVER_FOR_IDS, MANAGED_USER_IDS } from "../rls/approval-sets.ts";
 import { IS_APPROVER } from "../rls/approvals.ts";
 import { guardedTables } from "../rls/assignments.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "../rls/ownership-names.ts";
@@ -35,6 +37,7 @@ import { firstScopeType, scopeTypeOf, tenantTypeOf } from "../sql/columns.ts";
 import { decidingColumns } from "../sql/deciding-columns.ts";
 import { HOOK_MARKER } from "../sql/markers.ts";
 import {
+  BOOTSTRAP_PERMISSIONS,
   isTeamScope,
   memberForHelper,
   memberIdsHelper,
@@ -48,7 +51,7 @@ import { USER_ID_HELPER } from "../sql/subject.ts";
 import { PERMDOCK_SUBJECT } from "./api.ts";
 import { hookClaims } from "./claims.ts";
 import { BUDGET_MEASURE } from "./sql.ts";
-import { hookTeamsHelper } from "./teams.ts";
+import { HOOK_TEAM_READER, hookTeamsHelper } from "./teams.ts";
 import { AUTHZ_VERSION_BUMP } from "./version.ts";
 
 function helperList(
@@ -73,9 +76,11 @@ function helperList(
           ? [
               helperEntry(
                 memberForHelper(scope.name),
-                "p_user uuid",
+                isTeamScope(scope.name)
+                  ? "p_user uuid, p_active text"
+                  : "p_user uuid",
                 returns,
-                parts.extra.length === 0 ? [] : ["supabase_auth_admin"],
+                ["supabase_auth_admin"],
               ),
             ]
           : []),
@@ -96,7 +101,7 @@ function helperList(
       ? []
       : [
           helperEntry(
-            "member_team_ids_for",
+            HOOK_TEAM_READER,
             "p_user uuid, p_active text",
             "setof uuid",
             parts.hook.security === "definer" ? [] : ["supabase_auth_admin"],
@@ -170,6 +175,8 @@ function trustedHelpers(
   const keyed = [
     helperEntry(USER_ID_HELPER, "", "uuid", client),
     helperEntry(PERMDOCK_SUBJECT, "", "jsonb", client),
+    helperEntry(PERMDOCK_SUBJECT, "p_tenant text", "jsonb", client),
+    helperEntry(BOOTSTRAP_PERMISSIONS, "p_tenant text", "jsonb", client),
     ...(config.rls?.apiKeys === undefined
       ? []
       : [helperEntry(API_KEY_ALLOWS, "p_grant text", "boolean", client)]),
@@ -192,6 +199,7 @@ function trustedHelpers(
             "boolean",
             client,
           ),
+          helperEntry(APPROVER_FOR_IDS, "", "setof uuid", client),
         ]
       : []),
     ...(typeof config.rls?.approvals === "object" &&
@@ -202,6 +210,14 @@ function trustedHelpers(
             "p_requester text, p_levels integer",
             "boolean",
             [],
+          ),
+          helperEntry(
+            MANAGED_USER_IDS,
+            config.rls.approvals.managers.tenant === undefined
+              ? ""
+              : `p_tenant ${tenantType}`,
+            "setof uuid",
+            client,
           ),
         ]
       : []),
@@ -381,6 +397,42 @@ function requiredCapabilities(
   return { matrix: CAPABILITY_MATRIX, capabilities: [...ids].toSorted() };
 }
 
+/**
+ * The declared roles the `defineSeeds` fixtures give a member, or without
+ * fixture memberships every role at the root scope and every global role,
+ * sorted.
+ */
+function fixtureRolesOf(
+  policy: Policy,
+  config: PermDockConfig,
+  root: string,
+): readonly string[] {
+  const declared = new Set(policy.roles.map((binding) => binding.name));
+  // `config.seeds` is only checked to be an object when the config loads.
+  const fixtures: unknown =
+    config.seeds === undefined
+      ? undefined
+      : Reflect.get(config.seeds, "fixtures");
+  const entries: unknown = isRecord(fixtures)
+    ? fixtures["memberships"]
+    : undefined;
+  const seeded = (Array.isArray(entries) ? entries : []).flatMap(
+    (entry: unknown): string[] => {
+      const held: unknown = isRecord(entry) ? entry["roles"] : undefined;
+      return Array.isArray(held)
+        ? held.filter((role): role is string => typeof role === "string")
+        : [];
+    },
+  );
+  const roles =
+    seeded.length > 0
+      ? seeded.filter((role) => declared.has(role))
+      : policy.roles
+          .filter((binding) => binding.on === undefined || binding.on === root)
+          .map((binding) => binding.name);
+  return [...new Set(roles)].toSorted();
+}
+
 export function manifestOf(
   parts: Parts,
   out: string,
@@ -465,6 +517,7 @@ export function manifestOf(
             schema: parts.helpers.schema,
             tenantClaim: parts.tenantClaim,
           }),
+          fixtureRoles: fixtureRolesOf(policy, config, parts.root),
         }),
   };
 }

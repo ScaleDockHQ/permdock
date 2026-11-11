@@ -4,7 +4,6 @@ import type { PermDockConfig } from "../types.ts";
 import type { RlsGenerateInput } from "./generate-options.ts";
 
 import { policyFromCatalog } from "../../catalog/policy-from-catalog.ts";
-import { POLICY_NOT_PUBLISHED } from "../cloud/problem-types.ts";
 import { fetchProjectPolicy } from "../cloud/pull.ts";
 import { describeError } from "../core/errors.ts";
 import { requirePolicy } from "../project/load.ts";
@@ -56,7 +55,7 @@ function loadPolicy(
 
 /**
  * The policy `policyFromCatalog` rebuilds from the project's pushed catalog and
- * policy; a project with no pushed policy fails with `policy-not-published`.
+ * policy; a project with no pushed policy fails.
  */
 async function projectPolicyOf(
   input: RlsGenerateInput,
@@ -76,24 +75,7 @@ async function projectPolicyOf(
   const { catalog, policy } = fetched.value;
   if (policy === undefined) {
     const detail = `project ${project} has a pushed catalog but no policy; push from a project whose permdock.config.ts names one`;
-    return {
-      code: 1,
-      output:
-        input.json === true
-          ? JSON.stringify(
-              {
-                type: POLICY_NOT_PUBLISHED,
-                title: "Policy not published",
-                detail,
-                command: PROJECT_COMMAND,
-                exitCode: 1,
-              },
-              null,
-              2,
-            )
-          : `${PROJECT_COMMAND}: ${detail}`,
-      text: "",
-    };
+    return { code: 1, output: `${PROJECT_COMMAND}: ${detail}`, text: "" };
   }
   try {
     return policyFromCatalog(catalog, policy);

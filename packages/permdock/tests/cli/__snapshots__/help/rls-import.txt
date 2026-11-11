@@ -10,7 +10,7 @@ Flags
   --memberships <table>              Membership table as <table>:tenant,user,role
 
 Global flags
-  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --effects-digest --agent --debug --color --help; see permdock --help
 
 Examples
   permdock rls import --sql schema.sql --out src/permissions.generated.ts

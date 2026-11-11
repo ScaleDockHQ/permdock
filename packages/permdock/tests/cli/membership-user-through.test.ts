@@ -80,7 +80,7 @@ const config: PermDockConfig = {
 };
 
 describe("membership sources with a user through a profile table", () => {
-  it("reads the user from the profile table and lets supabase_auth_admin read it", () => {
+  it("reads the user from the profile table inside the definer reader, with no grant on it", () => {
     const { sql, manifest } = supabaseHookSql(scopes, config);
     expect(sql).toContain(
       'v_user_1 "public"."contact_profiles"."user_id"%type := p_user;',
@@ -88,12 +88,10 @@ describe("membership sources with a user through a profile table", () => {
     expect(sql).toMatch(
       /from "public"\."customer_contacts" m\n\s+join "public"\."contact_profiles" mu on mu\."id" = m\."contact_profile_id"\n\s+where mu\."user_id" = v_user_1/u,
     );
-    expect(sql).toContain(
+    expect(sql).not.toContain(
       'grant select on table "public"."contact_profiles" to supabase_auth_admin;',
     );
-    expect(sql).toContain(
-      'create policy "permdock_auth_admin_read_member_users" on "public"."contact_profiles"',
-    );
+    expect(sql).not.toContain("permdock_auth_admin_read_member_users");
     expect(manifest.memberships[1]?.user).toStrictEqual({
       column: "contact_profile_id",
       through: {

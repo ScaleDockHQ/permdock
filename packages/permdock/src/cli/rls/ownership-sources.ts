@@ -127,16 +127,16 @@ ${rows}
       lines.push(`    if v_total > 0 and v_count < ${String(rule.min)} then
       raise exception using
         errcode = '23514',
-        message = ${quoteLiteral(`permdock: ${scope} `)} || v_id || ${quoteLiteral(` keeps at least ${String(rule.min)} ${rule.role}`)},
-        hint = 'last-holder';
+        hint = 'last-holder',
+        message = ${quoteLiteral(`permdock: ${scope} `)} || v_id || ${quoteLiteral(` keeps at least ${String(rule.min)} ${rule.role}`)};
     end if;`);
     }
     if (rule.max !== undefined) {
       lines.push(`    if v_count > ${String(rule.max)} then
       raise exception using
         errcode = '23514',
-        message = ${quoteLiteral(`permdock: ${scope} `)} || v_id || ${quoteLiteral(` has at most ${String(rule.max)} ${rule.role}`)},
-        hint = 'max-holders';
+        hint = 'max-holders',
+        message = ${quoteLiteral(`permdock: ${scope} `)} || v_id || ${quoteLiteral(` has at most ${String(rule.max)} ${rule.role}`)};
     end if;`);
     }
     return lines.join("\n");
@@ -256,8 +256,8 @@ ${sourceRowsOf(scope, sources)}
     if v_after > 0 and v_after - v_change.delta > 0 then
       raise exception using
         errcode = '23514',
-        message = 'permdock: ' || v_change.role || ${quoteLiteral(` in ${scope} `)} || v_change.id || ' moves only by transfer',
-        hint = 'transfer-only';
+        hint = 'transfer-only',
+        message = 'permdock: ' || v_change.role || ${quoteLiteral(` in ${scope} `)} || v_change.id || ' moves only by transfer';
     end if;
   end loop;
   return null;

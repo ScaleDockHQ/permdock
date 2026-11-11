@@ -23,10 +23,7 @@ export type { ProviderApprovers } from "./approvers.ts";
 export { authorizationHooks } from "./hooks.ts";
 export type { AuthorizationHooksOptions } from "./hooks.ts";
 export { authorizationProvider } from "./provider.ts";
-export type {
-  AuthorizationProviderOptions,
-  PermDockAuthorizationProvider,
-} from "./provider.ts";
+export type { AuthorizationProviderOptions } from "./provider.ts";
 export { authorizer } from "./authorizer.ts";
 export { blockMembershipSource } from "./block-memberships.ts";
 export type {
@@ -70,6 +67,7 @@ export type {
   BetterSupabasePermDock,
   BetterSupabaseQuery,
   BetterSupabaseServerInput,
+  BetterSupabaseSnapshotQuery,
 } from "./define-permdock.ts";
 export { getPermissions, permdockFor } from "./permdock-for.ts";
 export type {

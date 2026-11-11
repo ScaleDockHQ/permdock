@@ -21,7 +21,7 @@ permdock policy bundle --out supabase/permdock-policy-bundle.json --check
 | `--out <file>`      | File to write; without it the document goes to stdout, and `-` means stdout                                                                  |
 | `--check`           | Exit `1` when `--out` differs from what the policy compiles to; write nothing                                                                |
 | `--dry-run`         | Print what would be written; write nothing                                                                                                   |
-| `--json`            | Print `format`, `v`, `kind`, `hash`, `rows` and, with `--out`, `out` as the [`cli-result-v1`](/docs/concepts/wire-formats#cli-result) `data` |
+| `--json`            | Print `format`, `v`, `kind`, `hash`, `rows` and, with `--out`, `out` as the [`cli-result-v2`](/docs/concepts/wire-formats#cli-result) `data` |
 
 The compile reads `rls` from `permdock.config.ts`, so the rows are the ones the generated SQL would carry for that dialect, memberships and custom roles.
 

@@ -5,7 +5,7 @@ import type { LoadedConfig } from "../project/config.ts";
 import type { CliIo, RunResult } from "../types.ts";
 import type { Leaf } from "./command.ts";
 import type { CliContext, OutputFormat } from "./context.ts";
-import type { CliProblem, ExitCode } from "./errors.ts";
+import type { CliFailure, ExitCode } from "./errors.ts";
 import type { GroupEntry, LeafEntry } from "./manifest.ts";
 import type { CommandResult, NextStep } from "./result.ts";
 
@@ -15,9 +15,9 @@ import { beforeFirst } from "../shared/text.ts";
 import { agentMode } from "./agent.ts";
 import { parseFlags, parseLeaf, suggestion } from "./args.ts";
 import {
+  confirmationRequired,
+  consentDigest,
   consentReasons,
-  consentRequired,
-  consentToken,
   quote,
   replayArgv,
 } from "./consent.ts";
@@ -25,10 +25,10 @@ import { GLOBAL_FLAGS } from "./context.ts";
 import { redact } from "./credentials.ts";
 import {
   CliError,
-  cliProblem,
+  cliFailure,
   describeError,
+  failureOf,
   kindOfCode,
-  problemOf,
 } from "./errors.ts";
 import {
   commandsJson,
@@ -39,7 +39,13 @@ import {
 } from "./help.ts";
 import { progressReporter } from "./io.ts";
 import { resolve } from "./manifest.ts";
-import { dataOf, envelope, githubAnnotations, sarifLog } from "./output.ts";
+import {
+  dataOf,
+  errorDocument,
+  githubAnnotations,
+  resultDocument,
+  sarifLog,
+} from "./output.ts";
 import { runPluginCommand } from "./plugin-commands.ts";
 import { createStyle } from "./style.ts";
 import { cliVersion } from "./version.ts";
@@ -53,7 +59,7 @@ type Globals = {
   readonly format?: string;
   readonly yes: boolean;
   readonly agent?: string;
-  readonly confirm?: string;
+  readonly effectsDigest?: string;
   readonly debug: boolean;
   readonly color: boolean;
   readonly help: boolean;
@@ -120,7 +126,7 @@ function extractGlobals(argv: readonly string[]): {
   const json = flag("json");
   const format = text("format");
   const agent = text("agent");
-  const confirm = text("confirm");
+  const effectsDigest = text("effects-digest");
   return {
     globals: {
       ...(cwd === undefined ? {} : { cwd }),
@@ -128,7 +134,7 @@ function extractGlobals(argv: readonly string[]): {
       ...(json === undefined ? {} : { json }),
       ...(format === undefined ? {} : { format }),
       ...(agent === undefined ? {} : { agent }),
-      ...(confirm === undefined ? {} : { confirm }),
+      ...(effectsDigest === undefined ? {} : { effectsDigest }),
       yes: flag("yes") === true,
       debug: flag("debug") === true,
       color: flag("color") !== false,
@@ -152,8 +158,8 @@ function lined(text: string): string {
 
 /**
  * The step that answers an `input_required` error without its own `next`: the
- * same command line with each missing flag or positional filled by a
- * placeholder the caller replaces.
+ * same command line with `--yes` and each missing flag or positional filled by
+ * its first choice, or a placeholder the caller replaces.
  */
 function missingInputNext(
   argv: readonly string[],
@@ -167,15 +173,45 @@ function missingInputNext(
   ) {
     return undefined;
   }
-  const filled = missing.flatMap((item) =>
-    item.startsWith("--") ? [item, `<${item.slice(2)}>`] : [item],
-  );
+  const choices = choicesOf(error.extensions["choices"]);
+  const filled = missing.flatMap((item) => {
+    const value = choices[item]?.[0];
+    if (item.startsWith("--")) {
+      return [item, value ?? `<${item.slice(2)}>`];
+    }
+    return [value ?? item];
+  });
+  const yes = argv.includes("--yes") || argv.includes("-y") ? [] : ["--yes"];
+  const [only] = missing;
   return [
     {
-      when: "with the values the user gives",
-      command: ["permdock", ...argv.map(quote), ...filled].join(" "),
+      when:
+        missing.length === 1 &&
+        only !== undefined &&
+        (choices[only]?.length ?? 0) > 1
+          ? `with the value the user picks from choices["${only}"]`
+          : "with the values the user gives",
+      command: ["permdock", ...argv.map(quote), ...filled, ...yes].join(" "),
     },
   ];
+}
+
+function choicesOf(
+  value: unknown,
+): Readonly<Record<string, readonly string[]>> {
+  if (typeof value !== "object" || value === null) {
+    return {};
+  }
+  const out: Record<string, readonly string[]> = {};
+  for (const [key, list] of Object.entries(value)) {
+    if (
+      Array.isArray(list) &&
+      list.every((item): item is string => typeof item === "string")
+    ) {
+      out[key] = list;
+    }
+  }
+  return out;
 }
 
 export async function run(
@@ -262,7 +298,7 @@ export async function run(
     globals.json !== false &&
     !(resolved.kind === "leaf" && resolved.entry.shellOutput === true);
 
-  const formatOf = (): OutputFormat | CliProblem => {
+  const formatOf = (): OutputFormat | CliFailure => {
     const given = globals.format;
     if (given === undefined) {
       return globals.json === true || agentJson ? "json" : "text";
@@ -274,20 +310,18 @@ export async function run(
       given === "sarif"
     ) {
       if (globals.json === true && given !== "json") {
-        return cliProblem(
+        return cliFailure(
           "usage",
           `--json and --format ${given} ask for different output; pick one`,
-          command === "" ? undefined : command,
-          { code: "invalid_value" },
+          { code: "invalid_value", extensions: { flag: "--format" } },
         );
       }
       return given;
     }
-    return cliProblem(
+    return cliFailure(
       "usage",
       `--format '${given}' is not one of text, json, github, sarif.${suggestion(given, ["text", "json", "github", "sarif"])}`,
-      command === "" ? undefined : command,
-      { code: "invalid_value" },
+      { code: "invalid_value", extensions: { flag: "--format" } },
     );
   };
   const formatOrProblem = formatOf();
@@ -300,29 +334,19 @@ export async function run(
   const json = format === "json";
   const helpJson = globals.json === true || globals.format === "json";
 
-  const emitProblem = (
-    problem: CliProblem,
+  const emitFailure = (
+    failure: CliFailure,
     next?: readonly NextStep[],
   ): RunResult => {
     if (json) {
-      writeOut(
-        JSON.stringify(
-          envelope({
-            status: problem.exitCode === 3 ? "action_required" : "error",
-            error: problem,
-            ...(next === undefined ? {} : { next }),
-          }),
-          null,
-          2,
-        ),
-      );
+      writeErr(JSON.stringify(errorDocument(failure, next)));
     } else {
-      writeErr(problem.detail);
+      writeErr(failure.message);
       for (const step of next ?? []) {
         writeErr(`  ${step.when}: ${step.command}`);
       }
     }
-    return done(problem.exitCode);
+    return done(failure.exitCode);
   };
   const fail = (error: unknown): RunResult => {
     if (globals.debug && error instanceof Error) {
@@ -331,8 +355,8 @@ export async function run(
         writeErr(errStyle.paint("dim", `cause: ${describeError(error.cause)}`));
       }
     }
-    return emitProblem(
-      problemOf(error, command === "" ? undefined : command),
+    return emitFailure(
+      failureOf(error),
       error instanceof CliError
         ? (error.next ?? (json ? missingInputNext(argv, error) : undefined))
         : undefined,
@@ -340,7 +364,7 @@ export async function run(
   };
 
   if (typeof formatOrProblem !== "string") {
-    return emitProblem(formatOrProblem);
+    return emitFailure(formatOrProblem);
   }
   if (agentProblem !== undefined) {
     return fail(agentProblem);
@@ -431,11 +455,10 @@ export async function run(
     const help =
       path.length === 0 ? rootHelp(false) : groupHelp(path, group, false);
     if (json) {
-      return emitProblem(
-        cliProblem(
+      return emitFailure(
+        cliFailure(
           "usage",
           `permdock${name === "" ? "" : ` ${name}`} needs a command`,
-          name === "" ? undefined : name,
           {
             code: "usage",
             extensions: {
@@ -488,6 +511,21 @@ export async function run(
         }),
       );
     }
+    if (removedConfirm(tokens)) {
+      return fail(
+        new CliError(
+          "usage",
+          "--confirm was removed. Use --yes --effects-digest <digest> instead.",
+          {
+            code: "flag_renamed",
+            extensions: {
+              flag: "--confirm",
+              suggestion: "--yes --effects-digest <digest>",
+            },
+          },
+        ),
+      );
+    }
     let leaf: Leaf;
     let input: ReturnType<typeof parseLeaf>;
     try {
@@ -508,9 +546,18 @@ export async function run(
           ...(globals.cwd === undefined ? [] : ["--cwd", globals.cwd]),
           ...(globals.config === undefined ? [] : ["--config", globals.config]),
         ];
-        const token = consentToken(reasons, replay, cwd);
-        if (globals.confirm !== token) {
-          return fail(consentRequired(name, reasons, replay, token));
+        const digest = consentDigest(reasons, replay, cwd);
+        if (!globals.yes || globals.effectsDigest !== digest) {
+          return fail(
+            confirmationRequired(
+              name,
+              reasons,
+              replay,
+              digest,
+              globals.effectsDigest !== undefined &&
+                globals.effectsDigest !== digest,
+            ),
+          );
         }
       }
     }
@@ -518,6 +565,7 @@ export async function run(
       `${name}: agent mode ${agent ? "on" : "off"}, ${format} output, cwd ${cwd}`,
     );
     let loaded = NO_CONFIG;
+    const warnings: string[] = [];
     if (entry.config || globals.config !== undefined) {
       try {
         loaded = await readConfig(cwd, globals.config);
@@ -530,6 +578,7 @@ export async function run(
           : `config file: ${loaded.file}`,
       );
       if (name !== "config") {
+        warnings.push(...loaded.warnings);
         for (const warning of loaded.warnings) {
           writeErr(errStyle.paint("yellow", `permdock: warning: ${warning}`));
         }
@@ -586,10 +635,14 @@ export async function run(
       return fail(error);
     }
     trace(`${name}: exit ${String(result.code)}`);
-    return render(name, result);
+    return render(name, result, warnings);
   }
 
-  function render(name: string, result: CommandResult): RunResult {
+  function render(
+    name: string,
+    result: CommandResult,
+    warnings: readonly string[],
+  ): RunResult {
     if (result.streamed === true) {
       return done(result.code);
     }
@@ -608,9 +661,10 @@ export async function run(
       if (result.code === 0) {
         writeOut(
           JSON.stringify(
-            envelope({
+            resultDocument({
               status: "success",
               ...(data === undefined ? {} : { data }),
+              warnings,
               ...(result.next === undefined ? {} : { next: result.next }),
             }),
             null,
@@ -619,27 +673,42 @@ export async function run(
         );
         return done(0);
       }
-      const kind = kindOfCode(result.code);
       const report =
         result.data !== undefined || isReport(data) ? data : undefined;
-      const problem = cliProblem(
-        kind,
-        problemDetail(result.output, parsed),
-        name,
-        { exitCode: result.code },
-      );
-      writeOut(
-        JSON.stringify(
-          envelope({
-            status: problem.exitCode === 3 ? "action_required" : "error",
-            ...(report === undefined ? {} : { data: report }),
-            error: problem,
-          }),
-          null,
-          2,
+      if (
+        result.code === 1 &&
+        report !== undefined &&
+        (result.reason === undefined || result.reason === "check_failed")
+      ) {
+        if (result.data !== undefined && !isReport(parsed)) {
+          writeErr(plain(result.output));
+        }
+        writeOut(
+          JSON.stringify(
+            resultDocument({
+              status: "error",
+              data: report,
+              warnings,
+              ...(result.next === undefined ? {} : { next: result.next }),
+            }),
+            null,
+            2,
+          ),
+        );
+        return done(1);
+      }
+      return emitFailure(
+        cliFailure(
+          kindOfCode(result.code),
+          problemDetail(result.output, parsed),
+          {
+            ...(result.reason === undefined ? {} : { code: result.reason }),
+            extensions: detailsOf(report),
+            exitCode: result.code,
+          },
         ),
+        result.next,
       );
-      return done(result.code);
     }
     const text = plain(result.output);
     if (text !== "") {
@@ -653,7 +722,6 @@ export async function run(
   }
 }
 
-/** A JSON report object, as opposed to text wrapped as `{ message }`. */
 /** The one replacement for a generate command 0.26 removed. */
 function replacedGenerate(command: string): string | undefined {
   switch (command) {
@@ -676,6 +744,25 @@ function replacedGenerate(command: string): string | undefined {
   }
 }
 
+/** `--confirm` before `--`: removed in favour of `--yes --effects-digest`. */
+function removedConfirm(tokens: readonly string[]): boolean {
+  const end = tokens.indexOf("--");
+  return (end === -1 ? tokens : tokens.slice(0, end)).some(
+    (token) => token === "--confirm" || token.startsWith("--confirm="),
+  );
+}
+
+/** A report as the error document's `data`: an object as is, else `{ result }`. */
+function detailsOf(report: unknown): Readonly<Record<string, unknown>> {
+  if (report === undefined) {
+    return {};
+  }
+  return typeof report === "object" && report !== null && !Array.isArray(report)
+    ? Object.fromEntries(Object.entries(report))
+    : { result: report };
+}
+
+/** A JSON report object, as opposed to text wrapped as `{ message }`. */
 function isReport(data: unknown): boolean {
   return (
     typeof data === "object" &&

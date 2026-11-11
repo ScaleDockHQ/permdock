@@ -1,12 +1,10 @@
 -- better-supabase module: permissions
 -- @bsb-block permissions@1 managed
--- @bsb-hash sha256:02dd88b348cbba649990eefcf80ad1734304a43cbddd2397d9eecc136641a86e
+-- @bsb-hash sha256:ad7d0aeb9e86da3f70b228aae1763369a1fb2a4cc743598d128bd0a1b6df5818
 -- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.permissions.model).
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
-create schema if not exists better_supabase;
-grant usage on schema better_supabase to anon, authenticated, service_role;
 grant usage on schema better_supabase to supabase_auth_admin;
 
 -- Disabled tenants and users get no permissions and no membership claims
@@ -124,8 +122,6 @@ as $$
     when 'audit.read' then 'audit.read'
     when 'audit.readAll' then 'audit.read'
     when 'audit.revert' then 'audit.revert'
-    when 'audit.view' then 'audit.read'
-    when 'audit.viewAll' then 'audit.read'
     when 'permissions.listRoles' then 'members.read'
     when 'permissions.setOverride' then 'roles.manage'
     when 'share-links.create' then 'quotes.update'
@@ -339,8 +335,6 @@ as $$
     ), '{}'::text[])
   end
 $$;
-drop function if exists "better_supabase"."list_roles"(uuid);
-drop function if exists "better_supabase"."set_permission_override"(uuid, text, text, boolean);
 
 revoke execute on function better_supabase.permission_matches(text, text) from public;
 grant execute on function better_supabase.permission_matches(text, text) to anon, authenticated, service_role;
@@ -388,16 +382,3 @@ grant execute on function better_supabase.permission_claims(uuid, uuid) to servi
 --       keys := '{}'::jsonb;
 --     end if;
 --     return jsonb_set(event, '{claims,permissions}', keys);
-
-create schema if not exists better_supabase;
-create table if not exists better_supabase.blocks (
-  name text primary key,
-  block text,
-  version integer not null,
-  mode text not null,
-  installed_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-alter table better_supabase.blocks enable row level security;
-revoke all on better_supabase.blocks from public, anon, authenticated;
-grant select on better_supabase.blocks to service_role;

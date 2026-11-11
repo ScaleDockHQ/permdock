@@ -944,13 +944,16 @@ export type SupabaseHookConfig = {
    * roles, the attrs, the version and the kept memberships. On overflow
    * `team_ids` is omitted and `team_ids_truncated` is set; the claim is never a
    * prefix, and `memberships_truncated` is not set by team rows. A suspended
-   * user gets none. Clients must not write the table.
+   * user gets none, a row with `disabledAt` set counts as no team, and with
+   * `tenant` a suspended tenant's teams are left out. Clients must not write
+   * the table.
    */
   readonly teams?: {
     readonly table: string;
     readonly user: string;
     readonly team: string;
     readonly tenant?: string;
+    readonly disabledAt?: string;
   };
   readonly before?: string | readonly string[];
   /**
@@ -981,6 +984,15 @@ export type SupabaseHookConfig = {
    * `supabaseMembershipsBudget` (1024).
    */
   readonly budget?: number;
+  /**
+   * `false` writes `memberships` as `[]`, and sets `memberships_truncated` when
+   * the user holds a membership, so a reader takes the subject from the
+   * database (`permdock_subject()`, `subject_for`, a `claimsFirst` source). The
+   * tenant claim and `team_ids` are written as before, and no refresh reuses
+   * the incoming claims. `database` mode only: in `jwt` mode the RLS helpers
+   * read the claim, so `generate` refuses it. Default `true`.
+   */
+  readonly membershipsClaim?: boolean;
   /**
    * Keep `permdock_authz_version` and write the `authz_ver` claim. Default
    * `true`.

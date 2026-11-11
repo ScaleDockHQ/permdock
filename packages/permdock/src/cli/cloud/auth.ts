@@ -187,7 +187,7 @@ export async function readAuth(
         ? `${command} needs a login: run permdock login, or set PERMDOCK_CLOUD_TOKEN in CI`
         : `${command}: the login for ${issuer} has expired; run permdock login`,
       "permdock login",
-      "export PERMDOCK_CLOUD_TOKEN=<read-only key>",
+      "export PERMDOCK_CLOUD_TOKEN=<read-only-key>",
     );
   }
   return { bearer: login.access_token, source: "login" };

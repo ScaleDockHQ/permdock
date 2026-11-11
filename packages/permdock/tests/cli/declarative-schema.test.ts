@@ -130,17 +130,16 @@ export default {
         `-- what supabase db diff drops from this part is in ${GRANTS}`,
       );
       expect(hook).not.toMatch(UNDIFFED);
-      expect(hook).toContain(
+      expect(hook).not.toContain(
         'grant select on table "public"."memberships" to supabase_auth_admin;',
       );
-      expect(hook).toContain('"permdock_auth_admin_read_memberships"');
       expect(hook).toContain('"permdock_auth_admin_read_version"');
       expect(helpers).not.toMatch(UNDIFFED);
       const grants = read(cwd, GRANTS);
       expect(grants.split("\n", 1)[0]).toBe(
         "-- permdock:grants v1 schema=permdock",
       );
-      expect(grants).toContain(
+      expect(grants).not.toContain(
         'grant usage on schema "public" to supabase_auth_admin;',
       );
       expect(grants).toContain(
@@ -224,10 +223,19 @@ export default {
       expect(moved).toContain(
         'revoke all on table "permdock".permdock_ceiling from anon, authenticated, public;',
       );
+      const authAdmin = (line: string): boolean =>
+        line.endsWith(" to supabase_auth_admin;");
+      const plain = moved.filter((line) => !authAdmin(line));
       expect(grants.split("\n").slice(2)).toStrictEqual([
-        ...moved.slice(0, 5),
+        ...plain.slice(0, 5),
         'alter view "permdock".permdock_ceiling set (security_invoker = true);',
-        ...moved.slice(5),
+        ...plain.slice(5),
+        "do $permdock$ begin",
+        "  if exists (select 1 from pg_catalog.pg_roles where rolname = 'supabase_auth_admin') then",
+        ...moved.filter(authAdmin).map((line) => `    ${line}`),
+        "  end if;",
+        "end",
+        "$permdock$;",
         "",
       ]);
       expect(grants).not.toContain("custom_role_permissions");
@@ -844,7 +852,7 @@ export default {
       expect(result.stdout).toContain(`wrote hook.sql, ${GRANTS}`);
       const hook = read(cwd, "hook.sql");
       expect(hook).not.toMatch(UNDIFFED);
-      expect(hook).toContain('"permdock_auth_admin_read_memberships"');
+      expect(hook).toContain('"permdock_auth_admin_read_version"');
       await hookGenerate(["--out", "inline.sql"], { cwd });
       const statements = (text: string) =>
         text

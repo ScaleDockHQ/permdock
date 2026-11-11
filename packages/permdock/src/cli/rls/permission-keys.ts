@@ -27,7 +27,7 @@ export const PERMISSION_HELPERS = {
  * `permitted_<scope>_permission_keys(p_id)`: every permission key the subject
  * holds on one instance.
  */
-function permissionKeysHelper(scope: string): string {
+export function permissionKeysHelper(scope: string): string {
   permittedIdsHelper(scope);
   return `permitted_${scope}_permission_keys`;
 }

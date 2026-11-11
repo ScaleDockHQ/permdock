@@ -2,8 +2,16 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type { Parts } from "./parts.ts";
 
 import { activeRowSql, activeUserSql } from "../sql/active.ts";
-import { hasMemberOf, isTeamScope, memberOfHelper } from "../sql/names.ts";
+import {
+  hasMemberOf,
+  isTeamScope,
+  memberForHelper,
+  memberOfHelper,
+} from "../sql/names.ts";
 import { helperSchema, quoteIdent, quoteQualified } from "../sql/quote.ts";
+
+/** The reader `supabase.hook.teams` writes when no team scope does. */
+export const HOOK_TEAM_READER = "member_team_ids_for";
 
 /**
  * The `member_team_ids_of` helper the hook file writes from
@@ -19,10 +27,21 @@ export function hookTeamsHelper(parts: Parts): string | undefined {
 }
 
 /**
+ * The `(p_user uuid, p_active text default null)` reader the hook's `team_ids`
+ * claim and `subject_for` call, unqualified: `member_<scope>_ids_for` of a
+ * `team` or `teams` scope, else the one `supabase.hook.teams` writes.
+ */
+export function hookTeamReader(parts: Parts): string {
+  const scope = parts.helpers.memberFor.find((name) => isTeamScope(name));
+  return scope === undefined ? HOOK_TEAM_READER : memberForHelper(scope);
+}
+
+/**
  * `member_team_ids_for` and `member_team_ids_of` for the helpers file.
- * `member_team_ids_for` takes the user and never compares it with `auth.uid()`.
- * The wrapper answers the caller only. Empty when a team scope already writes
- * the same names.
+ * `member_team_ids_for` takes the user and never compares it with `auth.uid()`;
+ * it skips disabled rows, a suspended user and a suspended tenant. The wrapper
+ * answers the caller only. Empty when a team scope already writes the same
+ * names.
  */
 export function hookTeamReadersSql(ctx: RlsSqlContext): string {
   const teams = ctx.hookTeams;
@@ -34,12 +53,15 @@ export function hookTeamReadersSql(ctx: RlsSqlContext): string {
   }
   const definer = ctx.hookSecurity === "definer";
   const schema = quoteIdent(helperSchema(ctx));
-  const reader = `${schema}.${quoteIdent("member_team_ids_for")}`;
-  const wrapper = `${schema}.${quoteIdent("member_team_ids_of")}`;
+  const reader = `${schema}.${quoteIdent(HOOK_TEAM_READER)}`;
+  const wrapper = `${schema}.${quoteIdent(memberOfHelper("team"))}`;
   const root = ctx.scopes[0]?.name;
   const tenantRow =
     root === undefined ? undefined : ctx.suspension?.scopes?.[root];
   const filters = [
+    ...(teams.disabledAt === undefined
+      ? []
+      : [`    and t.${quoteIdent(teams.disabledAt)} is null`]),
     ...activeUserSql(ctx, "p_user").map((part) => `    and ${part}`),
     ...(tenantRow === undefined || teams.tenant === undefined
       ? []

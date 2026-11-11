@@ -16,6 +16,7 @@ create or replace function "permdock".global_roles_for(p_user uuid)
 returns jsonb
 language plpgsql
 stable
+security definer
 set search_path = ''
 as $$
 declare
@@ -405,6 +406,38 @@ $$;
 revoke execute on function "permdock".permdock_subject() from public, anon, authenticated;
 grant execute on function "permdock".permdock_subject() to authenticated;
 
+-- the signed-in user's subject_for record for one tenant, better-supabase's subjectForTenant; null for a null, malformed or unknown tenant and for a tenant the caller is no member of
+create or replace function "permdock".permdock_subject(p_tenant text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_tenant uuid;
+  subject jsonb;
+begin
+  if p_tenant is null then
+    return null;
+  end if;
+  begin
+    v_tenant := p_tenant::uuid;
+  exception when invalid_text_representation then
+    return null;
+  end;
+  subject := "permdock".subject_for((select "permdock".permdock_user_id()), v_tenant);
+  if subject is null
+    or (subject ->> 'active') is distinct from 'true'
+    or coalesce(jsonb_array_length(subject -> 'memberships'), 0) = 0 then
+    return null;
+  end if;
+  return subject || jsonb_build_object('tenant', v_tenant::text);
+end;
+$$;
+revoke execute on function "permdock".permdock_subject(text) from public, anon, authenticated;
+grant execute on function "permdock".permdock_subject(text) to authenticated;
+
 -- the authorization version subject_for reports for p_user, for a cheap freshness check; no client role may execute it
 create or replace function "permdock".authz_version_for(p_user uuid)
 returns bigint
@@ -460,17 +493,6 @@ grant execute on function "permdock".custom_access_token_hook(jsonb) to supabase
 revoke execute on function "permdock".custom_access_token_hook(jsonb) from authenticated, anon, public;
 grant execute on function "permdock".memberships_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".global_roles_for(uuid) to supabase_auth_admin;
-grant usage on schema "public" to supabase_auth_admin;
-grant select on table "public"."members" to supabase_auth_admin;
-create policy "permdock_auth_admin_read_memberships" on "public"."members"
-  as permissive for select
-  to supabase_auth_admin
-  using (true);
-grant select on table "permdock"."user_roles" to supabase_auth_admin;
-create policy "permdock_auth_admin_read_roles" on "permdock"."user_roles"
-  as permissive for select
-  to supabase_auth_admin
-  using (true);
 grant select on table "permdock"."permdock_authz_version" to supabase_auth_admin;
 create policy "permdock_auth_admin_read_version" on "permdock"."permdock_authz_version"
   as permissive for select

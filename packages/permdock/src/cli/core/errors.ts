@@ -3,17 +3,18 @@ import { stripVTControlCharacters } from "node:util";
 import type { NextStep } from "./result.ts";
 
 /**
- * 0 success, 1 failure, 2 usage, 3 action required, 130 interrupted (SIGINT or
- * a cancelled prompt), 143 terminated (SIGTERM).
+ * 0 success, 1 failure, 2 usage or an action only a person can take (an input,
+ * a confirmation, a login), 130 interrupted (SIGINT or a cancelled prompt), 143
+ * terminated (SIGTERM).
  */
-export type ExitCode = 0 | 1 | 2 | 3 | 130 | 143;
+export type ExitCode = 0 | 1 | 2 | 130 | 143;
 
 /**
  * `usage`: a flag, config or definition module the command cannot use (exit 2).
  * `unavailable`: a database or service the command needs did not answer (exit
- * 1). `failed`: the check the command ran found a problem, such as catalog
- * drift (exit 1). `action`: the run needs input, consent or a login it cannot
- * get without a person (exit 3). `cancelled`: the person at the terminal
+ * 1). `failed`: the command ran and failed, such as a write it could not make
+ * (exit 1). `action`: the run needs input, a confirmation or a login it cannot
+ * get without a person (exit 2). `cancelled`: the person at the terminal
  * cancelled a prompt (exit 130). `internal`: the CLI itself failed (exit 1).
  */
 export type CliErrorKind =
@@ -25,55 +26,54 @@ export type CliErrorKind =
   | "internal";
 
 /**
- * The stable, snake_case `code` member of a CLI problem. A code better-supabase
- * also uses keeps its spelling, title and exit code there; the rest are
- * PermDock's own and never reuse one of its names for another meaning.
+ * Why a run failed: the error document's `reason`. Every code is one of
+ * better-supabase's CLI contract 3 reasons, with its meaning and exit code.
  */
 export type ProblemCode =
   | "usage"
   | "unknown_command"
   | "unknown_flag"
   | "invalid_value"
+  | "flag_renamed"
   | "missing_value"
   | "config_not_found"
   | "config_invalid"
+  | "invalid_input"
   | "dependency_missing"
   | "database_unreachable"
   | "network_error"
   | "request_failed"
   | "auth_required"
-  | "dirty_worktree"
-  | "write_failed"
   | "check_failed"
-  | "catalog_invalid"
+  | "file_conflict"
   | "input_required"
-  | "consent_required"
+  | "confirmation_required"
   | "cancelled"
+  | "failed"
   | "internal";
 
-const CODES: {
-  readonly [K in ProblemCode]: readonly [title: string, exitCode: ExitCode];
-} = {
-  usage: ["Invalid arguments", 2],
-  unknown_command: ["Unknown command", 2],
-  unknown_flag: ["Unknown flag", 2],
-  invalid_value: ["Invalid value", 2],
-  missing_value: ["Missing value", 2],
-  config_not_found: ["Config file not found", 2],
-  config_invalid: ["Invalid config", 2],
-  dependency_missing: ["Missing dependency", 1],
-  database_unreachable: ["Database unreachable", 1],
-  network_error: ["No response", 1],
-  request_failed: ["Request failed", 1],
-  auth_required: ["Authentication required", 3],
-  dirty_worktree: ["Uncommitted changes", 3],
-  write_failed: ["Write failed", 1],
-  check_failed: ["Out of date", 1],
-  catalog_invalid: ["Invalid catalog", 1],
-  input_required: ["Input required", 3],
-  consent_required: ["Consent required", 3],
-  cancelled: ["Cancelled", 130],
-  internal: ["Unexpected error", 1],
+const CODES: { readonly [K in ProblemCode]: ExitCode } = {
+  usage: 2,
+  unknown_command: 2,
+  unknown_flag: 2,
+  invalid_value: 2,
+  flag_renamed: 2,
+  missing_value: 2,
+  config_not_found: 2,
+  config_invalid: 2,
+  invalid_input: 1,
+  dependency_missing: 1,
+  database_unreachable: 1,
+  network_error: 1,
+  request_failed: 1,
+  auth_required: 2,
+  check_failed: 1,
+  file_conflict: 1,
+  input_required: 2,
+  confirmation_required: 2,
+  cancelled: 130,
+  failed: 1,
+  internal: 1,
 };
 
 /** Every problem code, in the order the errors page lists them. */
@@ -86,13 +86,31 @@ export const CLI_ERRORS_URL = "https://permdock.com/docs/cli/errors";
 
 /** The exit code a problem with `code` gets. */
 export function exitCodeOfProblem(code: ProblemCode): ExitCode {
-  return CODES[code][1];
+  return CODES[code];
+}
+
+/** A person has to give an input, confirm or log in before a retry helps. */
+export function isActionRequired(code: ProblemCode): boolean {
+  return (
+    code === "auth_required" ||
+    code === "input_required" ||
+    code === "confirmation_required"
+  );
+}
+
+/** Running the same command again later can succeed. */
+export function isRetryable(code: ProblemCode): boolean {
+  return (
+    code === "database_unreachable" ||
+    code === "network_error" ||
+    code === "request_failed"
+  );
 }
 
 const DEFAULT_CODES: Readonly<Record<CliErrorKind, ProblemCode>> = {
   usage: "usage",
   unavailable: "network_error",
-  failed: "check_failed",
+  failed: "failed",
   action: "input_required",
   cancelled: "cancelled",
   internal: "internal",
@@ -100,7 +118,7 @@ const DEFAULT_CODES: Readonly<Record<CliErrorKind, ProblemCode>> = {
 
 export type CliErrorOptions = ErrorOptions & {
   readonly code?: ProblemCode;
-  /** Problem Details extension members, such as `missing` or `choices`. */
+  /** Details of the failure, the error document's `data`: `missing`, `choices`. */
   readonly extensions?: Readonly<Record<string, unknown>>;
   /** Commands that resolve the problem, printed after it and sent as `next`. */
   readonly next?: readonly NextStep[];
@@ -126,18 +144,12 @@ export class CliError extends Error {
   }
 }
 
-/**
- * RFC 9457 Problem Details for a run that failed, as `error` in the result
- * envelope.
- */
-export type CliProblem = {
-  readonly type: string;
-  readonly title: string;
-  readonly detail: string;
+/** A run that failed, as the `--json` error document reports it. */
+export type CliFailure = {
   readonly code: ProblemCode;
-  readonly command?: string;
+  readonly message: string;
   readonly exitCode: ExitCode;
-  readonly [extension: string]: unknown;
+  readonly data: Readonly<Record<string, unknown>>;
 };
 
 export function describeError(error: unknown): string {
@@ -170,13 +182,12 @@ function rejectedDefinition(error: unknown): error is Error {
 export function exitCodeOf(kind: CliErrorKind): ExitCode {
   switch (kind) {
     case "usage":
+    case "action":
       return 2;
     case "unavailable":
     case "failed":
     case "internal":
       return 1;
-    case "action":
-      return 3;
     case "cancelled":
       return 130;
     default: {
@@ -190,8 +201,6 @@ export function kindOfCode(code: ExitCode): CliErrorKind {
   switch (code) {
     case 2:
       return "usage";
-    case 3:
-      return "action";
     case 130:
     case 143:
       return "cancelled";
@@ -205,43 +214,35 @@ export function kindOfCode(code: ExitCode): CliErrorKind {
   }
 }
 
-export function cliProblem(
+export function cliFailure(
   kind: CliErrorKind,
   message: string,
-  command: string | undefined,
   options?: {
     readonly code?: ProblemCode;
     readonly extensions?: Readonly<Record<string, unknown>>;
     /** The exit code the run ended with, when it is not the code's own (143). */
     readonly exitCode?: ExitCode;
   },
-): CliProblem {
+): CliFailure {
   const code = options?.code ?? DEFAULT_CODES[kind];
-  const [title, exitCode] = CODES[code];
   return {
-    ...options?.extensions,
-    type: `${CLI_ERRORS_URL}#${code}`,
-    title,
-    detail: stripVTControlCharacters(message),
     code,
-    ...(command === undefined ? {} : { command }),
-    exitCode: options?.exitCode ?? exitCode,
+    message: stripVTControlCharacters(message),
+    exitCode: options?.exitCode ?? CODES[code],
+    data: options?.extensions ?? {},
   };
 }
 
-export function problemOf(
-  error: unknown,
-  command: string | undefined,
-): CliProblem {
+export function failureOf(error: unknown): CliFailure {
   if (error instanceof CliError) {
-    return cliProblem(error.kind, error.message, command, {
+    return cliFailure(error.kind, error.message, {
       code: error.code,
       extensions: error.extensions,
     });
   }
   return rejectedDefinition(error)
-    ? cliProblem("usage", error.message, command, { code: "config_invalid" })
-    : cliProblem("internal", describeError(error), command);
+    ? cliFailure("usage", error.message, { code: "config_invalid" })
+    : cliFailure("internal", describeError(error));
 }
 
 /**
@@ -267,7 +268,7 @@ export function configError(message: string): CliError {
 }
 
 /**
- * The run needs a value only the caller can supply: exit 3 with `missing`
+ * The run needs a value only the caller can supply: exit 2 with `missing`
  * naming the flags.
  */
 export function missingInput(

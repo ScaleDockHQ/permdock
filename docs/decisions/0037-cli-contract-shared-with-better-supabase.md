@@ -1,6 +1,6 @@
 # 0037. CLI contract shared with better-supabase
 
-- Status: accepted
+- Status: accepted; the exit codes, missing input, envelope and consent amended by 0068
 - Date: 2026-10-18
 
 ## Context

@@ -20,66 +20,70 @@ function schema(name: string): Record<string, unknown> {
 
 const ajv = new Ajv2020({ allErrors: true, strictRequired: false });
 ajv.addFormat("uri", true);
-const result = ajv.compile(schema("cli-result-v1.json"));
+const result = ajv.compile(schema("cli-result-v2.json"));
 const commands = ajv.compile(schema("cli-commands-v1.json"));
 
-function expectResult(stdout: string): Record<string, unknown> {
-  const parsed: unknown = JSON.parse(stdout);
+function expectDocument(text: string): Record<string, unknown> {
+  const parsed: unknown = JSON.parse(text);
   result(parsed);
   expect(result.errors ?? []).toStrictEqual([]);
   // SAFETY: the schema just validated it as an object
   return parsed as Record<string, unknown>;
 }
 
-describe("schemas/cli-result-v1.json", () => {
-  it("has the $id the envelope names", () => {
-    expect(schema("cli-result-v1.json")["$id"]).toBe(CLI_RESULT_SCHEMA);
+describe("schemas/cli-result-v2.json", () => {
+  it("has the $id the documents name", () => {
+    expect(schema("cli-result-v2.json")["$id"]).toBe(CLI_RESULT_SCHEMA);
   });
 
-  it("lists every problem code the CLI raises", () => {
-    const defs = schema("cli-result-v1.json")["$defs"];
-    // SAFETY: the committed schema's $defs.problem.properties.code holds an enum.
-    const code = (
-      defs as { problem: { properties: { code: { enum: string[] } } } }
-    ).problem.properties.code;
-    expect(code.enum).toStrictEqual([...PROBLEM_CODES]);
+  it("lists every reason the CLI raises", () => {
+    const defs = schema("cli-result-v2.json")["$defs"];
+    // SAFETY: the committed schema's $defs.error.properties.reason holds an enum.
+    const reason = (
+      defs as { error: { properties: { reason: { enum: string[] } } } }
+    ).error.properties.reason;
+    expect(reason.enum).toStrictEqual([...PROBLEM_CODES]);
   });
 
-  it("validates a success", async () => {
-    const { code, stdout } = await run(
+  it("validates a success on stdout", async () => {
+    const { code, stdout, stderr } = await run(
       ["catalog", "--kind", "markdown", "--json"],
       { cwd: FIXTURE },
     );
     expect(code).toBe(0);
-    expect(expectResult(stdout)["status"]).toBe("success");
+    expect(stderr).toBe("");
+    expect(expectDocument(stdout)["status"]).toBe("success");
   });
 
-  it("validates a usage error", async () => {
-    const { code, stdout } = await run(["nope", "--json"]);
+  it("validates a usage error as one line on stderr", async () => {
+    const { code, stdout, stderr } = await run(["nope", "--json"]);
     expect(code).toBe(2);
-    expect(expectResult(stdout)).toMatchObject({
+    expect(stdout).toBe("");
+    expect(stderr.trimEnd().split("\n")).toHaveLength(1);
+    expect(expectDocument(stderr)).toMatchObject({
       status: "error",
-      error: { code: "unknown_command", exitCode: 2 },
+      reason: "unknown_command",
+      userActionRequired: false,
+      retryable: false,
     });
   });
 
   it("validates an unknown flag", async () => {
-    const { stdout } = await run(["usage", "--strict", "--json"], {
+    const { stderr } = await run(["usage", "--strict", "--json"], {
       cwd: FIXTURE,
     });
-    expect(expectResult(stdout)).toMatchObject({
-      error: { code: "unknown_flag" },
-    });
+    expect(expectDocument(stderr)).toMatchObject({ reason: "unknown_flag" });
   });
 
-  it("validates an action_required result with next steps", async () => {
-    const { code, stdout } = await run(["codemod", "0.5", "--agent", "yes"], {
+  it("validates an action_required error with next steps", async () => {
+    const { code, stderr } = await run(["codemod", "0.5", "--agent", "yes"], {
       cwd: FIXTURE,
     });
-    expect(code).toBe(3);
-    expect(expectResult(stdout)).toMatchObject({
+    expect(code).toBe(2);
+    expect(expectDocument(stderr)).toMatchObject({
       status: "action_required",
-      error: { code: "consent_required", exitCode: 3 },
+      reason: "confirmation_required",
+      userActionRequired: true,
       next: [{ when: "after the person agrees" }],
     });
   });

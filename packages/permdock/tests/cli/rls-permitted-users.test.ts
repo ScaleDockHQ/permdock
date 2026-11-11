@@ -36,27 +36,59 @@ describe("rls permitted users", () => {
   };
 
   describe("permitted_<scope>_users", () => {
-    it("reads the members and global-role holders and their grant keys in one query", async () => {
+    it("lists the holders on one instance in one set-based query over the membership table", async () => {
       const sql = await generate({ authorize: "database", memberships });
-      const fn = sql.slice(
-        sql.indexOf(
-          'create or replace function "permdock".permitted_organization_users(p_permission text, p_id uuid)',
-        ),
+      expect(sql).toContain(
+        `create or replace function "permdock".permitted_organization_users(p_permission text, p_id uuid)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with pdk_h(user_id, grant_key) as (
+  select m."user_id"::uuid, rp.grant_key
+  from "public"."organization_members" m
+  cross join lateral "permdock".permdock_role_grant_keys('organization', m."role"::text) rp(grant_key)
+  where m."organization_id" = p_id
+    and not (m."role"::text = any(array['admin', 'contact', 'member', 'owner', 'viewer']::text[]))
+  ),
+  pdk_g(user_id, grant_key) as (
+    select pdk_u.user_id, pdk_k.grant_key
+    from (
+      select distinct ur.user_id::uuid
+      from "permdock".user_roles ur
+      where ur.user_id is not null
+    ) pdk_u(user_id)
+    cross join lateral (
+      select rp.grant_key
+      from "permdock".user_roles ur
+      cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
+      where ur.user_id = pdk_u.user_id
+        and not (ur.role::text = any(array['admin', 'contact', 'member', 'owner', 'viewer']::text[]))
+    ) pdk_k(grant_key)
+  )
+  select h.user_id from pdk_h h
+  where h.user_id is not null
+    and h.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'organization') g(grant_key))
+  except
+  select h.user_id from pdk_h h
+  where h.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key))
+  union
+  (select gh.user_id from pdk_g gh
+  where gh.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'global') g(grant_key))
+  except
+  select gh.user_id from pdk_g gh
+  where gh.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'global', 'deny') g(grant_key)))
+  order by 1
+$$;
+revoke execute on function "permdock".permitted_organization_users(text, uuid) from public, anon, authenticated;`,
       );
-      const body = fn.slice(0, fn.indexOf("$$;"));
-      expect(body).toContain(`    select m."user_id"::uuid
-      from "public"."organization_members" m
-      where m."organization_id" = p_id
-      union
-      select ur.user_id::uuid
-      from "permdock".user_roles ur`);
-      expect(body).toContain('where m."user_id" = pdk_u.user_id');
-      expect(body).toContain("where pdk_i.id = p_id");
-      expect(body).not.toMatch(
-        /_by_permission_for|permdock_has_permission_for/u,
+      expect(sql).not.toContain(
+        "permitted_organization_ids_by_permission_for(c.user_id",
       );
-      expect(fn).toContain(
-        'revoke execute on function "permdock".permitted_organization_users(text, uuid) from public, anon, authenticated;',
+      expect(sql).not.toContain(
+        "permdock_has_permission_for(ur.user_id::uuid, p_permission)",
       );
       expect(sql).toContain(
         "-- customer: no memberships table or table source, so permitted_customer_users is not written",

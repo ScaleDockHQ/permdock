@@ -10,9 +10,10 @@ import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 
 import {
+  consentDigest,
   consentReasons,
-  consentToken,
   replayArgv,
+  splitCommandLine,
 } from "../../src/cli/core/consent.ts";
 import { run } from "../../src/cli/core/run.ts";
 
@@ -49,58 +50,95 @@ describe("consent", () => {
   }
 
   describe("consent in agent mode", () => {
-    it("stops a rewrite with consent_required and the command to run once the person agrees", async () => {
+    it("stops a rewrite with confirmation_required and the command to run once the person agrees", async () => {
       const cwd = project();
       const result = await run(["codemod", "0.26"], { cwd, io: io() });
-      expect(result.code).toBe(3);
-      const envelope: unknown = JSON.parse(result.stdout);
-      const token = consentToken(["rewrite"], ["codemod", "0.26"], cwd);
-      expect(envelope).toMatchObject({
+      expect(result.code).toBe(2);
+      expect(result.stdout).toBe("");
+      const digest = consentDigest(["rewrite"], ["codemod", "0.26"], cwd);
+      expect(JSON.parse(result.stderr)).toMatchObject({
         status: "action_required",
-        error: {
-          code: "consent_required",
-          reasons: ["rewrite"],
-          token,
-          exitCode: 3,
+        reason: "confirmation_required",
+        userActionRequired: true,
+        retryable: false,
+        data: {
+          digest,
+          effects: ["permdock codemod edits files the project owns"],
         },
         next: [
           {
             when: "after the person agrees",
-            command: `permdock codemod 0.26 --confirm ${token}`,
+            command: `permdock codemod 0.26 --yes --effects-digest ${digest}`,
+            argv: [
+              "permdock",
+              "codemod",
+              "0.26",
+              "--yes",
+              "--effects-digest",
+              digest,
+            ],
           },
         ],
       });
       expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(SCRIPT);
 
-      const confirmed = await run(["codemod", "0.26", "--confirm", token], {
-        cwd,
-        io: io(),
-      });
+      const confirmed = await run(
+        ["codemod", "0.26", "--yes", "--effects-digest", digest],
+        { cwd, io: io() },
+      );
       expect(confirmed).toMatchObject({ code: 0 });
       expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(REWRITTEN);
     });
 
-    it("makes tokens that never parse as a flag", () => {
+    it("makes digests that never parse as a flag", () => {
       for (let i = 0; i < 500; i += 1) {
         expect(
-          consentToken(["rewrite"], ["codemod", "0.26"], `/repo/${i}`),
+          consentDigest(["rewrite"], ["codemod", "0.26"], `/repo/${i}`),
         ).toMatch(/^[0-9a-f]{16}$/u);
       }
     });
 
-    it("is not satisfied by --yes or by a token for another command line", async () => {
+    it("is not satisfied by --yes alone, the digest alone, or a digest for another command line", async () => {
       const cwd = project();
-      const token = consentToken(["rewrite"], ["codemod", "0.26", "src"], cwd);
+      const digest = consentDigest(["rewrite"], ["codemod", "0.26"], cwd);
+      const other = consentDigest(["rewrite"], ["codemod", "0.26", "src"], cwd);
       for (const argv of [
         ["codemod", "0.26", "--yes"],
-        ["codemod", "0.26", "--confirm", token],
+        ["codemod", "0.26", "--effects-digest", digest],
+        ["codemod", "0.26", "--yes", "--effects-digest", other],
       ]) {
         const result = await run(argv, { cwd, io: io() });
-        expect(result.code).toBe(3);
-        expect(JSON.parse(result.stdout)).toMatchObject({
-          error: { code: "consent_required" },
+        expect(result.code).toBe(2);
+        expect(JSON.parse(result.stderr)).toMatchObject({
+          reason: "confirmation_required",
         });
       }
+      const stale = await run(
+        ["codemod", "0.26", "--yes", "--effects-digest", other],
+        { cwd, io: io() },
+      );
+      expect(JSON.parse(stale.stderr)).toMatchObject({
+        message: expect.stringContaining(
+          "The --effects-digest is for another command line or directory.",
+        ),
+      });
+      expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(SCRIPT);
+    });
+
+    it("answers the removed --confirm with flag_renamed", async () => {
+      const cwd = project();
+      const result = await run(["codemod", "0.26", "--confirm", "abc"], {
+        cwd,
+        io: io(),
+      });
+      expect(result.code).toBe(2);
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        reason: "flag_renamed",
+        data: {
+          flag: "--confirm",
+          suggestion: "--yes --effects-digest <digest>",
+        },
+      });
       expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(SCRIPT);
     });
 
@@ -131,10 +169,11 @@ describe("consent", () => {
           },
         },
       });
-      expect(result.code).toBe(3);
+      expect(result.code).toBe(2);
       expect(called).toBe(false);
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        error: { code: "consent_required", reasons: ["cloud:write"] },
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        reason: "confirmation_required",
+        data: { effects: ["permdock cloud push publishes to PermDock Cloud"] },
       });
     });
   });
@@ -153,22 +192,42 @@ describe("consent", () => {
   });
 
   describe(replayArgv, () => {
-    it("drops --confirm in both spellings", () => {
+    it("drops --effects-digest in both spellings, before --", () => {
       expect(
         replayArgv([
           "rls",
           "verify",
           "--db-url-stdin",
-          "--confirm=abc",
+          "--effects-digest=abc",
           "--tree",
         ]),
       ).toStrictEqual(["rls", "verify", "--db-url-stdin", "--tree"]);
-      expect(replayArgv(["--tree", "--confirm", "abc"])).toStrictEqual([
+      expect(replayArgv(["--tree", "--effects-digest", "abc"])).toStrictEqual([
         "--tree",
+      ]);
+      expect(replayArgv(["x", "--", "--effects-digest", "abc"])).toStrictEqual([
+        "x",
+        "--",
+        "--effects-digest",
+        "abc",
       ]);
       const hole: string[] = ["ok"];
       hole.length = 2;
       expect(replayArgv(hole)).toStrictEqual(["ok", ""]);
+    });
+  });
+
+  describe(splitCommandLine, () => {
+    it.each([
+      ["permdock codemod 0.26", ["permdock", "codemod", "0.26"]],
+      [
+        String.raw`permdock codemod 0.5 'it'\''s'`,
+        ["permdock", "codemod", "0.5", "it's"],
+      ],
+      [`permdock init "two words" ''`, ["permdock", "init", "two words", ""]],
+      [String.raw`a\ b  c`, ["a b", "c"]],
+    ])("splits %s", (line, argv) => {
+      expect(splitCommandLine(line)).toStrictEqual(argv);
     });
   });
 });

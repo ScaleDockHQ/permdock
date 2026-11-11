@@ -27,7 +27,7 @@ create table if not exists "permdock"."user_roles" (
 alter table "permdock"."user_roles" enable row level security;
 revoke all on table "permdock"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (database: reads the membership and user_roles tables) sha-256:DRoVPlLNnw7XvWaBPJQTcefuTjo2Nt9IHD9_KGGoRQE
+-- permdock helpers (database: reads the membership and user_roles tables) sha-256:rbhQtfnMJdU7ywoUsDKGXdNRy4MZVDVXZ-AlPYg7Uh4
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "permdock";
@@ -202,6 +202,13 @@ as $$
     and m."role" is not null
 $$;
 revoke execute on function "permdock".member_tenant_ids_for(uuid) from public, anon, authenticated;
+do $permdock$ begin
+  if exists (select 1 from pg_catalog.pg_roles where rolname = 'supabase_auth_admin') then
+    grant usage on schema "permdock" to supabase_auth_admin;
+    grant execute on function "permdock".member_tenant_ids_for(uuid) to supabase_auth_admin;
+  end if;
+end
+$permdock$;
 
 -- the helpers for a user the caller names: trusted SQL acting for a stored user; no client role may execute them
 create or replace function "permdock".permdock_has_for(p_user uuid, p_grant text)
@@ -691,6 +698,48 @@ as $$
 $$;
 revoke execute on function "permdock".permitted_tenant_permission_keys_for(uuid, uuid, text[]) from public, anon, authenticated;
 
+-- the caller's permissions in better-supabase's compact BootstrapPermissionsWire: the policy's keys once, a bitset per tenant the caller is a member of (p_tenant alone when given) and one for platform
+create or replace function "permdock".permdock_bootstrap_permissions(p_tenant text default null)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  with pdk_k(key, n) as (
+    select k.key, (k.n - 1)::integer
+    from unnest(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]) with ordinality as k(key, n)
+  ),
+  pdk_t(id) as (
+    select t.id from "permdock".member_tenant_ids() as t(id)
+    where p_tenant is null or t.id::text = p_tenant
+  ),
+  pdk_p(n) as (
+    select k.n from pdk_k k
+    where k.key = any(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]) and "permdock".permdock_has_permission(k.key)
+  )
+  select jsonb_strip_nulls(jsonb_build_object(
+    'apiVersion', 1,
+    'form', 'compact',
+    'keys', to_jsonb(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]),
+    'tenants', coalesce((
+      select jsonb_object_agg(t.id::text, (select translate(encode(coalesce(decode(string_agg(lpad(to_hex(coalesce(b.v, 0)), 2, '0'), '' order by g.i), 'hex'), ''::bytea), 'base64'), '+/=' || chr(10), '-_')
+      from generate_series(0, 0) g(i)
+      left join (
+        select x.n / 8 as i, sum(1 << (x.n % 8)) as v from (select k.n from "permdock".permitted_tenant_permission_keys(t.id) h(key) join pdk_k k on k.key = h.key) x(n) group by 1
+      ) b on b.i = g.i))
+      from pdk_t t
+    ), '{}'::jsonb),
+    'platform', case when exists (select 1 from pdk_p) then (select translate(encode(coalesce(decode(string_agg(lpad(to_hex(coalesce(b.v, 0)), 2, '0'), '' order by g.i), 'hex'), ''::bytea), 'base64'), '+/=' || chr(10), '-_')
+      from generate_series(0, 0) g(i)
+      left join (
+        select x.n / 8 as i, sum(1 << (x.n % 8)) as v from (select p.n from pdk_p p) x(n) group by 1
+      ) b on b.i = g.i) end
+  ))
+$$;
+revoke execute on function "permdock".permdock_bootstrap_permissions(text) from public, anon, authenticated;
+grant execute on function "permdock".permdock_bootstrap_permissions(text) to authenticated;
+
 -- the users who hold a permission on one tenant: its members and the global-role holders for whom the _for helpers answer; no client role may execute it
 create or replace function "permdock".permitted_tenant_users(p_permission text, p_id uuid)
 returns setof uuid
@@ -699,55 +748,38 @@ stable
 security definer
 set search_path = ''
 as $$
-  with pdk_u(user_id) as (
-    select c.user_id
+  with pdk_h(user_id, grant_key) as (
+  select m."user_id"::uuid, rp.grant_key
+  from "public"."organization_members" m
+  cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
+  where m."organization_id" = p_id
+  ),
+  pdk_g(user_id, grant_key) as (
+    select pdk_u.user_id, pdk_k.grant_key
     from (
-      select m."user_id"::uuid
-      from "public"."organization_members" m
-      where m."organization_id" = p_id
-      union
-      select ur.user_id::uuid
+      select distinct ur.user_id::uuid
       from "permdock".user_roles ur
-    ) c(user_id)
-    where c.user_id is not null
-  ),
-  pdk_k(grant_key, global, effect) as (
-    select g.grant_key, false, 'allow' from "permdock".grant_keys(p_permission, 'tenant') g(grant_key)
-    union all
-    select g.grant_key, false, 'deny' from "permdock".grant_keys(p_permission, 'tenant', 'deny') g(grant_key)
-    union all
-    select g.grant_key, true, 'allow' from "permdock".grant_keys(p_permission, 'global') g(grant_key)
-    union all
-    select g.grant_key, true, 'deny' from "permdock".grant_keys(p_permission, 'global', 'deny') g(grant_key)
-  ),
-  pdk_h(user_id, global, effect) as (
-    select pdk_u.user_id, pdk_k.global, pdk_k.effect
-    from pdk_u
-    cross join lateral (
-      select m."organization_id"::uuid, rp.grant_key
-      from "public"."organization_members" m
-      cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
-      where m."user_id" = pdk_u.user_id
-    ) pdk_i(id, grant_key)
-    join pdk_k on pdk_k.grant_key = pdk_i.grant_key and not pdk_k.global
-    where pdk_i.id = p_id
-    union
-    select pdk_u.user_id, pdk_k.global, pdk_k.effect
-    from pdk_u
+      where ur.user_id is not null
+    ) pdk_u(user_id)
     cross join lateral (
       select rp.grant_key
       from "permdock".user_roles ur
       cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
       where ur.user_id = pdk_u.user_id
-    ) pdk_g(grant_key)
-    join pdk_k on pdk_k.grant_key = pdk_g.grant_key and pdk_k.global
+    ) pdk_k(grant_key)
   )
-  select pdk_u.user_id
-  from pdk_u
-  where (exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = false and pdk_h.effect = 'allow')
-      and not exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = false and pdk_h.effect = 'deny'))
-    or (exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = true and pdk_h.effect = 'allow')
-      and not exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = true and pdk_h.effect = 'deny'))
+  select h.user_id from pdk_h h
+  where h.user_id is not null
+    and h.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'tenant') g(grant_key))
+  except
+  select h.user_id from pdk_h h
+  where h.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'tenant', 'deny') g(grant_key))
+  union
+  (select gh.user_id from pdk_g gh
+  where gh.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'global') g(grant_key))
+  except
+  select gh.user_id from pdk_g gh
+  where gh.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'global', 'deny') g(grant_key)))
   order by 1
 $$;
 revoke execute on function "permdock".permitted_tenant_users(text, uuid) from public, anon, authenticated;

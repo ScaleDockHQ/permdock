@@ -7,7 +7,7 @@ import {
   levelKeys,
   rowHelpersSql,
   rowsHelper,
-  tenantRowSetSql,
+  rowSetSql,
 } from "../../src/cli/rls/rows.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
@@ -291,21 +291,63 @@ describe("permitted_<resource>_rows", () => {
     expect(warnings).toStrictEqual([]);
   });
 
-  it("reads a tenant set only for a key every allow of which is a root-scope role", () => {
+  it("reads a set once per statement, led by the tenants for a root-scope role", () => {
     const ctx = context("supabase");
     const docNode = policy.resources.get("doc");
     const noteNode = policy.resources.get("note");
     if (docNode === undefined || noteNode === undefined) {
       throw new Error("PermDock test: the policy declares doc and note");
     }
-    expect(tenantRowSetSql(ctx, policy, docNode, "doc.read")).toContain(
-      `cross join lateral "permdock".permitted_doc_rows('doc.read', t.id) r`,
+    expect(rowSetSql(ctx, policy, docNode, "doc.read")).toBe(
+      `select r from unnest(array(select "permdock".permitted_tenant_ids_by_permission('doc.read', true))) t(id) cross join lateral "permdock".permitted_doc_rows('doc.read', t.id) r`,
     );
-    expect(tenantRowSetSql(ctx, policy, docNode, "doc.update")).toBeUndefined();
+    expect(rowSetSql(ctx, policy, docNode, "doc.update")).toBe(
+      `select r from "permdock".permitted_doc_rows('doc.update') r`,
+    );
+    expect(rowSetSql({ ...ctx, scopes: [] }, policy, docNode, "doc.read")).toBe(
+      `select r from "permdock".permitted_doc_rows('doc.read') r`,
+    );
+    expect(rowSetSql(ctx, policy, noteNode, "note.read")).toBe(
+      "select null::uuid where false",
+    );
+  });
+
+  it("adds the whole set for a caller who holds the permission through a global role", () => {
+    const global = definePolicy(permissions, {
+      scopes: { tenant: { key: "orgId" } },
+      roles: [
+        role("member", [allow(doc.read)], { on: "tenant" }),
+        role("support", [allow(doc.read, { where: { locked: false } })]),
+      ],
+      subject: () => null,
+    });
+    const docNode = global.resources.get("doc");
+    if (docNode === undefined) {
+      throw new Error("PermDock test: the policy declares doc");
+    }
+    const set = rowSetSql(context("supabase"), global, docNode, "doc.read");
+    expect(set).toContain(
+      `cross join lateral "permdock".permitted_doc_rows('doc.read', t.id) r union all select r from "permdock".permitted_doc_rows('doc.read') r where `,
+    );
+    expect(set).toContain(
+      `exists (select 1 from "permdock".grant_keys('doc.read', 'global') g(k) where "permdock".permdock_has(g.k)) or exists (select 1 from "permdock".grant_keys('doc.read', 'global', 'conditioned-allow') g(k) where "permdock".permdock_has(g.k))`,
+    );
+    const support = definePolicy(permissions, {
+      roles: [role("support", [allow(doc.read)])],
+      subject: () => null,
+    });
+    const untenanted = support.resources.get("doc");
+    if (untenanted === undefined) {
+      throw new Error("PermDock test: the policy declares doc");
+    }
     expect(
-      tenantRowSetSql({ ...ctx, scopes: [] }, policy, docNode, "doc.read"),
-    ).toBeUndefined();
-    expect(tenantRowSetSql(ctx, policy, noteNode, "note.read")).toBeUndefined();
+      rowSetSql(
+        { ...context("supabase"), scopes: [] },
+        support,
+        untenanted,
+        "doc.read",
+      ),
+    ).toBe(`select r from "permdock".permitted_doc_rows('doc.read') r`);
   });
 
   it("sets the guc user and claims for a named user and restores them", () => {

@@ -23,6 +23,10 @@ import {
 } from "../../supabase-hook/emit/hook-sql.ts";
 import { asideAuthzReceive } from "../../supabase-hook/version.ts";
 import { resolveSchemas } from "../../supabase-schemas.ts";
+import {
+  guardAuthAdminGrants,
+  unguardAuthAdminGrants,
+} from "../helper-members.ts";
 
 export type SplitSql = {
   readonly policies: string;
@@ -241,13 +245,14 @@ export function outputFiles(plan: {
   for (const part of split) {
     switch (part) {
       case "helpers": {
+        const helpers = unguardAuthAdminGrants(sql.helpers);
         if (label === undefined) {
-          files.push({ part, rel: at(part), text: sql.helpers });
+          files.push({ part, rel: at(part), text: helpers });
           break;
         }
-        const moved = moveUndiffed(sql.helpers, label, part);
+        const moved = moveUndiffed(helpers, label, part);
         files.push({ part, rel: at(part), text: moved.sql });
-        grants.push(moved.grants);
+        grants.push(guardAuthAdminGrants(moved.grants));
         break;
       }
       case "seeds": {

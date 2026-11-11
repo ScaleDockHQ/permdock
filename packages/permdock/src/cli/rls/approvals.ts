@@ -858,8 +858,8 @@ begin
   if not found and not exists (select 1 from ${table} a where a.${token} = p_request ->> 'token') then
     raise exception using
       errcode = 'P0002',
-      message = 'permdock: no row of ${adopt.table.replaceAll("'", "''")} holds approval token ' || (p_request ->> 'token'),
-      hint = 'insert the application row with this token before opening the request';
+      hint = 'insert the application row with this token before opening the request',
+      message = 'permdock: no row of ${adopt.table.replaceAll("'", "''")} holds approval token ' || (p_request ->> 'token');
   end if;
 end;
 $$;`;

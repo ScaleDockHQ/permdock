@@ -62,9 +62,13 @@ const dirs: string[] = [];
 async function findings(
   body: string,
   config: PermDockConfig = permdock,
+  catalog?: string,
 ): Promise<readonly (string | undefined)[]> {
   const cwd = mkdtempSync(join(tmpdir(), "permdock-pd094-"));
   dirs.push(cwd);
+  if (catalog !== undefined) {
+    writeFileSync(join(cwd, "permissions.catalog.json"), catalog);
+  }
   writeFileSync(
     join(cwd, "better-supabase.config.ts"),
     `export default ${body};\n`,
@@ -99,6 +103,29 @@ describe("PD094", () => {
       "blocks.permissions.disabled.user",
       "permdock_can_assign_any",
     ]);
+  });
+
+  it("builds the provider from the database manifest of a project without a hook", async () => {
+    const { supabase: _supabase, ...hookless } = permdock;
+    expect(
+      await findings(
+        `{ blocks: { memberships: { options: { roleThrough: ${roles} } }, permissions: { model: "provider", disabled: { user: ${user} } } } }`,
+        { ...hookless, rls: { ...hookless.rls, authorize: "database" } },
+      ),
+    ).toStrictEqual([
+      "blocks.memberships.options.roleThrough",
+      "blocks.permissions.disabled.user",
+    ]);
+  });
+
+  it("stays silent when the project's catalog does not parse", async () => {
+    expect(
+      await findings(
+        `{ blocks: { memberships: { options: { roleThrough: ${roles} } } } }`,
+        permdock,
+        "{}",
+      ),
+    ).toStrictEqual([]);
   });
 
   it("stays silent when the provider would not fill the value", async () => {

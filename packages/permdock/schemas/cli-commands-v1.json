@@ -82,7 +82,7 @@
               "install"
             ]
           },
-          "description": "What the command may change. Empty means it only reads and prints. In agent mode, `rewrite`, `cloud:write`, and `files` with `--force` need a `--confirm` token."
+          "description": "What the command may change. Empty means it only reads and prints. In agent mode, `rewrite`, `cloud:write`, and `files` with `--force` need `--yes --effects-digest <digest>`."
         },
         "config": {
           "type": "boolean",

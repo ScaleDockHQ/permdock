@@ -387,6 +387,52 @@ describe("doctor better-supabase", () => {
       expect(findings[0]?.message).toContain("modulePermissionKeys");
     });
 
+    it("treats a modulePermissionKeys that answers no list or throws another error as missing", async () => {
+      for (const body of [
+        "export const modulePermissionKeys = () => 'none';\n",
+        "export const modulePermissionKeys = () => { throw new Error('unknown block'); };\n",
+      ]) {
+        const cwd = policyProject(
+          { policy: POLICY },
+          {
+            "permissions.catalog.json": CATALOG,
+            "better-supabase.config.mjs": betterSupabaseConfig({
+              audit: { permissions: { read: "audit.read" } },
+            }),
+            "node_modules/better-supabase/package.json": JSON.stringify({
+              name: "better-supabase",
+              version: "0.0.0",
+              type: "module",
+              exports: { "./sql": "./sql.mjs" },
+            }),
+            "node_modules/better-supabase/sql.mjs": body,
+          },
+        );
+        const findings = await pd079({ cwd, config });
+        expect(findings[0]?.message).toContain("modulePermissionKeys");
+      }
+    });
+
+    it("reports a former block action key apart from a missing modulePermissionKeys", async () => {
+      const cwd = policyProject(
+        { policy: POLICY },
+        {
+          "permissions.catalog.json": CATALOG,
+          "better-supabase.config.mjs": betterSupabaseConfig({
+            audit: { permissions: { view: "audit.read" } },
+          }),
+        },
+      );
+      const findings = await pd079({ cwd, config });
+      expect(findings).toStrictEqual([
+        expect.objectContaining({ code: "PD079", severity: "error" }),
+      ]);
+      expect(findings[0]?.message).toBe(
+        "blocks.audit.permissions.view is a former block action key: better-supabase renamed it to read and refuses the config",
+      );
+      expect(findings[0]?.fix).toContain("better-supabase codemod naming");
+    });
+
     it("passes when every block key is in the catalog", async () => {
       const cwd = policyProject(
         { policy: POLICY },
@@ -408,7 +454,7 @@ describe("doctor better-supabase", () => {
 
     it("stays quiet without blocks or a readable catalog", async () => {
       const blocks = betterSupabaseConfig({
-        audit: { permissions: { view: "audit.view" } },
+        audit: { permissions: { read: "audit.view" } },
       });
       const noBlocks = policyProject(
         { policy: POLICY },

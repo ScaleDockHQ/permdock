@@ -15,13 +15,13 @@ permdock codemod 0.17 src --json           # the report as JSON
 
 The positional arguments after the version are files or directories; the default is the working directory. The command reads `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue` and `.svelte` files and skips `node_modules`, `dist`, `.git`, `.next`, `.turbo`, `.svelte-kit` and `coverage`. In a Vue or Svelte file it rewrites each `<script>` block. A file that imports no `permdock` entry is never changed, except a `permdock.config.*` file.
 
-| Flag        | Meaning                                                                                                                  |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `--dry-run` | Print the report without writing any file                                                                                |
-| `--force`   | Rewrite files with uncommitted changes too; without it, a dirty file in a git work tree exits `3` (`dirty_worktree`)     |
-| `--json`    | `data` in the envelope: `{ version, dryRun, scanned, files, followUps }`; an unknown version is RFC 9457 Problem Details |
+| Flag        | Meaning                                                                                                                |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `--dry-run` | Print the report without writing any file                                                                              |
+| `--force`   | Rewrite files with uncommitted changes too; without it, a dirty file in a git work tree exits `1` (`file_conflict`)    |
+| `--json`    | `data` in the result: `{ version, dryRun, scanned, files, followUps }`; an unknown version is a `usage` error document |
 
-The codemod rewrites files in place, so in [agent mode](/docs/cli/agent-mode) a run without `--dry-run` first asks for the person's consent (`rewrite`).
+The codemod rewrites files in place, so in [agent mode](/docs/cli/agent-mode) a run without `--dry-run` first asks for the person's confirmation (`rewrite`).
 
 The version is `0.17` or `0.26` (`0.17.0` and `v0.17` are read the same way). Any other version is a usage error that names the supported ones, exit `2`. The 0.5 and 0.8 rename tables are history on the [Naming](/docs/getting-started/naming) page.
 

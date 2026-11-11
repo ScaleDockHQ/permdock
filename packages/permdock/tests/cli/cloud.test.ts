@@ -190,7 +190,7 @@ describe("cloud", () => {
           () => Promise.resolve(new Response(null, { status: 404 })),
         ),
       });
-      expect(missing.code).toBe(3);
+      expect(missing.code).toBe(2);
       expect(missing.stderr).toContain("PERMDOCK_CLOUD_KEY");
       const rejected = await run(["cloud", "push"], {
         cwd,

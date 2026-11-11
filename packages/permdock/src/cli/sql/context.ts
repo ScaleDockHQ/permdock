@@ -52,6 +52,7 @@ export type RlsSqlContext = {
     readonly user: string;
     readonly team: string;
     readonly tenant?: string;
+    readonly disabledAt?: string;
   };
   /**
    * `supabase.hook.security`: `member_team_ids_for` is granted to

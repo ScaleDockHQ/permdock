@@ -17,16 +17,21 @@ export type OauthMode = NonNullable<SupabaseHookConfig["oauth"]>;
  * user id is read through all carry a version trigger. Two things change a
  * claim without a write to those tables: a row expiring (`expiresAt`) and a
  * suspended scope read from another table (`reads`). The fast path never runs
- * for a source with either. The suspended-user table is the one read the hook
- * checks itself, before it looks at the token.
+ * for a source with either, nor with a suspended-tenant table, which
+ * `memberships_for` reads for every source. The suspended-user table is the one
+ * read the hook checks itself, before it looks at the token.
  */
 function refreshBlocker(
   sources: readonly SqlMembershipSource[],
   version: boolean,
   usersTable: string | undefined,
+  tenantsTable: string | undefined,
 ): string | undefined {
   if (!version) {
     return "supabase.hook.version is false, so the token carries no authz_ver to compare";
+  }
+  if (tenantsTable !== undefined) {
+    return `the tenants are suspended through ${tenantsTable} (rls.suspension.scopes): a change there does not bump authz_ver`;
   }
   for (const source of sources) {
     if (source.sql.manifest.expiresAt !== undefined) {
@@ -50,6 +55,34 @@ function refreshMode(hook: SupabaseHookConfig): RefreshMode {
   return mode;
 }
 
+/**
+ * `supabase.hook.membershipsClaim`. `false` needs `database` mode, where the
+ * helpers read memberships from the tables, and rules out an explicit `refresh:
+ * 'reuse'`: a refresh has no entries to reuse.
+ */
+export function membershipsClaim(
+  hook: SupabaseHookConfig,
+  authorize: "database" | "jwt",
+): boolean {
+  const value: unknown = hook.membershipsClaim ?? true;
+  if (typeof value !== "boolean") {
+    throw configError(
+      `PermDock CLI: supabase.hook.membershipsClaim must be a boolean (got ${String(value)})`,
+    );
+  }
+  if (!value && authorize !== "database") {
+    throw configError(
+      "PermDock CLI: supabase.hook.membershipsClaim: false needs rls.authorize: 'database'; in 'jwt' mode the RLS helpers read memberships from the claim",
+    );
+  }
+  if (!value && hook.refresh === "reuse") {
+    throw configError(
+      "PermDock CLI: supabase.hook.refresh 'reuse' cannot run: supabase.hook.membershipsClaim is false, so a refresh has no memberships to reuse",
+    );
+  }
+  return value;
+}
+
 export function oauthMode(hook: SupabaseHookConfig): OauthMode {
   const mode = hook.oauth ?? "full";
   if (mode !== "full" && mode !== "slim") {
@@ -69,12 +102,13 @@ export function refreshReuse(
   sources: readonly SqlMembershipSource[],
   version: boolean,
   usersTable: string | undefined,
+  tenantsTable?: string,
 ): boolean {
   const mode = refreshMode(hook);
   if (mode === "full") {
     return false;
   }
-  const blocker = refreshBlocker(sources, version, usersTable);
+  const blocker = refreshBlocker(sources, version, usersTable, tenantsTable);
   if (blocker !== undefined && hook.refresh === "reuse") {
     throw configError(
       `PermDock CLI: supabase.hook.refresh 'reuse' cannot run: ${blocker}`,

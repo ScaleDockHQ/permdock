@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
 import { miniAppCopy, removeProjects } from "./doctor-kit.ts";
-import { jsonData } from "./envelope.ts";
+import { jsonData, jsonError } from "./envelope.ts";
 
 const POLICY = `import { allow, definePolicy, role } from 'permdock';
 import { permissions } from './permissions.ts';
@@ -41,7 +41,11 @@ async function runDoctorWith(
   const result = await run(["doctor", "--json", "--only", "PD017", ...extra], {
     cwd,
   });
-  return { report: jsonData(result.stdout), code: result.code };
+  return {
+    report:
+      result.stdout === "" ? jsonError(result.stderr) : jsonData(result.stdout),
+    code: result.code,
+  };
 }
 
 describe("doctor targets, ignore and waivers", () => {

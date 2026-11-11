@@ -188,7 +188,7 @@ describe("init", () => {
       expect(url.stdout.trim()).toBe(
         `https://permdock.com/create?preset=${code}`,
       );
-      expect((await run(["preset", "decode"], { cwd: tmpdir() })).code).toBe(3);
+      expect((await run(["preset", "decode"], { cwd: tmpdir() })).code).toBe(2);
       expect(
         (await run(["preset", "decode", "nope"], { cwd: tmpdir() })).code,
       ).toBe(2);

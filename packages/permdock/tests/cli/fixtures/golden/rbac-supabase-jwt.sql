@@ -27,7 +27,7 @@ create table if not exists "app"."user_roles" (
 alter table "app"."user_roles" enable row level security;
 revoke all on table "app"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (jwt: reads the role and memberships claims) sha-256:MfNjS0BUc4kKCbPFKFC5BChSGqIQ7I98mB9lW3iUN1A
+-- permdock helpers (jwt: reads the role and memberships claims) sha-256:RHdPmzPlU3JLOtnsinnl6C3Qbn0Qo27V9hI4bU98OxA
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "app";
@@ -229,6 +229,13 @@ as $$
     and m."role" is not null
 $$;
 revoke execute on function "app".member_tenant_ids_for(uuid) from public, anon, authenticated;
+do $permdock$ begin
+  if exists (select 1 from pg_catalog.pg_roles where rolname = 'supabase_auth_admin') then
+    grant usage on schema "app" to supabase_auth_admin;
+    grant execute on function "app".member_tenant_ids_for(uuid) to supabase_auth_admin;
+  end if;
+end
+$permdock$;
 
 -- every declared permission key
 create or replace function "app".permdock_permission_keys()
@@ -536,6 +543,48 @@ as $$
 $$;
 revoke execute on function "app".permitted_tenant_ids_by_permission(text, boolean) from public, anon;
 grant execute on function "app".permitted_tenant_ids_by_permission(text, boolean) to authenticated;
+
+-- the caller's permissions in better-supabase's compact BootstrapPermissionsWire: the policy's keys once, a bitset per tenant the caller is a member of (p_tenant alone when given) and one for platform
+create or replace function "app".permdock_bootstrap_permissions(p_tenant text default null)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  with pdk_k(key, n) as (
+    select k.key, (k.n - 1)::integer
+    from unnest(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]) with ordinality as k(key, n)
+  ),
+  pdk_t(id) as (
+    select t.id from "app".member_tenant_ids() as t(id)
+    where p_tenant is null or t.id::text = p_tenant
+  ),
+  pdk_p(n) as (
+    select k.n from pdk_k k
+    where k.key = any(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]) and "app".permdock_has_permission(k.key)
+  )
+  select jsonb_strip_nulls(jsonb_build_object(
+    'apiVersion', 1,
+    'form', 'compact',
+    'keys', to_jsonb(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]),
+    'tenants', coalesce((
+      select jsonb_object_agg(t.id::text, (select translate(encode(coalesce(decode(string_agg(lpad(to_hex(coalesce(b.v, 0)), 2, '0'), '' order by g.i), 'hex'), ''::bytea), 'base64'), '+/=' || chr(10), '-_')
+      from generate_series(0, 0) g(i)
+      left join (
+        select x.n / 8 as i, sum(1 << (x.n % 8)) as v from (select k.n from "app".permitted_tenant_permission_keys(t.id) h(key) join pdk_k k on k.key = h.key) x(n) group by 1
+      ) b on b.i = g.i))
+      from pdk_t t
+    ), '{}'::jsonb),
+    'platform', case when exists (select 1 from pdk_p) then (select translate(encode(coalesce(decode(string_agg(lpad(to_hex(coalesce(b.v, 0)), 2, '0'), '' order by g.i), 'hex'), ''::bytea), 'base64'), '+/=' || chr(10), '-_')
+      from generate_series(0, 0) g(i)
+      left join (
+        select x.n / 8 as i, sum(1 << (x.n % 8)) as v from (select p.n from pdk_p p) x(n) group by 1
+      ) b on b.i = g.i) end
+  ))
+$$;
+revoke execute on function "app".permdock_bootstrap_permissions(text) from public, anon, authenticated;
+grant execute on function "app".permdock_bootstrap_permissions(text) to authenticated;
 
 create or replace function "app"."authorize"(
   requested_permission "app"."app_permission",

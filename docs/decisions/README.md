@@ -42,7 +42,7 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0034](./0034-structural-instant-over-temporal.md)                | The runtime takes a structural `Instant`, not `Temporal`                                               |
 | [0035](./0035-better-supabase-from-a-tarball.md)                  | Superseded by 0038: better-supabase installed from a tarball of the sibling checkout                   |
 | [0036](./0036-org-and-row-access-on-one-resource.md)              | Org-level and per-row access on one resource, not two; PD075 reports a split                           |
-| [0037](./0037-cli-contract-shared-with-better-supabase.md)        | The CLI contract shared with better-supabase: exit 3, envelope, agent mode, own resolver               |
+| [0037](./0037-cli-contract-shared-with-better-supabase.md)        | The CLI contract shared with better-supabase: agent mode, own resolver; output per 0068                |
 | [0038](./0038-better-supabase-0-9-0-release-age-exclude.md)       | better-supabase 0.9.0 skips the one-day release age                                                    |
 | [0039](./0039-better-supabase-0-10-0-release-age-exclude.md)      | better-supabase 0.10.0 skips the one-day release age                                                   |
 | [0040](./0040-better-supabase-0-11-0-floor-and-release-age.md)    | better-supabase 0.11.0 is the peer floor, with no upper bound, and skips the one-day release age       |
@@ -70,3 +70,5 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0064](./0064-authorizer-claims-key-per-scope.md)                 | The better-supabase authorizer serialises a claims object once per request scope                       |
 | [0065](./0065-release-after-ci.md)                                | Release runs after CI, without a second verify                                                         |
 | [0066](./0066-pnpm-store-saved-once.md)                           | The pnpm store is saved from the static job only                                                       |
+| [0067](./0067-better-supabase-0-58-0-floor-and-release-age.md)    | better-supabase 0.58.0 is the peer floor, 0.58.3 the catalog pin, and both skip the release age        |
+| [0068](./0068-cli-contract-3.md)                                  | PermDock moves to better-supabase's CLI contract 3                                                     |

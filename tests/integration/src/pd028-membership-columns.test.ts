@@ -72,7 +72,7 @@ export default {
 `,
     );
     const result = await run(["doctor", "--json", "--only", "PD028"], { cwd });
-    // SAFETY: the cli-result-v1 envelope `permdock doctor --json` prints.
+    // SAFETY: the cli-result-v2 result `permdock doctor --json` prints on stdout.
     return (
       JSON.parse(result.stdout) as {
         readonly data: {

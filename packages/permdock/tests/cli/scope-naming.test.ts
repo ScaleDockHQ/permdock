@@ -139,11 +139,15 @@ async function render(outer: string, inner: string, options: Run) {
  * parameters of the objects PermDock owns (`custom_role_*`, `approval_requests`
  * and the `v: 1` request's `subject.principal.tenant`), the hook's claim
  * entries, the audit function's `tenant` argument, the `authorize` hook's
- * `requested_tenant`, and the `v_*tenant` locals, which a scope name such as
- * `scope` or `key` would collide with. Renaming the columns per policy would
- * drop and re-add them under a declarative schema diff.
+ * `requested_tenant`, the `v_*tenant` locals, which a scope name such as
+ * `scope` or `key` would collide with, the `tenants` field of better-supabase's
+ * bootstrap permissions wire, and the `tenant` field a one-tenant
+ * `permdock_subject(p_tenant)` record carries. Renaming the columns per policy
+ * would drop and re-add them under a declarative schema diff.
  */
 const CONTRACT = [
+  /'tenants'/gu,
+  /jsonb_build_object\('tenant', /gu,
   /(?<!')\b(?:c\.|excluded\.)?tenant_id\b(?!')/gu,
   /\bp_tenant\b/gu,
   /\btenant = excluded\.tenant\b/gu,

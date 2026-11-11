@@ -444,8 +444,8 @@ catalogs:
       specifier: 3.0.1
       version: 3.0.1
     better-supabase:
-      specifier: 0.53.0
-      version: 0.53.0
+      specifier: 0.58.3
+      version: 0.58.3
     botid:
       specifier: 1.5.12
       version: 1.5.12
@@ -1723,7 +1723,7 @@ importers:
     dependencies:
       better-supabase:
         specifier: 'catalog:'
-        version: 0.53.0(39c4161e5c710e7c77acb6f8b96af1b5)
+        version: 0.58.3(14058bf56bdf4abd130836b007228250)
       jose:
         specifier: 'catalog:'
         version: 6.2.14
@@ -2715,10 +2715,10 @@ importers:
         version: 1.0.0
       better-supabase:
         specifier: 'catalog:'
-        version: 0.53.0(fb29154a13a7be08ea7bbd63a10e1e32)
+        version: 0.58.3(2ab3acbf6fc6698cc2533aa26fa1ef21)
       better-supabase-floor:
-        specifier: npm:better-supabase@0.53.0
-        version: better-supabase@0.53.0(fb29154a13a7be08ea7bbd63a10e1e32)
+        specifier: npm:better-supabase@0.58.0
+        version: better-supabase@0.58.0(2ab3acbf6fc6698cc2533aa26fa1ef21)
       chat:
         specifier: 'catalog:'
         version: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
@@ -3051,7 +3051,7 @@ importers:
         version: 7.0.159(zod@4.6.7)
       better-supabase:
         specifier: 'catalog:'
-        version: 0.53.0(4dbe7f6f0f513430b5b0bd6512faeca6)
+        version: 0.58.3(6c9726aaa21c90039fa5658161edbc37)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@26.6.6))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
@@ -8257,6 +8257,10 @@ packages:
     resolution: {integrity: sha512-JXy+37KPApHsyotaQACovv/Jy9E22rfiWLRuT+2UjoEAcAIelDFIrsF/FY47Dy19mO7lI0Tq+zDCX8oJ2Ozfiw==}
     engines: {node: '>=22.0.0'}
 
+  '@supabase/postgrest-js@2.119.0':
+    resolution: {integrity: sha512-qBmcjEFO7Ptyf5qvOXYJa1s4bfA4zsMIFf2i+h2zd6RRTDLwquX8z1mnS9djNOJjbiO1OGFh5Y2Lc2k2pA8TMw==}
+    engines: {node: '>=22.0.0'}
+
   '@supabase/postgrest-typegen@0.6.0':
     resolution: {integrity: sha512-3aCh88bSqPpLbKQV3q9obZcYSJ9BYbQgkYFCYgGcu9pv/WEE/9sK7k2aWJqKJR9hK9NTWXBD85/yx7vSMvEw+A==}
     engines: {node: '>=22.12.0'}
@@ -10171,8 +10175,8 @@ packages:
   better-result@3.0.1:
     resolution: {integrity: sha512-rnCeqEXkKPHmz5MO5ZroPRDyHe4YvlNPyy7qj8cVcWs/GnvSvC3086G74/220W+wWcIWlXgzvcjskFV0A4blUQ==}
 
-  better-supabase@0.53.0:
-    resolution: {integrity: sha512-RHrt3knQ3Jxwjn4Uc7WPzUJRNQ6wtcXS8lslKTZRvifna85jQtcgGWmNSY0roK3Ap6iro7pwRybuiEUbMyTUJw==}
+  better-supabase@0.58.0:
+    resolution: {integrity: sha512-06oQEYu+N+EovE5o1SYsEL/BlpYuvWXBEyP8vO2gzQf9fQYmaDDnfjqMmqcCTP3ptSDDCtS7YiRGOT3kqt+TEA==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -10193,12 +10197,14 @@ packages:
       '@powersync/common': '>=1 <3'
       '@solidjs/start': '>=2 <3'
       '@supabase-labs/middleware-openfeature': '>=0.2.0 <0.3'
-      '@supabase/config': '>=0.9.0 <0.12'
+      '@supabase/auth-js': ^2.118.0
+      '@supabase/config': '>=0.9.0 <2'
       '@supabase/lite': '>=0.11.0 <0.12'
       '@supabase/mcp-server-supabase': '>=0.13.0 <0.15'
       '@supabase/pg-delta': '>=1.0.0-alpha.60 <1.0.0'
       '@supabase/pg-topo': '>=1.0.0-alpha.8 <1.0.0'
       '@supabase/postgrest-typegen': '>=0.6.0 <0.7'
+      '@supabase/realtime-js': ^2.118.0
       '@supabase/supabase-js': ^2.118.0
       '@sveltejs/kit': '>=2 <4'
       '@tanstack/query-core': ^5.62.0
@@ -10237,9 +10243,11 @@ packages:
       svelte: ^5.7
       temporal-polyfill: '>=1'
       undici: 7.30.1
+      valibot: '>=1 <2'
       vue: ^3.3
       workflow: '>=5.1 <6'
       yjs: '>=13.6 <14'
+      zod: 4.6.7
     peerDependenciesMeta:
       '@ai-sdk/anthropic':
         optional: true
@@ -10275,6 +10283,8 @@ packages:
         optional: true
       '@supabase-labs/middleware-openfeature':
         optional: true
+      '@supabase/auth-js':
+        optional: true
       '@supabase/config':
         optional: true
       '@supabase/lite':
@@ -10286,6 +10296,8 @@ packages:
       '@supabase/pg-topo':
         optional: true
       '@supabase/postgrest-typegen':
+        optional: true
+      '@supabase/realtime-js':
         optional: true
       '@sveltejs/kit':
         optional: true
@@ -10361,11 +10373,224 @@ packages:
         optional: true
       undici:
         optional: true
+      valibot:
+        optional: true
       vue:
         optional: true
       workflow:
         optional: true
       yjs:
+        optional: true
+      zod:
+        optional: true
+
+  better-supabase@0.58.3:
+    resolution: {integrity: sha512-B4nTW3/Ts+nvXhVDOhnBia+evJZuY5twk+M5CHOGqJcoh6/wLlA02IZ/zVMEge63AoFGCBKxh0cZD6NZId2E0A==}
+    engines: {node: '>=24'}
+    hasBin: true
+    peerDependencies:
+      '@ai-sdk/anthropic': '>=4 <5'
+      '@ai-sdk/mcp': '>=2 <3'
+      '@ai-sdk/react': '>=4 <5'
+      '@ai-sdk/sandbox-vercel': '>=1 <2'
+      '@ai-sdk/workflow': '>=2 <3'
+      '@chat-adapter/catalog': '>=4.43 <5'
+      '@chat-adapter/whatsapp': '>=4.43 <5'
+      '@json-render/core': '>=0.21 <1'
+      '@modelcontextprotocol/server': '>=2.3.0 <3'
+      '@nestjs/common': '>=11 <13'
+      '@next/playwright': '>=16.2 <17'
+      '@openfeature/server-sdk': '>=1 <2'
+      '@opentelemetry/api': '>=1.9 <2'
+      '@orpc/server': '>=2.0.0-beta.40 <3'
+      '@powersync/common': '>=1 <3'
+      '@solidjs/start': '>=2 <3'
+      '@supabase-labs/middleware-openfeature': '>=0.2.0 <0.3'
+      '@supabase/auth-js': ^2.118.0
+      '@supabase/config': '>=0.9.0 <2'
+      '@supabase/lite': '>=0.11.0 <0.12'
+      '@supabase/mcp-server-supabase': '>=0.13.0 <0.15'
+      '@supabase/pg-delta': '>=1.0.0-alpha.60 <1.0.0'
+      '@supabase/pg-topo': '>=1.0.0-alpha.8 <1.0.0'
+      '@supabase/postgrest-typegen': '>=0.6.0 <0.7'
+      '@supabase/realtime-js': ^2.118.0
+      '@supabase/supabase-js': ^2.118.0
+      '@sveltejs/kit': '>=2 <4'
+      '@tanstack/query-core': ^5.62.0
+      '@tanstack/react-start': '>=1 <2'
+      '@vercel/connect': '>=2 <3'
+      '@vercel/queue': '>=0.8 <0.9'
+      '@vercel/sandbox': '>=3 <4'
+      '@workflow/world': '>=5.1.0 <5.2'
+      '@workflow/world-postgres': '>=5.1.0 <5.2'
+      ai: '>=7 <8'
+      astro: '>=7 <8'
+      better-result: '>=3 <4'
+      chat: '>=4.41 <5'
+      elysia: '>=1 <2'
+      eve: '>=0.71 <1'
+      expo-server: '>=55 <59'
+      express: '>=5 <6'
+      fast-xml-parser: '>=5 <6'
+      fastify: '>=5 <6'
+      flags: '>=4.2 <5'
+      h3: '>=1 <3'
+      hono: '>=4 <5'
+      jsonpath-rfc9535: '>=1.3.0 <2'
+      koa: '>=3 <4'
+      next: 16.4.3
+      nuqs: '>=2.3 <3'
+      nuxt: '>=3 <5'
+      oxfmt: '>=0.66.0 <1'
+      pg: 8.23.1
+      react: 19.3.1
+      react-router: '>=7.9 <9'
+      redis: '>=5 <7'
+      resumable-stream: '>=2.2.13 <3'
+      solid-js: ^1.8
+      stripe: '>=17 <24'
+      svelte: ^5.7
+      temporal-polyfill: '>=1'
+      undici: 7.30.1
+      valibot: '>=1 <2'
+      vue: ^3.3
+      workflow: '>=5.1 <6'
+      yjs: '>=13.6 <14'
+      zod: 4.6.7
+    peerDependenciesMeta:
+      '@ai-sdk/anthropic':
+        optional: true
+      '@ai-sdk/mcp':
+        optional: true
+      '@ai-sdk/react':
+        optional: true
+      '@ai-sdk/sandbox-vercel':
+        optional: true
+      '@ai-sdk/workflow':
+        optional: true
+      '@chat-adapter/catalog':
+        optional: true
+      '@chat-adapter/whatsapp':
+        optional: true
+      '@json-render/core':
+        optional: true
+      '@modelcontextprotocol/server':
+        optional: true
+      '@nestjs/common':
+        optional: true
+      '@next/playwright':
+        optional: true
+      '@openfeature/server-sdk':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      '@orpc/server':
+        optional: true
+      '@powersync/common':
+        optional: true
+      '@solidjs/start':
+        optional: true
+      '@supabase-labs/middleware-openfeature':
+        optional: true
+      '@supabase/auth-js':
+        optional: true
+      '@supabase/config':
+        optional: true
+      '@supabase/lite':
+        optional: true
+      '@supabase/mcp-server-supabase':
+        optional: true
+      '@supabase/pg-delta':
+        optional: true
+      '@supabase/pg-topo':
+        optional: true
+      '@supabase/postgrest-typegen':
+        optional: true
+      '@supabase/realtime-js':
+        optional: true
+      '@sveltejs/kit':
+        optional: true
+      '@tanstack/query-core':
+        optional: true
+      '@tanstack/react-start':
+        optional: true
+      '@vercel/connect':
+        optional: true
+      '@vercel/queue':
+        optional: true
+      '@vercel/sandbox':
+        optional: true
+      '@workflow/world':
+        optional: true
+      '@workflow/world-postgres':
+        optional: true
+      ai:
+        optional: true
+      astro:
+        optional: true
+      better-result:
+        optional: true
+      chat:
+        optional: true
+      elysia:
+        optional: true
+      eve:
+        optional: true
+      expo-server:
+        optional: true
+      express:
+        optional: true
+      fast-xml-parser:
+        optional: true
+      fastify:
+        optional: true
+      flags:
+        optional: true
+      h3:
+        optional: true
+      hono:
+        optional: true
+      jsonpath-rfc9535:
+        optional: true
+      koa:
+        optional: true
+      next:
+        optional: true
+      nuqs:
+        optional: true
+      nuxt:
+        optional: true
+      oxfmt:
+        optional: true
+      pg:
+        optional: true
+      react:
+        optional: true
+      react-router:
+        optional: true
+      redis:
+        optional: true
+      resumable-stream:
+        optional: true
+      solid-js:
+        optional: true
+      stripe:
+        optional: true
+      svelte:
+        optional: true
+      temporal-polyfill:
+        optional: true
+      undici:
+        optional: true
+      valibot:
+        optional: true
+      vue:
+        optional: true
+      workflow:
+        optional: true
+      yjs:
+        optional: true
+      zod:
         optional: true
 
   big-integer@1.6.52:
@@ -23775,6 +24000,10 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@supabase/postgrest-js@2.119.0':
+    dependencies:
+      tslib: 2.8.1
+
   '@supabase/postgrest-typegen@0.6.0(oxfmt@0.74.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0)))':
     dependencies:
       arktype: 2.2.8
@@ -26738,112 +26967,11 @@ snapshots:
 
   better-result@3.0.1: {}
 
-  better-supabase@0.53.0(39c4161e5c710e7c77acb6f8b96af1b5):
+  better-supabase@0.58.0(2ab3acbf6fc6698cc2533aa26fa1ef21):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
-      '@supabase/postgrest-js': 2.118.0
-      '@supabase/server': 1.9.2(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0))(hono@4.13.16)(pg@8.23.1)(typescript@7.0.2)
-      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
-      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
-    optionalDependencies:
-      '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
-      '@ai-sdk/react': 4.0.163(react@19.3.1)(zod@4.6.7)
-      '@chat-adapter/catalog': 4.43.0
-      '@modelcontextprotocol/server': 2.3.1
-      '@nestjs/common': 11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0)
-      '@next/playwright': 16.4.3(@playwright/test@1.64.1)
-      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
-      '@opentelemetry/api': 1.9.1
-      '@orpc/server': 2.0.0-beta.48(crossws@0.4.12(srvx@1.0.7))(fastify@5.12.7)
-      '@solidjs/start': 2.1.0(@solidjs/router@1.0.1(solid-js@1.9.18))(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      '@supabase-labs/middleware-openfeature': 0.2.0(typescript@7.0.2)
-      '@supabase/pg-delta': 1.0.0-alpha.60(@supabase/pg-topo@1.0.0-alpha.8(supports-color@11.0.0))(supports-color@11.0.0)
-      '@supabase/pg-topo': 1.0.0-alpha.8(supports-color@11.0.0)
-      '@supabase/postgrest-typegen': 0.6.0(oxfmt@0.74.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0)))
-      '@tanstack/react-start': 1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.16)(rollup@4.63.5)(supports-color@11.0.0)(vite-plugin-solid@2.11.15(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      '@vercel/queue': 0.8.0(@opentelemetry/api@1.9.1)
-      ai: 7.0.159(zod@4.6.7)
-      astro: 7.4.4(@types/node@26.6.6)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@11.0.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
-      better-result: 3.0.1
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
-      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
-      eve: 0.91.0(c8d73b9962b22f46aacc26cac630a3b5)
-      expo-server: 57.0.3
-      express: 5.3.0(supports-color@11.0.0)
-      fastify: 5.12.7
-      h3: 2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)
-      hono: 4.13.16
-      next: 16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      nuxt: 4.5.2(599cf8a378d2a95e2314de034e5c5418)
-      oxfmt: 0.74.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0))
-      pg: 8.23.1
-      react: 19.3.1
-      react-router: 8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      solid-js: 1.9.18
-      svelte: 5.57.3(@typescript-eslint/types@8.71.0)
-      temporal-polyfill: 1.0.6
-      undici: 7.30.1
-      vue: 3.5.44(typescript@7.0.2)
-      workflow: 5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0)
-    transitivePeerDependencies:
-      - typescript
-
-  better-supabase@0.53.0(4dbe7f6f0f513430b5b0bd6512faeca6):
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@supabase/middleware': 1.0.0(typescript@7.0.2)
-      '@supabase/postgrest-js': 2.118.0
-      '@supabase/server': 1.9.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0))(hono@4.13.16)(pg@8.23.1)(typescript@7.0.2)
-      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
-      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
-    optionalDependencies:
-      '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
-      '@ai-sdk/react': 4.0.163(react@19.3.1)(zod@4.6.7)
-      '@chat-adapter/catalog': 4.43.0
-      '@modelcontextprotocol/server': 2.3.1
-      '@nestjs/common': 12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0)
-      '@next/playwright': 16.4.3(@playwright/test@1.64.1)
-      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
-      '@opentelemetry/api': 1.9.1
-      '@orpc/server': 2.0.0-beta.48(crossws@0.4.12(srvx@1.0.7))(fastify@5.12.7)
-      '@solidjs/start': 2.1.0(@solidjs/router@1.0.1(solid-js@1.9.18))(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      '@supabase-labs/middleware-openfeature': 0.2.0(typescript@7.0.2)
-      '@supabase/pg-delta': 1.0.0-alpha.60(@supabase/pg-topo@1.0.0-alpha.8(supports-color@11.0.0))(supports-color@11.0.0)
-      '@supabase/pg-topo': 1.0.0-alpha.8(supports-color@11.0.0)
-      '@tanstack/react-start': 1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.16)(rollup@4.63.5)(supports-color@11.0.0)(vite-plugin-solid@2.11.15(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      '@vercel/queue': 0.8.0(@opentelemetry/api@1.9.1)
-      ai: 7.0.159(zod@4.6.7)
-      astro: 7.4.4(@types/node@26.6.6)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@11.0.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
-      better-result: 3.0.1
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
-      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
-      eve: 0.91.0(b8de1d92a3d027cefdce1ed21095d720)
-      expo-server: 57.0.3
-      express: 5.3.0(supports-color@11.0.0)
-      fastify: 5.12.7
-      h3: 2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)
-      hono: 4.13.16
-      next: 16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      nuxt: 4.5.2(611f6c05f2143e89e34a028c2c8378f0)
-      oxfmt: 0.74.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0))
-      pg: 8.23.1
-      react: 19.3.1
-      react-router: 8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      solid-js: 1.9.18
-      svelte: 5.57.3(@typescript-eslint/types@8.71.0)
-      temporal-polyfill: 1.0.6
-      undici: 7.30.1
-      vue: 3.5.44(typescript@7.0.2)
-      workflow: 5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0)
-    transitivePeerDependencies:
-      - typescript
-
-  better-supabase@0.53.0(fb29154a13a7be08ea7bbd63a10e1e32):
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@supabase/middleware': 1.0.0(typescript@7.0.2)
-      '@supabase/postgrest-js': 2.118.0
+      '@supabase/postgrest-js': 2.119.0
       '@supabase/server': 1.9.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0))(hono@4.13.16)(pg@8.23.1)(typescript@7.0.2)
       '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
       '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
@@ -26859,8 +26987,10 @@ snapshots:
       '@orpc/server': 2.0.0-beta.48(crossws@0.4.12(srvx@1.0.7))(fastify@5.12.7)
       '@solidjs/start': 2.1.0(@solidjs/router@1.0.1(solid-js@1.9.18))(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@supabase-labs/middleware-openfeature': 0.2.0(typescript@7.0.2)
+      '@supabase/auth-js': 2.118.0
       '@supabase/pg-delta': 1.0.0-alpha.60(@supabase/pg-topo@1.0.0-alpha.8(supports-color@11.0.0))(supports-color@11.0.0)
       '@supabase/pg-topo': 1.0.0-alpha.8(supports-color@11.0.0)
+      '@supabase/realtime-js': 2.118.0
       '@sveltejs/kit': 3.1.1(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.3(@typescript-eslint/types@8.71.0))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(svelte@5.57.3(@typescript-eslint/types@8.71.0))(typescript@7.0.2)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@tanstack/react-start': 1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.16)(rollup@4.63.5)(supports-color@11.0.0)(vite-plugin-solid@2.11.15(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@vercel/queue': 0.8.0(@opentelemetry/api@1.9.1)
@@ -26885,8 +27015,174 @@ snapshots:
       svelte: 5.57.3(@typescript-eslint/types@8.71.0)
       temporal-polyfill: 1.0.6
       undici: 7.30.1
+      valibot: 1.5.0(typescript@7.0.2)
       vue: 3.5.44(typescript@7.0.2)
       workflow: 5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0)
+      zod: 4.6.7
+    transitivePeerDependencies:
+      - typescript
+
+  better-supabase@0.58.3(14058bf56bdf4abd130836b007228250):
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@supabase/middleware': 1.0.0(typescript@7.0.2)
+      '@supabase/postgrest-js': 2.119.0
+      '@supabase/server': 1.9.2(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0))(hono@4.13.16)(pg@8.23.1)(typescript@7.0.2)
+      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
+      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
+    optionalDependencies:
+      '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
+      '@ai-sdk/react': 4.0.163(react@19.3.1)(zod@4.6.7)
+      '@chat-adapter/catalog': 4.43.0
+      '@modelcontextprotocol/server': 2.3.1
+      '@nestjs/common': 11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0)
+      '@next/playwright': 16.4.3(@playwright/test@1.64.1)
+      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
+      '@opentelemetry/api': 1.9.1
+      '@orpc/server': 2.0.0-beta.48(crossws@0.4.12(srvx@1.0.7))(fastify@5.12.7)
+      '@solidjs/start': 2.1.0(@solidjs/router@1.0.1(solid-js@1.9.18))(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@supabase-labs/middleware-openfeature': 0.2.0(typescript@7.0.2)
+      '@supabase/auth-js': 2.118.0
+      '@supabase/pg-delta': 1.0.0-alpha.60(@supabase/pg-topo@1.0.0-alpha.8(supports-color@11.0.0))(supports-color@11.0.0)
+      '@supabase/pg-topo': 1.0.0-alpha.8(supports-color@11.0.0)
+      '@supabase/postgrest-typegen': 0.6.0(oxfmt@0.74.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0)))
+      '@supabase/realtime-js': 2.118.0
+      '@tanstack/react-start': 1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.16)(rollup@4.63.5)(supports-color@11.0.0)(vite-plugin-solid@2.11.15(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@vercel/queue': 0.8.0(@opentelemetry/api@1.9.1)
+      ai: 7.0.159(zod@4.6.7)
+      astro: 7.4.4(@types/node@26.6.6)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@11.0.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
+      better-result: 3.0.1
+      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
+      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
+      eve: 0.91.0(c8d73b9962b22f46aacc26cac630a3b5)
+      expo-server: 57.0.3
+      express: 5.3.0(supports-color@11.0.0)
+      fastify: 5.12.7
+      h3: 2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)
+      hono: 4.13.16
+      next: 16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      nuxt: 4.5.2(599cf8a378d2a95e2314de034e5c5418)
+      oxfmt: 0.74.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0))
+      pg: 8.23.1
+      react: 19.3.1
+      react-router: 8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      solid-js: 1.9.18
+      svelte: 5.57.3(@typescript-eslint/types@8.71.0)
+      temporal-polyfill: 1.0.6
+      undici: 7.30.1
+      valibot: 1.5.0(typescript@7.0.2)
+      vue: 3.5.44(typescript@7.0.2)
+      workflow: 5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0)
+      zod: 4.6.7
+    transitivePeerDependencies:
+      - typescript
+
+  better-supabase@0.58.3(2ab3acbf6fc6698cc2533aa26fa1ef21):
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@supabase/middleware': 1.0.0(typescript@7.0.2)
+      '@supabase/postgrest-js': 2.119.0
+      '@supabase/server': 1.9.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0))(hono@4.13.16)(pg@8.23.1)(typescript@7.0.2)
+      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
+      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
+    optionalDependencies:
+      '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
+      '@ai-sdk/react': 4.0.163(react@19.3.1)(zod@4.6.7)
+      '@chat-adapter/catalog': 4.43.0
+      '@modelcontextprotocol/server': 2.4.0
+      '@nestjs/common': 12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0)
+      '@next/playwright': 16.4.3(@playwright/test@1.64.1)
+      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
+      '@opentelemetry/api': 1.9.1
+      '@orpc/server': 2.0.0-beta.48(crossws@0.4.12(srvx@1.0.7))(fastify@5.12.7)
+      '@solidjs/start': 2.1.0(@solidjs/router@1.0.1(solid-js@1.9.18))(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@supabase-labs/middleware-openfeature': 0.2.0(typescript@7.0.2)
+      '@supabase/auth-js': 2.118.0
+      '@supabase/pg-delta': 1.0.0-alpha.60(@supabase/pg-topo@1.0.0-alpha.8(supports-color@11.0.0))(supports-color@11.0.0)
+      '@supabase/pg-topo': 1.0.0-alpha.8(supports-color@11.0.0)
+      '@supabase/realtime-js': 2.118.0
+      '@sveltejs/kit': 3.1.1(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.3(@typescript-eslint/types@8.71.0))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(svelte@5.57.3(@typescript-eslint/types@8.71.0))(typescript@7.0.2)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@tanstack/react-start': 1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.16)(rollup@4.63.5)(supports-color@11.0.0)(vite-plugin-solid@2.11.15(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@vercel/queue': 0.8.0(@opentelemetry/api@1.9.1)
+      ai: 7.0.159(zod@4.6.7)
+      astro: 7.4.4(@types/node@26.6.6)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@11.0.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
+      better-result: 3.0.1
+      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
+      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
+      eve: 0.91.0(e6e5812dec617badef8e2e97c6590dfc)
+      expo-server: 57.0.3
+      express: 5.3.0(supports-color@11.0.0)
+      fastify: 5.12.7
+      h3: 2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)
+      hono: 4.13.16
+      next: 16.4.3(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      nuxt: 4.5.2(611f6c05f2143e89e34a028c2c8378f0)
+      oxfmt: 0.74.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0))
+      pg: 8.23.1
+      react: 19.3.1
+      react-router: 8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      solid-js: 1.9.18
+      svelte: 5.57.3(@typescript-eslint/types@8.71.0)
+      temporal-polyfill: 1.0.6
+      undici: 7.30.1
+      valibot: 1.5.0(typescript@7.0.2)
+      vue: 3.5.44(typescript@7.0.2)
+      workflow: 5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0)
+      zod: 4.6.7
+    transitivePeerDependencies:
+      - typescript
+
+  better-supabase@0.58.3(6c9726aaa21c90039fa5658161edbc37):
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@supabase/middleware': 1.0.0(typescript@7.0.2)
+      '@supabase/postgrest-js': 2.119.0
+      '@supabase/server': 1.9.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0))(hono@4.13.16)(pg@8.23.1)(typescript@7.0.2)
+      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
+      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
+    optionalDependencies:
+      '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
+      '@ai-sdk/react': 4.0.163(react@19.3.1)(zod@4.6.7)
+      '@chat-adapter/catalog': 4.43.0
+      '@modelcontextprotocol/server': 2.3.1
+      '@nestjs/common': 12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0)
+      '@next/playwright': 16.4.3(@playwright/test@1.64.1)
+      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
+      '@opentelemetry/api': 1.9.1
+      '@orpc/server': 2.0.0-beta.48(crossws@0.4.12(srvx@1.0.7))(fastify@5.12.7)
+      '@solidjs/start': 2.1.0(@solidjs/router@1.0.1(solid-js@1.9.18))(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@supabase-labs/middleware-openfeature': 0.2.0(typescript@7.0.2)
+      '@supabase/auth-js': 2.118.0
+      '@supabase/pg-delta': 1.0.0-alpha.60(@supabase/pg-topo@1.0.0-alpha.8(supports-color@11.0.0))(supports-color@11.0.0)
+      '@supabase/pg-topo': 1.0.0-alpha.8(supports-color@11.0.0)
+      '@supabase/realtime-js': 2.118.0
+      '@tanstack/react-start': 1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.16)(rollup@4.63.5)(supports-color@11.0.0)(vite-plugin-solid@2.11.15(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@vercel/queue': 0.8.0(@opentelemetry/api@1.9.1)
+      ai: 7.0.159(zod@4.6.7)
+      astro: 7.4.4(@types/node@26.6.6)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@11.0.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
+      better-result: 3.0.1
+      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
+      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
+      eve: 0.91.0(b8de1d92a3d027cefdce1ed21095d720)
+      expo-server: 57.0.3
+      express: 5.3.0(supports-color@11.0.0)
+      fastify: 5.12.7
+      h3: 2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)
+      hono: 4.13.16
+      next: 16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      nuxt: 4.5.2(611f6c05f2143e89e34a028c2c8378f0)
+      oxfmt: 0.74.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0))
+      pg: 8.23.1
+      react: 19.3.1
+      react-router: 8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      solid-js: 1.9.18
+      svelte: 5.57.3(@typescript-eslint/types@8.71.0)
+      temporal-polyfill: 1.0.6
+      undici: 7.30.1
+      valibot: 1.5.0(typescript@7.0.2)
+      vue: 3.5.44(typescript@7.0.2)
+      workflow: 5.2.3(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.3(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0)
+      zod: 4.6.7
     transitivePeerDependencies:
       - typescript
 

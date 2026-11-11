@@ -22,14 +22,14 @@ begin
   if not found then
     raise exception using
       errcode = 'P0002',
-      message = 'permdock: no role row has id ' || coalesce(p_role_id::text, 'null'),
-      hint = 'unknown-role';
+      hint = 'unknown-role',
+      message = 'permdock: no role row has id ' || coalesce(p_role_id::text, 'null');
   end if;
   if v_skipped or v_key = any(array['owner']::text[]) then
     raise exception using
       errcode = '22023',
-      message = 'permdock: ' || coalesce(v_key, 'null') || ' is a declared role, not a custom role',
-      hint = 'declared-role';
+      hint = 'declared-role',
+      message = 'permdock: ' || coalesce(v_key, 'null') || ' is a declared role, not a custom role';
   end if;
   select array_agg(c.permission) into v_deny
   from "permdock".custom_role_permissions c
@@ -68,14 +68,14 @@ begin
   if not found then
     raise exception using
       errcode = 'P0002',
-      message = 'permdock: no role row has id ' || coalesce(p_role_id::text, 'null'),
-      hint = 'unknown-role';
+      hint = 'unknown-role',
+      message = 'permdock: no role row has id ' || coalesce(p_role_id::text, 'null');
   end if;
   if v_skipped or v_key = any(array['owner']::text[]) then
     raise exception using
       errcode = '22023',
-      message = 'permdock: ' || coalesce(v_key, 'null') || ' is a declared role, not a custom role',
-      hint = 'declared-role';
+      hint = 'declared-role',
+      message = 'permdock: ' || coalesce(v_key, 'null') || ' is a declared role, not a custom role';
   end if;
   select array_agg(c.permission) into v_deny
   from "permdock".custom_role_permissions c
@@ -104,8 +104,8 @@ begin
   ) then
     raise exception using
       errcode = '42501',
-      message = 'permdock: a role id belongs to another tenant than ' || p_tenant::text,
-      hint = 'not-member';
+      hint = 'not-member',
+      message = 'permdock: a role id belongs to another tenant than ' || p_tenant::text;
   end if;
   return query
   select distinct v.role_id, (case c.permission when 'file.read' then 'doc.read' else c.permission end)

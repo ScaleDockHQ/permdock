@@ -45,10 +45,10 @@ Upgrade
 Global flags
   --cwd <dir>                        Run as if started in this directory
   --config <file>                    Config file (default permdock.config.{ts,mts,js,mjs})
-  --json                             Print the cli-result-v1 JSON envelope on stdout
+  --json                             Print cli-result-v2 JSON: the result on stdout, an error on stderr
   --format <text|json|github|sarif>  Output format; github and sarif render findings
   -y, --yes                          Never prompt; take the answer the flags give
-  --confirm <token>                  The token a consent_required result gave, once the person agreed
+  --effects-digest <digest>          With --yes, the digest a confirmation_required error gave, once the person agreed
   --agent <auto|yes|no>              Agent mode: no prompts, JSON by default (default auto, PERMDOCK_AGENT)
   --debug                            Log each step and the cause of an error on stderr
   --color                            Styled output on a colour terminal

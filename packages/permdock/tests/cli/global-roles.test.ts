@@ -130,8 +130,11 @@ export default {
       expect(hook).toContain(
         'join "identity"."roles" rk on rk."id" = r."role_id"',
       );
-      expect(hook).toContain(
+      expect(hook).not.toContain(
         'grant select on table "identity"."roles" to supabase_auth_admin;',
+      );
+      expect(hook).toContain(
+        'grant execute on function "permdock".global_roles_for(uuid) to supabase_auth_admin;',
       );
       expect(hook).toContain(`create trigger "permdock_authz_version_update"
   after update on "identity"."roles"

@@ -537,6 +537,18 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
         returns: "jsonb",
         execute: ["authenticated"],
       },
+      {
+        name: "permdock_subject",
+        args: "p_tenant text",
+        returns: "jsonb",
+        execute: ["authenticated"],
+      },
+      {
+        name: "permdock_bootstrap_permissions",
+        args: "p_tenant text",
+        returns: "jsonb",
+        execute: ["authenticated"],
+      },
     ],
     memberships: [
       {

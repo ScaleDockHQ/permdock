@@ -101,7 +101,7 @@ describe("file plan", () => {
             { path: "first.txt", text: "1" },
             { path: "locked/second.txt", text: "2" },
           ]),
-        ).toThrow(expect.objectContaining({ code: "write_failed" }));
+        ).toThrow(expect.objectContaining({ code: "failed" }));
         chmodSync(join(cwd, "locked"), 0o755);
         expect(readdirSync(cwd)).toStrictEqual(["locked"]);
       },
@@ -124,8 +124,8 @@ describe("file plan", () => {
         }),
       ).toThrow(
         expect.objectContaining({
-          kind: "action",
-          code: "dirty_worktree",
+          kind: "failed",
+          code: "file_conflict",
           next: [
             {
               when: "to see the changes first",
@@ -187,21 +187,21 @@ describe("file plan", () => {
     it("asks for --out with --check", async () => {
       const result = await run(["catalog", "--check"], { cwd: FIXTURE });
       expect(result).toMatchObject({
-        code: 3,
+        code: 2,
         stderr: "catalog --check needs --out: the file to compare\n",
       });
     });
   });
 
   describe("codemod on a dirty work tree", () => {
-    it("refuses with exit 3 until --force", async () => {
+    it("refuses with exit 1 until --force", async () => {
       const cwd = repo();
       writeFileSync(
         join(cwd, "a.ts"),
         'export const sql = "permdock permitted_note_row(";\n',
       );
       const refused = await run(["codemod", "0.26"], { cwd });
-      expect(refused.code).toBe(3);
+      expect(refused.code).toBe(1);
       expect(refused.stderr).toContain(
         "codemod rewrites files with uncommitted changes: a.ts",
       );

@@ -256,7 +256,7 @@ describe("supabase.hook.teams", () => {
   it("writes a budgeted team_ids claim and clears it for a suspended user", () => {
     const { sql } = hook();
     expect(sql).toContain("team_ids jsonb := '[]'::jsonb;");
-    expect(sql).toContain("member_team_ids_for(uid, active)");
+    expect(sql).toContain('"permdock"."member_team_ids_for"(uid, active)');
     expect(sql).toContain(
       "claims := jsonb_set(claims, '{team_ids_truncated}', 'true'::jsonb);",
     );
@@ -295,7 +295,7 @@ describe("supabase.hook.teams", () => {
         },
       },
     });
-    expect(sql).toContain("member_team_ids_for(uid, active)");
+    expect(sql).toContain('"permdock"."member_team_ids_for"(uid, active)');
     const hookBody = sql.slice(
       sql.indexOf('function "permdock".custom_access_token_hook'),
       sql.indexOf(
@@ -372,6 +372,52 @@ describe("supabase.hook.teams", () => {
       );
     });
 
+    it("calls a team scope's member_<scope>_ids_for with the active tenant and grants it", () => {
+      const { sql, manifest } = supabaseHookSql(
+        [...scopes, { name: "teams", key: "team_id", within: "organization" }],
+        {
+          policy: "p.ts",
+          supabase: {
+            hook: {
+              teams: {
+                table: "team_members",
+                user: "user_id",
+                team: "team_id",
+              },
+              memberships: [
+                junctionMembershipSource({
+                  table: "organization_members",
+                  scope: "organization",
+                  id: "organization_id",
+                  roles: "role",
+                }),
+                junctionMembershipSource({
+                  table: "team_members",
+                  scope: "teams",
+                  id: "team_id",
+                  within: { organization: "organization_id" },
+                  roles: "role",
+                }),
+              ],
+            },
+          },
+        },
+      );
+      expect(sql).toContain(
+        '"permdock"."member_teams_ids_for"(uid, active) as team(team_id)',
+      );
+      expect(sql).toContain(
+        'grant execute on function "permdock".member_teams_ids_for(uuid, text) to supabase_auth_admin;',
+      );
+      expect(manifest.rls.helpers).toContainEqual(
+        expect.objectContaining({
+          name: "member_teams_ids_for",
+          args: "p_user uuid, p_active text",
+          execute: ["supabase_auth_admin"],
+        }),
+      );
+    });
+
     it("lists the helpers and leaves the function bodies to rls generate", () => {
       const { sql, manifest } = teamsHook();
       expect(sql).not.toContain('function "permdock"."member_team_ids_of"');
@@ -388,6 +434,56 @@ describe("supabase.hook.teams", () => {
         returns: "setof uuid",
         execute: ["authenticated"],
       });
+    });
+
+    it("skips disabled rows, a suspended user and a suspended tenant, and orders the active tenant first", () => {
+      const sql = hookTeamReadersSql({
+        dialect: "supabase",
+        scopes,
+        tenantClaim: "tenant_id",
+        gucPrefix: "app",
+        hookTeams: {
+          table: "team_members",
+          user: "user_id",
+          team: "team_id",
+          tenant: "organization_id",
+          disabledAt: "removed_at",
+        },
+        suspension: {
+          users: { table: "profiles", id: "user_id", disabledAt: "banned_at" },
+          scopes: {
+            organization: {
+              table: "organizations",
+              id: "id",
+              status: "status",
+              active: ["active"],
+            },
+          },
+        },
+      });
+      expect(sql).toContain('    and t."removed_at" is null');
+      expect(sql).toContain(
+        `    and coalesce(p_user in (select s."user_id" from "public"."profiles" s where s."banned_at" is null), false)`,
+      );
+      expect(sql).toContain(
+        `    and coalesce(t."organization_id" in (select s."id" from "public"."organizations" s where s."status"::text = any(array['active']::text[])), false)`,
+      );
+      expect(sql).toContain(
+        'order by (p_active is not null and t."organization_id"::text is not distinct from p_active) desc, t."team_id"',
+      );
+      expect(
+        hookTeamReadersSql({
+          dialect: "supabase",
+          scopes: [],
+          tenantClaim: "tenant_id",
+          gucPrefix: "app",
+          hookTeams: {
+            table: "team_members",
+            user: "user_id",
+            team: "team_id",
+          },
+        }),
+      ).toContain('order by t."team_id"');
     });
 
     it("grants member_team_ids_for to supabase_auth_admin only for an invoker hook", () => {

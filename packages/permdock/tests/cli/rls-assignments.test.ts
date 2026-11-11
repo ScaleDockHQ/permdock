@@ -154,7 +154,7 @@ describe("assignment triggers", () => {
     expect(sql).toContain(
       `if old."user_id"::text = ((select "permdock".permdock_user_id()))::text then`,
     );
-    expect(sql).toContain(`hint = 'self-demotion';`);
+    expect(sql).toContain(`hint = 'self-demotion',`);
     expect(sql).toContain(
       `if new."user_id"::text = ((select "permdock".permdock_user_id()))::text then`,
     );

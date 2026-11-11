@@ -17,7 +17,7 @@ create table better_supabase.membership_roles (
 
 create table better_supabase.team_members (
   team_id uuid not null,
-  organization_id uuid not null,
+  tenant_id uuid not null,
   user_id uuid not null
 );
 

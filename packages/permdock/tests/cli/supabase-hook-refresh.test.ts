@@ -72,6 +72,27 @@ describe("supabase hook refresh and oauth branches", () => {
     expect(sql).toContain(FAST);
   });
 
+  it("never compiles the fast path when memberships_for reads a suspended-tenant table", async () => {
+    const rls = `{ suspension: { scopes: { organization: { table: 'organization', id: 'id', disabledAt: 'disabled_at' } } } }`;
+    const { code, sql } = await generate(
+      `{ memberships: [${PLAIN}] }`,
+      [],
+      rls,
+    );
+    expect(code).toBe(0);
+    expect(sql).not.toContain(FAST);
+    expect(sql).toContain(
+      `(x.tenant is null or x.entry ? 'keep' or exists (select 1 from "public"."organization" s where s."id"::text = x.tenant and s."disabled_at" is null))`,
+    );
+    const reuse = await generate(
+      `{ memberships: [${PLAIN}], refresh: 'reuse' }`,
+      [],
+      rls,
+    );
+    expect(reuse.code).not.toBe(0);
+    expect(reuse.output).toContain("rls.suspension.scopes");
+  });
+
   it("never compiles the fast path without authz_ver", async () => {
     const { code, sql } = await generate(
       `{ memberships: [${PLAIN}], version: false }`,
@@ -180,5 +201,66 @@ describe("supabase hook refresh and oauth branches", () => {
     expect(slim).toContain("- 'team_ids' - 'team_ids_truncated'");
     expect(slim).toContain("- 'custom_roles_ver'");
     expect(slim).toContain("- 'features'");
+  });
+});
+
+describe("supabase hook membershipsClaim", () => {
+  afterEach(removeHookProjects);
+
+  const DATABASE = "{ dialect: 'supabase', authorize: 'database' }";
+
+  it("keeps no entry and marks the claim truncated with membershipsClaim false", async () => {
+    const { code, sql } = await generate(
+      `{ memberships: [${PLAIN}], membershipsClaim: false }`,
+      [],
+      DATABASE,
+    );
+    expect(code).toBe(0);
+    expect(sql).not.toContain("pdk_ranked");
+    expect(sql).not.toContain("pdk_kept");
+    expect(sql).toContain("truncated or exists (select 1 from pdk_entries),");
+    expect(sql).toContain(
+      "active is not null and coalesce((select bool_or(x.root_id is not distinct from active) from pdk_entries x), false),",
+    );
+    expect(sql).not.toContain(FAST);
+    const on = await generate(`{ memberships: [${PLAIN}] }`, [], DATABASE);
+    expect(on.sql).toContain("pdk_kept");
+    expect(on.sql).toContain(FAST);
+  });
+
+  it("refuses membershipsClaim false in jwt mode", async () => {
+    const { code, output } = await generate(
+      `{ memberships: [${PLAIN}], membershipsClaim: false }`,
+      [],
+      "{ dialect: 'supabase', authorize: 'jwt' }",
+    );
+    expect(code).toBe(2);
+    expect(output).toContain(
+      "supabase.hook.membershipsClaim: false needs rls.authorize: 'database'",
+    );
+  });
+
+  it("refuses an explicit refresh 'reuse' with membershipsClaim false", async () => {
+    const { code, output } = await generate(
+      `{ memberships: [${PLAIN}], membershipsClaim: false, refresh: 'reuse' }`,
+      [],
+      DATABASE,
+    );
+    expect(code).toBe(2);
+    expect(output).toContain(
+      "supabase.hook.membershipsClaim is false, so a refresh has no memberships to reuse",
+    );
+  });
+
+  it("refuses a membershipsClaim that is not a boolean", async () => {
+    const { code, output } = await generate(
+      `{ memberships: [${PLAIN}], membershipsClaim: 'off' }`,
+      [],
+      DATABASE,
+    );
+    expect(code).toBe(2);
+    expect(output).toContain(
+      "supabase.hook.membershipsClaim must be a boolean",
+    );
   });
 });

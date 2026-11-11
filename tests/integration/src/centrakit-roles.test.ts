@@ -418,11 +418,11 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     );
   });
 
-  it("reads a portal contact's login through contact_profiles and lets supabase_auth_admin read it", async () => {
+  it("reads a portal contact's login through contact_profiles, inside the definer reader with no table grant", async () => {
     expect(sql).toContain(
       'join "public"."contact_profiles" mu on mu."id" = m."contact_profile_id"',
     );
-    expect(sql).toContain(
+    expect(sql).not.toContain(
       'grant select on table "public"."contact_profiles" to supabase_auth_admin;',
     );
     expect((await mint(CONTACT))["memberships"]).toStrictEqual([

@@ -122,9 +122,9 @@ describe("output formats", () => {
         cwd: legacyApp(),
       });
       expect(result.code).toBe(2);
-      expect(JSON.parse(result.stdout)).toMatchObject({
+      expect(JSON.parse(result.stderr)).toMatchObject({
         status: "error",
-        error: { code: "invalid_value" },
+        reason: "invalid_value",
       });
     });
 

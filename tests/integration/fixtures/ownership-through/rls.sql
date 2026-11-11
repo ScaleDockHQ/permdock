@@ -619,58 +619,41 @@ stable
 security definer
 set search_path = ''
 as $$
-  with pdk_u(user_id) as (
-    select c.user_id
+  with pdk_h(user_id, grant_key) as (
+  select m."user_id"::text, rp.grant_key
+  from "public"."org_members" m
+  join "public"."org_roles" mk on mk."id" = m."role_id"
+  cross join lateral "permdock".permdock_role_grant_keys('org', mk."key"::text) rp(grant_key)
+  where m."org_id" = p_id
+    and not (mk."key"::text = any(array['reviewer']::text[]))
+  ),
+  pdk_g(user_id, grant_key) as (
+    select pdk_u.user_id, pdk_k.grant_key
     from (
-      select m."user_id"::text
-      from "public"."org_members" m
-      where m."org_id" = p_id
-      union
-      select ur.user_id::text
+      select distinct ur.user_id::text
       from "permdock".user_roles ur
-    ) c(user_id)
-    where c.user_id is not null
-  ),
-  pdk_k(grant_key, global, effect) as (
-    select g.grant_key, false, 'allow' from "permdock".grant_keys(p_permission, 'org') g(grant_key)
-    union all
-    select g.grant_key, false, 'deny' from "permdock".grant_keys(p_permission, 'org', 'deny') g(grant_key)
-    union all
-    select g.grant_key, true, 'allow' from "permdock".grant_keys(p_permission, 'global') g(grant_key)
-    union all
-    select g.grant_key, true, 'deny' from "permdock".grant_keys(p_permission, 'global', 'deny') g(grant_key)
-  ),
-  pdk_h(user_id, global, effect) as (
-    select pdk_u.user_id, pdk_k.global, pdk_k.effect
-    from pdk_u
-    cross join lateral (
-      select m."org_id"::text, rp.grant_key
-      from "public"."org_members" m
-      join "public"."org_roles" mk on mk."id" = m."role_id"
-      cross join lateral "permdock".permdock_role_grant_keys('org', mk."key"::text) rp(grant_key)
-      where m."user_id" = pdk_u.user_id
-        and not (mk."key"::text = any(array['reviewer']::text[]))
-    ) pdk_i(id, grant_key)
-    join pdk_k on pdk_k.grant_key = pdk_i.grant_key and not pdk_k.global
-    where pdk_i.id = p_id
-    union
-    select pdk_u.user_id, pdk_k.global, pdk_k.effect
-    from pdk_u
+      where ur.user_id is not null
+    ) pdk_u(user_id)
     cross join lateral (
       select rp.grant_key
       from "permdock".user_roles ur
       cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
       where ur.user_id = pdk_u.user_id
         and not (ur.role::text = any(array['reviewer']::text[]))
-    ) pdk_g(grant_key)
-    join pdk_k on pdk_k.grant_key = pdk_g.grant_key and pdk_k.global
+    ) pdk_k(grant_key)
   )
-  select pdk_u.user_id
-  from pdk_u
-  where (exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = false and pdk_h.effect = 'allow')
-      and not exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = false and pdk_h.effect = 'deny'))
-    or (exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = true and pdk_h.effect = 'allow')
-      and not exists (select 1 from pdk_h where pdk_h.user_id = pdk_u.user_id and pdk_h.global = true and pdk_h.effect = 'deny'))
+  select h.user_id from pdk_h h
+  where h.user_id is not null
+    and h.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'org') g(grant_key))
+  except
+  select h.user_id from pdk_h h
+  where h.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'org', 'deny') g(grant_key))
+  union
+  (select gh.user_id from pdk_g gh
+  where gh.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'global') g(grant_key))
+  except
+  select gh.user_id from pdk_g gh
+  where gh.grant_key in (select g.grant_key from "permdock".grant_keys(p_permission, 'global', 'deny') g(grant_key)))
   order by 1
 $$;
 revoke execute on function "permdock".permitted_org_users(text, text) from public, anon, authenticated;
@@ -707,14 +690,14 @@ begin
     if v_total > 0 and v_count < 1 then
       raise exception using
         errcode = '23514',
-        message = 'permdock: org ' || v_id || ' keeps at least 1 primary',
-        hint = 'last-holder';
+        hint = 'last-holder',
+        message = 'permdock: org ' || v_id || ' keeps at least 1 primary';
     end if;
     if v_count > 1 then
       raise exception using
         errcode = '23514',
-        message = 'permdock: org ' || v_id || ' has at most 1 primary',
-        hint = 'max-holders';
+        hint = 'max-holders',
+        message = 'permdock: org ' || v_id || ' has at most 1 primary';
     end if;
     select count(*) into v_total from "public"."org_members" m where m."org_id" = v_key;
     select count(distinct m."user_id") into v_count
@@ -725,8 +708,8 @@ begin
     if v_count > 2 then
       raise exception using
         errcode = '23514',
-        message = 'permdock: org ' || v_id || ' has at most 2 approver',
-        hint = 'max-holders';
+        hint = 'max-holders',
+        message = 'permdock: org ' || v_id || ' has at most 2 approver';
     end if;
   end loop;
   return null;
@@ -765,8 +748,8 @@ begin
       if v_after > 0 and v_after - v_change.delta > 0 then
         raise exception using
           errcode = '23514',
-          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer',
-          hint = 'transfer-only';
+          hint = 'transfer-only',
+          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer';
       end if;
     end loop;
   elsif tg_op = 'DELETE' then
@@ -785,8 +768,8 @@ begin
       if v_after > 0 and v_after - v_change.delta > 0 then
         raise exception using
           errcode = '23514',
-          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer',
-          hint = 'transfer-only';
+          hint = 'transfer-only',
+          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer';
       end if;
     end loop;
   else
@@ -805,8 +788,8 @@ begin
       if v_after > 0 and v_after - v_change.delta > 0 then
         raise exception using
           errcode = '23514',
-          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer',
-          hint = 'transfer-only';
+          hint = 'transfer-only',
+          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer';
       end if;
     end loop;
   end if;

@@ -298,8 +298,8 @@ export function assignmentSql(ctx: RlsSqlContext): string {
         : `    if ${row}.${quoteIdent(ownUser)}::text = (${subjectIdSql(ctx)})::text then
       raise exception using
         errcode = '42501',
-        message = 'permdock: the caller may not change their own roles',
-        hint = '${reason}';
+        hint = '${reason}',
+        message = 'permdock: the caller may not change their own roles';
     end if;
 `;
     const check = (row: string): string => {
@@ -320,8 +320,8 @@ export function assignmentSql(ctx: RlsSqlContext): string {
       if v_role is not null and not coalesce(${allowed}, false) then
         raise exception using
           errcode = '42501',
-          message = 'permdock: the caller may not assign ' || v_role || ' in ' || coalesce(${id}, 'null'),
-          hint = 'not-assignable-by';
+          hint = 'not-assignable-by',
+          message = 'permdock: the caller may not assign ' || v_role || ' in ' || coalesce(${id}, 'null');
       end if;
     end loop;`;
     };

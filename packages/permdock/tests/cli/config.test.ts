@@ -14,7 +14,7 @@ import {
   project,
   removeProjects,
 } from "./doctor-kit.ts";
-import { jsonData } from "./envelope.ts";
+import { jsonError } from "./envelope.ts";
 
 describe("config", () => {
   afterAll(removeProjects);
@@ -340,15 +340,16 @@ export default { permissions };
       );
     });
 
-    it("exits 2 with Problem Details on a config of the wrong shape", async () => {
+    it("exits 2 with an error document on a config of the wrong shape", async () => {
       const bad = project({
         "permdock.config.ts": "export default { policy: 42 };\n",
       });
       const result = await run(["usage", "--json", "--cwd", bad]);
       expect(result.code).toBe(2);
-      expect(jsonData(result.stdout)).toMatchObject({
+      expect(jsonError(result.stderr)).toMatchObject({
+        reason: "usage",
         type: "https://permdock.com/docs/cli/errors#usage",
-        detail:
+        message:
           "PermDock CLI: permdock.config.ts: policy must be a module path string or the value imported from it",
       });
     });

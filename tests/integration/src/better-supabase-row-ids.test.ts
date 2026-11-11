@@ -40,6 +40,12 @@ $$;
 grant usage on schema auth to authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon;
 grant usage on schema public to authenticated, anon;
+-- The subjects block declares its presence policies on Supabase Realtime's table.
+create schema realtime;
+create table realtime.messages (topic text not null, extension text not null);
+create function realtime.topic() returns text language sql stable as $$
+  select nullif(current_setting('realtime.topic', true), '')
+$$;
 insert into auth.users (id) values
   ('${MEMBER}'), ('${READER}'), ('${SHARED}'), ('${OUTSIDER}');
 create table public.organization_members (
@@ -77,7 +83,7 @@ function blocksSql(manifest: string, dir: string): readonly string[] {
     defineConfig({
       auth: { authorization: provider },
       blocks: { permissions: { model: "provider" }, subjects: {} },
-      subjects: {
+      recordTypes: {
         doc: {
           table: "public.doc",
           idType: "uuid",

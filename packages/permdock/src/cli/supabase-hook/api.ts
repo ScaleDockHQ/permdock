@@ -20,6 +20,7 @@ import { customRolesOn } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
 import { MEMBERSHIPS_FOR, heldSql } from "./entries.ts";
 import { typedUsers } from "./memberships.ts";
+import { hookTeamReader } from "./teams.ts";
 
 const SUBJECT_FOR = "subject_for";
 export const PERMDOCK_SUBJECT = "permdock_subject";
@@ -98,7 +99,7 @@ function subjectSql(
   select ${tenant ? "case when memberships = '[]'::jsonb then '[]'::jsonb else " : ""}coalesce((
     select jsonb_agg(to_jsonb(u.id::text) order by u.n)
     from unnest(array(
-      select team_id from ${schema}.member_team_ids_for(uid) as team(team_id)${teamTenant}
+      select team_id from ${quoteIdent(parts.helpers.schema)}.${quoteIdent(hookTeamReader(parts))}(uid, ${tenant ? "p_tenant::text" : "null"}) as team(team_id)${teamTenant}
     )) with ordinality as u(id, n)
   ), '[]'::jsonb)${tenant ? " end" : ""}
     into team_ids;
@@ -185,7 +186,54 @@ begin
 end;
 $$;
 revoke execute on function ${fn}() from public, anon, authenticated;
-grant execute on function ${fn}() to authenticated;`;
+grant execute on function ${fn}() to authenticated;
+
+${permdockSubjectForTenantSql(parts)}`;
+}
+
+/**
+ * `<helpers schema>.permdock_subject(p_tenant text) returns jsonb`:
+ * `subject_for(p_user, p_tenant)` for the signed-in user, better-supabase's
+ * `subjectForTenant`. `null` for an anonymous or suspended caller, a null
+ * tenant, a tenant id that is not of the root scope's type, and a tenant the
+ * caller holds no membership in, so a page never sees another tenant's
+ * memberships. The record carries `tenant`, so a subject cache keeps it apart
+ * from the all-tenants record at the same version.
+ */
+function permdockSubjectForTenantSql(parts: Parts): string {
+  const helpers = quoteIdent(parts.helpers.schema);
+  const fn = `${helpers}.${PERMDOCK_SUBJECT}`;
+  return `-- the signed-in user's subject_for record for one tenant, better-supabase's subjectForTenant; null for a null, malformed or unknown tenant and for a tenant the caller is no member of
+create or replace function ${fn}(p_tenant text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_tenant ${parts.tenantType};
+  subject jsonb;
+begin
+  if p_tenant is null then
+    return null;
+  end if;
+  begin
+    v_tenant := p_tenant::${parts.tenantType};
+  exception when invalid_text_representation then
+    return null;
+  end;
+  subject := ${quoteIdent(parts.schema)}.${SUBJECT_FOR}((select ${helpers}.${USER_ID_HELPER}()), v_tenant);
+  if subject is null
+    or (subject ->> 'active') is distinct from 'true'
+    or coalesce(jsonb_array_length(subject -> 'memberships'), 0) = 0 then
+    return null;
+  end if;
+  return subject || jsonb_build_object('tenant', v_tenant::text);
+end;
+$$;
+revoke execute on function ${fn}(text) from public, anon, authenticated;
+grant execute on function ${fn}(text) to authenticated;`;
 }
 
 /**

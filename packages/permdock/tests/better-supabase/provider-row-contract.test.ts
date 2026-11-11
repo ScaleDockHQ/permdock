@@ -4,9 +4,14 @@ import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { RlsDialect } from "../../src/cli/types.ts";
 
 import { authorizationProvider } from "../../src/better-supabase/index.ts";
+import { bootstrapPermissionsSql } from "../../src/cli/rls/helper-bootstrap.ts";
 import { rowHelpersSql } from "../../src/cli/rls/rows.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { resolveNames } from "../../src/cli/sql/resolve-names.ts";
+import {
+  supabaseHookManifest,
+  supabaseHookSql,
+} from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
@@ -16,6 +21,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+import { tableMembershipSource } from "../../src/supabase/index.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 
 const permissions = definePermissions({
@@ -142,6 +148,39 @@ describe("the better-supabase row templates match the generated row helpers", ()
       }
     });
   }
+
+  it("requires the subject and bootstrap readers with the signatures the hook and rls generate write", () => {
+    const scopes = scopeList(policy.scopes);
+    const config = {
+      policy: "p.ts",
+      supabase: {
+        hook: {
+          memberships: [tableMembershipSource({ table: "memberships" })],
+        },
+      },
+    };
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifest(scopes, config),
+    });
+    const ctx: RlsSqlContext = {
+      dialect: "supabase",
+      scopes,
+      tenantClaim: "tenant_id",
+      gucPrefix: "app",
+    };
+    const written = signatures(
+      `${supabaseHookSql(scopes, config).sql}\n${bootstrapPermissionsSql(ctx, ["doc.read"], new Map())}`,
+    );
+    const readers = (provider.requires ?? []).filter((entry) =>
+      /^permdock\.permdock_(?:subject|bootstrap_permissions)$/u.test(
+        entry.function,
+      ),
+    );
+    expect(readers).toHaveLength(3);
+    for (const entry of readers) {
+      expect(written).toContain(`${entry.function}(${entry.args ?? ""})`);
+    }
+  });
 
   it("writes no _for helper on neon, so the provider's rowsWithFor needs the supabase dialect", () => {
     expect(

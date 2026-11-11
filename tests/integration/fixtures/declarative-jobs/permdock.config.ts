@@ -54,7 +54,7 @@ export default defineConfig({
         table: "better_supabase.team_members",
         user: "user_id",
         team: "team_id",
-        tenant: "organization_id",
+        tenant: "tenant_id",
       },
     },
   },
