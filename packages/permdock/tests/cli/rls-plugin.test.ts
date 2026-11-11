@@ -94,6 +94,9 @@ describe("plugin outputs in the config", () => {
       rls: { out: "a.sql" },
       supabase: { hook: { out: "h.sql" } },
     });
+    expect(
+      withPluginOutputs({ plugins: [supabase({ hook: false })] }).supabase,
+    ).toBeUndefined();
   });
 
   it("splits by rls.split in the config when the plugin sets seeds.out", async () => {

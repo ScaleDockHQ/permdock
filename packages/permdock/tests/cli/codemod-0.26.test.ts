@@ -180,6 +180,22 @@ select permitted_doc_rows('doc.read')::text;
     expect(kept.changes).toStrictEqual([]);
   });
 
+  it("reads an actions block past strings, nested values and a missing close", () => {
+    const nested = rewrite026(
+      "permdock.config.ts",
+      'export default {\n  rls: {\n    actions: {\n      note: "}",\n      meta: { list: [1, (2)] },\n      approve: "update",\n    },\n  },\n};\n',
+    );
+    expect(nested.source).not.toContain("approve");
+    expect(nested.source).toContain("meta: { list: [1, (2)] }");
+    const open = rewrite026(
+      "permdock.config.ts",
+      'export default {\n  rls: {\n    actions: {\n      approve: "update",\n',
+    );
+    expect(open.changes).toStrictEqual([]);
+    const loose = rewrite026("better-supabase.config.ts", "disabled: true\n");
+    expect(loose.followUps).toStrictEqual([]);
+  });
+
   it("keeps every canAssign and reports one that names permdock_can_assign_any", () => {
     const platformRoles = (scope: string, where: string): string =>
       `export default {\n  blocks: {\n    invitations: {\n      options: {\n        platformRoles: {\n          canAssign:\n            "permdock.permdock_can_assign_any({role}, null::uuid, '${scope}', null::text)",\n          through: { table: "public.roles", id: "id", column: "key"${where} },\n        },\n      },\n    },\n  },\n};\n`;

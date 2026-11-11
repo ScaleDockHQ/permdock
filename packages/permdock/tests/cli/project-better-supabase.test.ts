@@ -253,6 +253,7 @@ describe("readConfig with a better-supabase config", () => {
       'throw new Error("no permdock.manifest.json yet");\n',
     );
     const loading = project("export default {};\n");
+    const named = project("export default {};\n");
     try {
       const failed = await readConfig(failing);
       const loaded = await readConfig(loading);
@@ -266,9 +267,22 @@ describe("readConfig with a better-supabase config", () => {
         "[better_supabase_config] better-supabase.config.mjs did not load (no permdock.manifest.json yet); the hook reads app_metadata.tenant_id unless supabase.hook.activeFrom is set",
       ]);
       expect(loaded.warnings).toStrictEqual([]);
+      writeFileSync(
+        join(named, "permdock.config.mjs"),
+        'export default { rls: { tenantClaim: "org_id" }, supabase: { hook: {} } };\n',
+      );
+      writeFileSync(
+        join(named, "better-supabase.config.mjs"),
+        'throw "no catalog";\n',
+      );
+      const thrown = await readConfig(named);
+      expect(thrown.warnings.at(-1)).toContain(
+        "did not load (no catalog); the hook reads app_metadata.org_id",
+      );
     } finally {
       rmSync(failing, { recursive: true, force: true });
       rmSync(loading, { recursive: true, force: true });
+      rmSync(named, { recursive: true, force: true });
     }
   });
 });

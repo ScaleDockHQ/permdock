@@ -475,6 +475,14 @@ create policy permdock_follow_parts_select on public.parts for select
             ],
           },
         },
+        "/files": {
+          get: {
+            operationId: "listFiles",
+            parameters: [
+              { name: "limit", in: "query", default: 20, maximum: 100 },
+            ],
+          },
+        },
         "/notes": {
           get: {
             operationId: "listNotes",
