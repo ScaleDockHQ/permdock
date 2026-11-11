@@ -292,7 +292,7 @@ function dropSupplied(
   if (PROPERTY("roleThrough").test(source)) {
     keep(
       "roleThrough",
-      "roleThrough is kept: the provider supplies it only for a membership source whose role reads through that table; delete it when better-supabase doctor reports it as BS426",
+      "roleThrough is kept: the provider supplies it only for a membership source whose role reads through that table; delete it when permdock doctor reports it as PD094",
     );
   }
   const disabled = PROPERTY("disabled");
@@ -304,7 +304,7 @@ function dropSupplied(
     if (insidePermissions(source, match.index)) {
       keep(
         "permissions.disabled",
-        'blocks.permissions.disabled is kept: the provider fills it from rls.suspension only under blocks.permissions.model "provider", and only for an unset subject; delete it when the provider supplies the same columns',
+        'blocks.permissions.disabled is kept: the provider fills it from rls.suspension only under blocks.permissions.model "provider", and only for an unset subject; delete it when permdock doctor reports it as PD094',
       );
       break;
     }

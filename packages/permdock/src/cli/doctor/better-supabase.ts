@@ -1,8 +1,10 @@
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 
 import type { BetterSupabaseActiveTenant } from "../../better-supabase/active-tenant.ts";
+import type { PermDockAuthorizationProvider } from "../../better-supabase/provider.ts";
 import type {
   DoctorFinding,
   DoctorInput,
@@ -10,6 +12,7 @@ import type {
 } from "../shared/doctor-types.ts";
 
 import { activeTenantMismatch } from "../../better-supabase/active-tenant.ts";
+import { authorizationProvider } from "../../better-supabase/provider.ts";
 import { parseCatalog } from "../../catalog/parse.ts";
 import { isRecord } from "../../core/compact.ts";
 import { rootScope, scopeList } from "../../core/scopes.ts";
@@ -25,6 +28,11 @@ import {
   betterSupabaseTenantClaim,
 } from "../project/better-supabase.ts";
 import { filesOf } from "../shared/doctor-files.ts";
+import {
+  hooklessDatabase,
+  supabaseDatabaseManifest,
+  supabaseHookManifest,
+} from "../supabase-hook/emit/hook-sql.ts";
 import { activeSource } from "../supabase-hook/memberships.ts";
 import { policyOf } from "./inputs.ts";
 
@@ -282,26 +290,75 @@ export async function pd087(
   return findings;
 }
 
-const SUPPLIED = [
-  {
-    present: (config: Record<string, unknown>): boolean =>
-      Object.hasOwn(config, "roleThrough"),
-    name: "roleThrough",
-  },
-  {
-    present: (config: Record<string, unknown>): boolean => {
-      const blocks = config["blocks"];
-      const permissions = isRecord(blocks) ? blocks["permissions"] : undefined;
-      return isRecord(permissions) && Object.hasOwn(permissions, "disabled");
-    },
-    name: "blocks.permissions.disabled",
-  },
-  {
-    present: (config: Record<string, unknown>): boolean =>
-      JSON.stringify(config).includes("permdock_can_assign_any"),
-    name: "permdock_can_assign_any",
-  },
-] as const;
+type Provider = Pick<
+  PermDockAuthorizationProvider,
+  "roleSources" | "suspension"
+>;
+
+/**
+ * The provider better-supabase would get, built as `supabase inspect` builds
+ * the manifest.
+ */
+async function providerOf(input: DoctorInput): Promise<Provider | undefined> {
+  const policy = await policyOf(input);
+  if (policy === undefined) {
+    return undefined;
+  }
+  const files = filesOf(input);
+  const path = catalogPath(input.config, input.cwd);
+  try {
+    const scopes = scopeList(policy.scopes);
+    const manifest = hooklessDatabase(input.config)
+      ? supabaseDatabaseManifest(scopes, input.config, {}, policy)
+      : supabaseHookManifest(scopes, input.config, {}, policy);
+    return authorizationProvider({
+      manifest,
+      ...(files.exists(path) ? { catalog: files.read(path) } : {}),
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+function at(value: unknown, ...keys: readonly string[]): unknown {
+  let current = value;
+  for (const key of keys) {
+    current = isRecord(current) ? current[key] : undefined;
+  }
+  return current;
+}
+
+/**
+ * The config values better-supabase would otherwise fill from the provider with
+ * the same value: a role source's `through`, and a suspension row under
+ * `blocks.permissions.model: "provider"`. A different value overrides the
+ * provider, so it stays.
+ */
+function restated(
+  config: Record<string, unknown>,
+  provider: Provider | undefined,
+): readonly string[] {
+  const names: string[] = [];
+  const through = at(config, "blocks", "memberships", "options", "roleThrough");
+  if (
+    through !== undefined &&
+    (provider?.roleSources ?? []).some((source) =>
+      isDeepStrictEqual(source.role.through, through),
+    )
+  ) {
+    names.push("blocks.memberships.options.roleThrough");
+  }
+  if (at(config, "blocks", "permissions", "model") === "provider") {
+    for (const subject of ["tenant", "user"] as const) {
+      const value = at(config, "blocks", "permissions", "disabled", subject);
+      const supplied = provider?.suspension?.[subject];
+      if (value !== undefined && isDeepStrictEqual(value, supplied)) {
+        names.push(`blocks.permissions.disabled.${subject}`);
+      }
+    }
+  }
+  return names;
+}
 
 /**
  * PD094: the better-supabase config restates a value the provider already
@@ -314,12 +371,21 @@ export async function pd094(
   if (config === undefined) {
     return [];
   }
-  return SUPPLIED.filter((item) => item.present(config)).map((item) => ({
+  const names = [
+    ...(at(config, "blocks", "memberships", "options", "roleThrough") ===
+      undefined && at(config, "blocks", "permissions", "disabled") === undefined
+      ? []
+      : restated(config, await providerOf(input))),
+    ...(JSON.stringify(config).includes("permdock_can_assign_any")
+      ? ["permdock_can_assign_any"]
+      : []),
+  ];
+  return names.map((name) => ({
     code: "PD094",
     severity: "error" as const,
-    target: item.name,
-    message: `better-supabase config sets ${item.name}, which the provider supplies`,
-    fix: `delete ${item.name} from the better-supabase config`,
+    target: name,
+    message: `better-supabase config sets ${name}, which the provider supplies`,
+    fix: `delete ${name} from the better-supabase config`,
   }));
 }
 

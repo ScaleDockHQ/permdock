@@ -8,6 +8,7 @@ import type { PermDockConfig, SupabaseSchemas } from "../../types.ts";
 import type { HookOverrides } from "../sql.ts";
 
 import { STDOUT } from "../../core/output-files.ts";
+import { resolveAuthorize } from "../../rls/rbac.ts";
 import { GRANTS_MARKER } from "../../sql/markers.ts";
 import { membershipSourcesOf } from "../../sql/sources.ts";
 import { splitUndiffed } from "../../sql/statements.ts";
@@ -37,6 +38,14 @@ import {
   schemaSql,
 } from "../sql.ts";
 import { versionSql } from "../version.ts";
+
+/** Whether the project is in the one case that has a manifest without a hook. */
+export function hooklessDatabase(config: PermDockConfig): boolean {
+  return (
+    config.supabase?.hook === undefined &&
+    resolveAuthorize(config) === "database"
+  );
+}
 
 /**
  * The manifest `supabase inspect` prints. With `policy`, `rls.helpers` also
