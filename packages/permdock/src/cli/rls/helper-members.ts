@@ -304,6 +304,24 @@ export function unguardAuthAdminGrants(sql: string): string {
   }
 }
 
+const AUTH_ADMIN_GRANT = /^grant [^;]+ to supabase_auth_admin;$/u;
+
+/**
+ * `sql` with its plain grants to `supabase_auth_admin` moved into one
+ * `authAdminGrants` block at the end, for a `--grants-out` file: a migration
+ * may keep a `do` block, and plain Postgres has no such role.
+ */
+export function guardAuthAdminGrants(sql: string): string {
+  const lines = sql.split("\n");
+  const grants = lines.filter((line) => AUTH_ADMIN_GRANT.test(line));
+  if (grants.length === 0) {
+    return sql;
+  }
+  const rest = lines.filter((line) => !AUTH_ADMIN_GRANT.test(line)).join("\n");
+  const trailing = /\s*$/u.exec(rest)?.[0] ?? "";
+  return `${rest.trimEnd()}\n${authAdminGrants(grants)}${trailing}`;
+}
+
 /**
  * `member_<scope>_ids_of(p_user uuid)`: `member_<scope>_ids_for(p_user)` for
  * the caller only. Any other `p_user` returns no rows, so a client role may
