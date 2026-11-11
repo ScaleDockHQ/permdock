@@ -72,7 +72,7 @@ describe("authorizationProvider against the example's migrations", () => {
     for (const [name, template] of Object.entries(provider.functions)) {
       if (template === undefined) continue;
       for (const { name: scope } of provider.scopes) {
-        const sql = template
+        const sql = (name === "subject" ? `${template}()` : template)
           .replaceAll("{scope}", scope)
           .replaceAll(
             /\{(\w+)\}/gu,
