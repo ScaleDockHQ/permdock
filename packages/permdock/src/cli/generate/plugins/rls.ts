@@ -1,7 +1,8 @@
 import type { PermDockPlugin } from "../plugin.ts";
 import type { RlsPluginOptions } from "./rls-options.ts";
 
-import { definePlugin, schemaInputs, withRlsOutputs } from "../plugin.ts";
+import { withRlsOutputs } from "../plugin-outputs.ts";
+import { definePlugin, schemaInputs } from "../plugin.ts";
 import { pluginVersion } from "./version.ts";
 
 export type { RlsPluginOptions } from "./rls-options.ts";

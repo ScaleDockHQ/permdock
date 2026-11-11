@@ -5,10 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { projectContext } from "../../src/cli/generate/context.ts";
 import { runGenerate } from "../../src/cli/generate/pipeline.ts";
-import { withPluginOutputs } from "../../src/cli/generate/plugin.ts";
 import { rls } from "../../src/cli/generate/plugins/rls.ts";
 import { supabaseHook } from "../../src/cli/generate/plugins/supabase-hook.ts";
 import { supabase } from "../../src/cli/generate/plugins/supabase.ts";
+import { withPluginOutputs } from "../../src/cli/project/config.ts";
 import { requirePolicy } from "../../src/cli/project/load.ts";
 import { hookOut } from "../../src/cli/supabase-hook/supabase-hook.ts";
 

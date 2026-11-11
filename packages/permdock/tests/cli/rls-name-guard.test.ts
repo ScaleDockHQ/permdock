@@ -7,8 +7,8 @@ import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { RlsCustomRoleTable } from "../../src/cli/types.ts";
 
 import { pd072 } from "../../src/cli/doctor/rls.ts";
-import { withPluginOutputs } from "../../src/cli/generate/plugin.ts";
 import { rls } from "../../src/cli/generate/plugins/rls.ts";
+import { withPluginOutputs } from "../../src/cli/project/config.ts";
 import { customRoleNameGuardSql } from "../../src/cli/rls/custom-role-guard.ts";
 import { helpersSql } from "../../src/cli/rls/helpers.ts";
 import { junctionMembershipSource } from "../../src/supabase/index.ts";

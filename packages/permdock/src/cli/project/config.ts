@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 
+import type { PermDockPlugin } from "../generate/plugin.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { ConfigChecks, PermDockConfigInput } from "./config-checks.ts";
 import type { ParsedConfig } from "./config-schema.ts";
@@ -8,7 +9,6 @@ import type { ParsedConfig } from "./config-schema.ts";
 import { isRecord } from "../../core/compact.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { CliError } from "../core/errors.ts";
-import { withPluginOutputs } from "../generate/plugin.ts";
 import {
   betterSupabaseDefaults,
   betterSupabaseInstalled,
@@ -100,6 +100,23 @@ export async function readConfig(
         : [...parsed.warnings, unloadedWarning(cwd, failed, parsed.config)],
     file: path,
   };
+}
+
+function foldsConfig(
+  plugin: unknown,
+): plugin is Required<Pick<PermDockPlugin, "config">> {
+  return isRecord(plugin) && typeof plugin["config"] === "function";
+}
+
+/** `config` with each configured plugin's output options folded in, in order. */
+export function withPluginOutputs(config: PermDockConfig): PermDockConfig {
+  let folded = config;
+  for (const plugin of config.plugins ?? []) {
+    if (foldsConfig(plugin)) {
+      folded = plugin.config(folded);
+    }
+  }
+  return folded;
 }
 
 function unloadedWarning(

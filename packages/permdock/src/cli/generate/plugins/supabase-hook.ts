@@ -1,7 +1,8 @@
 import type { SupabaseSchemas } from "../../types.ts";
 import type { PermDockPlugin } from "../plugin.ts";
 
-import { definePlugin, quietIo, schemaInputs, withHookOut } from "../plugin.ts";
+import { withHookOut } from "../plugin-outputs.ts";
+import { definePlugin, quietIo, schemaInputs } from "../plugin.ts";
 import { outcomeNotes } from "./supabase-outcome.ts";
 import { pluginVersion } from "./version.ts";
 
