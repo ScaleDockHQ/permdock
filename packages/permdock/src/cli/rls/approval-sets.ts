@@ -7,10 +7,10 @@ import { qualified, quoteIdent, quoteQualified } from "../sql/quote.ts";
 import { subjectIdSql } from "../sql/subject.ts";
 
 /** The caller plus active delegators, one hop. */
-const APPROVER_FOR_IDS = "permdock_approver_for_ids";
+export const APPROVER_FOR_IDS = "permdock_approver_for_ids";
 
 /** Users the caller manages, walking down `rls.approvals.managers`. */
-const MANAGED_USER_IDS = "permdock_managed_user_ids";
+export const MANAGED_USER_IDS = "permdock_managed_user_ids";
 
 /**
  * Sets a policy uses to decide an approval in SQL. `permdock_approver_for_ids`

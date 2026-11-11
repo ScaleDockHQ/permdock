@@ -796,13 +796,13 @@ describe(authorizationProvider, () => {
           {
             name: "permdock_approver_for_ids",
             args: "",
-            returns: "setof text",
+            returns: "setof uuid",
             execute: ["authenticated"],
           },
           {
             name: "permdock_managed_user_ids",
-            args: "",
-            returns: "setof text",
+            args: "p_tenant text",
+            returns: "setof uuid",
             execute: ["authenticated"],
           },
         ],
@@ -874,6 +874,34 @@ describe(authorizationProvider, () => {
     );
     expect(provider.functions.managedUsers).toBe(
       "permdock.permdock_managed_user_ids({tenant})",
+    );
+    expect(provider.requires).toContainEqual({
+      function: "permdock.permdock_managed_user_ids",
+      args: "text",
+      role: "authenticated",
+    });
+  });
+
+  it("leaves managedUsers out for a manager table without a tenant column", () => {
+    const provider = authorizationProvider({
+      manifest: withRls({
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          {
+            name: "permdock_managed_user_ids",
+            args: "",
+            returns: "setof uuid",
+            execute: ["authenticated"],
+          },
+        ],
+      }),
+      catalog: emptyCatalog,
+    });
+    expect(provider.functions.managedUsers).toBeUndefined();
+    expect(provider.requires).not.toContainEqual(
+      expect.objectContaining({
+        function: "permdock.permdock_managed_user_ids",
+      }),
     );
   });
 

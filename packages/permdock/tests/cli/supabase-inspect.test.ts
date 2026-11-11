@@ -450,6 +450,33 @@ describe("supabase inspect", () => {
         returns: "boolean",
         execute: ["authenticated"],
       });
+      expect(manifest.rls.helpers).toContainEqual({
+        name: "permdock_approver_for_ids",
+        args: "",
+        returns: "setof uuid",
+        execute: ["authenticated"],
+      });
+      expect(manifest.rls.helpers.map((helper) => helper.name)).not.toContain(
+        "permdock_managed_user_ids",
+      );
+    });
+
+    it("lists the managed-user set with rls.approvals.managers", async () => {
+      const managed = await generate(
+        `{ memberships: [${SOURCES}] }`,
+        [],
+        `{ authorize: 'database', approvals: { managers: { table: 'public.reporting_lines', user: 'user_id', manager: 'manager_id', tenant: 'organization_id' } } }`,
+      );
+      const manifest: SupabaseHookManifest = jsonData(
+        (await run(["supabase", "inspect", "--json"], { cwd: managed.cwd }))
+          .stdout,
+      );
+      expect(manifest.rls.helpers).toContainEqual({
+        name: "permdock_managed_user_ids",
+        args: "p_tenant uuid",
+        returns: "setof uuid",
+        execute: ["authenticated"],
+      });
     });
 
     it("advertises rls.apiKeys and its ceiling helper", async () => {

@@ -22,6 +22,7 @@ import { keptKeys } from "../../supabase/keep.ts";
 import { SUPABASE_MANIFEST_SCHEMA } from "../core/version.ts";
 import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
 import { MANAGES } from "../rls/approval-managers.ts";
+import { APPROVER_FOR_IDS, MANAGED_USER_IDS } from "../rls/approval-sets.ts";
 import { IS_APPROVER } from "../rls/approvals.ts";
 import { guardedTables } from "../rls/assignments.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "../rls/ownership-names.ts";
@@ -201,6 +202,7 @@ function trustedHelpers(
             "boolean",
             client,
           ),
+          helperEntry(APPROVER_FOR_IDS, "", "setof uuid", client),
         ]
       : []),
     ...(typeof config.rls?.approvals === "object" &&
@@ -211,6 +213,14 @@ function trustedHelpers(
             "p_requester text, p_levels integer",
             "boolean",
             [],
+          ),
+          helperEntry(
+            MANAGED_USER_IDS,
+            config.rls.approvals.managers.tenant === undefined
+              ? ""
+              : `p_tenant ${tenantType}`,
+            "setof uuid",
+            client,
           ),
         ]
       : []),

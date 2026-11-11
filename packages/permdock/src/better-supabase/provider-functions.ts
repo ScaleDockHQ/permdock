@@ -452,7 +452,12 @@ export function providerFunctions(
       : call(name, sql, "authenticated", argTypes(helper.args));
   };
   const approverFor = setTemplate(APPROVER_FOR);
-  const managedUsers = setTemplate(MANAGED_USERS, "{tenant}");
+  // better-supabase passes `{tenant}`; a manager table without a tenant column writes no `p_tenant`.
+  const managedUsers = /\bp_tenant\b/u.test(
+    helpers.get(MANAGED_USERS)?.args ?? "",
+  )
+    ? setTemplate(MANAGED_USERS, "{tenant}")
+    : undefined;
   const functions: AuthorizationFunctions = {
     ...rowTemplates,
     ...optional,
