@@ -56,6 +56,11 @@ import {
   memberOfFunction,
   memberRolesFunction,
 } from "./helper-members.ts";
+import {
+  interactiveAllowsCall,
+  interactiveAllowsSql,
+  memoUserSql,
+} from "./interactive-only.ts";
 import { memoGenerationSql } from "./memo-generation.ts";
 import { setHelpersSql } from "./set-helpers.ts";
 import { tokenScopeAllowsCall, tokenScopeAllowsSql } from "./token-scopes.ts";
@@ -98,7 +103,7 @@ export function accessSql(
   }
   const fn = qualified(ctx, helper ?? permittedIdsHelper(scope));
   if (ctx.reuseMemo === true && memoizes(ctx)) {
-    return `${quoteIdent(column)} in (${memoHitList(scope, key, `${fn}(${key})`, `${subjectIdSql(ctx)}::text`, ctx.memo, scopeTypeOf(ctx, scope))})`;
+    return `${quoteIdent(column)} in (${memoHitList(scope, key, `${fn}(${key})`, `${memoUserSql(ctx, subjectIdSql(ctx))}::text`, ctx.memo, scopeTypeOf(ctx, scope))})`;
   }
   return `${quoteIdent(column)} = any(array(select ${fn}(${key})))`;
 }
@@ -516,6 +521,9 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   if (ctx.tokenScopes !== undefined) {
     chunks.push(tokenScopeAllowsSql(ctx, ctx.tokenScopes, anon));
   }
+  if (ctx.interactiveOnly !== undefined) {
+    chunks.push(interactiveAllowsSql(ctx, ctx.interactiveOnly, anon));
+  }
   const bodies = grantBodies(ctx);
   chunks.push(helperFunction(ctx, HELPERS.has, "boolean", bodies.has, anon));
   const capabilities = capabilitiesSql(ctx);
@@ -596,7 +604,7 @@ function memoBody(
     memo: {
       type,
       scope,
-      user: subjectIdSql(ctx),
+      user: memoUserSql(ctx, subjectIdSql(ctx)),
       ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
     },
   };
@@ -616,11 +624,13 @@ export function grantBodies(ctx: RlsSqlContext): {
 } {
   const keys = ctx.apiKeys;
   const scoped = ctx.tokenScopes !== undefined;
+  const interactive = ctx.interactiveOnly !== undefined;
   const set = ctx.grantSet === true;
   const ceiling = (grant: string): string | undefined => {
     const calls = [
       ...(keys === undefined ? [] : [apiKeyAllowsCall(ctx, grant)]),
       ...(scoped ? [tokenScopeAllowsCall(ctx, grant)] : []),
+      ...(interactive ? [interactiveAllowsCall(ctx, grant)] : []),
     ];
     return calls.length === 0 ? undefined : calls.join(" and ");
   };
@@ -676,6 +686,7 @@ export function forUserContext(ctx: RlsSqlContext): RlsSqlContext {
   const {
     apiKeys: _apiKeys,
     tokenScopes: _tokenScopes,
+    interactiveOnly: _interactiveOnly,
     claimsFirst: _claimsFirst,
     ...unkeyed
   } = ctx;

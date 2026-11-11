@@ -42,6 +42,7 @@ import {
 } from "../sql/quote.ts";
 import { subjectIdSql } from "../sql/subject.ts";
 import { memoizedSetofSql, memoizes } from "./helper-bodies.ts";
+import { memoUserSql } from "./interactive-only.ts";
 
 function tableFor(
   resource: string,
@@ -264,7 +265,7 @@ ${memoizedSetofSql({
   idType,
   scope: `rel.${entry.node.name}`,
   keySql: "coalesce(p_relation, '')",
-  userSql: subjectIdSql(ctx),
+  userSql: memoUserSql(ctx, subjectIdSql(ctx)),
   query,
   ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
   grants,

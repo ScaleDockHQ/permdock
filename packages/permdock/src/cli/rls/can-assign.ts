@@ -25,6 +25,7 @@ import {
   sourcesKeep,
 } from "./helper-bodies.ts";
 import { globalRoleRows, membershipRows, roleRows } from "./helper-rows.ts";
+import { interactiveSessionSql } from "./interactive-only.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "./ownership-names.ts";
 import { pairsSql, sourceRowsSql } from "./ownership-sources.ts";
 
@@ -145,6 +146,15 @@ ${sourceRowsSql(sources, userOf)}
     )`);
     }
   }
+  const transferOnly = [
+    ...new Set(
+      own.counted.filter((rule) => rule.transferOnly).map((rule) => rule.role),
+    ),
+  ].toSorted();
+  const interactive =
+    forUser || transferOnly.length === 0
+      ? ""
+      : `(p_role <> all (array[${transferOnly.map(quoteLiteral).join(", ")}]::text[]) or ${interactiveSessionSql(ctx)}) and `;
   const body = parts.length === 0 ? "false" : parts.join("\n    or ");
   const language =
     used.length === 0
@@ -153,7 +163,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select ${signedIn(ctx)} and (
+  select ${signedIn(ctx)} and ${interactive}(
     ${body}
   )
 $$;`
@@ -165,7 +175,7 @@ as $$
 declare
 ${used.map((source, index) => `  v_user_${String(index)} ${source.sql.userType} := ${subjectIdSql(ctx)};`).join("\n")}
 begin
-  return ${signedIn(ctx)} and (
+  return ${signedIn(ctx)} and ${interactive}(
     ${body}
   );
 end;

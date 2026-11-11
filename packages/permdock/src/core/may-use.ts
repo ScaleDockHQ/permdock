@@ -6,7 +6,11 @@ import type { ExpandedSnapshot, SnapshotGrant } from "./snapshot-types.ts";
 import type { Delegation } from "./subject.ts";
 
 import { compact } from "./compact.ts";
-import { coveredByDelegation, readOnlyActorRefuses } from "./delegation.ts";
+import {
+  coveredByDelegation,
+  interactiveOnlyRefuses,
+  readOnlyActorRefuses,
+} from "./delegation.ts";
 import { expandedViewOf } from "./expanded-view.ts";
 import { getResource } from "./permission-registry.ts";
 import { resolveScope, scopeList, tenantOf } from "./scopes.ts";
@@ -60,6 +64,7 @@ function withinDelegation(
   return (
     (ceiling === undefined || ceiling.includes(permission.key)) &&
     !readOnlyActorRefuses(permdock.subject.actor, permission) &&
+    !interactiveOnlyRefuses(permdock.subject, permission) &&
     delegationMayCover(
       permission,
       permdock.subject.delegation,

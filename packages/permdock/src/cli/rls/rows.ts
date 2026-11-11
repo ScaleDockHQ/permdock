@@ -20,6 +20,7 @@ import {
 import { HELPERS } from "../sql/shared.ts";
 import { subjectIdSql } from "../sql/subject.ts";
 import { memoHitList, memoizedSetofSql, memoizes } from "./helper-bodies.ts";
+import { memoUserSql } from "./interactive-only.ts";
 import {
   PERMISSION_HELPERS,
   permittedByPermissionHelper,
@@ -247,7 +248,7 @@ function matchSql(
     })
     .map(
       (touch) =>
-        `(select count(*) from (${memoHitList(touch.scope, touch.keySql, touch.call, `${subjectIdSql(ctx)}::text`, ctx.memo)}) s) >= 0`,
+        `(select count(*) from (${memoHitList(touch.scope, touch.keySql, touch.call, `${memoUserSql(ctx, subjectIdSql(ctx))}::text`, ctx.memo)}) s) >= 0`,
     )
     .join(" and ");
   const guard = touches === "" ? "" : `${touches} and `;
@@ -518,7 +519,7 @@ grant execute on function ${fn}(${types}) to authenticated;`;
       idType,
       scope: `rows${String(params.length)}.${node.name}`,
       keySql: params.map(([name]) => `${name}::text`).join(" || '|' || "),
-      userSql: subjectIdSql(ctx),
+      userSql: memoUserSql(ctx, subjectIdSql(ctx)),
       query: `    ${query.replaceAll("\n", "\n    ")}`,
       ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
       grants,

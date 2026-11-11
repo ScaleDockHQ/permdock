@@ -69,6 +69,7 @@ export type ActionMeta = {
    * assign the whole custom-role ceiling, not only what they hold themselves.
    */
   readonly manageRoles?: boolean;
+  readonly interactiveOnly?: boolean;
   /**
    * Set by a generator (`permdock openapi import`) to the operation an action
    * was inferred from.

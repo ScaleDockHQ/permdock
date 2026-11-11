@@ -490,6 +490,8 @@ rls: {
 - Denies always apply. A token without `client_id` or `act`, and a support or impersonation session, is not limited; use [read-only actors](#read-only-actors) for those.
 - The `_for` helpers name their user and ignore the token.
 
+A key whose action sets `interactiveOnly: true` is left out of the map, and `permdock_interactive_allows` refuses it to every API key, OAuth client and `act` token, with or without this option ([interactive-only permissions](/docs/security/delegation#interactive-only-permissions)).
+
 The check chains with [API keys](#api-keys) when both are set. The Supabase manifest lists `rls.tokenScopes` and the helper in `rls.helpers`, and `verify --introspect` reports drift when the helper is missing. `tests/integration/src/rls-token-scopes.test.ts` runs the same tokens through better-supabase's `member_can` and the generated table policies and asserts that they agree.
 
 ### Ownership rules

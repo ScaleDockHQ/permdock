@@ -14,6 +14,7 @@ import { isoAt } from "../../core/time.ts";
 import { isSqlFunctionField } from "../../index.ts";
 import { configError } from "../core/errors.ts";
 import { memoHitList, memoizes } from "../rls/helper-bodies.ts";
+import { memoUserSql } from "../rls/interactive-only.ts";
 import {
   activeInstancesSql,
   activeMembershipSql,
@@ -724,7 +725,7 @@ function compileRelatedSql(
           `rel.${condition.resource}`,
           `coalesce(${relationKey}, '')`,
           graphCall,
-          `${subjectIdSql(ctx)}::text`,
+          `${memoUserSql(ctx, subjectIdSql(ctx))}::text`,
           ctx.memo,
           rowsType,
         )

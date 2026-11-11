@@ -25,6 +25,10 @@ import { MANAGES } from "../rls/approval-managers.ts";
 import { APPROVER_FOR_IDS, MANAGED_USER_IDS } from "../rls/approval-sets.ts";
 import { IS_APPROVER } from "../rls/approvals.ts";
 import { guardedTables } from "../rls/assignments.ts";
+import {
+  INTERACTIVE_ALLOWS,
+  interactiveOnlyKeys,
+} from "../rls/interactive-only.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "../rls/ownership-names.ts";
 import { ownershipRules } from "../rls/ownership.ts";
 import { permittedUsersHelper } from "../rls/permission-holders.ts";
@@ -183,6 +187,9 @@ function trustedHelpers(
     ...(config.rls?.tokenScopes === true
       ? [helperEntry(TOKEN_SCOPE_ALLOWS, "p_grant text", "boolean", client)]
       : []),
+    ...(policy === undefined || interactiveOnlyKeys(policy) === undefined
+      ? []
+      : [helperEntry(INTERACTIVE_ALLOWS, "p_grant text", "boolean", client)]),
     ...(readOnlyActorKinds(config.rls?.readOnlyActors) === undefined
       ? []
       : [helperEntry(ACTOR_MAY_WRITE, "", "boolean", client)]),

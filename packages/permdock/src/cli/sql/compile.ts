@@ -25,6 +25,7 @@ import { apiKeyAllowsCall } from "../rls/api-keys.ts";
 import { capabilityAccessSql } from "../rls/capabilities.ts";
 import { accessSql } from "../rls/helpers.ts";
 import { indexedFields } from "../rls/indexes.ts";
+import { interactiveAllowsCall } from "../rls/interactive-only.ts";
 import { requiresSql } from "../rls/permission-keys.ts";
 import { tokenScopeAllowsCall } from "../rls/token-scopes.ts";
 import { andSql, validitySql, wrapSql } from "./clauses.ts";
@@ -900,6 +901,21 @@ export function compileGrants(
       accessExpr = andSql(
         accessExpr,
         calls.length === 1 ? (calls[0] ?? "") : `(${calls.join(" and ")})`,
+      );
+    }
+    const interactive = [
+      grant.permission.key,
+      ...(grant.requires ?? []),
+    ].filter((key) => ctx.interactiveOnly?.includes(key) === true);
+    if (grant.effect === "allow" && interactive.length > 0) {
+      accessExpr = andSql(
+        accessExpr,
+        interactive
+          .map(
+            (key) =>
+              `(select ${interactiveAllowsCall(ctx, quoteLiteral(key))})`,
+          )
+          .join(" and "),
       );
     }
     const using = compileOptional(entry.using, rowCtx);

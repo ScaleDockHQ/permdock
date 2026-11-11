@@ -160,6 +160,20 @@ A schema must validate synchronously; one that returns a Promise throws. Invalid
 
 `readOnly`, `destructive` and `idempotent` become the MCP tool hints `readOnlyHint`, `destructiveHint` and `idempotentHint` in [`permdock/mcp`](/docs/adapters/mcp) (WebMCP reads only `readOnly`); an action named `read` or `list` is read-only unless `readOnly` says otherwise, and `destructive` is ignored on a read-only action. The hints inform the client and never replace the server's decision. The [catalog](/docs/cli/catalog) prints `title` and `description`.
 
+`interactiveOnly: true` keeps an action to the user's own session, for what an API key, OAuth client or agent must never do on the user's behalf, such as transferring ownership or deleting an organization. See [interactive-only permissions](/docs/security/delegation#interactive-only-permissions).
+
+```ts
+const permissions = definePermissions({
+  organization: resource({
+    actions: {
+      read: {},
+      transferOwnership: { interactiveOnly: true },
+      delete: { destructive: true, interactiveOnly: true },
+    },
+  }),
+});
+```
+
 ## What a leaf contains
 
 ```ts
@@ -174,13 +188,13 @@ permissions.post.update;
 // }
 ```
 
-| Field      | Example                                                | Used by                                                                                                                   |
-| ---------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `key`      | `'post.update'`                                        | Grants, snapshots, cache keys, audit events, catalog, `findPermission`                                                    |
-| `scope`    | `'billing:invoice:pay'`                                | OAuth scopes, MCP `scopeChallenge`, OpenAPI `securitySchemes`, RFC 9396 `authorization_details`                           |
-| `resource` | `'post'`                                               | Lookup of the resource node (schema, `id` field), `alternatives` in denials                                               |
-| `action`   | `'update'`                                             | RLS command mapping (`update` becomes `USING` plus `WITH CHECK`), tool descriptions                                       |
-| `meta`     | `{ title, description, tags, readOnly, inferredFrom }` | Catalogs, docs, tool hints; `inferredFrom` is written by `permdock openapi import` with the operation an action came from |
+| Field      | Example                                                                 | Used by                                                                                                                   |
+| ---------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `key`      | `'post.update'`                                                         | Grants, snapshots, cache keys, audit events, catalog, `findPermission`                                                    |
+| `scope`    | `'billing:invoice:pay'`                                                 | OAuth scopes, MCP `scopeChallenge`, OpenAPI `securitySchemes`, RFC 9396 `authorization_details`                           |
+| `resource` | `'post'`                                                                | Lookup of the resource node (schema, `id` field), `alternatives` in denials                                               |
+| `action`   | `'update'`                                                              | RLS command mapping (`update` becomes `USING` plus `WITH CHECK`), tool descriptions                                       |
+| `meta`     | `{ title, description, tags, readOnly, interactiveOnly, inferredFrom }` | Catalogs, docs, tool hints; `inferredFrom` is written by `permdock openapi import` with the operation an action came from |
 
 The schema is not on the leaf. It lives on the resource node, reachable through the definition, so a leaf stays JSON-serialisable while `can(permissions.post.update, post)` still knows that `post` must be a `Post`.
 
