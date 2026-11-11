@@ -690,14 +690,14 @@ begin
     if v_total > 0 and v_count < 1 then
       raise exception using
         errcode = '23514',
-        message = 'permdock: org ' || v_id || ' keeps at least 1 primary',
-        hint = 'last-holder';
+        hint = 'last-holder',
+        message = 'permdock: org ' || v_id || ' keeps at least 1 primary';
     end if;
     if v_count > 1 then
       raise exception using
         errcode = '23514',
-        message = 'permdock: org ' || v_id || ' has at most 1 primary',
-        hint = 'max-holders';
+        hint = 'max-holders',
+        message = 'permdock: org ' || v_id || ' has at most 1 primary';
     end if;
     select count(*) into v_total from "public"."org_members" m where m."org_id" = v_key;
     select count(distinct m."user_id") into v_count
@@ -708,8 +708,8 @@ begin
     if v_count > 2 then
       raise exception using
         errcode = '23514',
-        message = 'permdock: org ' || v_id || ' has at most 2 approver',
-        hint = 'max-holders';
+        hint = 'max-holders',
+        message = 'permdock: org ' || v_id || ' has at most 2 approver';
     end if;
   end loop;
   return null;
@@ -748,8 +748,8 @@ begin
       if v_after > 0 and v_after - v_change.delta > 0 then
         raise exception using
           errcode = '23514',
-          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer',
-          hint = 'transfer-only';
+          hint = 'transfer-only',
+          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer';
       end if;
     end loop;
   elsif tg_op = 'DELETE' then
@@ -768,8 +768,8 @@ begin
       if v_after > 0 and v_after - v_change.delta > 0 then
         raise exception using
           errcode = '23514',
-          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer',
-          hint = 'transfer-only';
+          hint = 'transfer-only',
+          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer';
       end if;
     end loop;
   else
@@ -788,8 +788,8 @@ begin
       if v_after > 0 and v_after - v_change.delta > 0 then
         raise exception using
           errcode = '23514',
-          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer',
-          hint = 'transfer-only';
+          hint = 'transfer-only',
+          message = 'permdock: ' || v_change.role || ' in org ' || v_change.id || ' moves only by transfer';
       end if;
     end loop;
   end if;
