@@ -662,8 +662,8 @@ export function raiseSql(
 ): string {
   return `${indent}raise exception using
 ${indent}  errcode = '${errcode}',
-${indent}  message = ${message},
-${indent}  hint = ${quoteLiteral(hint)};`;
+${indent}  hint = ${quoteLiteral(hint)},
+${indent}  message = ${message};`;
 }
 
 export function hasCustomRoleChecksFor(ctx: RlsSqlContext): boolean {

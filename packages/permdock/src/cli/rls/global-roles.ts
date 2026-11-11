@@ -59,8 +59,8 @@ export function globalRolesSql(ctx: RlsSqlContext): string {
   if v_unknown is not null then
     raise exception using
       errcode = '22023',
-      message = 'permdock: ' || v_unknown || ' is not a role',
-      hint = 'unknown-role';
+      hint = 'unknown-role',
+      message = 'permdock: ' || v_unknown || ' is not a role';
   end if;
   delete from ${table} t
   where t.${user} = p_user
