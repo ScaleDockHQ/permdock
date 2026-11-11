@@ -678,6 +678,8 @@ grant execute on function "public"."feature_claims"(uuid) to supabase_auth_admin
 grant execute on function "permdock".custom_roles_version_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".memberships_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".global_roles_for(uuid) to supabase_auth_admin;
+grant execute on function "permdock".member_organization_ids_for(uuid) to supabase_auth_admin;
+grant execute on function "permdock".member_customer_ids_for(uuid) to supabase_auth_admin;
 grant select on table "permdock"."permdock_authz_version" to supabase_auth_admin;
 create policy "permdock_auth_admin_read_version" on "permdock"."permdock_authz_version"
   as permissive for select
