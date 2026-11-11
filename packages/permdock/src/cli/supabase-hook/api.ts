@@ -197,7 +197,8 @@ ${permdockSubjectForTenantSql(parts)}`;
  * `subjectForTenant`. `null` for an anonymous or suspended caller, a null
  * tenant, a tenant id that is not of the root scope's type, and a tenant the
  * caller holds no membership in, so a page never sees another tenant's
- * memberships.
+ * memberships. The record carries `tenant`, so a subject cache keeps it apart
+ * from the all-tenants record at the same version.
  */
 function permdockSubjectForTenantSql(parts: Parts): string {
   const helpers = quoteIdent(parts.helpers.schema);
@@ -228,7 +229,7 @@ begin
     or coalesce(jsonb_array_length(subject -> 'memberships'), 0) = 0 then
     return null;
   end if;
-  return subject;
+  return subject || jsonb_build_object('tenant', v_tenant::text);
 end;
 $$;
 revoke execute on function ${fn}(text) from public, anon, authenticated;

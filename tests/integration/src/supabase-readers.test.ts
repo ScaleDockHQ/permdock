@@ -1,8 +1,12 @@
+import type { SubjectRecord } from "permdock";
+
 import { PGlite } from "@electric-sql/pglite";
 import { expandBootstrapPermissions } from "better-supabase/server";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { memorySubjectCache } from "permdock";
+import { readSubjectRecord } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { run } from "./support/cli-run.ts";
@@ -237,8 +241,16 @@ describe("the hook's readers against Postgres", () => {
     expect(await subject(OWNER, "T")).toMatchObject({
       id: OWNER,
       active: true,
+      tenant: "T",
       memberships: [{ scope: "organization", id: "T", roles: ["owner"] }],
     });
+    const all = await as<Record<string, unknown>>(
+      "authenticated",
+      OWNER,
+      "select permdock.permdock_subject() as value",
+    );
+    expect(all).toMatchObject({ id: OWNER, active: true });
+    expect(all).not.toHaveProperty("tenant");
     for (const [sub, tenant] of [
       [OWNER, null],
       [OWNER, "nobody"],
@@ -256,6 +268,37 @@ describe("the hook's readers against Postgres", () => {
     await expect(
       as("anon", null, "select permdock.permdock_subject('T') as value"),
     ).rejects.toThrow(/permission denied/u);
+  });
+
+  it("seeds a one-tenant record beside the all-tenants one at the same version", async () => {
+    const read = async (tenant: string | null) => {
+      const sql =
+        tenant === null
+          ? "select permdock.permdock_subject() as value"
+          : "select permdock.permdock_subject($1) as value";
+      const record = readSubjectRecord(
+        await as("authenticated", OWNER, sql, tenant === null ? [] : [tenant]),
+      );
+      if (record === undefined) {
+        throw new Error(`PermDock test: no subject record for ${tenant}`);
+      }
+      return record;
+    };
+    const all = await read(null);
+    const scoped = await read("T");
+    expect(scoped.authzVersion).toBe(all.authzVersion);
+    const cache = memorySubjectCache();
+    await cache.seed(all);
+    await cache.seed(scoped);
+    const tenants = (record: SubjectRecord | null) =>
+      record?.memberships.map((membership) => membership.id).toSorted();
+    expect(tenants(await cache.record(OWNER, all.authzVersion))).toStrictEqual([
+      "B",
+      "T",
+    ]);
+    expect(
+      tenants(await cache.record(OWNER, all.authzVersion, undefined, "T")),
+    ).toStrictEqual(["T"]);
   });
 
   it("returns the compact bootstrap wire better-supabase expands", async () => {
