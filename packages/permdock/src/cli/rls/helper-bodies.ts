@@ -317,6 +317,12 @@ function tableFilters(
   };
 }
 
+/**
+ * Who a body answers for when it lists holders: the user column cast to
+ * `userType` instead of the instance, for the members of `instance`.
+ */
+type Holder = { readonly userType: string; readonly instance: string };
+
 function tableBranch(
   ctx: RlsSqlContext,
   scope: string,
@@ -328,6 +334,7 @@ function tableBranch(
   set: boolean,
   declared: readonly string[],
   stale?: boolean,
+  holder?: Holder,
 ): string {
   const grant =
     branch === "custom" && set
@@ -346,12 +353,16 @@ function tableBranch(
   // A custom role asked by one grant key probes its entries once per membership
   // into `pdk_m`; the keys of each distinct set of entries are read once.
   const shared = branch === "custom" && !set && custom !== undefined;
+  const selected =
+    holder === undefined
+      ? `${memberColumn(column)}::${type}`
+      : `${memberColumn(table.user)}::${holder.userType}`;
   const lines = [
     branch === "declared"
-      ? `  select${role.lateral ? " distinct" : ""} ${memberColumn(column)}::${type}${set ? ", rp.grant_key" : ""}`
+      ? `  select${role.lateral ? " distinct" : ""} ${selected}${set ? ", rp.grant_key" : ""}`
       : shared
         ? `  select ${memberColumn(column)}::${type} as id, pdk_e.keys`
-        : `  select ${memberColumn(column)}::${type}, ck.grant_key`,
+        : `  select ${selected}, ck.grant_key`,
     `  from ${quoteQualified(table.table)} m${role.join}`,
     ...checks.joins,
     ...(shared
@@ -369,7 +380,9 @@ function tableBranch(
           .split("\n")
           .filter((line) => line !== "")
       : []),
-    checks.owner,
+    holder === undefined
+      ? checks.owner
+      : `  where ${memberColumn(column)} = ${holder.instance}`,
     ...gate,
     ...(branch === "declared"
       ? [
@@ -457,6 +470,47 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
     return [...branches, held].join("\n  union\n");
   }
   return withCustomKeys(held, branches, "p_grant");
+}
+
+/**
+ * `(user_id, grant_key)` for every member of the instance `instance` of `scope`
+ * and each grant key their membership holds there, through declared and custom
+ * roles, with the same expiry, suspension, disabled and kind filters as
+ * `permitted_<scope>_ids_for`. `undefined` unless the scope's memberships are
+ * one table, the only form a holder list reads in one query.
+ */
+export function holderBody(
+  ctx: RlsSqlContext,
+  scope: string,
+  userType: string,
+  instance: string,
+): string | undefined {
+  const mapped = scopeTable(ctx, scope);
+  if (mapped === undefined || scopeSources(ctx, scope).length > 0) {
+    return undefined;
+  }
+  const { table, column, tenantColumn } = mapped;
+  const holder = { userType, instance };
+  const branch = (kind: "declared" | "custom", declared: readonly string[]) =>
+    tableBranch(
+      ctx,
+      scope,
+      userType,
+      table,
+      column,
+      tenantColumn,
+      kind,
+      true,
+      declared,
+      false,
+      holder,
+    );
+  const custom = ctx.customRoles;
+  return custom === undefined
+    ? branch("declared", [])
+    : [branch("declared", []), branch("custom", custom.declared)].join(
+        "\n  union\n",
+      );
 }
 
 /**
