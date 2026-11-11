@@ -188,6 +188,18 @@
         "execute": ["authenticated"]
       },
       {
+        "name": "permdock_subject",
+        "args": "p_tenant text",
+        "returns": "jsonb",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "permdock_bootstrap_permissions",
+        "args": "p_tenant text",
+        "returns": "jsonb",
+        "execute": ["authenticated"]
+      },
+      {
         "name": "permdock_actor_may_write",
         "args": "",
         "returns": "boolean",
@@ -197,6 +209,12 @@
         "name": "permdock_is_approver",
         "args": "p_approvers jsonb, p_tenant text, p_requester text, p_resource text",
         "returns": "boolean",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "permdock_approver_for_ids",
+        "args": "",
+        "returns": "setof uuid",
         "execute": ["authenticated"]
       },
       {
@@ -353,6 +371,7 @@
       }
     }
   },
+  "fixtureRoles": ["member", "owner"],
   "managementApi": {
     "hook_custom_access_token_enabled": true,
     "hook_custom_access_token_uri": "pg-functions://postgres/permdock/custom_access_token_hook",
