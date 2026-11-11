@@ -105,23 +105,15 @@ function indent(sql: string, by: string): string {
 }
 
 /**
- * The global-role holders kept in one statement: each holder's global grant
- * keys, read by the body `permdock_has_permission_for` reads, joined to the
- * permission's global allow and deny keys. `undefined` when that body needs
- * PL/pgSQL variables, which a lateral subquery cannot declare.
+ * The global-role holders and each one's global grant keys, read by the body
+ * `permdock_has_permission_for` reads.
  */
-function globalHoldersSql(
-  ctx: RlsSqlContext,
-  user: string,
-): string | undefined {
+function globalHoldersSql(ctx: RlsSqlContext, user: string): string {
   const has = grantBodies({
     ...forUserContext(ctx),
     subjectId: "pdk_u.user_id",
     grantSet: true,
   }).has;
-  if (has.vars.length > 0) {
-    return undefined;
-  }
   const global = globalRoleRows(ctx);
   return `  pdk_g(user_id, grant_key) as (
     select pdk_u.user_id, pdk_k.grant_key
@@ -149,25 +141,12 @@ function setHoldersSql(
   user: string,
 ): string {
   const keys = qualified(ctx, PERMISSION_HELPERS.grantKeys);
-  const global = globalRoleRows(ctx);
-  const hasFor = qualified(ctx, PERMISSION_HELPERS.hasFor);
   const at = (on: string, effect: string): string =>
     `(select g.grant_key from ${keys}(p_permission, ${on}${effect}) g(grant_key))`;
-  const globalKeys = globalHoldersSql(ctx, user);
-  const globals =
-    globalKeys === undefined
-      ? `  select ${global.userSql}::${user}
-  from ${global.from}
-  where ${global.userSql} is not null
-    and ${hasFor}(${global.userSql}::${user}, p_permission)`
-      : `  (select gh.user_id from pdk_g gh
-  where gh.grant_key in ${at("'global'", "")}
-  except
-  select gh.user_id from pdk_g gh
-  where gh.grant_key in ${at("'global'", ", 'deny'")})`;
   return `  with pdk_h(user_id, grant_key) as (
 ${holders}
-  )${globalKeys === undefined ? "" : `,\n${globalKeys}`}
+  ),
+${globalHoldersSql(ctx, user)}
   select h.user_id from pdk_h h
   where h.user_id is not null
     and h.grant_key in ${at(quoteLiteral(scope), "")}
@@ -175,7 +154,11 @@ ${holders}
   select h.user_id from pdk_h h
   where h.grant_key in ${at(quoteLiteral(scope), ", 'deny'")}
   union
-${globals}
+  (select gh.user_id from pdk_g gh
+  where gh.grant_key in ${at("'global'", "")}
+  except
+  select gh.user_id from pdk_g gh
+  where gh.grant_key in ${at("'global'", ", 'deny'")})
   order by 1`;
 }
 
