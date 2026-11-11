@@ -49,7 +49,7 @@ import {
   positiveInteger,
   typedUsers,
 } from "./memberships.ts";
-import { oauthMode, refreshReuse } from "./refresh.ts";
+import { membershipsClaim, oauthMode, refreshReuse } from "./refresh.ts";
 import { hookTeamReader } from "./teams.ts";
 
 const MANAGED_TRIGGER = "permdock_protect_managed";
@@ -188,17 +188,8 @@ export function hookSql(parts: Parts): string {
     "octet_length(case jsonb_array_length(pdk_roles.held) when 0 then '' when 1 then (pdk_roles.held -> 0)::text else pdk_roles.held::text end)";
   const fixed = `used + octet_length(pdk_roles.held::text) + ${userRoleBytes} + coalesce(octet_length(to_jsonb(active)::text), 0)${parts.customRoles === undefined ? "" : " + 20"}${parts.version ? " + octet_length(pdk_version.ver::text)" : ""}`;
   const fixedFrom = `pdk_roles${parts.version ? ", pdk_version" : ""}`;
-  const readQuery = `  -- one statement reads the roles, the memberships${teamsConfig === undefined ? "" : ", the teams"}${parts.version ? " and the authorization version" : ""}; the budget counts every slice
-  with pdk_roles as (
-      ${rolesCte}
-    )${versionCte}${teamsCte},
-    pdk_entries as (
-      select e.ord, e.entry, ${entryTenantSql(parts, "e")} as root_id
-      from ${schemaName}.${MEMBERSHIPS_FOR}(uid) e
-    ),
-    pdk_fixed as (
-      select ${fixed} as bytes from ${fixedFrom}
-    ),
+  const ranked = parts.membershipsClaim
+    ? `,
     pdk_ranked as (
       select x.entry, x.root_id is not distinct from active as current,
         row_number() over w as n,
@@ -211,12 +202,29 @@ export function hookSql(parts: Parts): string {
     ),
     pdk_kept as (
       select r.* from pdk_ranked r, pdk_fixed f where f.bytes + 2 + r.bytes + 2 * (r.n - 1) <= budget
-    )
+    )`
+    : "";
+  const keptSelect = parts.membershipsClaim
+    ? `coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
+    truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
+    active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),`
+    : `'[]'::jsonb,
+    truncated or exists (select 1 from pdk_entries),
+    active is not null and coalesce((select bool_or(x.root_id is not distinct from active) from pdk_entries x), false),`;
+  const readQuery = `  -- one statement reads the roles, the memberships${teamsConfig === undefined ? "" : ", the teams"}${parts.version ? " and the authorization version" : ""}; the budget counts every slice${parts.membershipsClaim ? "" : "\n  -- supabase.hook.membershipsClaim is false: the claim keeps no entry, and memberships_truncated sends a reader to the database"}
+  with pdk_roles as (
+      ${rolesCte}
+    )${versionCte}${teamsCte},
+    pdk_entries as (
+      select e.ord, e.entry, ${entryTenantSql(parts, "e")} as root_id
+      from ${schemaName}.${MEMBERSHIPS_FOR}(uid) e
+    ),
+    pdk_fixed as (
+      select ${fixed} as bytes from ${fixedFrom}
+    )${ranked}
   select
     (select pdk_roles.held from pdk_roles),
-    coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
-    truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
-    active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),
+    ${keptSelect}
     (select bytes from pdk_fixed)${teamsConfig === undefined ? "" : ",\n    (select pdk_teams.team_ids from pdk_teams)"}${parts.version ? ",\n    (select pdk_version.ver from pdk_version)" : ""}
   into held, kept, truncated, in_active, used${teamsConfig === undefined ? "" : ", team_ids"}${parts.version ? ", ver" : ""};`;
   const applyHeld = `  claims := jsonb_set(claims, '{roles}', held);
@@ -544,6 +552,7 @@ export function hookParts(
   );
   checkSources({ sources, scopes });
   const tenants = suspension?.scopes?.[root];
+  const claimed = membershipsClaim(hook, resolveAuthorize(config));
   const parts: Parts = {
     schema,
     scopes,
@@ -553,14 +562,16 @@ export function hookParts(
       overrides.budget ?? hook.budget ?? supabaseMembershipsBudget,
       "budget",
     ),
+    membershipsClaim: claimed,
     version: hook.version !== false,
-    refreshReuse: refreshReuse(
-      hook,
-      sources,
-      hook.version !== false,
-      suspension?.users?.table,
-      tenants?.table,
-    ),
+    refreshReuse:
+      refreshReuse(
+        hook,
+        sources,
+        hook.version !== false,
+        suspension?.users?.table,
+        tenants?.table,
+      ) && claimed,
     oauth: oauthMode(hook),
     broadcast:
       hook.version === false || hook.broadcast === false

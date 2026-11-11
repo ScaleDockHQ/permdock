@@ -466,6 +466,17 @@ Measured with `tests/integration/src/hook-token-shape.test.ts` (base64url of the
 
 `subjectFromSupabase` surfaces the flag as `principal.membershipsTruncated`. With `claimsFirst`, the subject then reads every membership from the sources, so a user in 40 organizations still gets all 40 on the server while the token stays small. RLS in `jwt` mode only sees the kept entries; use `database` mode ([RLS](/docs/cli/rls)) when members routinely exceed the budget.
 
+`supabase.hook.membershipsClaim: false` writes `memberships` as `[]` and sets `memberships_truncated: true` for a user who holds a membership, so every reader takes the subject from the database (`permdock_subject()`, `subject_for` or a `claimsFirst` source). The tenant claim, `team_ids`, `roles` and `authz_ver` are written as before. No refresh reuses the incoming claims, and an explicit `refresh: 'reuse'` fails `generate`. It needs `rls.authorize: 'database'`: in `jwt` mode the RLS helpers read the claim, so `generate` exits `2`.
+
+`node scripts/hook-bench.ts` times the hook on Postgres 17 and records `scripts/hook-bench.json`. Times are the median and p95 of 25 server-side calls on an Apple M5 Max; bytes are exact. Each entry of the claim takes about 56 bytes. Cookie chunks use better-supabase's BS405 estimate: claims times 4/3, plus 1,700 bytes, in 3,180-byte chunks.
+
+| Memberships | Claim                 | Full read, median / p95 | Claims  | Chunks |
+| ----------- | --------------------- | ----------------------- | ------- | ------ |
+| 1           | on, 1,024-byte budget | 0.07 / 0.16 ms          | 614 B   | 1      |
+| 500         | on, 1,024-byte budget | 1.32 / 1.39 ms          | 1,491 B | 2      |
+| 500         | on, no budget cap     | 2.44 / 2.71 ms          | 28.8 KB | 13     |
+| 500         | off                   | 1.01 / 1.04 ms          | 588 B   | 1      |
+
 ## Authorization version
 
 A token is a copy, and a copy can be stale: a demoted admin keeps their token until it expires. For most permissions `jwt_expiry` bounds that. For sensitive ones (removing a member, creating a payout), list them in the policy:

@@ -19,6 +19,8 @@ export type Parts = {
   readonly root: string;
   readonly sources: readonly SqlMembershipSource[];
   readonly budget: number;
+  /** `supabase.hook.membershipsClaim`: `false` keeps no entry in the claim. */
+  readonly membershipsClaim: boolean;
   readonly version: boolean;
   /**
    * The hook reuses the incoming claims on a token refresh whose `authz_ver` is

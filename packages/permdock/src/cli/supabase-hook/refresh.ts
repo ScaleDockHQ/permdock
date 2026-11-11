@@ -55,6 +55,34 @@ function refreshMode(hook: SupabaseHookConfig): RefreshMode {
   return mode;
 }
 
+/**
+ * `supabase.hook.membershipsClaim`. `false` needs `database` mode, where the
+ * helpers read memberships from the tables, and rules out an explicit `refresh:
+ * 'reuse'`: a refresh has no entries to reuse.
+ */
+export function membershipsClaim(
+  hook: SupabaseHookConfig,
+  authorize: "database" | "jwt",
+): boolean {
+  const value: unknown = hook.membershipsClaim ?? true;
+  if (typeof value !== "boolean") {
+    throw configError(
+      `PermDock CLI: supabase.hook.membershipsClaim must be a boolean (got ${String(value)})`,
+    );
+  }
+  if (!value && authorize !== "database") {
+    throw configError(
+      "PermDock CLI: supabase.hook.membershipsClaim: false needs rls.authorize: 'database'; in 'jwt' mode the RLS helpers read memberships from the claim",
+    );
+  }
+  if (!value && hook.refresh === "reuse") {
+    throw configError(
+      "PermDock CLI: supabase.hook.refresh 'reuse' cannot run: supabase.hook.membershipsClaim is false, so a refresh has no memberships to reuse",
+    );
+  }
+  return value;
+}
+
 export function oauthMode(hook: SupabaseHookConfig): OauthMode {
   const mode = hook.oauth ?? "full";
   if (mode !== "full" && mode !== "slim") {

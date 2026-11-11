@@ -985,6 +985,15 @@ export type SupabaseHookConfig = {
    */
   readonly budget?: number;
   /**
+   * `false` writes `memberships` as `[]`, and sets `memberships_truncated` when
+   * the user holds a membership, so a reader takes the subject from the
+   * database (`permdock_subject()`, `subject_for`, a `claimsFirst` source). The
+   * tenant claim and `team_ids` are written as before, and no refresh reuses
+   * the incoming claims. `database` mode only: in `jwt` mode the RLS helpers
+   * read the claim, so `generate` refuses it. Default `true`.
+   */
+  readonly membershipsClaim?: boolean;
+  /**
    * Keep `permdock_authz_version` and write the `authz_ver` claim. Default
    * `true`.
    */

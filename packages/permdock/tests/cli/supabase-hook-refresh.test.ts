@@ -203,3 +203,64 @@ describe("supabase hook refresh and oauth branches", () => {
     expect(slim).toContain("- 'features'");
   });
 });
+
+describe("supabase hook membershipsClaim", () => {
+  afterEach(removeHookProjects);
+
+  const DATABASE = "{ dialect: 'supabase', authorize: 'database' }";
+
+  it("keeps no entry and marks the claim truncated with membershipsClaim false", async () => {
+    const { code, sql } = await generate(
+      `{ memberships: [${PLAIN}], membershipsClaim: false }`,
+      [],
+      DATABASE,
+    );
+    expect(code).toBe(0);
+    expect(sql).not.toContain("pdk_ranked");
+    expect(sql).not.toContain("pdk_kept");
+    expect(sql).toContain("truncated or exists (select 1 from pdk_entries),");
+    expect(sql).toContain(
+      "active is not null and coalesce((select bool_or(x.root_id is not distinct from active) from pdk_entries x), false),",
+    );
+    expect(sql).not.toContain(FAST);
+    const on = await generate(`{ memberships: [${PLAIN}] }`, [], DATABASE);
+    expect(on.sql).toContain("pdk_kept");
+    expect(on.sql).toContain(FAST);
+  });
+
+  it("refuses membershipsClaim false in jwt mode", async () => {
+    const { code, output } = await generate(
+      `{ memberships: [${PLAIN}], membershipsClaim: false }`,
+      [],
+      "{ dialect: 'supabase', authorize: 'jwt' }",
+    );
+    expect(code).toBe(2);
+    expect(output).toContain(
+      "supabase.hook.membershipsClaim: false needs rls.authorize: 'database'",
+    );
+  });
+
+  it("refuses an explicit refresh 'reuse' with membershipsClaim false", async () => {
+    const { code, output } = await generate(
+      `{ memberships: [${PLAIN}], membershipsClaim: false, refresh: 'reuse' }`,
+      [],
+      DATABASE,
+    );
+    expect(code).toBe(2);
+    expect(output).toContain(
+      "supabase.hook.membershipsClaim is false, so a refresh has no memberships to reuse",
+    );
+  });
+
+  it("refuses a membershipsClaim that is not a boolean", async () => {
+    const { code, output } = await generate(
+      `{ memberships: [${PLAIN}], membershipsClaim: 'off' }`,
+      [],
+      DATABASE,
+    );
+    expect(code).toBe(2);
+    expect(output).toContain(
+      "supabase.hook.membershipsClaim must be a boolean",
+    );
+  });
+});
