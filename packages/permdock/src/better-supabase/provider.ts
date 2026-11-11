@@ -41,21 +41,6 @@ type ProviderKey<P> = [P] extends [undefined]
   ? string
   : PermissionKeyOf<Exclude<P, undefined>>;
 
-/** `AuthorizationProvider` plus the 0.26 templates and the suspension user key. */
-export type PermDockAuthorizationProvider<Key extends string = string> = Omit<
-  AuthorizationProvider<Key>,
-  "functions" | "suspension"
-> & {
-  readonly functions: AuthorizationFunctions & {
-    readonly approverFor?: string;
-    readonly managedUsers?: string;
-  };
-  readonly suspension?: NonNullable<AuthorizationProvider["suspension"]> & {
-    /** The user id column of `suspension.user`, from `rls.suspension.users.id`. */
-    readonly userKey?: string;
-  };
-};
-
 export type AuthorizationProviderOptions<P = undefined> = {
   /**
    * `permdock.manifest.json`, parsed or as JSON text, from `permdock supabase
@@ -159,6 +144,11 @@ type Template = Exclude<
   | "portalSubjects"
   | "portalParties"
   | "subject"
+  | "subjectForTenant"
+  | "bootstrapPermissions"
+  | "approverFor"
+  | "managedUsers"
+  | "canIn"
   | RowTemplate
 >;
 
@@ -842,7 +832,7 @@ function delegatedScopes(
  */
 export function authorizationProvider<P = undefined>(
   options: AuthorizationProviderOptions<P>,
-): PermDockAuthorizationProvider<ProviderKey<P>> {
+): AuthorizationProvider<ProviderKey<P>> {
   const manifest = parseSupabaseManifest(options.manifest);
   const catalog =
     options.catalog === undefined ? undefined : parseCatalog(options.catalog);
@@ -1111,5 +1101,5 @@ export function authorizationProvider<P = undefined>(
       ? { tokenHook: tokenHookOf(manifest, options.activeTenant) }
       : {}),
     ...(problems.length > 0 ? { problems } : {}),
-  }) as PermDockAuthorizationProvider<ProviderKey<P>>;
+  }) as AuthorizationProvider<ProviderKey<P>>;
 }
