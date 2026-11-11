@@ -962,6 +962,48 @@ as $$
 $$;
 revoke execute on function "permdock".permitted_team_permission_keys_for(uuid, uuid, text[]) from public, anon, authenticated;
 
+-- the caller's permissions in better-supabase's compact BootstrapPermissionsWire: the policy's keys once, a bitset per tenant the caller is a member of (p_tenant alone when given) and one for platform
+create or replace function "permdock".permdock_bootstrap_permissions(p_tenant text default null)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  with pdk_k(key, n) as (
+    select k.key, (k.n - 1)::integer
+    from unnest(array['note.read']::text[]) with ordinality as k(key, n)
+  ),
+  pdk_t(id) as (
+    select t.id from "permdock".member_tenant_ids() as t(id)
+    where p_tenant is null or t.id::text = p_tenant
+  ),
+  pdk_p(n) as (
+    select k.n from pdk_k k
+    where k.key = any(array['note.read']::text[]) and "permdock".permdock_has_permission(k.key)
+  )
+  select jsonb_strip_nulls(jsonb_build_object(
+    'apiVersion', 1,
+    'form', 'compact',
+    'keys', to_jsonb(array['note.read']::text[]),
+    'tenants', coalesce((
+      select jsonb_object_agg(t.id::text, (select translate(encode(coalesce(decode(string_agg(lpad(to_hex(coalesce(b.v, 0)), 2, '0'), '' order by g.i), 'hex'), ''::bytea), 'base64'), '+/=' || chr(10), '-_')
+      from generate_series(0, 0) g(i)
+      left join (
+        select x.n / 8 as i, sum(1 << (x.n % 8)) as v from (select k.n from "permdock".permitted_tenant_permission_keys(t.id) h(key) join pdk_k k on k.key = h.key) x(n) group by 1
+      ) b on b.i = g.i))
+      from pdk_t t
+    ), '{}'::jsonb),
+    'platform', case when exists (select 1 from pdk_p) then (select translate(encode(coalesce(decode(string_agg(lpad(to_hex(coalesce(b.v, 0)), 2, '0'), '' order by g.i), 'hex'), ''::bytea), 'base64'), '+/=' || chr(10), '-_')
+      from generate_series(0, 0) g(i)
+      left join (
+        select x.n / 8 as i, sum(1 << (x.n % 8)) as v from (select p.n from pdk_p p) x(n) group by 1
+      ) b on b.i = g.i) end
+  ))
+$$;
+revoke execute on function "permdock".permdock_bootstrap_permissions(text) from public, anon, authenticated;
+grant execute on function "permdock".permdock_bootstrap_permissions(text) to authenticated;
+
 -- the users who hold a permission on one tenant: its members and the global-role holders for whom the _for helpers answer; no client role may execute it
 create or replace function "permdock".permitted_tenant_users(p_permission text, p_id uuid)
 returns setof uuid

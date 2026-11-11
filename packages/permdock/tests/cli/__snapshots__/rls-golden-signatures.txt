@@ -2,6 +2,7 @@
   "create or replace function "permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')",
   "create or replace function "permdock".member_team_ids()",
   "create or replace function "permdock".member_tenant_ids()",
+  "create or replace function "permdock".permdock_bootstrap_permissions(p_tenant text default null)",
   "create or replace function "permdock".permdock_has(p_grant text)",
   "create or replace function "permdock".permdock_has_permission(p_permission text)",
   "create or replace function "permdock".permdock_permission_keys()",

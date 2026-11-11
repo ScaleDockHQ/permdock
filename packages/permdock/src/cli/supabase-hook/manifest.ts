@@ -23,6 +23,7 @@ import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
 import { MANAGES } from "../rls/approval-managers.ts";
 import { IS_APPROVER } from "../rls/approvals.ts";
 import { guardedTables } from "../rls/assignments.ts";
+import { BOOTSTRAP_PERMISSIONS } from "../rls/helper-bootstrap.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "../rls/ownership-names.ts";
 import { ownershipRules } from "../rls/ownership.ts";
 import { permittedUsersHelper } from "../rls/permission-holders.ts";
@@ -175,6 +176,8 @@ function trustedHelpers(
   const keyed = [
     helperEntry(USER_ID_HELPER, "", "uuid", client),
     helperEntry(PERMDOCK_SUBJECT, "", "jsonb", client),
+    helperEntry(PERMDOCK_SUBJECT, "p_tenant text", "jsonb", client),
+    helperEntry(BOOTSTRAP_PERMISSIONS, "p_tenant text", "jsonb", client),
     ...(config.rls?.apiKeys === undefined
       ? []
       : [helperEntry(API_KEY_ALLOWS, "p_grant text", "boolean", client)]),

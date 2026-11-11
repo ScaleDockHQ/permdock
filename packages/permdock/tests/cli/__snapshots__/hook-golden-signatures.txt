@@ -9,6 +9,7 @@
   "create or replace function "permdock".permdock_bump_authz_version()",
   "create or replace function "permdock".permdock_bump_authz_version_for(p_users uuid[])",
   "create or replace function "permdock".permdock_subject()",
+  "create or replace function "permdock".permdock_subject(p_tenant text)",
   "create or replace function "permdock".subject_for(p_user uuid)",
   "create or replace function "permdock".subject_for(p_user uuid, p_tenant uuid)",
 ]

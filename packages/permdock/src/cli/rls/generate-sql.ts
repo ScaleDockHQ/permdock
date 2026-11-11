@@ -49,6 +49,7 @@ import { treeHelperSql, walkChainSql } from "./follows.ts";
 import { isRefusal, splitsPart } from "./generate-options.ts";
 import { generatePolicies, withHelperTables } from "./generate-policies.ts";
 import { closureBackfillSql, graphSql } from "./graph.ts";
+import { bootstrapPermissionsSql } from "./helper-bootstrap.ts";
 import { helpersSql, seedSql } from "./helpers.ts";
 import { indexTargets, indexesSql } from "./indexes.ts";
 import { ownershipSql } from "./ownership.ts";
@@ -380,6 +381,15 @@ function preambleSql(
         : { trustedReaders: rls.trustedReaders }),
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
+    ctx.dialect === "supabase"
+      ? bootstrapPermissionsSql(
+          ctx,
+          listPermissions(policy.permissions)
+            .map((leaf) => leaf.key)
+            .toSorted(),
+          grants,
+        )
+      : undefined,
     nonEmptyOr(permissionHoldersSql(ctx), undefined),
     actorKinds === undefined ? undefined : actorMayWriteSql(ctx, actorKinds),
     usesLiveSession ? sessionLiveHelperSql(ctx) : undefined,
