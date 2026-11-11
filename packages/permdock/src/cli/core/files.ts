@@ -93,7 +93,7 @@ export function applyFiles(
     throw new CliError(
       "failed",
       `could not write ${describe(error)}; wrote nothing`,
-      { code: "write_failed", cause: error },
+      { code: "failed", cause: error },
     );
   }
   for (const { temp, target } of staged) {
@@ -186,10 +186,10 @@ export function refuseDirty(input: {
     return;
   }
   throw new CliError(
-    "action",
+    "failed",
     `${input.command} rewrites files with uncommitted changes: ${dirty.join(", ")}. Commit or stash them first, so git diff shows only the rewrite.`,
     {
-      code: "dirty_worktree",
+      code: "file_conflict",
       extensions: { files: dirty },
       next: [
         {

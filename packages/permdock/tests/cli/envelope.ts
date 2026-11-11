@@ -1,18 +1,33 @@
-const ENVELOPE = "https://permdock.com/schemas/cli-result-v1.json";
+const SCHEMA = "https://permdock.com/schemas/cli-result-v2.json";
 
-/**
- * The `data` of the cli-result-v1 envelope `--json` prints, or its `error` when
- * the run failed without a report. Typed like `JSON.parse`, as the tests read
- * the payload of many different commands.
- */
-export function jsonData(stdout: string): ReturnType<typeof JSON.parse> {
-  const parsed: unknown = JSON.parse(stdout);
+function document(text: string, stream: string): Record<string, unknown> {
+  const parsed: unknown = JSON.parse(text);
   if (
     typeof parsed !== "object" ||
     parsed === null ||
-    Reflect.get(parsed, "$schema") !== ENVELOPE
+    Reflect.get(parsed, "$schema") !== SCHEMA
   ) {
-    throw new Error(`not a cli-result-v1 envelope: ${stdout.slice(0, 200)}`);
+    throw new Error(
+      `not a cli-result-v2 document on ${stream}: ${text.slice(0, 200)}`,
+    );
   }
-  return Reflect.get(parsed, "data") ?? Reflect.get(parsed, "error");
+  return Object.fromEntries(Object.entries(parsed));
+}
+
+/**
+ * The `data` of the cli-result-v2 result document `--json` prints on stdout.
+ * Typed like `JSON.parse`, as the tests read the payload of many different
+ * commands.
+ */
+export function jsonData(stdout: string): ReturnType<typeof JSON.parse> {
+  return document(stdout, "stdout")["data"];
+}
+
+/**
+ * The cli-result-v2 error document a failed `--json` run prints as the last
+ * line of stderr.
+ */
+export function jsonError(stderr: string): ReturnType<typeof JSON.parse> {
+  const lines = stderr.trimEnd().split("\n");
+  return document(lines.at(-1) ?? "", "stderr");
 }

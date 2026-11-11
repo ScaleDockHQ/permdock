@@ -36,7 +36,7 @@ Flags
   --ignore <id>                          Accept the finding with this id for one run; rls.verify.ignore is the committed baseline (repeatable)
 
 Global flags
-  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --effects-digest --agent --debug --color --help; see permdock --help
 
 Examples
   permdock rls verify

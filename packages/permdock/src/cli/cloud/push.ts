@@ -63,17 +63,17 @@ function checkedCatalog(output: string): CatalogDocument {
     if (!(error instanceof PermDockValidationError)) {
       throw error;
     }
-    const issues = error.issues.map((issue) => ({
-      path: (issue.path ?? []).map(String).join("."),
-      message: issue.message,
-    }));
+    const issues = error.issues.map(
+      (issue) =>
+        `${(issue.path ?? []).map(String).join(".")}: ${issue.message}`,
+    );
     throw new CliError(
       "failed",
       [
         `permdock cloud push: the catalog has ${String(issues.length)} ${issues.length === 1 ? "issue" : "issues"}`,
-        ...issues.map((issue) => `  ${issue.path}: ${issue.message}`),
+        ...issues.map((line) => `  ${line}`),
       ].join("\n"),
-      { code: "catalog_invalid", extensions: { issues } },
+      { code: "invalid_input", extensions: { issues } },
     );
   }
 }

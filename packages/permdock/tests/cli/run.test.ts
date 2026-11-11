@@ -457,11 +457,11 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
       });
     });
 
-    it("asks for a missing required input with exit 3", async () => {
+    it("asks for a missing required input with exit 2", async () => {
       expect(
         await run(["openapi", "import"], { cwd: appCopy() }),
       ).toStrictEqual({
-        code: 3,
+        code: 2,
         stdout: "",
         stderr: "openapi import needs --doc: the OpenAPI document to import\n",
       });

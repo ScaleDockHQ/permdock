@@ -205,11 +205,11 @@ describe("cloud login", () => {
         cwd: FIXTURE,
         io: io(reference, { XDG_CONFIG_HOME: configHome() }),
       });
-      expect(result.code).toBe(3);
-      expect(JSON.parse(result.stdout)).toMatchObject({
+      expect(result.code).toBe(2);
+      expect(JSON.parse(result.stderr)).toMatchObject({
         status: "action_required",
-        error: { code: "auth_required" },
         next: [{ command: "permdock login" }],
+        reason: "auth_required",
       });
     });
 

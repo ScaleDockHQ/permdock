@@ -11,7 +11,7 @@ import { writeCredentials } from "../../src/terminal/storage.ts";
 import { POLICY_NOT_PUBLISHED } from "../../src/testing/cloud-api/platform.ts";
 import { referenceCloud } from "../cloud/fixtures/reference-cloud.ts";
 import { policy } from "../fixtures/named-scopes.ts";
-import { jsonData } from "./envelope.ts";
+import { jsonData, jsonError } from "./envelope.ts";
 import { rlsGenerate } from "./rls-call.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
 
@@ -208,7 +208,7 @@ describe("cloud pull", () => {
       );
     });
 
-    it("answers policy-not-published as Problem Details under --json", async () => {
+    it("answers policy-not-published as an error document under --json", async () => {
       const reference = await cloud();
       const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
       const config = join(cwd, "config");
@@ -229,9 +229,10 @@ describe("cloud pull", () => {
         { cwd, io: io(reference, { XDG_CONFIG_HOME: config }) },
       );
       expect(pulled.code).toBe(1);
-      expect(jsonData(pulled.stdout)).toMatchObject({
-        type: POLICY_NOT_PUBLISHED,
-        status: 404,
+      expect(pulled.stdout).toBe("");
+      expect(jsonError(pulled.stderr)).toMatchObject({
+        reason: "request_failed",
+        data: { cloudProblem: POLICY_NOT_PUBLISHED, status: 404 },
       });
     });
 
@@ -242,7 +243,7 @@ describe("cloud pull", () => {
         cwd,
         io: io(reference, { XDG_CONFIG_HOME: join(cwd, "config") }),
       });
-      expect(pulled.code).toBe(3);
+      expect(pulled.code).toBe(2);
       expect(pulled.stderr).toContain("PERMDOCK_CLOUD_TOKEN");
     });
 
@@ -256,7 +257,7 @@ describe("cloud pull", () => {
           io: io(reference, { PERMDOCK_CLOUD_TOKEN: reference.platform.token }),
         },
       );
-      expect(pulled.code).toBe(3);
+      expect(pulled.code).toBe(2);
       expect(pulled.stderr).toMatch(/403/u);
     });
   });

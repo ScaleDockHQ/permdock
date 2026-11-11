@@ -47,27 +47,29 @@ describe("help", () => {
   });
 });
 
-const ENVELOPE = "https://permdock.com/schemas/cli-result-v1.json";
+const SCHEMA = "https://permdock.com/schemas/cli-result-v2.json";
 
-describe("Problem Details under --json", () => {
-  it("prints a usage problem on stdout for an unknown command", async () => {
+describe("the cli-result-v2 documents under --json", () => {
+  it("prints a usage error as one line on stderr for an unknown command", async () => {
     const result = await run(["nope", "--json"]);
     expect(result.code).toBe(2);
-    expect(result.stderr).toBe("");
-    expect(JSON.parse(result.stdout)).toStrictEqual({
-      $schema: ENVELOPE,
+    expect(result.stdout).toBe("");
+    expect(result.stderr.endsWith("\n")).toBe(true);
+    expect(result.stderr.trimEnd()).not.toContain("\n");
+    expect(JSON.parse(result.stderr)).toStrictEqual({
+      $schema: SCHEMA,
       status: "error",
-      error: {
-        type: "https://permdock.com/docs/cli/errors#unknown_command",
-        title: "Unknown command",
-        detail: expect.stringContaining("unknown command 'nope'"),
-        code: "unknown_command",
-        exitCode: 2,
-      },
+      reason: "unknown_command",
+      message: expect.stringContaining("unknown command 'nope'"),
+      type: "https://permdock.com/docs/cli/errors#unknown_command",
+      next: [],
+      data: {},
+      userActionRequired: false,
+      retryable: false,
     });
   });
 
-  it("names the command and exits 1 when the database does not answer", async () => {
+  it("exits 1 with a retryable error when the database does not answer", async () => {
     const result = await run(
       [
         "rls",
@@ -88,22 +90,22 @@ describe("Problem Details under --json", () => {
       },
     );
     expect(result.code).toBe(1);
-    expect(JSON.parse(result.stdout)).toStrictEqual({
-      $schema: ENVELOPE,
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toStrictEqual({
+      $schema: SCHEMA,
       status: "error",
-      error: {
-        type: "https://permdock.com/docs/cli/errors#database_unreachable",
-        title: "Database unreachable",
-        detail: "PermDock CLI: rls verify --introspect could not connect",
-        code: "database_unreachable",
-        command: "rls verify",
-        exitCode: 1,
-      },
+      reason: "database_unreachable",
+      message: "PermDock CLI: rls verify --introspect could not connect",
+      type: "https://permdock.com/docs/cli/errors#database_unreachable",
+      next: [],
+      data: {},
+      userActionRequired: false,
+      retryable: true,
     });
-    expect(result.stdout).not.toContain("permdock:permdock@");
+    expect(result.stderr).not.toContain("permdock:permdock@");
   });
 
-  it("wraps a failed check's text report as a failed problem", async () => {
+  it("prints a failed check's report on stdout and its message on stderr", async () => {
     const cwd = project({
       "permdock.config.ts":
         "export default { permissions: './permissions.ts' };\n",
@@ -112,22 +114,17 @@ describe("Problem Details under --json", () => {
     const result = await run(["collect", "--check", "--json", "--cwd", cwd]);
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toStrictEqual({
-      $schema: ENVELOPE,
+      $schema: SCHEMA,
       status: "error",
       data: {
         out: join(cwd, "permissions.catalog.json"),
         permissions: 9,
         stale: true,
       },
-      error: {
-        type: "https://permdock.com/docs/cli/errors#check_failed",
-        title: "Out of date",
-        detail: "catalog missing: permissions.catalog.json",
-        code: "check_failed",
-        command: "collect",
-        exitCode: 1,
-      },
     });
+    expect(result.stderr).toContain(
+      "catalog missing: permissions.catalog.json",
+    );
   });
 
   it("reports positionsMoved when only usage lines changed", async () => {
@@ -163,17 +160,15 @@ describe("Problem Details under --json", () => {
     expect(result.code).toBe(2);
   });
 
-  it("wraps a usage result's text as a usage problem", async () => {
+  it("wraps a usage result's text as a usage error", async () => {
     const cwd = project({ "permdock.config.ts": "export default {};\n" });
     const result = await run(["usage", "--json", "--cwd", cwd]);
     expect(result.code).toBe(2);
-    expect(JSON.parse(result.stdout)).toMatchObject({
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toMatchObject({
       status: "error",
-      error: {
-        type: "https://permdock.com/docs/cli/errors#usage",
-        command: "usage",
-        exitCode: 2,
-      },
+      reason: "usage",
+      type: "https://permdock.com/docs/cli/errors#usage",
     });
   });
 

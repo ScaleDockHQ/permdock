@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
-import { jsonData } from "./envelope.ts";
+import { jsonData, jsonError } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TMP = join(HERE, "../../tmp");
@@ -174,13 +174,13 @@ describe("openapi annotate --doc", () => {
     expect(both.code).toBe(2);
     const tenant = await annotate(dir, "--tenant-path", "a/b", "--json");
     expect(tenant.code).toBe(2);
-    expect(jsonData(tenant.stdout)).toMatchObject({ code: "invalid_value" });
+    expect(jsonError(tenant.stderr)).toMatchObject({ reason: "invalid_value" });
     const none = await run(
       ["openapi", "annotate", "--doc", "openapi.json", "--json"],
       { cwd: dir },
     );
-    expect(none.code).toBe(3);
-    expect(jsonData(none.stdout)).toMatchObject({ code: "input_required" });
+    expect(none.code).toBe(2);
+    expect(jsonError(none.stderr)).toMatchObject({ reason: "input_required" });
   });
 
   it("groups by path segment or root, skips non-operations and reads a missing or invalid document", async () => {

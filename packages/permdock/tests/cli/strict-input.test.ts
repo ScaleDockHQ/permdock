@@ -40,14 +40,10 @@ describe("strict input", () => {
         cwd: dir(),
       });
       expect(result.code).toBe(2);
-      expect(JSON.parse(result.stdout)).toMatchObject({
+      expect(JSON.parse(result.stderr)).toMatchObject({
         status: "error",
-        error: {
-          type: "https://permdock.com/docs/cli/errors#unknown_flag",
-          code: "unknown_flag",
-          command: "config",
-          exitCode: 2,
-        },
+        type: "https://permdock.com/docs/cli/errors#unknown_flag",
+        reason: "unknown_flag",
       });
     });
   });

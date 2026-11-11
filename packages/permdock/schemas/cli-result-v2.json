@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/cli-result-v2.json",
+  "title": "PermDock CLI result v2",
+  "description": "What a `permdock` command prints under `--json`, `--format json` or agent mode, following better-supabase's CLI contract 3 (`cli-result-v2`). A run that succeeds, or reports findings and exits 1, prints the result document on stdout. A run that fails prints the error document as one line on stderr and nothing on stdout. Fields are only added within v2.",
+  "oneOf": [{ "$ref": "#/$defs/result" }, { "$ref": "#/$defs/error" }],
+  "$defs": {
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$schema", "status"],
+      "properties": {
+        "$schema": {
+          "const": "https://permdock.com/schemas/cli-result-v2.json"
+        },
+        "status": {
+          "description": "`success` for exit code 0, `error` for a report that exits 1 (its findings are in `data`).",
+          "enum": ["success", "error"]
+        },
+        "data": {
+          "description": "The command's report. Its shape is the command's own; a report with its own `$schema` keeps it."
+        },
+        "warnings": {
+          "description": "Keys in the config file PermDock does not read, one line each.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "next": {
+          "description": "Commands that move the run forward, in order.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next" }
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "status",
+        "reason",
+        "message",
+        "type",
+        "next",
+        "data",
+        "userActionRequired",
+        "retryable"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "https://permdock.com/schemas/cli-result-v2.json"
+        },
+        "status": {
+          "description": "`action_required` when a person has to give an input, confirm or log in, `error` otherwise.",
+          "enum": ["error", "action_required"]
+        },
+        "reason": {
+          "description": "Why the run failed: a better-supabase CLI contract 3 reason, with its meaning and exit code.",
+          "enum": [
+            "usage",
+            "unknown_command",
+            "unknown_flag",
+            "invalid_value",
+            "flag_renamed",
+            "missing_value",
+            "config_not_found",
+            "config_invalid",
+            "invalid_input",
+            "dependency_missing",
+            "database_unreachable",
+            "network_error",
+            "request_failed",
+            "auth_required",
+            "check_failed",
+            "file_conflict",
+            "input_required",
+            "confirmation_required",
+            "cancelled",
+            "failed",
+            "internal"
+          ]
+        },
+        "message": { "type": "string" },
+        "type": {
+          "description": "The reason's heading on the errors page, `https://permdock.com/docs/cli/errors#<reason>`.",
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://permdock\\.com/docs/cli/errors#[a-z_]+$"
+        },
+        "next": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/next" }
+        },
+        "data": {
+          "description": "Details of the failure. Besides the members below, a reason may add its own, such as `files` for `file_conflict` or `status` for `request_failed`.",
+          "type": "object",
+          "properties": {
+            "suggestion": {
+              "description": "The closest command or option.",
+              "type": "string"
+            },
+            "flag": {
+              "description": "The flag that supplies the missing or invalid value.",
+              "type": "string"
+            },
+            "issues": {
+              "description": "One line per problem, such as `path: message` for invalid_input.",
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "missing": {
+              "description": "The flags or `<positionals>` the run needs, for input_required.",
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "choices": {
+              "description": "The values each missing flag or positional takes, the suggested one first.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            },
+            "digest": {
+              "description": "The value for --effects-digest once the user agrees, for confirmation_required.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{16}$"
+            },
+            "effects": {
+              "description": "What the run would change, one line each, for confirmation_required.",
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "userActionRequired": { "type": "boolean" },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "next": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "argv", "when"],
+      "properties": {
+        "command": {
+          "description": "A complete command line, starting with `permdock`.",
+          "type": "string"
+        },
+        "argv": {
+          "description": "`command` as arguments, so a caller needs no shell parsing.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "when": {
+          "description": "The condition under which to run it, such as `after the person agrees`.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

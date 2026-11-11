@@ -1,7 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { runCloud } from "../../src/cli/cloud/push.ts";
-import { CliError, problemOf } from "../../src/cli/core/errors.ts";
+import { CliError, failureOf } from "../../src/cli/core/errors.ts";
 import {
   NOW,
   PERMISSIONS,
@@ -77,7 +77,7 @@ describe("cloud push invalid", () => {
   describe("cloud push on an invalid catalog", () => {
     it("lists every issue with its path on --dry-run", async () => {
       const error = await failure(true);
-      expect(error.code).toBe("catalog_invalid");
+      expect(error.code).toBe("invalid_input");
       expect(error.message).toBe(
         [
           "permdock cloud push: the catalog has 2 issues",
@@ -101,23 +101,23 @@ describe("cloud push invalid", () => {
       );
     });
 
-    it("returns a Problem with issues for --json", async () => {
-      const problem = problemOf(await failure(true), "cloud push");
-      expect(problem).toMatchObject({
-        type: "https://permdock.com/docs/cli/errors#catalog_invalid",
-        title: "Invalid catalog",
-        code: "catalog_invalid",
+    it("reports invalid_input with one issue line per problem for --json", async () => {
+      const failed = failureOf(await failure(true));
+      expect(failed).toMatchObject({
+        code: "invalid_input",
         exitCode: 1,
-        issues: [
-          { path: "operations.0.permission", message: expect.any(String) },
-          { path: "operations.0.results", message: expect.any(String) },
-        ],
+        data: {
+          issues: [
+            expect.stringMatching(/^operations\.0\.permission: /u),
+            expect.stringMatching(/^operations\.0\.results: /u),
+          ],
+        },
       });
     });
 
     it("refuses a real push before any request", async () => {
       const { code } = await failure(false);
-      expect(code).toBe("catalog_invalid");
+      expect(code).toBe("invalid_input");
       expect(fetchSpy).not.toHaveBeenCalled();
     });
   });

@@ -3,7 +3,6 @@ import type { CommandResult } from "../core/result.ts";
 import type { CliIo } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
-import { CLI_ERRORS_URL } from "../core/errors.ts";
 import { authFailure, httpRequest } from "../core/http.ts";
 import { POLICY_NOT_PUBLISHED } from "./problem-types.ts";
 
@@ -26,35 +25,30 @@ export type ProjectSummary = { readonly id: string; readonly name?: string };
 
 type Failure = { readonly ok: false; readonly result: CommandResult };
 
+/**
+ * A failed Cloud call. A Cloud answer with its own Problem Details type, such
+ * as `policy-not-published`, keeps it as `cloudProblem` in the error's `data`.
+ */
 function failure(
-  json: boolean,
   command: string,
   code: 1 | 2,
   problem: {
     readonly code: ProblemCode;
     readonly type?: string;
-    readonly title: string;
     readonly status?: number;
     readonly detail: string;
   },
 ): Failure {
-  const { type, ...rest } = problem;
   return {
     ok: false,
     result: {
       code,
-      output: json
-        ? JSON.stringify(
-            {
-              type: type ?? `${CLI_ERRORS_URL}#${problem.code}`,
-              ...rest,
-              command,
-              exitCode: code,
-            },
-            null,
-            2,
-          )
-        : `${command}: ${problem.detail}`,
+      output: `${command}: ${problem.detail}`,
+      reason: problem.code,
+      data: {
+        ...(problem.status === undefined ? {} : { status: problem.status }),
+        ...(problem.type === undefined ? {} : { cloudProblem: problem.type }),
+      },
     },
   };
 }
@@ -95,9 +89,8 @@ async function get(
     try {
       return { ok: true, body: await response.json() };
     } catch {
-      return failure(input.json, input.command, 1, {
+      return failure(input.command, 1, {
         code: "request_failed",
-        title: "Unreadable Cloud answer",
         status: response.status,
         detail: `PermDock Cloud answered ${what} with a body that is not JSON`,
       });
@@ -105,10 +98,9 @@ async function get(
   }
   const type = await readProblemType(response);
   if (response.status === 404 && type === POLICY_NOT_PUBLISHED) {
-    return failure(input.json, input.command, 1, {
+    return failure(input.command, 1, {
       code: "request_failed",
       type: POLICY_NOT_PUBLISHED,
-      title: "Policy not published",
       status: 404,
       detail:
         "the project has no pushed catalog and policy yet; run permdock cloud push first",
@@ -121,7 +113,7 @@ async function get(
       : `the credential may not read ${what}; a PERMDOCK_CLOUD_TOKEN reads only its own environment`,
     [
       { command: "permdock login", when: "to log in on this machine" },
-      { command: "export PERMDOCK_CLOUD_TOKEN=<read-only key>", when: "in CI" },
+      { command: "export PERMDOCK_CLOUD_TOKEN=<read-only-key>", when: "in CI" },
     ],
   );
   if (denied !== undefined) {
@@ -131,10 +123,9 @@ async function get(
     response.status === 429
       ? `PermDock Cloud rate-limited the request (HTTP 429); retry after ${response.headers.get("retry-after") ?? "a while"} seconds`
       : `PermDock Cloud answered ${what} with HTTP ${String(response.status)}`;
-  return failure(input.json, input.command, 1, {
+  return failure(input.command, 1, {
     code: "request_failed",
     ...(type === undefined ? {} : { type }),
-    title: "PermDock Cloud request failed",
     status: response.status,
     detail,
   });
@@ -187,9 +178,8 @@ export async function projectPolicy(
   }
   const value = parseProjectPolicy(fetched.body);
   return value === null
-    ? failure(request.json, request.command, 1, {
+    ? failure(request.command, 1, {
         code: "request_failed",
-        title: "Unreadable project policy",
         detail: `PermDock Cloud sent a project policy for ${project} that is not v1`,
       })
     : { ok: true, value };
@@ -236,9 +226,8 @@ export async function resolveProject(
     return { ok: true, value: flag };
   }
   if (!pinned) {
-    return failure(request.json, request.command, 2, {
+    return failure(request.command, 2, {
       code: "usage",
-      title: "Missing project",
       detail: "pass --project <id>",
     });
   }
@@ -249,9 +238,8 @@ export async function resolveProject(
   const [only, ...rest] = listed.value;
   return only !== undefined && rest.length === 0
     ? { ok: true, value: only.id }
-    : failure(request.json, request.command, 2, {
+    : failure(request.command, 2, {
         code: "usage",
-        title: "Missing project",
         detail: `PERMDOCK_CLOUD_TOKEN reads ${String(listed.value.length)} projects; pass --project <id>`,
       });
 }

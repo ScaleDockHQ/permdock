@@ -14,11 +14,10 @@ function capture(env: Readonly<Record<string, string>> = {}): {
   return { env, stdout: () => undefined, stderr: () => undefined };
 }
 
-function errorOf(stdout: string): unknown {
-  const parsed: unknown = JSON.parse(stdout);
-  return typeof parsed === "object" && parsed !== null
-    ? Reflect.get(parsed, "error")
-    : undefined;
+/** The error document a failed `--json` run prints as one line on stderr. */
+function errorOf(stderr: string): unknown {
+  const parsed: unknown = JSON.parse(stderr);
+  return parsed;
 }
 
 describe("run plugins option", () => {
@@ -54,15 +53,17 @@ describe("run: groups", () => {
       cwd: FIXTURE,
     });
     expect(result.code).toBe(2);
-    expect(errorOf(result.stdout)).toMatchObject({ code: "usage" });
+    expect(errorOf(result.stderr)).toMatchObject({ reason: "usage" });
   });
 
   it("lists a bare group's subcommands as choices under --json", async () => {
     const result = await run(["rls", "--json"], { cwd: FIXTURE });
     expect(result.code).toBe(2);
-    expect(errorOf(result.stdout)).toMatchObject({
-      code: "usage",
-      choices: { "<command>": ["import", "verify", "migrate", "explain"] },
+    expect(errorOf(result.stderr)).toMatchObject({
+      reason: "usage",
+      data: {
+        choices: { "<command>": ["import", "verify", "migrate", "explain"] },
+      },
     });
   });
 
@@ -87,9 +88,9 @@ describe("run: groups", () => {
       cwd: FIXTURE,
     });
     expect(result.code).toBe(2);
-    expect(errorOf(result.stdout)).toMatchObject({
-      code: "invalid_value",
-      flag: "--out",
+    expect(errorOf(result.stderr)).toMatchObject({
+      reason: "invalid_value",
+      data: { flag: "--out" },
     });
   });
 
@@ -118,17 +119,17 @@ describe("run: the root", () => {
       "invalid_value",
       "--format 'xml' is not one of text, json, github, sarif.",
     ],
-  ])("answers %j with %s", async (argv, code, detail) => {
+  ])("answers %j with %s", async (argv, reason, message) => {
     const result = await run(argv, { cwd: FIXTURE });
     expect(result.code).toBe(2);
-    expect(errorOf(result.stdout)).toMatchObject({ code, detail });
+    expect(errorOf(result.stderr)).toMatchObject({ reason, message });
   });
 });
 
 describe("run: flags", () => {
   it("answers a flag removed before 0.10 as an unknown flag", async () => {
     const result = await run(["scan", "--legacy", "--json"], { cwd: FIXTURE });
-    expect(errorOf(result.stdout)).toMatchObject({ code: "unknown_flag" });
+    expect(errorOf(result.stderr)).toMatchObject({ reason: "unknown_flag" });
   });
 
   it("refuses --json with another --format", async () => {
@@ -136,7 +137,7 @@ describe("run: flags", () => {
       cwd: FIXTURE,
     });
     expect(result.code).toBe(2);
-    expect(errorOf(result.stdout)).toMatchObject({ code: "invalid_value" });
+    expect(errorOf(result.stderr)).toMatchObject({ reason: "invalid_value" });
   });
 
   it("repeats --cwd and --config in the command consent asks for", async () => {
@@ -153,9 +154,9 @@ describe("run: flags", () => {
       ],
       { cwd: FIXTURE },
     );
-    expect(result.code).toBe(3);
-    expect(result.stdout).toContain(
-      `--cwd ${FIXTURE} --config permdock.config.ts --confirm `,
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(
+      `--cwd ${FIXTURE} --config permdock.config.ts --yes --effects-digest `,
     );
   });
 });

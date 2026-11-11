@@ -40,17 +40,77 @@ export function quote(token: string): string {
 }
 
 /**
- * The argv as a command line to run again, `--confirm` dropped. Secrets only
- * arrive through `--*-stdin` flags, so the line holds none.
+ * A command line as the shell splits it: whitespace between words, single and
+ * double quotes, and a backslash outside single quotes. The inverse of `quote`,
+ * so a `next` step's `argv` needs no shell.
+ */
+export function splitCommandLine(line: string): readonly string[] {
+  const words: string[] = [];
+  let word = "";
+  let started = false;
+  let quoted: "'" | '"' | undefined;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line.charAt(i);
+    if (quoted === "'") {
+      if (char === "'") {
+        quoted = undefined;
+      } else {
+        word += char;
+      }
+      continue;
+    }
+    if (char === "\\" && i + 1 < line.length) {
+      i += 1;
+      word += line.charAt(i);
+      started = true;
+      continue;
+    }
+    if (quoted === '"') {
+      if (char === '"') {
+        quoted = undefined;
+      } else {
+        word += char;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quoted = char;
+      started = true;
+      continue;
+    }
+    if (/\s/u.test(char)) {
+      if (started) {
+        words.push(word);
+        word = "";
+        started = false;
+      }
+      continue;
+    }
+    word += char;
+    started = true;
+  }
+  if (started) {
+    words.push(word);
+  }
+  return words;
+}
+
+/**
+ * The argv as a command line to run again, `--effects-digest` dropped. Secrets
+ * only arrive through `--*-stdin` flags, so the line holds none.
  */
 export function replayArgv(argv: readonly string[]): readonly string[] {
   const out: string[] = [];
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i] ?? "";
+    if (token === "--") {
+      out.push(...argv.slice(i));
+      break;
+    }
     const name = token.startsWith("--")
       ? token.slice(2).split("=", 1)[0]
       : undefined;
-    if (name === "confirm") {
+    if (name === "effects-digest") {
       i += token.includes("=") ? 0 : 1;
       continue;
     }
@@ -60,11 +120,11 @@ export function replayArgv(argv: readonly string[]): readonly string[] {
 }
 
 /**
- * A short token bound to what the person agrees to, the directory and the
- * command line. Hex, because a base64url token may start with `-` and parse as
+ * A short digest bound to what the person agrees to, the directory and the
+ * command line. Hex, because a base64url value may start with `-` and parse as
  * a flag. 16 characters, as better-supabase's.
  */
-export function consentToken(
+export function consentDigest(
   reasons: readonly ConsentReason[],
   argv: readonly string[],
   cwd: string,
@@ -81,25 +141,36 @@ const REASON_TEXT: Readonly<Record<ConsentReason, string>> = {
   overwrite: "overwrites files with --force",
 };
 
-/** The `consent_required` result an agent gets until it passes the token. */
-export function consentRequired(
+/**
+ * The `confirmation_required` error an agent gets until it passes `--yes` and
+ * the digest.
+ */
+export function confirmationRequired(
   command: string,
   reasons: readonly ConsentReason[],
   argv: readonly string[],
-  token: string,
+  digest: string,
+  stale: boolean,
 ): CliError {
+  const effects = reasons.map(
+    (reason) => `permdock ${command} ${REASON_TEXT[reason]}`,
+  );
   return new CliError(
     "action",
-    `permdock ${command} ${reasons.map((reason) => REASON_TEXT[reason]).join(" and ")}. Ask the person to agree, then run it again with --confirm ${token}`,
+    `${effects.join("; ")}. Ask the person to agree, then run it again with --yes --effects-digest ${digest}.${stale ? " The --effects-digest is for another command line or directory." : ""}`,
     {
-      code: "consent_required",
-      extensions: { reasons, token },
+      code: "confirmation_required",
+      extensions: { digest, effects },
       next: [
         {
           when: "after the person agrees",
-          command: ["permdock", ...argv.map(quote), "--confirm", token].join(
-            " ",
-          ),
+          command: [
+            "permdock",
+            ...argv.map(quote),
+            "--yes",
+            "--effects-digest",
+            digest,
+          ].join(" "),
         },
       ],
     },

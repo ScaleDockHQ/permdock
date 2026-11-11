@@ -1,37 +1,84 @@
-import type { CliProblem } from "./errors.ts";
+import type { CliFailure } from "./errors.ts";
 import type { Finding, NextStep } from "./result.ts";
 
+import { splitCommandLine } from "./consent.ts";
+import { CLI_ERRORS_URL, isActionRequired, isRetryable } from "./errors.ts";
 import { DOCS_BASE } from "./manifest.ts";
 import { cliVersion } from "./version.ts";
 
 export const CLI_RESULT_SCHEMA =
-  "https://permdock.com/schemas/cli-result-v1.json" as const;
+  "https://permdock.com/schemas/cli-result-v2.json" as const;
 
-export type ResultStatus = "success" | "error" | "action_required";
+/** A next step as `--json` prints it, with `command` split into `argv`. */
+export type NextStepDocument = NextStep & { readonly argv: readonly string[] };
 
-/** What `--json` prints on stdout for every run, success or not. */
-export type Envelope = {
+/**
+ * What `--json` prints on stdout for a run that succeeds (`success`) or reports
+ * findings and exits 1 (`error`, the report in `data`).
+ */
+export type ResultDocument = {
   readonly $schema: typeof CLI_RESULT_SCHEMA;
-  readonly status: ResultStatus;
+  readonly status: "success" | "error";
   readonly data?: unknown;
-  readonly error?: CliProblem;
-  readonly next?: readonly NextStep[];
+  readonly warnings?: readonly string[];
+  readonly next?: readonly NextStepDocument[];
 };
 
-export function envelope(input: {
-  readonly status: ResultStatus;
+/** What `--json` prints as one line on stderr for a run that failed. */
+export type ErrorDocument = {
+  readonly $schema: typeof CLI_RESULT_SCHEMA;
+  readonly status: "error" | "action_required";
+  readonly reason: CliFailure["code"];
+  readonly message: string;
+  readonly type: string;
+  readonly next: readonly NextStepDocument[];
+  readonly data: Readonly<Record<string, unknown>>;
+  readonly userActionRequired: boolean;
+  readonly retryable: boolean;
+};
+
+function withArgv(step: NextStep): NextStepDocument {
+  return {
+    command: step.command,
+    argv: splitCommandLine(step.command),
+    when: step.when,
+  };
+}
+
+export function resultDocument(input: {
+  readonly status: "success" | "error";
   readonly data?: unknown;
-  readonly error?: CliProblem;
+  readonly warnings?: readonly string[];
   readonly next?: readonly NextStep[];
-}): Envelope {
+}): ResultDocument {
   return {
     $schema: CLI_RESULT_SCHEMA,
     status: input.status,
     ...(input.data === undefined ? {} : { data: input.data }),
-    ...(input.error === undefined ? {} : { error: input.error }),
+    ...(input.warnings === undefined || input.warnings.length === 0
+      ? {}
+      : { warnings: input.warnings }),
     ...(input.next === undefined || input.next.length === 0
       ? {}
-      : { next: input.next }),
+      : { next: input.next.map(withArgv) }),
+  };
+}
+
+export function errorDocument(
+  failure: CliFailure,
+  next: readonly NextStep[] = [],
+): ErrorDocument {
+  const action = isActionRequired(failure.code);
+  return {
+    $schema: CLI_RESULT_SCHEMA,
+    status: action ? "action_required" : "error",
+    reason: failure.code,
+    message: failure.message,
+    type: `${CLI_ERRORS_URL}#${failure.code}`,
+    next: next.map(withArgv),
+    data: failure.data,
+    userActionRequired: action,
+    retryable: isRetryable(failure.code),
   };
 }
 

@@ -10,12 +10,16 @@ import { scimGenerateFromFlags } from "../../src/cli/commands/scim.ts";
 import { hookGenerateFromFlags } from "../../src/cli/commands/supabase.ts";
 import {
   CliError,
-  cliProblem,
+  cliFailure,
   exitCodeOfError,
+  failureOf,
   kindOfCode,
-  problemOf,
 } from "../../src/cli/core/errors.ts";
-import { dataOf, envelope } from "../../src/cli/core/output.ts";
+import {
+  dataOf,
+  errorDocument,
+  resultDocument,
+} from "../../src/cli/core/output.ts";
 import { createStyle } from "../../src/cli/core/style.ts";
 import { loadConfig } from "../../src/cli/project/config.ts";
 import { dateAt } from "../../src/core/time.ts";
@@ -77,40 +81,49 @@ function problemDetail(output: string, data: unknown): string {
   return "The command reported a problem; see data";
 }
 
-/** The cli-result-v1 body `run` prints for `--json`. */
-function jsonEnvelope(
+/**
+ * What `run` prints for `--json`: the cli-result-v2 result document on stdout
+ * for a success or a report, the error document as one line on stderr
+ * otherwise.
+ */
+function jsonDocuments(
   code: RunResult["code"],
   output: string,
   data: unknown,
-): string {
+  error?: unknown,
+): { readonly stdout: string; readonly stderr: string } {
+  if (error !== undefined) {
+    return {
+      stdout: "",
+      stderr: `${JSON.stringify(errorDocument(failureOf(error)))}\n`,
+    };
+  }
   const parsed = dataOf(output);
   const body = data ?? parsed;
-  if (code === 0) {
-    return JSON.stringify(
-      envelope({
-        status: "success",
-        ...(body === undefined ? {} : { data: body }),
-      }),
-      null,
-      2,
-    );
-  }
   const report = data !== undefined || isReport(body) ? body : undefined;
-  const problem = cliProblem(
-    kindOfCode(code),
-    problemDetail(output, body),
-    "rls generate",
-    { exitCode: code },
-  );
-  return JSON.stringify(
-    envelope({
-      status: code === 3 ? "action_required" : "error",
-      ...(report === undefined ? {} : { data: report }),
-      error: problem,
-    }),
-    null,
-    2,
-  );
+  if (code === 0 || (code === 1 && report !== undefined)) {
+    return {
+      stdout: `${JSON.stringify(
+        resultDocument({
+          status: code === 0 ? "success" : "error",
+          ...(body === undefined ? {} : { data: body }),
+        }),
+        null,
+        2,
+      )}\n`,
+      stderr: "",
+    };
+  }
+  return {
+    stdout: "",
+    stderr: `${JSON.stringify(
+      errorDocument(
+        cliFailure(kindOfCode(code), problemDetail(output, body), {
+          exitCode: code,
+        }),
+      ),
+    )}\n`,
+  };
 }
 
 function lined(text: string): string {
@@ -217,17 +230,9 @@ async function runRemoved(
     error?: unknown,
   ): RunResult => {
     if (parsed.json) {
-      const body =
-        code === 0
-          ? envelope({
-              status: "success",
-              ...(data === undefined ? {} : { data }),
-            })
-          : envelope({
-              status: code === 3 ? "action_required" : "error",
-              error: problemOf(error ?? new Error(output), undefined),
-            });
-      stdout.push(`${JSON.stringify(body, null, 2)}\n`);
+      const printed = jsonDocuments(code, output, data, error);
+      stdout.push(printed.stdout);
+      stderr.push(printed.stderr);
       return { code, stdout: stdout.join(""), stderr: stderr.join("") };
     }
     if (output !== "") {
@@ -322,7 +327,9 @@ export async function rlsGenerate(
     data?: unknown,
   ): RunResult => {
     if (parsed.json) {
-      stdout.push(`${jsonEnvelope(code, output, data)}\n`);
+      const printed = jsonDocuments(code, output, data);
+      stdout.push(printed.stdout);
+      stderr.push(printed.stderr);
       return { code, stdout: stdout.join(""), stderr: stderr.join("") };
     }
     if (output !== "") {
@@ -343,11 +350,9 @@ export async function rlsGenerate(
     const code = exitCodeOfError(error);
     const message = error instanceof CliError ? error.message : String(error);
     if (parsed.json) {
-      const body = envelope({
-        status: code === 3 ? "action_required" : "error",
-        error: problemOf(error ?? new Error(message), undefined),
-      });
-      stdout.push(`${JSON.stringify(body, null, 2)}\n`);
+      const printed = jsonDocuments(code, message, undefined, error);
+      stdout.push(printed.stdout);
+      stderr.push(printed.stderr);
       return { code, stdout: stdout.join(""), stderr: stderr.join("") };
     }
     return finish(code, message);

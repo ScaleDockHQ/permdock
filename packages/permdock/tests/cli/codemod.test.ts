@@ -15,7 +15,7 @@ import type { RenameSet } from "../../src/cli/codemod/transform.ts";
 import { codemod, runCodemod } from "../../src/cli/codemod/codemod.ts";
 import { transformSource } from "../../src/cli/codemod/transform.ts";
 import { run } from "../../src/cli/core/run.ts";
-import { jsonData } from "./envelope.ts";
+import { jsonData, jsonError } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TMP = join(HERE, "../../tmp");
@@ -665,15 +665,12 @@ describe("the codemod module", () => {
     it("refuses an unknown version and names the supported one", async () => {
       const result = await run(["codemod", "0.4", "--json"]);
       expect(result.code).toBe(2);
-      // SAFETY: a failed command prints Problem Details under --json.
-      const problem = jsonData(result.stdout) as {
-        readonly type: string;
-        readonly detail: string;
-      };
-      expect(problem.type).toBe("https://permdock.com/docs/cli/errors#usage");
-      expect(problem.detail).toBe(
-        "unknown codemod version '0.4'. Supported: 0.17, 0.26.",
-      );
+      expect(result.stdout).toBe("");
+      expect(jsonError(result.stderr)).toMatchObject({
+        reason: "usage",
+        type: "https://permdock.com/docs/cli/errors#usage",
+        message: "unknown codemod version '0.4'. Supported: 0.17, 0.26.",
+      });
       expect(() =>
         codemod({
           cwd: process.cwd(),
@@ -712,7 +709,7 @@ describe("the codemod module", () => {
     it("asks for a version and reports a missing path", async () => {
       const dir = project(files);
       const missing = await run(["codemod", "--cwd", dir]);
-      expect(missing.code).toBe(3);
+      expect(missing.code).toBe(2);
       expect(missing.stderr).toContain("codemod: <version> is required");
       const unknownPath = await run(["codemod", "0.17", "nope", "--cwd", dir]);
       expect(unknownPath.code).toBe(2);

@@ -650,8 +650,9 @@ describe("supabase inspect", () => {
       const refused = await hookGenerate(["--out", "-", "--json"], { cwd });
 
       expect(refused.code).toBe(2);
-      expect(JSON.parse(refused.stdout)).toMatchObject({
-        error: { code: "invalid_value", flag: "--out" },
+      expect(JSON.parse(refused.stderr)).toMatchObject({
+        reason: "invalid_value",
+        data: { flag: "--out" },
       });
     });
 

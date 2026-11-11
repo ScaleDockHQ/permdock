@@ -1,4 +1,4 @@
-import type { ExitCode } from "./errors.ts";
+import type { ExitCode, ProblemCode } from "./errors.ts";
 
 /**
  * A next step for an agent or a script: the full command line, and when to run
@@ -22,13 +22,16 @@ export type Finding = {
 
 /**
  * What a command returns. `output` is the human report on stdout. `data` is the
- * typed result the `--json` envelope carries; without it the envelope reads
- * `output` as JSON when it parses.
+ * typed result `--json` prints; without it `--json` reads `output` as JSON when
+ * it parses. A run that exits 1 with a report prints it on stdout; any other
+ * failure prints the error document on stderr, with `data` as its details.
  */
 export type CommandResult = {
   readonly code: ExitCode;
   readonly output: string;
   readonly data?: unknown;
+  /** Why the run failed, the error document's `reason`; a report sets none. */
+  readonly reason?: ProblemCode;
   /** The commands to run after a success, as the envelope's `next`. */
   readonly next?: readonly NextStep[];
   readonly findings?: readonly Finding[];

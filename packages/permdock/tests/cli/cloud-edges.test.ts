@@ -16,7 +16,7 @@ import {
   readCredentials,
   writeCredentials,
 } from "../../src/terminal/storage.ts";
-import { jsonData } from "./envelope.ts";
+import { jsonData, jsonError } from "./envelope.ts";
 import { rlsGenerate } from "./rls-call.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
 
@@ -158,8 +158,10 @@ describe("cloud edges", () => {
         ["--project", "prj_1", "--json"],
       );
       expect(result.code).toBe(1);
-      expect(jsonData(result.stdout)).toMatchObject({
+      expect(jsonError(result.stderr)).toMatchObject({
+        reason: "network_error",
         type: "https://permdock.com/docs/cli/errors#network_error",
+        retryable: true,
       });
     });
 
@@ -182,13 +184,13 @@ describe("cloud edges", () => {
       expect(result.stdout).toMatch(message);
     });
 
-    it("asks for a login with exit 3 when the Cloud rejects the credential", async () => {
+    it("asks for a login with exit 2 when the Cloud rejects the credential", async () => {
       const result = await pull(
         stubCloud({
           [`GET ${POLICY_PATH}`]: () => new Response(null, { status: 401 }),
         }),
       );
-      expect(result.code).toBe(3);
+      expect(result.code).toBe(2);
       expect(result.stderr).toContain(
         "PermDock Cloud rejected the credential (HTTP 401)",
       );
@@ -206,9 +208,12 @@ describe("cloud edges", () => {
         }),
         ["--project", "prj_1", "--json"],
       );
-      expect(jsonData(result.stdout)).toMatchObject({
-        type: "https://permdock.com/problems/maintenance",
-        status: 503,
+      expect(jsonError(result.stderr)).toMatchObject({
+        reason: "request_failed",
+        data: {
+          cloudProblem: "https://permdock.com/problems/maintenance",
+          status: 503,
+        },
       });
     });
 
@@ -271,7 +276,7 @@ describe("cloud edges", () => {
     it.each([
       [{ items: [{ id: "a" }, { id: "b" }] }, 200, 2, /reads 2 projects/u],
       [{ items: "none" }, 200, 2, /reads 0 projects/u],
-      [{}, 401, 3, /rejected the credential/u],
+      [{}, 401, 2, /rejected the credential/u],
     ] as const)("refuses %j", async (body, status, code, message) => {
       const result = await pull(
         stubCloud({ "GET /api/v1/projects": list(body, status) }),
@@ -326,7 +331,7 @@ describe("cloud edges", () => {
       });
     });
 
-    it("asks for a login with exit 3 when the refresh is refused", async () => {
+    it("asks for a login with exit 2 when the refresh is refused", async () => {
       const result = await pull(
         stubCloud({
           [`GET ${METADATA_PATH}`]: metadata(),
@@ -336,17 +341,17 @@ describe("cloud edges", () => {
         ["--project", "prj_1"],
         login(home(), expired),
       );
-      expect(result.code).toBe(3);
+      expect(result.code).toBe(2);
       expect(result.stderr).toContain("has expired");
     });
 
-    it("asks for a login with exit 3 when the issuer publishes no metadata", async () => {
+    it("asks for a login with exit 2 when the issuer publishes no metadata", async () => {
       const result = await pull(
         stubCloud({}),
         ["--project", "prj_1"],
         login(home(), expired),
       );
-      expect(result.code).toBe(3);
+      expect(result.code).toBe(2);
       expect(result.stderr).toContain("has expired");
     });
   });
@@ -367,15 +372,15 @@ describe("cloud edges", () => {
       const result = await push(
         login(home(), { access_token: "at_1", scope: "projects:read" }),
       );
-      expect(result.code).toBe(3);
+      expect(result.code).toBe(2);
       expect(result.stderr).toContain("catalog:write");
     });
 
-    it("asks for a login with exit 3 on an expired login", async () => {
+    it("asks for a login with exit 2 on an expired login", async () => {
       const result = await push(
         login(home(), { access_token: "at_1", expires_at: NOW_SECONDS - 60 }),
       );
-      expect(result.code).toBe(3);
+      expect(result.code).toBe(2);
       expect(result.stderr).toContain("permdock login --scope catalog:write");
     });
 
@@ -416,17 +421,19 @@ describe("cloud edges", () => {
       const result = await generateRls(
         () => new Response(null, { status: 401 }),
       );
-      expect(result.code).toBe(3);
+      expect(result.code).toBe(2);
       expect(result.stderr).toContain("rejected the credential");
     });
 
-    it("refuses a push that carried no policy, as Problem Details under --json", async () => {
+    it("refuses a push that carried no policy, as an error document under --json", async () => {
       const text = await generateRls(projectPolicy());
       expect(text.code).toBe(1);
       expect(text.stdout).toContain("no policy");
       const json = await generateRls(projectPolicy(), true);
-      expect(jsonData(json.stdout)).toMatchObject({
-        type: "https://permdock.com/problems/policy-not-published",
+      expect(json.code).toBe(1);
+      expect(jsonError(json.stderr)).toMatchObject({
+        reason: "failed",
+        message: expect.stringContaining("no policy"),
       });
     });
 
