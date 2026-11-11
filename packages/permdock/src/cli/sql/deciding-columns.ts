@@ -74,7 +74,12 @@ export function decidingColumns(
   }
   if (teams !== undefined) {
     const table = tableKey(teams.table);
-    for (const column of [teams.user, teams.team, teams.tenant]) {
+    for (const column of [
+      teams.user,
+      teams.team,
+      teams.tenant,
+      teams.disabledAt,
+    ]) {
       if (column !== undefined) {
         entries.add(`${table}.${column}`);
       }

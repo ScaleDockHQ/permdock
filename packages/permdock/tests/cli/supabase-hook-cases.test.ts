@@ -256,7 +256,7 @@ describe("supabase.hook.teams", () => {
   it("writes a budgeted team_ids claim and clears it for a suspended user", () => {
     const { sql } = hook();
     expect(sql).toContain("team_ids jsonb := '[]'::jsonb;");
-    expect(sql).toContain("member_team_ids_for(uid, active)");
+    expect(sql).toContain('"permdock"."member_team_ids_for"(uid, active)');
     expect(sql).toContain(
       "claims := jsonb_set(claims, '{team_ids_truncated}', 'true'::jsonb);",
     );
@@ -295,7 +295,7 @@ describe("supabase.hook.teams", () => {
         },
       },
     });
-    expect(sql).toContain("member_team_ids_for(uid, active)");
+    expect(sql).toContain('"permdock"."member_team_ids_for"(uid, active)');
     const hookBody = sql.slice(
       sql.indexOf('function "permdock".custom_access_token_hook'),
       sql.indexOf(
@@ -369,6 +369,52 @@ describe("supabase.hook.teams", () => {
       expect(sql).toContain("into held, kept, truncated, in_active, used;");
       expect(manifest.claims.map((claim) => claim.name)).not.toContain(
         "authz_ver",
+      );
+    });
+
+    it("calls a team scope's member_<scope>_ids_for with the active tenant and grants it", () => {
+      const { sql, manifest } = supabaseHookSql(
+        [...scopes, { name: "teams", key: "team_id", within: "organization" }],
+        {
+          policy: "p.ts",
+          supabase: {
+            hook: {
+              teams: {
+                table: "team_members",
+                user: "user_id",
+                team: "team_id",
+              },
+              memberships: [
+                junctionMembershipSource({
+                  table: "organization_members",
+                  scope: "organization",
+                  id: "organization_id",
+                  roles: "role",
+                }),
+                junctionMembershipSource({
+                  table: "team_members",
+                  scope: "teams",
+                  id: "team_id",
+                  within: { organization: "organization_id" },
+                  roles: "role",
+                }),
+              ],
+            },
+          },
+        },
+      );
+      expect(sql).toContain(
+        '"permdock"."member_teams_ids_for"(uid, active) as team(team_id)',
+      );
+      expect(sql).toContain(
+        'grant execute on function "permdock".member_teams_ids_for(uuid, text) to supabase_auth_admin;',
+      );
+      expect(manifest.rls.helpers).toContainEqual(
+        expect.objectContaining({
+          name: "member_teams_ids_for",
+          args: "p_user uuid, p_active text",
+          execute: ["supabase_auth_admin"],
+        }),
       );
     });
 

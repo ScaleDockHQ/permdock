@@ -94,14 +94,21 @@ describe("supabase hook", () => {
       expect(sql).toContain(
         'revoke execute on function "permdock".custom_access_token_hook(jsonb) from authenticated, anon, public;',
       );
+      expect(sql).toContain(
+        'grant select on table "public"."profiles" to supabase_auth_admin;',
+      );
       for (const table of [
         '"public"."memberships"',
         '"public"."customer_contacts"',
         '"permdock"."user_roles"',
-        '"public"."profiles"',
       ]) {
-        expect(sql).toContain(
+        expect(sql).not.toContain(
           `grant select on table ${table} to supabase_auth_admin;`,
+        );
+      }
+      for (const reader of ["memberships_for", "global_roles_for"]) {
+        expect(sql).toContain(
+          `grant execute on function "permdock".${reader}(uuid) to supabase_auth_admin;`,
         );
       }
       expect(sql).toContain(
@@ -377,17 +384,17 @@ describe("supabase hook", () => {
       );
     });
 
-    it("quotes a schema-qualified junctionMembershipSource table and grants usage on its schema", async () => {
+    it("quotes a schema-qualified junctionMembershipSource table and reads it through memberships_for alone", async () => {
       const { code, sql } = await generate(
         `{ memberships: [junctionMembershipSource({ table: 'billing.memberships', scope: 'organization', id: 'org_id', roles: 'role' })], roles: false }`,
       );
       expect(code).toBe(0);
       expect(sql).toContain('from "billing"."memberships"');
       expect(sql).not.toContain('"billing.memberships"');
-      expect(sql).toContain(
+      expect(sql).not.toContain(
         'grant usage on schema "billing" to supabase_auth_admin;',
       );
-      expect(sql).toContain(
+      expect(sql).not.toContain(
         'grant select on table "billing"."memberships" to supabase_auth_admin;',
       );
     });

@@ -18,7 +18,7 @@ import { beforeFirst } from "../shared/text.ts";
 import { activeRowSql, checkSuspension } from "../sql/active.ts";
 import { firstScopeType, sqlType } from "../sql/columns.ts";
 import { globalRoleSource } from "../sql/global-roles.ts";
-import { memberForHelper } from "../sql/names.ts";
+import { isTeamScope, memberForHelper } from "../sql/names.ts";
 import {
   quoteIdent,
   quoteLiteral,
@@ -50,6 +50,7 @@ import {
   typedUsers,
 } from "./memberships.ts";
 import { oauthMode, refreshReuse } from "./refresh.ts";
+import { hookTeamReader } from "./teams.ts";
 
 const MANAGED_TRIGGER = "permdock_protect_managed";
 
@@ -179,7 +180,7 @@ export function hookSql(parts: Parts): string {
     pdk_teams as (
       select coalesce(jsonb_agg(to_jsonb(u.id::text) order by u.n), '[]'::jsonb) as team_ids
       from unnest(array(
-        select team_id from ${schemaName}.member_team_ids_for(uid, active) as team(team_id)
+        select team_id from ${quoteIdent(parts.helpers.schema)}.${quoteIdent(hookTeamReader(parts))}(uid, active) as team(team_id)
       )) with ordinality as u(id, n)
     )`;
   // user_role repeats the roles (the one role, or the list), and the tenant claim is written whenever a membership is in the active tenant: both count.
@@ -391,14 +392,20 @@ function beforeGrantsSql(
 }
 
 /**
- * Execute on each `member_<scope>_ids_for(uuid)` for the `hook.claims`
- * functions, which run as `supabase_auth_admin` and may call them. Only with
- * `hook.claims`: the grant needs the helpers migration applied first, and a
- * hook without extra claims does not.
+ * Execute on each `member_<scope>_ids_for` for the `hook.claims` functions,
+ * which run as `supabase_auth_admin` and may call them, and on a team scope's
+ * one when `hook.teams` reads it for `team_ids`. Only then: the grant needs the
+ * helpers migration applied first, and a hook that calls none does not.
  */
 function memberForGrantsSql(parts: Parts): string {
   const { schema, memberFor } = parts.helpers;
-  if (memberFor.length === 0 || parts.extra.length === 0) {
+  const granted =
+    parts.extra.length > 0
+      ? memberFor
+      : memberFor.filter(
+          (scope) => parts.hook.teams !== undefined && isTeamScope(scope),
+        );
+  if (granted.length === 0) {
     return "";
   }
   return [
@@ -407,37 +414,20 @@ function memberForGrantsSql(parts: Parts): string {
       : [
           `\ngrant usage on schema ${quoteIdent(schema)} to supabase_auth_admin;`,
         ]),
-    ...memberFor.map(
+    ...granted.map(
       (scope) =>
-        `\ngrant execute on function ${quoteIdent(schema)}.${memberForHelper(scope)}(uuid) to supabase_auth_admin;`,
+        `\ngrant execute on function ${quoteIdent(schema)}.${memberForHelper(scope)}(${isTeamScope(scope) ? "uuid, text" : "uuid"}) to supabase_auth_admin;`,
     ),
   ].join("");
 }
 
+/**
+ * The tables the invoker hook reads in its own body: the `attrs` table and the
+ * suspended-user table. Memberships and global roles come through the `security
+ * definer` readers, so their tables get no grant.
+ */
 function readsSql(parts: Parts): string {
   const reads = new Map<string, string>();
-  for (const source of parts.sources) {
-    reads.set(source.sql.table, "memberships");
-  }
-  for (const source of parts.sources) {
-    for (const name of source.sql.reads) {
-      reads.set(name, reads.get(name) ?? "status");
-    }
-    for (const through of source.sql.throughs) {
-      reads.set(through.table, reads.get(through.table) ?? "role_keys");
-    }
-    const users = source.sql.userThrough;
-    if (users !== undefined) {
-      reads.set(users.table, reads.get(users.table) ?? "member_users");
-    }
-  }
-  if (parts.roles !== undefined) {
-    const { table: rolesTable, through } = parts.roles;
-    reads.set(rolesTable, reads.get(rolesTable) ?? "roles");
-    if (through !== undefined) {
-      reads.set(through.table, reads.get(through.table) ?? "role_keys");
-    }
-  }
   if (parts.attrs?.table !== undefined && parts.attrs.columns.length > 0) {
     reads.set(parts.attrs.table, reads.get(parts.attrs.table) ?? "attrs");
   }
@@ -550,8 +540,10 @@ export function hookParts(
     hook.memberships,
     config.rls?.memberships,
     scopes,
+    suspension,
   );
   checkSources({ sources, scopes });
+  const tenants = suspension?.scopes?.[root];
   const parts: Parts = {
     schema,
     scopes,
@@ -567,6 +559,7 @@ export function hookParts(
       sources,
       hook.version !== false,
       suspension?.users?.table,
+      tenants?.table,
     ),
     oauth: oauthMode(hook),
     broadcast:
@@ -585,6 +578,8 @@ export function hookParts(
           }
         : undefined,
     users: suspension?.users,
+    tenants,
+    tenantType: sqlType(firstScopeType(config.rls?.scopeTypes, scopes)),
     hook,
     roles:
       hook.roles === false

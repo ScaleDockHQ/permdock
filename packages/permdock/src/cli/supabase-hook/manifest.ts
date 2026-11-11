@@ -48,7 +48,7 @@ import { USER_ID_HELPER } from "../sql/subject.ts";
 import { PERMDOCK_SUBJECT } from "./api.ts";
 import { hookClaims } from "./claims.ts";
 import { BUDGET_MEASURE } from "./sql.ts";
-import { hookTeamsHelper } from "./teams.ts";
+import { HOOK_TEAM_READER, hookTeamsHelper } from "./teams.ts";
 import { AUTHZ_VERSION_BUMP } from "./version.ts";
 
 function helperList(
@@ -73,9 +73,14 @@ function helperList(
           ? [
               helperEntry(
                 memberForHelper(scope.name),
-                "p_user uuid",
+                isTeamScope(scope.name)
+                  ? "p_user uuid, p_active text"
+                  : "p_user uuid",
                 returns,
-                parts.extra.length === 0 ? [] : ["supabase_auth_admin"],
+                parts.extra.length > 0 ||
+                  (parts.hook.teams !== undefined && isTeamScope(scope.name))
+                  ? ["supabase_auth_admin"]
+                  : [],
               ),
             ]
           : []),
@@ -96,7 +101,7 @@ function helperList(
       ? []
       : [
           helperEntry(
-            "member_team_ids_for",
+            HOOK_TEAM_READER,
             "p_user uuid, p_active text",
             "setof uuid",
             parts.hook.security === "definer" ? [] : ["supabase_auth_admin"],

@@ -72,6 +72,27 @@ describe("supabase hook refresh and oauth branches", () => {
     expect(sql).toContain(FAST);
   });
 
+  it("never compiles the fast path when memberships_for reads a suspended-tenant table", async () => {
+    const rls = `{ suspension: { scopes: { organization: { table: 'organization', id: 'id', disabledAt: 'disabled_at' } } } }`;
+    const { code, sql } = await generate(
+      `{ memberships: [${PLAIN}] }`,
+      [],
+      rls,
+    );
+    expect(code).toBe(0);
+    expect(sql).not.toContain(FAST);
+    expect(sql).toContain(
+      `(x.tenant is null or x.entry ? 'keep' or exists (select 1 from "public"."organization" s where s."id" = (x.tenant)::uuid and s."disabled_at" is null))`,
+    );
+    const reuse = await generate(
+      `{ memberships: [${PLAIN}], refresh: 'reuse' }`,
+      [],
+      rls,
+    );
+    expect(reuse.code).not.toBe(0);
+    expect(reuse.output).toContain("rls.suspension.scopes");
+  });
+
   it("never compiles the fast path without authz_ver", async () => {
     const { code, sql } = await generate(
       `{ memberships: [${PLAIN}], version: false }`,

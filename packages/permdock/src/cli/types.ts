@@ -944,13 +944,16 @@ export type SupabaseHookConfig = {
    * roles, the attrs, the version and the kept memberships. On overflow
    * `team_ids` is omitted and `team_ids_truncated` is set; the claim is never a
    * prefix, and `memberships_truncated` is not set by team rows. A suspended
-   * user gets none. Clients must not write the table.
+   * user gets none, a row with `disabledAt` set counts as no team, and with
+   * `tenant` a suspended tenant's teams are left out. Clients must not write
+   * the table.
    */
   readonly teams?: {
     readonly table: string;
     readonly user: string;
     readonly team: string;
     readonly tenant?: string;
+    readonly disabledAt?: string;
   };
   readonly before?: string | readonly string[];
   /**

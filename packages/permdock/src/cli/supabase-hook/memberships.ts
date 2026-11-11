@@ -9,6 +9,7 @@ import type { RoleMap, RoleThrough } from "../../supabase/types.ts";
 import type {
   RlsMembershipTable,
   RlsMemberships,
+  RlsSuspension,
   SupabaseHookConfig,
 } from "../types.ts";
 import type { Parts } from "./parts.ts";
@@ -220,12 +221,14 @@ function junctionRoles(
 
 /**
  * `supabase.hook.memberships`, or one junction source per `rls.memberships`
- * scope table when the hook leaves memberships unset.
+ * scope table when the hook leaves memberships unset. The junction sources read
+ * `suspension`, so a suspended instance's rows carry the keys it keeps.
  */
 export function hookMemberships(
   memberships: readonly SqlMembershipSource[] | undefined,
   tables: RlsMemberships | undefined,
   scopes: readonly Scope[],
+  suspension?: RlsSuspension,
 ): readonly SqlMembershipSource[] {
   if (memberships !== undefined) {
     return memberships;
@@ -252,6 +255,7 @@ export function hookMemberships(
         ? {}
         : { disabledAt: table.disabledAt }),
       ...(typeof table.via === "object" ? { via: table.via.value } : {}),
+      ...(suspension === undefined ? {} : { suspension }),
     });
   });
 }

@@ -130,17 +130,16 @@ export default {
         `-- what supabase db diff drops from this part is in ${GRANTS}`,
       );
       expect(hook).not.toMatch(UNDIFFED);
-      expect(hook).toContain(
+      expect(hook).not.toContain(
         'grant select on table "public"."memberships" to supabase_auth_admin;',
       );
-      expect(hook).toContain('"permdock_auth_admin_read_memberships"');
       expect(hook).toContain('"permdock_auth_admin_read_version"');
       expect(helpers).not.toMatch(UNDIFFED);
       const grants = read(cwd, GRANTS);
       expect(grants.split("\n", 1)[0]).toBe(
         "-- permdock:grants v1 schema=permdock",
       );
-      expect(grants).toContain(
+      expect(grants).not.toContain(
         'grant usage on schema "public" to supabase_auth_admin;',
       );
       expect(grants).toContain(
@@ -844,7 +843,7 @@ export default {
       expect(result.stdout).toContain(`wrote hook.sql, ${GRANTS}`);
       const hook = read(cwd, "hook.sql");
       expect(hook).not.toMatch(UNDIFFED);
-      expect(hook).toContain('"permdock_auth_admin_read_memberships"');
+      expect(hook).toContain('"permdock_auth_admin_read_version"');
       await hookGenerate(["--out", "inline.sql"], { cwd });
       const statements = (text: string) =>
         text

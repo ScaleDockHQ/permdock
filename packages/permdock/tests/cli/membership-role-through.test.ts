@@ -76,17 +76,15 @@ const config: PermDockConfig = {
 };
 
 describe("membership sources through a roles table", () => {
-  it("mints memberships from roles.key and lets supabase_auth_admin read roles", () => {
+  it("mints memberships from roles.key inside the definer reader, with no grant on roles", () => {
     const { sql, manifest } = supabaseHookSql(scopes, config);
     expect(sql).toMatch(
       /from "public"\."organization_users" m\n\s+join "public"\."roles" mk on mk\."id" = m\."role_id"/u,
     );
-    expect(sql).toContain(
+    expect(sql).not.toContain(
       'grant select on table "public"."roles" to supabase_auth_admin;',
     );
-    expect(sql.match(/permdock_auth_admin_read_role_keys" on/gu)).toHaveLength(
-      2,
-    );
+    expect(sql).not.toContain("permdock_auth_admin_read_role_keys");
     expect(manifest.memberships[0]?.role).toStrictEqual({
       column: "role_id",
       through: { table: "public.roles", id: "id", column: "key" },

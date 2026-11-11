@@ -31,13 +31,19 @@ function hookOf(security?: "invoker" | "definer"): string {
 }
 
 describe("supabase.hook.security", () => {
-  it("runs the hook as invoker by default, with a read policy per table", () => {
+  it("runs the hook as invoker by default, reading memberships through the definer readers", () => {
     const sql = hookOf();
     expect(sql).toContain(
       `custom_access_token_hook(event jsonb)\nreturns jsonb\nlanguage plpgsql\nstable\nset search_path = ''`,
     );
-    expect(sql).toContain(
+    expect(sql).not.toContain(
       `grant select on table "public"."memberships" to supabase_auth_admin;`,
+    );
+    expect(sql).toContain(
+      `grant execute on function "permdock".memberships_for(uuid) to supabase_auth_admin;`,
+    );
+    expect(sql).toMatch(
+      /function "permdock"\.memberships_for\(p_user uuid\)\nreturns table \(ord integer, entry jsonb\)\nlanguage plpgsql\nstable\nsecurity definer/u,
     );
   });
 

@@ -5,6 +5,7 @@ import type { Body } from "./helper-bodies.ts";
 import { scopeColumn } from "../../conditions/compile.ts";
 import { activeMembershipSql } from "../sql/active.ts";
 import {
+  isTeamScope,
   memberForHelper,
   memberForSources,
   memberIdsHelper,
@@ -231,7 +232,10 @@ ${grants}`;
  * caller names, read from the membership sources (or the mapped table) in
  * either mode, so a token hook can call it before any claim exists. Naming the
  * user is why no client role may execute it; the hook's grants give
- * `supabase_auth_admin` execute.
+ * `supabase_auth_admin` execute. A `team` or `teams` scope takes `p_active text
+ * default null` too, the one signature the hook's `team_ids` claim calls with
+ * the active tenant; its one-argument form is dropped so a call with the user
+ * alone stays unambiguous.
  */
 export function memberForFunction(
   ctx: RlsSqlContext,
@@ -246,10 +250,12 @@ export function memberForFunction(
     "p_user",
     memberForSources(ctx, scope),
   );
-  return `create or replace function ${fn}(p_user uuid)
+  const team = ctx.dialect === "supabase" && isTeamScope(scope);
+  const types = team ? "uuid, text" : "uuid";
+  return `${team ? `drop function if exists ${fn}(uuid);\n` : ""}create or replace function ${fn}(p_user uuid${team ? ", p_active text default null" : ""})
 returns setof ${type}
 ${functionBody(body)}
-revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
+revoke execute on function ${fn}(${types}) from public, anon, authenticated;`;
 }
 
 /**
