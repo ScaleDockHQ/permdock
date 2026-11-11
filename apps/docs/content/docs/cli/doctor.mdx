@@ -752,7 +752,7 @@ With `--db-url-stdin`, doctor runs `custom_access_token_hook` for the sample use
 
 #### PD111: an optional `limit`
 
-A list that takes no limit returns every row the policies allow, and Lienlink's jobs API did so at 1M rows. PD111 is a warning for a `GET` on a collection path in an `openapi.doc` document whose `limit` query parameter is not `required`, and for a source file that builds an MCP server (`permdock/mcp`, `registerTool(`, `.tool(`) with `limit: …optional()` on a line that sets no `default`. Make `limit` required, or give it a default and a maximum.
+A list that takes no limit returns every row the policies allow, and Lienlink's jobs API did so at 1M rows. PD111 is a warning for a `GET` on a collection path in an `openapi.doc` document whose `limit` query parameter is not `required` and has no `default` and `maximum` (on its `schema` in OpenAPI 3), and for a source file that builds an MCP server (`permdock/mcp`, `registerTool(`, `.tool(`) with `limit: …optional()` on a line that sets no `default`. Make `limit` required, or give it a default and a maximum.
 
 #### PD112: snapshot size
 

@@ -1,6 +1,7 @@
 import type { DoctorFiles, DoctorFinding } from "../shared/doctor-types.ts";
 import type { PermDockConfig, RlsTable } from "../types.ts";
 
+import { outFiles } from "../core/output-files.ts";
 import { rel, sqlFiles } from "../files.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { nodeFiles } from "../shared/doctor-files.ts";
@@ -54,7 +55,7 @@ function statementsOf(
   const entries = [
     ...(config.doctor?.migrations ?? MIGRATION_DIRS),
     "supabase/schemas",
-    ...(out === undefined ? [] : [out]),
+    ...outFiles(out),
   ];
   return [...new Set(sqlFiles(cwd, entries))].flatMap((path) => {
     const text = files.read(path);

@@ -4,6 +4,7 @@ import type { DoctorFiles, DoctorFinding } from "../shared/doctor-types.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
+import { outFiles } from "../core/output-files.ts";
 import { rel, sqlFiles } from "../files.ts";
 import {
   legacyHelperCalls,
@@ -849,7 +850,7 @@ function guardStatements(
   const entries = [
     ...(config.doctor?.migrations ?? MIGRATION_DIRS),
     "supabase/schemas",
-    ...(out === undefined ? [] : [out]),
+    ...outFiles(out),
   ];
   return [...new Set(sqlFiles(cwd, entries))].flatMap((file) =>
     sqlStatements(files.read(file)).map((statement) =>

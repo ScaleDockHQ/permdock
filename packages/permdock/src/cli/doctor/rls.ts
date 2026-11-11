@@ -14,6 +14,7 @@ import {
   listPermissions,
 } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
+import { outFiles } from "../core/output-files.ts";
 import { sqlFiles } from "../files.ts";
 import { graphPlan } from "../rls/graph.ts";
 import { ownershipRules, unsatisfiedKinds } from "../rls/ownership.ts";
@@ -534,7 +535,7 @@ function hasNameGuard(input: DoctorInput): boolean {
   const entries = [
     "supabase/schemas",
     ...(input.config.doctor?.migrations ?? MIGRATION_DIRS),
-    ...(out === undefined ? [] : [out]),
+    ...outFiles(out),
   ];
   return sqlFiles(input.cwd, entries).some((file) =>
     NAME_GUARD_TRIGGER.test(files.read(file)),
