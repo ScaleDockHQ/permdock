@@ -69,7 +69,7 @@
   "./cli/plugins/rls": 899098,
   "./cli/plugins/supabase-hook": 373710,
   "./cli/plugins/powersync": 897453,
-  "./cli/plugins/supabase": 889834,
+  "./cli/plugins/supabase": 899939,
   "./cli/plugins/better-supabase": 4552,
   "./cli/plugins/openapi": 905778,
   "./cli/plugins/scim": 18573,
