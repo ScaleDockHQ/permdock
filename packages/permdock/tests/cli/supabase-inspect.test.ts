@@ -3,9 +3,16 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { PermDockConfig } from "../../src/cli/types.ts";
+import type { Seeds } from "../../src/core/seeds.ts";
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import { run } from "../../src/cli/core/run.ts";
+import { supabaseHookManifest } from "../../src/cli/supabase-hook/supabase-hook.ts";
+import { scopeList } from "../../src/core/scopes.ts";
+import { defineSeeds } from "../../src/core/seeds.ts";
+import { tableMembershipSource } from "../../src/supabase/index.ts";
+import { policy as namedScopes } from "../fixtures/named-scopes.ts";
 import { jsonData } from "./envelope.ts";
 import { rlsGenerate, hookGenerate } from "./rls-call.ts";
 import {
@@ -17,6 +24,48 @@ import {
 
 describe("supabase inspect", () => {
   afterEach(removeHookProjects);
+
+  describe("fixtureRoles", () => {
+    const config = (seeds?: Seeds): PermDockConfig => ({
+      policy: "p.ts",
+      ...(seeds === undefined ? {} : { seeds }),
+      supabase: {
+        hook: {
+          memberships: [tableMembershipSource({ table: "memberships" })],
+        },
+      },
+    });
+    const inspect = (seeds?: Seeds) =>
+      supabaseHookManifest(
+        scopeList(namedScopes.scopes),
+        config(seeds),
+        {},
+        namedScopes,
+      ).fixtureRoles;
+
+    it("lists the declared roles the defineSeeds fixtures give a member", () => {
+      const seeds = defineSeeds(namedScopes, {
+        fixtures: {
+          memberships: [
+            { user: "ann", tenant: "acme", roles: ["viewer", "owner"] },
+            { user: "bob", tenant: "acme", roles: ["owner", "mechanic"] },
+          ],
+        },
+      });
+      expect(inspect(seeds)).toStrictEqual(["owner", "viewer"]);
+    });
+
+    it("falls back to the root scope's roles and the global roles", () => {
+      expect(inspect()).toStrictEqual([
+        "admin",
+        "member",
+        "owner",
+        "platform-admin",
+        "platform-support",
+        "viewer",
+      ]);
+    });
+  });
 
   describe("permdock supabase inspect", () => {
     it("checks the marker line and prints the inspect manifest", async () => {
@@ -112,6 +161,9 @@ describe("supabase inspect", () => {
       });
       const text = await run(["supabase", "inspect"], { cwd });
       expect(text.stdout).toContain("tenant claim tenant_id");
+      expect(text.stdout).toContain(
+        "fixture roles admin, member, owner, platform-admin, platform-support, viewer",
+      );
       expect(text.stdout).toContain("hook_custom_access_token_enabled true");
       expect(text.stdout).toContain(
         "hook_custom_access_token_uri pg-functions://postgres/permdock/custom_access_token_hook",

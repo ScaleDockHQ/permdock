@@ -16,6 +16,7 @@ import type {
 import type { Parts } from "./parts.ts";
 
 import { hasConditionOp } from "../../conditions/ast.ts";
+import { isSeeds } from "../../core/seeds.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
 import { SUPABASE_MANIFEST_SCHEMA } from "../core/version.ts";
@@ -389,6 +390,29 @@ function requiredCapabilities(
   return { matrix: CAPABILITY_MATRIX, capabilities: [...ids].toSorted() };
 }
 
+/**
+ * The declared roles the `defineSeeds` fixtures give a member, or without
+ * fixture memberships every role at the root scope and every global role,
+ * sorted.
+ */
+function fixtureRolesOf(
+  policy: Policy,
+  config: PermDockConfig,
+  root: string,
+): readonly string[] {
+  const declared = new Set(policy.roles.map((binding) => binding.name));
+  const seeded = isSeeds(config.seeds)
+    ? config.seeds.fixtures.memberships.flatMap((entry) => entry.roles)
+    : [];
+  const roles =
+    seeded.length > 0
+      ? seeded.filter((role) => declared.has(role))
+      : policy.roles
+          .filter((binding) => binding.on === undefined || binding.on === root)
+          .map((binding) => binding.name);
+  return [...new Set(roles)].toSorted();
+}
+
 export function manifestOf(
   parts: Parts,
   out: string,
@@ -473,6 +497,7 @@ export function manifestOf(
             schema: parts.helpers.schema,
             tenantClaim: parts.tenantClaim,
           }),
+          fixtureRoles: fixtureRolesOf(policy, config, parts.root),
         }),
   };
 }

@@ -312,6 +312,13 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
         },
       },
     },
+    fixtureRoles: {
+      description:
+        "The role keys the defineSeeds fixtures give a member, sorted; without fixture memberships, every role at the root scope and every global role. The better-supabase provider writes one fixtureRoles entry for each.",
+      type: "array",
+      uniqueItems: true,
+      items: { type: "string" },
+    },
   },
   $defs: {
     membership: {

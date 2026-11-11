@@ -93,6 +93,13 @@ export type SupabaseHookManifest = {
    * Absent from a manifest written before 0.8.
    */
   readonly names?: SupabaseManifestNames;
+  /**
+   * The role keys the `defineSeeds` fixtures give a member, sorted; without
+   * fixture memberships, every role at the root scope and every global role.
+   * The better-supabase provider writes one `fixtureRoles` entry for each.
+   * Absent from a manifest written before 0.26.
+   */
+  readonly fixtureRoles?: readonly string[];
 };
 
 /** The SQL helpers named after one scope, unqualified. */

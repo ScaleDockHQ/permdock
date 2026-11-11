@@ -165,6 +165,7 @@ function inspectText(
     `budget ${String(manifest.budget.bytes)} bytes of ${manifest.budget.measure}`,
     `claims ${manifest.claims.map((claim) => `${claim.name}${claim.source === "permdock" ? "" : ` (${claim.source})`}${claim.budget ? " [budget]" : ""}`).join(", ")}`,
     `authz_ver ${manifest.authzVersion ? "on" : "off"}`,
+    ...fixtureRolesLine(manifest),
     `hook_custom_access_token_enabled ${String(api.hook_custom_access_token_enabled)}`,
     `hook_custom_access_token_uri ${api.hook_custom_access_token_uri}`,
     `jwt_exp ${String(api.jwt_exp)}`,
@@ -176,7 +177,21 @@ function databaseInspectText(manifest: SupabaseDatabaseManifest): string {
     "no token hook (rls.authorize: database, no supabase.hook)",
     `helpers ${manifest.helpers.functions.map((fn) => `${manifest.helpers.schema}.${fn}`).join(", ")}`,
     `tenant claim ${manifest.tenantClaim}`,
+    ...fixtureRolesLine(manifest),
   ].join("\n");
+}
+
+/**
+ * The roles better-supabase's access matrix signs in as, when the manifest
+ * names them.
+ */
+function fixtureRolesLine(
+  manifest: SupabaseDatabaseManifest | SupabaseHookManifest,
+): readonly string[] {
+  const roles = manifest.fixtureRoles;
+  return roles === undefined || roles.length === 0
+    ? []
+    : [`fixture roles ${roles.join(", ")}`];
 }
 
 /**
