@@ -61,21 +61,26 @@ select permitted_doc_rows('doc.read')::text;
     expect(rewritten.source).toContain('view: "select"');
   });
 
-  it("deletes provider-supplied keys from better-supabase.config", () => {
+  it("deletes canAssign and reports roleThrough and permissions.disabled in better-supabase.config", () => {
     const source = `export default {
-  roleThrough: { table: "public.roles", id: "id" },
   blocks: {
-    permissions: { disabled: true, other: true },
+    memberships: { options: { roleThrough: { table: "public.roles", id: "id" } } },
+    permissions: { disabled: { tenant: "suspended_at" }, other: true },
   },
   platformRoles: { canAssign: "permdock_can_assign_any" },
 };
 `;
     const rewritten = rewrite026("better-supabase.config.ts", source);
-    expect(rewritten.source).not.toContain("roleThrough");
-    expect(rewritten.source).not.toContain("disabled");
-    expect(rewritten.source).toContain("other: true");
+    expect(rewritten.source).toContain("roleThrough");
+    expect(rewritten.source).toContain('disabled: { tenant: "suspended_at" }');
     expect(rewritten.source).not.toContain("canAssign");
-    expect(rewritten.source).not.toContain("permdock_can_assign_any");
+    expect(rewritten.changes.map((change) => change.from)).toStrictEqual([
+      "platformRoles.canAssign",
+    ]);
+    expect(rewritten.followUps.map((item) => item.name)).toStrictEqual([
+      "roleThrough",
+      "permissions.disabled",
+    ]);
   });
 
   it("keeps Lienlink's real options in 109 lines", () => {
@@ -173,52 +178,50 @@ select permitted_doc_rows('doc.read')::text;
     );
   });
 
-  it("drops only the supplied better-supabase keys", () => {
+  it("drops only a canAssign that names permdock_can_assign_any", () => {
     const rewritten = rewrite026(
       "better-supabase.config.ts",
-      `export default {\r\n  disabled: true,\r\n  roleThrough: "a\\\\b",\r\n  blocks: {\r\n    other: { disabled: true },\r\n    permissions: { disabled: true, other: 1 },\r\n  },\r\n  platformRoles: { canAssign: "custom" },\r\n};\r\n`,
+      `export default {\r\n  disabled: true,\r\n  blocks: {\r\n    other: { disabled: true },\r\n  },\r\n  platformRoles: { canAssign: "custom" },\r\n  orgRoles: { canAssign: "a\\\\permdock_can_assign_any", keep: 1 },\r\n};\r\n`,
     );
-    expect(rewritten.source).not.toContain("roleThrough");
-    expect(rewritten.source).toContain("disabled: true");
-    expect(rewritten.source).toContain("other: { disabled: true }");
-    expect(rewritten.source).not.toContain("permissions: { disabled: true");
-    expect(rewritten.source).toContain("other: 1");
     expect(rewritten.source).toContain('canAssign: "custom"');
+    expect(rewritten.source).toContain("keep: 1");
+    expect(rewritten.source.match(/canAssign/gu)).toHaveLength(1);
+    expect(rewritten.followUps).toStrictEqual([]);
+    const crlf = rewrite026(
+      "better-supabase.config.ts",
+      `export default {\r\n  canAssign: "permdock_can_assign_any",\r\n  keep: 1,\r\n};\r\n`,
+    );
+    expect(crlf.source).toBe(`export default {\r\n  keep: 1,\r\n};\r\n`);
     const nestedDisabled = rewrite026(
       "better-supabase.config.ts",
       `export default {\n  blocks: {\n    permissions: {\n      keep: { a: 1 },\n      disabled: true,\n    },\n  },\n};\n`,
     );
-    expect(nestedDisabled.source).not.toContain("disabled");
-    expect(nestedDisabled.source).toContain("keep: { a: 1 }");
-    const untouched = rewrite026(
-      "better-supabase.config.ts",
-      "export default { blocks: { permissions: { other: 1 } } };\n",
-    );
-    expect(untouched.changes.map((change) => change.from)).not.toContain(
-      "roleThrough",
-    );
+    expect(nestedDisabled.source).toContain("disabled: true");
+    expect(nestedDisabled.followUps.map((item) => item.name)).toStrictEqual([
+      "permissions.disabled",
+    ]);
     const nested = rewrite026(
       "better-supabase.config.ts",
-      'export default {\n  roleThrough: [{ name: "a" }],\n  keep: 1,\n};\n',
+      'export default {\n  canAssign: [{ name: "permdock_can_assign_any" }],\n  keep: 1,\n};\n',
     );
-    expect(nested.source).not.toContain("roleThrough");
+    expect(nested.source).not.toContain("canAssign");
     expect(nested.source).toContain("keep: 1");
     const called = rewrite026(
       "better-supabase.config.ts",
-      `export default {\n  roleThrough: foo("a"),\n  keep: 1,\n};\n`,
+      `export default {\n  canAssign: foo("permdock_can_assign_any"),\n  keep: 1,\n};\n`,
     );
     expect(called.source).toContain("keep: 1");
-    expect(called.source).not.toContain("roleThrough");
+    expect(called.source).not.toContain("canAssign");
     const open = rewrite026(
       "better-supabase.config.ts",
-      `export default {\n  roleThrough: { table: "x"\n`,
+      `export default {\n  canAssign: { fn: "permdock_can_assign_any"\n`,
     );
-    expect(open.source).not.toContain("roleThrough");
+    expect(open.source).not.toContain("canAssign");
     const quote = rewrite026(
       "better-supabase.config.ts",
-      `export default {\n  roleThrough: "unterminated\n`,
+      `export default {\n  canAssign: "permdock_can_assign_any\n`,
     );
-    expect(quote.source).not.toContain("roleThrough");
+    expect(quote.source).not.toContain("canAssign");
   });
 
   it("moves imports of the old generated files to the new names", () => {

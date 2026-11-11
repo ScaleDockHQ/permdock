@@ -26,7 +26,7 @@ import {
 import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import { requirePolicy } from "../project/load.ts";
-import { hookUri, resolveAuthorize } from "../rls/rbac.ts";
+import { hookUri } from "../rls/rbac.ts";
 import { declarativeSql } from "../sql/declarative.ts";
 import { HOOK_MARKER, hookMarkerFields } from "../sql/markers.ts";
 import { supabaseConfig } from "../supabase-config.ts";
@@ -42,6 +42,7 @@ import {
 } from "../supabase-setup.ts";
 import {
   grantsLabel,
+  hooklessDatabase,
   supabaseDatabaseManifest,
   supabaseHookManifest,
   supabaseHookSql,
@@ -117,14 +118,6 @@ export function hookOut(
           config.rls?.schema ??
           PERMDOCK_SCHEMA,
       );
-}
-
-/** Whether the project is in the one case that has a manifest without a hook. */
-function hooklessDatabase(config: PermDockConfig): boolean {
-  return (
-    config.supabase?.hook === undefined &&
-    resolveAuthorize(config) === "database"
-  );
 }
 
 function markerDrift(

@@ -308,17 +308,22 @@ describe("core units", () => {
   });
 
   describe(renameMessage, () => {
-    it("says a flag was removed when it has no replacement", () => {
-      expect(renameMessage("scan", { commands: ["scan"], from: "--old" })).toBe(
-        "scan: --old was removed in 0.5.0.",
-      );
+    it("names the replacement, or the hint when a person must choose", () => {
       expect(
         renameMessage("scan", {
           commands: ["scan"],
           from: "--old",
-          hint: "use the new flag",
+          to: "--new",
         }),
-      ).toBe("scan: --old was removed in 0.5.0: use the new flag.");
+      ).toBe("scan: --old is --new since 0.5.0.");
+      expect(
+        renameMessage("scan", {
+          commands: ["scan"],
+          from: "--old",
+          to: "--new",
+          hint: "--new or ENV",
+        }),
+      ).toBe("scan: --old is --new or ENV since 0.5.0.");
     });
   });
 

@@ -16,6 +16,10 @@
     },
     "lint": {
       "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    },
+    "typegen": {
+      "dependsOn": ["$TURBO_EXTENDS$"],
+      "outputs": ["src/support/prisma/**"]
     }
   }
 }

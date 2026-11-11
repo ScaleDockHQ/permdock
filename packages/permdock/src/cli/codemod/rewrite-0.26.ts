@@ -275,40 +275,56 @@ function insidePermissions(source: string, index: number): boolean {
   return false;
 }
 
-function dropSupplied(source: string): {
-  text: string;
-  changes: CodemodChange[];
-} {
+function dropSupplied(
+  file: string,
+  source: string,
+): { text: string; changes: CodemodChange[]; followUps: CodemodFollowUp[] } {
   const changes: CodemodChange[] = [];
-  const role = removeProperty(source, "roleThrough");
-  let text = role.text;
-  if (role.removed) {
-    changes.push(change("roleThrough", ""));
+  const followUps: CodemodFollowUp[] = [];
+  const keep = (name: string, message: string): void => {
+    followUps.push({
+      line: 1,
+      column: 0,
+      name,
+      message: `${file}: ${message}`,
+    });
+  };
+  if (PROPERTY("roleThrough").test(source)) {
+    keep(
+      "roleThrough",
+      "roleThrough is kept: the provider supplies it only for a membership source whose role reads through that table; delete it when permdock doctor reports it as PD094",
+    );
   }
-  const disabled = removeProperty(text, "disabled", (_value, index) =>
-    insidePermissions(text, index),
-  );
-  text = disabled.text;
-  if (disabled.removed) {
-    changes.push(change("permissions.disabled", ""));
+  const disabled = PROPERTY("disabled");
+  for (
+    let match = disabled.exec(source);
+    match !== null;
+    match = disabled.exec(source)
+  ) {
+    if (insidePermissions(source, match.index)) {
+      keep(
+        "permissions.disabled",
+        'blocks.permissions.disabled is kept: the provider fills it from rls.suspension only under blocks.permissions.model "provider", and only for an unset subject; delete it when permdock doctor reports it as PD094',
+      );
+      break;
+    }
   }
-  const assign = removeProperty(text, "canAssign", (value) =>
+  const assign = removeProperty(source, "canAssign", (value) =>
     value.includes("permdock_can_assign_any"),
   );
-  text = assign.text;
   if (assign.removed) {
     changes.push(change("platformRoles.canAssign", ""));
   }
-  return { text, changes };
+  return { text: assign.text, changes, followUps };
 }
 
 /**
  * 0.26 text rewrites: `permitted_<resource>_row(` becomes `can_<resource>(`,
  * `::text` around a helper call is removed, `own_subject()` is deleted, and `{
  * tableOf }` moves onto the owner's `also` list. Inferred `rls.actions` entries
- * are dropped. A `better-supabase.config.*` file loses `roleThrough`,
- * `permissions.disabled` and a `canAssign` that names
- * `permdock_can_assign_any`.
+ * are dropped. A `better-supabase.config.*` file loses a `canAssign` that names
+ * `permdock_can_assign_any`; `roleThrough` and `permissions.disabled` become
+ * follow-ups, because the provider supplies them only in some setups.
  */
 /** Old `permdock gen` file names (without extension) to the 0.26 names. */
 const GEN_FILES: Readonly<Record<string, string>> = {
@@ -401,9 +417,10 @@ export function rewrite026(file: string, source: string): RewriteResult {
     changes.push(change("rls.actions", ""));
   }
   if (file.includes("better-supabase.config.")) {
-    const supplied = dropSupplied(text);
+    const supplied = dropSupplied(file, text);
     text = supplied.text;
     changes.push(...supplied.changes);
+    followUps.push(...supplied.followUps);
   }
   return { source: text, changes, followUps };
 }
