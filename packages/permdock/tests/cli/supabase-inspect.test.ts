@@ -290,6 +290,24 @@ describe("supabase inspect", () => {
       expect(check.code).toBe(0);
     });
 
+    it("reads rls.memberships for the hookless manifest without membership sources", async () => {
+      const database = await generate(
+        "undefined",
+        [],
+        `{ authorize: 'database', memberships: { scopes: { organization: { table: 'organization_users', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } } } } }`,
+      );
+      const inspect = await run(["supabase", "inspect", "--json"], {
+        cwd: database.cwd,
+      });
+      expect(inspect.code).toBe(0);
+      expect(jsonData(inspect.stdout)).toMatchObject({
+        rls: {
+          mode: "database",
+          memberships: [{ table: "public.organization_users" }],
+        },
+      });
+    });
+
     it("checks, prints and reports drift for the hookless manifest", async () => {
       const database = await generate(
         "undefined",

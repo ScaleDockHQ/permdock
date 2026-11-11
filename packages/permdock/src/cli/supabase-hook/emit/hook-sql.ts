@@ -10,7 +10,6 @@ import type { HookOverrides } from "../sql.ts";
 import { STDOUT } from "../../core/output-files.ts";
 import { resolveAuthorize } from "../../rls/rbac.ts";
 import { GRANTS_MARKER } from "../../sql/markers.ts";
-import { membershipSourcesOf } from "../../sql/sources.ts";
 import { splitUndiffed } from "../../sql/statements.ts";
 import {
   apiWrappersSql,
@@ -90,7 +89,10 @@ export function supabaseDatabaseManifest(
       ...config,
       supabase: {
         ...config.supabase,
-        hook: { memberships: membershipSourcesOf(config) },
+        hook:
+          config.rls?.membershipSources === undefined
+            ? {}
+            : { memberships: config.rls.membershipSources },
       },
     },
     overrides,

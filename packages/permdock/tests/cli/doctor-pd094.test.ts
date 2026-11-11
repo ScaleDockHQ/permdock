@@ -101,6 +101,19 @@ describe("PD094", () => {
     ]);
   });
 
+  it("builds the provider from the database manifest of a project without a hook", async () => {
+    const { supabase: _supabase, ...hookless } = permdock;
+    expect(
+      await findings(
+        `{ blocks: { memberships: { options: { roleThrough: ${roles} } }, permissions: { model: "provider", disabled: { user: ${user} } } } }`,
+        { ...hookless, rls: { ...hookless.rls, authorize: "database" } },
+      ),
+    ).toStrictEqual([
+      "blocks.memberships.options.roleThrough",
+      "blocks.permissions.disabled.user",
+    ]);
+  });
+
   it("stays silent when the provider would not fill the value", async () => {
     expect(
       await findings(`{
