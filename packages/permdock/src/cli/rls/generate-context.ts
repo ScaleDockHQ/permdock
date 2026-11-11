@@ -49,6 +49,7 @@ import {
 import { apiKeysPlan } from "./api-keys.ts";
 import { customRoleSyncSql } from "./custom-role-sync.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
+import { interactiveOnlyKeys } from "./interactive-only.ts";
 import { ownershipRules, unsatisfiedKinds } from "./ownership.ts";
 import { resolveAuthorize } from "./rbac.ts";
 import { inheritTargets } from "./rows.ts";
@@ -448,6 +449,7 @@ export function buildContext(
     return { refusal: "rls.tokenScopes must be true or false" };
   }
   const tokenScopes = tokenScopesPlan(tokenScopesSetting, policy);
+  const interactiveOnly = interactiveOnlyKeys(policy);
   let vias: ReturnType<typeof resolveVias>;
   try {
     checkSharedTables(rls?.tables);
@@ -523,6 +525,7 @@ export function buildContext(
       : {}),
     ...(apiKeys === undefined ? {} : { apiKeys }),
     ...(tokenScopes === undefined ? {} : { tokenScopes }),
+    ...(interactiveOnly === undefined ? {} : { interactiveOnly }),
     ...(rls?.anonymousSignIns === "deny"
       ? { anonymousSignIns: "deny" as const }
       : {}),

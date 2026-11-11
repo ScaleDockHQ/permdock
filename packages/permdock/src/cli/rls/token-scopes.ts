@@ -26,6 +26,7 @@ export function tokenScopesPlan(
     key: leaf.key,
     scope: leaf.scope,
     renamedFrom: formerKeys(leaf),
+    meta: leaf.meta,
   }));
   return { scopes: delegatedScopeMap(permissions, policy.oauthScopes) };
 }

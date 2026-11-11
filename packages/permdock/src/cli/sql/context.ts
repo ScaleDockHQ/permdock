@@ -216,6 +216,7 @@ export type RlsSqlContext = {
   readonly apiKeys?: ApiKeysPlan;
   /** `rls.tokenScopes`: the scope-to-keys map a delegated token is narrowed by. */
   readonly tokenScopes?: TokenScopesPlan;
+  readonly interactiveOnly?: readonly string[];
   /**
    * Role ownership rules (`for`, `assigns`, `min`, `max`, `transferOnly`), when
    * any role declares one.

@@ -90,6 +90,16 @@ export function readOnlyActorRefuses(
   return actor?.readOnly === true && !annotationsFor(permission).readOnlyHint;
 }
 
+export function interactiveOnlyRefuses(
+  subject: Pick<Subject, "actor" | "delegation">,
+  permission: Permission,
+): boolean {
+  return (
+    permission.meta.interactiveOnly === true &&
+    (subject.actor !== undefined || subject.delegation !== undefined)
+  );
+}
+
 /**
  * Whether an `agent` actor may call the tool `name`: its `tools` list names it.
  * An agent without a `tools` list and any other actor kind are not restricted

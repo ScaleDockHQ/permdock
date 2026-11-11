@@ -514,6 +514,10 @@ export function authorizationProvider<P = undefined>(
       : platformRolesOf(manifest, schema, tenantScope, assignAny && canAssign);
   const operations = catalog === undefined ? {} : operationsOf(catalog);
   const delegated = delegatedScopes(catalog);
+  const interactiveOnly = (catalog?.permissions ?? [])
+    .filter((permission) => permission.meta["interactiveOnly"] === true)
+    .map((permission) => permission.key)
+    .toSorted();
   const scopes = rls.scopes.map((scope) => {
     const idType =
       ID_TYPES[scope.type.trim().toLowerCase().replaceAll(/\s+/gu, " ")];
@@ -567,8 +571,13 @@ export function authorizationProvider<P = undefined>(
     ...(personas === undefined ? {} : { personas }),
     ...(fixtureRoles === undefined ? {} : { fixtureRoles }),
     ...(Object.keys(operations).length > 0 ? { operations } : {}),
-    ...(Object.keys(delegated).length > 0
-      ? { delegation: { scopes: delegated } }
+    ...(Object.keys(delegated).length > 0 || interactiveOnly.length > 0
+      ? {
+          delegation: {
+            ...(Object.keys(delegated).length > 0 ? { scopes: delegated } : {}),
+            ...(interactiveOnly.length > 0 ? { interactiveOnly } : {}),
+          },
+        }
       : {}),
     decidingColumns: manifest.decidingColumns,
     ...(hasTokenHook(manifest)

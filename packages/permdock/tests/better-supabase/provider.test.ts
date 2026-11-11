@@ -1855,6 +1855,49 @@ describe(authorizationProvider, () => {
     });
   });
 
+  it("lists interactive-only keys in delegation.interactiveOnly and maps no scope to them", () => {
+    const leaf = (key: string, meta: Record<string, unknown> = {}) => {
+      const [resource = "", action = ""] = key.split(".");
+      return {
+        key,
+        scope: `${resource}:${action}`,
+        resource,
+        action,
+        arity: "collection",
+        meta,
+        usages: [],
+        rowConditions: false,
+      };
+    };
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      catalog: {
+        ...emptyCatalog,
+        permissions: [
+          leaf("organization.read"),
+          leaf("organization.transferOwnership", { interactiveOnly: true }),
+          leaf("organization.delete", { interactiveOnly: true }),
+        ],
+        oauthScopes: [
+          {
+            scope: "admin",
+            permissions: ["organization.read", "organization.delete"],
+          },
+        ],
+      },
+    });
+    expect(provider.delegation).toStrictEqual({
+      scopes: {
+        admin: ["organization.read"],
+        "organization:read": ["organization.read"],
+      },
+      interactiveOnly: [
+        "organization.delete",
+        "organization.transferOwnership",
+      ],
+    });
+  });
+
   describe("rowHelpers", () => {
     const withRows = (
       resources: Record<string, { rows: string; idType?: string }>,

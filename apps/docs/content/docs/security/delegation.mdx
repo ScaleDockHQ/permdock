@@ -96,6 +96,17 @@ export const policy = definePolicy(permissions, {
 - A key must be an RFC 6749 scope token that is not a permission's own scope, and must cover at least one declared permission; `definePolicy` throws otherwise. The mapping is part of the policy fingerprint.
 - `permdock collect` writes the mapping to the catalog as `oauthScopes`, one `{ scope, permissions }` entry per coarse scope with the keys sorted by code point. `authorizationProvider` in `permdock/better-supabase` reads it there, so better-supabase's SQL checks accept the coarse scope too ([OAuth scopes](/docs/adapters/better-supabase#oauth-scopes)). PermDock's own SQL helpers do not narrow by `scope`.
 
+## Interactive-only permissions
+
+A permission whose action sets `meta.interactiveOnly: true` is used only from the user's own session. A subject with an `actor` (an OAuth client, an agent, a support or impersonation session) or a `delegation` (a scoped token or an API key credential) is refused it with `not-delegated`, whatever its scopes, `authorization_details` or policy delegations say. `mayUse` and client snapshots agree.
+
+- No OAuth scope maps to the key: `delegation.scopes` for better-supabase and the `rls.tokenScopes` map leave it out, and a coarse `oauthScopes` entry that lists it reaches only its other keys.
+- `rls generate` writes `permdock_interactive_allows(p_grant)` when the policy marks any key. `permdock_has`, `permitted_<scope>_ids`, their by-permission and `permission_keys` forms, `can_<resource>` and the table policies refuse such a key to a token that carries an API key claim (`api_key`, or `rls.apiKeys.claim`), a non-empty `client_id` or an `act`, with or without `rls.apiKeys` and `rls.tokenScopes`. The helper memo keys those tokens apart from the user's session. The `_for` helpers name their user and ignore the token.
+- `permdock_can_assign` refuses a `transferOnly` role (an owner) to the same tokens, so ownership moves only from a signed-in session.
+- `authorizationProvider` lists the keys as `delegation.interactiveOnly`, so better-supabase's `cap_allows` refuses them too. That field needs a better-supabase release with interactive-only actions.
+
+PermDock marks no key by default, because the policy names its own permissions. Mark ownership transfer, organization and data deletion, impersonation, platform invitations, SSO and any other action that must stay with a person, then run `permdock collect` and `permdock rls generate`.
+
 ## Coverage check
 
 `decide`, `snapshot` and the agent kernel share one coverage check, exported from `permdock` as `coveredByDelegation(permission, delegation, resourceId?, hasActor?)`. `permission` needs only `scope`, `resource` and `action`, so a leaf that crossed a serialisation boundary works. It returns `undefined` when the delegation covers the permission, and otherwise the denial reason `decide` adds:

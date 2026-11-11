@@ -13,6 +13,7 @@ export type ScopeMapPermission = {
   readonly key: string;
   readonly scope: string;
   readonly renamedFrom?: readonly string[];
+  readonly meta?: { readonly interactiveOnly?: unknown };
 };
 
 /** A catalog `oauthScopes` entry as the scope map reads it. */
@@ -26,8 +27,9 @@ export type ScopeMapEntry = {
  * permission's own scope, the scopes of the keys it was renamed from, and each
  * coarse `oauthScopes` scope. Scopes and keys are sorted by code point. A key
  * outside `permissions` is dropped, so a stale `oauthScopes` entry grants
- * nothing. better-supabase's `delegation.scopes` and the SQL helpers'
- * `rls.tokenScopes` ceiling both read this map.
+ * nothing, and so is a `meta.interactiveOnly` key: no scope reaches it.
+ * better-supabase's `delegation.scopes` and the SQL helpers' `rls.tokenScopes`
+ * ceiling both read this map.
  */
 export function delegatedScopeMap(
   permissions: readonly ScopeMapPermission[],
@@ -41,6 +43,9 @@ export function delegatedScopeMap(
   };
   const known = new Set<string>();
   for (const permission of permissions) {
+    if (permission.meta?.interactiveOnly === true) {
+      continue;
+    }
     known.add(permission.key);
     add(permission.scope, permission.key);
     for (const former of permission.renamedFrom ?? []) {

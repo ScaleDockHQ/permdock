@@ -11,7 +11,11 @@ import type { CustomRole, Subject } from "./subject.ts";
 import { assignableIn } from "./assignable.ts";
 import { compact } from "./compact.ts";
 import { customGrantsFor } from "./custom-roles.ts";
-import { delegatedPermissions, readOnlyActorRefuses } from "./delegation.ts";
+import {
+  delegatedPermissions,
+  interactiveOnlyRefuses,
+  readOnlyActorRefuses,
+} from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames } from "./held-roles.ts";
 import { getResource } from "./permission-registry.ts";
@@ -91,9 +95,10 @@ export function snapshotOf(
         // `delegated` already narrows a read-only actor; without it the client has no actor to check.
         .filter(
           (item) =>
-            delegated !== undefined ||
             item.grant.effect === "deny" ||
-            !readOnlyActorRefuses(subject.actor, item.grant.permission),
+            ((delegated !== undefined ||
+              !readOnlyActorRefuses(subject.actor, item.grant.permission)) &&
+              !interactiveOnlyRefuses(subject, item.grant.permission)),
         )
         .map((item) =>
           periodBound(policy, item.grant)
