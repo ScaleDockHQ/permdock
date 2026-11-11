@@ -1,6 +1,6 @@
 import type { AuthzVersionClient } from "better-supabase/server";
 
-import { defineSchema, defineSupabase } from "better-supabase";
+import { defineSchema, createSupabase } from "better-supabase";
 import {
   AUTHZ_EVENT,
   AUTHZ_TOPIC,
@@ -60,7 +60,7 @@ describe("one memoryVersionCache shared with better-supabase", () => {
     const cache = await warmCache();
     const signer = await createTestSigner();
     const bsb = createServer(
-      defineSupabase(
+      createSupabase(
         defineSchema({
           version: 1,
           casing: "snake",

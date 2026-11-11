@@ -1,6 +1,6 @@
 import type { defineSchema } from "better-supabase";
 
-import { defineSupabase } from "better-supabase";
+import { createSupabase } from "better-supabase";
 import { createMcp, defineTool } from "better-supabase/mcp";
 import { describe, expectTypeOf, it } from "vitest";
 
@@ -14,7 +14,7 @@ declare const schema: ReturnType<typeof defineSchema>;
 declare function dockFor(ctx: unknown): Promise<PermDock>;
 declare const exportCustomers: Permission;
 
-const betterSupabase = defineSupabase(schema);
+const betterSupabase = createSupabase(schema);
 
 describe("better-supabase's createMcp with PermDock permissions as tool meta", () => {
   it("takes toolPolicy's hooks", () => {
