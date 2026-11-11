@@ -189,4 +189,23 @@ describe("permdockFor with a bootstrap result subject", () => {
     ).toBe("granted");
     expect(calls).toStrictEqual([]);
   });
+
+  it("seeds a record read for one tenant under that tenant, never as the all-tenants record", async () => {
+    const subjects = memorySubjectCache();
+    const resolve = permdockFor({ policy, subjects });
+    await resolve(
+      {
+        session: { kind: "user", claims: staleClaims },
+        tenant: ORG,
+        authzVersion: 3,
+        subject: { ...record(3), tenant: ORG },
+      },
+      { tenant: ORG },
+    );
+    expect(await subjects.record(USER, 3)).toBeNull();
+    expect(await subjects.record(USER, 3, undefined, ORG)).toMatchObject({
+      tenant: ORG,
+      memberships: [{ scope: "organization", id: ORG, roles: ["editor"] }],
+    });
+  });
 });

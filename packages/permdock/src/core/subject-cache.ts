@@ -146,26 +146,33 @@ function customRoleOf(value: unknown): CustomRole | undefined {
 
 /**
  * Reads `subject_for`'s JSON; anything it cannot read is left out, and a
- * malformed record is no record.
+ * malformed record is no record. A `tenant` field marks a record read for one
+ * tenant, so a seed of it never stands in for the all-tenants record.
  */
 export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
   if (!isRecord(value) || typeof value["id"] !== "string") {
     return undefined;
   }
+  const tenant =
+    typeof value["tenant"] === "string" && value["tenant"] !== ""
+      ? value["tenant"]
+      : undefined;
   if (value["active"] !== true) {
-    return {
+    return compact<SubjectRecord>({
       id: value["id"],
       active: false,
       roles: [],
       memberships: [],
       customRoles: [],
-    };
+      tenant,
+    });
   }
   const version = value["authzVersion"];
   const rolesVersions = rolesVersionsOf(value["customRolesVersions"]);
   return compact<SubjectRecord>({
     id: value["id"],
     active: true,
+    tenant,
     roles: strings(value["roles"]),
     memberships: readMemberships(value["memberships"]).memberships,
     customRoles: Array.isArray(value["customRoles"])

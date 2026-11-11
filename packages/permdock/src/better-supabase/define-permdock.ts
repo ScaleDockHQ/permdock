@@ -5,8 +5,9 @@ import type {
 import type { AppOptions, ClientSources } from "../core/app.ts";
 import type { PermissionCheck, PermissionState } from "../core/checks.ts";
 import type { CustomRoleSource } from "../core/interfaces.ts";
-import type { PermDock } from "../core/permdock.ts";
+import type { PermDock, SnapshotOptions } from "../core/permdock.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 import type { VersionCache } from "../core/version-cache.ts";
 import type { SupabaseClaimsClient } from "../supabase/client-subject.ts";
@@ -21,8 +22,9 @@ import type {
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
 import { definePermDock as defineApp } from "../app/define-permdock.ts";
-import { isRecord } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { getPermDock } from "../core/permdock.ts";
+import { listedTenantSnapshot } from "../core/snapshot-tenant.ts";
 import { ownedCaches, withMembers } from "../supabase/app-members.ts";
 import { subjectFromSupabaseClient } from "../supabase/client-subject.ts";
 import { SUPABASE_OPTIONS } from "../supabase/definition-options.ts";
@@ -44,11 +46,38 @@ export type BetterSupabaseServerInput = {
   readonly operations?: Readonly<Record<string, unknown>>;
 };
 
-/** What `next()` returns for better-supabase's `createNext`. */
+/** What `getSnapshot` builds: always one tenant's snapshot. */
+export type BetterSupabaseSnapshotQuery = Pick<
+  SnapshotOptions,
+  "include" | "omitAssignable" | "omitStatic"
+> & {
+  /**
+   * The tenant the snapshot is for, such as `bsb.bootstrap()`'s `tenant`. A
+   * tenant without a membership, or `null`, lists no tenant.
+   */
+  readonly tenant: string | null;
+};
+
+/**
+ * What `next()` returns: `authorization`, `authorizer` and `versions` for
+ * better-supabase's `createNext`, plus `getSnapshot` for the provider.
+ */
 export type BetterSupabaseNext<V extends PolicyVocabulary> = {
   readonly authorization: ReturnType<typeof authorizer<V>>;
   readonly authorizer: ReturnType<typeof authorizer<V>>;
   readonly versions: VersionCache;
+  /**
+   * The snapshot of one tenant for a session, a `bsb.bootstrap()` or
+   * `bsb.getAccess()` result, or a subject. It lists only that tenant's
+   * memberships, so its size stays flat however many the user holds. A
+   * bootstrap that read `permdock_subject(tenant)` seeds the subject read. With
+   * `omitStatic`, pass the generated `clientBundle` to the provider's `bundle`
+   * prop.
+   */
+  readonly getSnapshot: (
+    source: PermDockForInput,
+    query: BetterSupabaseSnapshotQuery,
+  ) => Promise<Snapshot>;
 };
 
 export type BetterSupabaseDefineOptions<TClient extends object = object> =
@@ -228,6 +257,16 @@ export function definePermDock<
         authorization: gate,
         authorizer: gate,
         versions: caches.versions,
+        getSnapshot: async (source, query) => {
+          const permdock = await dock(source, { tenant: query.tenant });
+          const built: SnapshotOptions & { readonly signer?: undefined } =
+            compact({
+              include: query.include,
+              omitAssignable: query.omitAssignable,
+              omitStatic: query.omitStatic,
+            });
+          return listedTenantSnapshot(permdock.snapshot(built));
+        },
       };
     },
     getPermissions: <K extends string>(

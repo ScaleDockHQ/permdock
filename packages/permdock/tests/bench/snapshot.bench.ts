@@ -1,5 +1,8 @@
 import { describe, test } from "vitest";
 
+import type { Principal } from "../../src/core/subject.ts";
+
+import { definePermDock } from "../../src/better-supabase/define-permdock.ts";
 import { clientBundle } from "../../src/core/client-bundle.ts";
 import { fromSnapshot, getPermDockSync } from "../../src/core/permdock.ts";
 import { listPermissions } from "../../src/core/permission-registry.ts";
@@ -24,6 +27,22 @@ if (leaf === undefined) {
   throw new TypeError("no permissions");
 }
 const row = { id: "r1", orgId: "org0", ownerId: "u-commerce", status: "open" };
+const { getSnapshot } = definePermDock(policy).next();
+
+/**
+ * The commerce user with `count` memberships: admin in `org0`, then member and
+ * viewer.
+ */
+function withMemberships(count: number): Principal {
+  return {
+    id: "u-commerce",
+    memberships: Array.from({ length: count }, (_, index) => ({
+      scope: "tenant",
+      id: `org${String(index)}`,
+      roles: [index === 0 ? "admin" : index <= 5 ? "member" : "viewer"],
+    })),
+  };
+}
 
 describe("snapshot", () => {
   test("server build", async ({ bench }) => {
@@ -36,6 +55,20 @@ describe("snapshot", () => {
       }),
       bench("snapshotFor() with omitStatic", () => {
         snapshotFor(policy, user, { ...options, omitStatic: true });
+      }),
+    );
+  });
+
+  test("better-supabase tenant snapshot", async ({ bench }) => {
+    await bench.compare(
+      ...[1, 50, 150].map((count) => {
+        const source = { principal: withMemberships(count), context: {} };
+        return bench(`getSnapshot() at ${String(count)} memberships`, () =>
+          getSnapshot(source, {
+            tenant: "org0",
+            omitAssignable: true,
+            omitStatic: true,
+          }));
       }),
     );
   });

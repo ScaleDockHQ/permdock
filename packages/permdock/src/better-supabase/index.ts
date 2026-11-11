@@ -67,6 +67,7 @@ export type {
   BetterSupabasePermDock,
   BetterSupabaseQuery,
   BetterSupabaseServerInput,
+  BetterSupabaseSnapshotQuery,
 } from "./define-permdock.ts";
 export { getPermissions, permdockFor } from "./permdock-for.ts";
 export type {
