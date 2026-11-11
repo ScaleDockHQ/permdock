@@ -66,7 +66,7 @@ begin
       having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
     ) s
   ) x
-  where (x.tenant is null or x.entry ? 'keep' or exists (select 1 from "public"."organizations" s where s."id" = (x.tenant)::text and s."disabled_at" is null));
+  where (x.tenant is null or x.entry ? 'keep' or exists (select 1 from "public"."organizations" s where s."id"::text = x.tenant and s."disabled_at" is null));
 end;
 $$;
 revoke execute on function "permdock".memberships_for(uuid) from public, anon, authenticated;
@@ -106,7 +106,7 @@ begin
     ) s
   ) x
   where x.tenant = p_tenant
-    and (x.tenant is null or x.entry ? 'keep' or exists (select 1 from "public"."organizations" s where s."id" = (x.tenant)::text and s."disabled_at" is null));
+    and (x.tenant is null or x.entry ? 'keep' or exists (select 1 from "public"."organizations" s where s."id"::text = x.tenant and s."disabled_at" is null));
 end;
 $$;
 revoke execute on function "permdock".memberships_for(uuid, text) from public, anon, authenticated;

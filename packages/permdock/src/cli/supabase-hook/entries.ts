@@ -56,7 +56,7 @@ function entriesFunction(parts: Parts, tenant: boolean): string {
     ...(parts.tenants === undefined
       ? []
       : [
-          `(x.tenant is null or x.entry ? 'keep' or ${activeTenantSql(parts, parts.tenants, "x.tenant")})`,
+          `(x.tenant is null or x.entry ? 'keep' or ${activeTenantSql(parts.tenants, "x.tenant")})`,
         ]),
   ];
   return `-- the membership entries ${tenant ? "of one tenant that subject_for(p_user, p_tenant) reads" : "the hook and subject_for read for p_user"}; no client role may execute it
@@ -81,11 +81,12 @@ revoke execute on function ${fn}(${types}) from public, anon, authenticated;`;
 }
 
 /**
- * Whether the tenant whose id is the text `id` has an active row: one indexed
- * lookup on the tenants table, with `id` cast to the root scope's type.
+ * Whether the tenant whose id is the text `id` has an active row. Compared as
+ * text, like the per-source filters: the tenants table's id column need not
+ * have the root scope's type, and a failed cast would fail the token hook.
  */
-function activeTenantSql(parts: Parts, row: RlsActiveRow, id: string): string {
-  const where = [`s.${quoteIdent(row.id)} = (${id})::${parts.tenantType}`];
+function activeTenantSql(row: RlsActiveRow, id: string): string {
+  const where = [`s.${quoteIdent(row.id)}::text = ${id}`];
   if (row.disabledAt !== undefined) {
     where.push(`s.${quoteIdent(row.disabledAt)} is null`);
   }

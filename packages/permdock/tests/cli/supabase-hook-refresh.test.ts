@@ -82,7 +82,7 @@ describe("supabase hook refresh and oauth branches", () => {
     expect(code).toBe(0);
     expect(sql).not.toContain(FAST);
     expect(sql).toContain(
-      `(x.tenant is null or x.entry ? 'keep' or exists (select 1 from "public"."organization" s where s."id" = (x.tenant)::uuid and s."disabled_at" is null))`,
+      `(x.tenant is null or x.entry ? 'keep' or exists (select 1 from "public"."organization" s where s."id"::text = x.tenant and s."disabled_at" is null))`,
     );
     const reuse = await generate(
       `{ memberships: [${PLAIN}], refresh: 'reuse' }`,
