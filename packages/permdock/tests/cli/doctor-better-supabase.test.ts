@@ -75,7 +75,7 @@ describe("doctor better-supabase", () => {
       undefined,
       "tenant_id",
     ],
-    ["throw new Error('broken');", undefined, "active_tenant"],
+    ["throw new Error('broken');", undefined, "tenant_id"],
     ["export default 1;", undefined, "active_tenant"],
   ])(
     "shares detected defaults with SQL and manifest: %s / %s",

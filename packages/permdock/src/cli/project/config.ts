@@ -6,12 +6,13 @@ import type { ConfigChecks, PermDockConfigInput } from "./config-checks.ts";
 import type { ParsedConfig } from "./config-schema.ts";
 
 import { isRecord } from "../../core/compact.ts";
+import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { CliError } from "../core/errors.ts";
 import { withPluginOutputs } from "../generate/plugin.ts";
 import {
-  betterSupabaseConfig,
   betterSupabaseDefaults,
   betterSupabaseInstalled,
+  loadBetterSupabaseConfig,
 } from "./better-supabase.ts";
 import { parseConfig } from "./config-schema.ts";
 import { MODULE_KEYS } from "./config-shape.ts";
@@ -82,15 +83,35 @@ export async function readConfig(
       ? {}
       : { path: parsed.config.betterSupabase.config }),
   };
+  const betterSupabase = await loadBetterSupabaseConfig(lookup);
+  const { failed } = betterSupabase;
   return {
     ...parsed,
+    // A config that does not load still counts, so the hook defaults do not
+    // depend on whether the files it reads exist yet.
     config: betterSupabaseDefaults(
       withPluginOutputs(parsed.config),
-      await betterSupabaseConfig(lookup),
+      failed === undefined ? betterSupabase.config : {},
       betterSupabaseInstalled(lookup),
     ),
+    warnings:
+      failed === undefined || parsed.config.supabase?.hook === undefined
+        ? parsed.warnings
+        : [...parsed.warnings, unloadedWarning(cwd, failed, parsed.config)],
     file: path,
   };
+}
+
+function unloadedWarning(
+  cwd: string,
+  failed: { readonly path: string; readonly error: unknown },
+  config: PermDockConfig,
+): string {
+  const file = relative(cwd, failed.path).replaceAll("\\", "/");
+  const reason =
+    failed.error instanceof Error ? failed.error.message : String(failed.error);
+  const claim = config.rls?.tenantClaim ?? supabaseTenantClaim;
+  return `[better_supabase_config] ${file} did not load (${reason}); the hook reads app_metadata.${claim} unless supabase.hook.activeFrom is set`;
 }
 
 function hasModuleValue(
