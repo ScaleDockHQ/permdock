@@ -48,18 +48,19 @@ describe("better-supabase example forward migrations", () => {
           );
           // Declarative files drop `if not exists` and `drop policy`. Replaying
           // them over the migrations has to skip objects and columns the
-          // migrations created and replace policies and constraints.
+          // migrations created and replace policies, triggers and constraints.
           const sql = source
             .replaceAll(
-              /create policy ("[^"]+") on ([^\n]+)\n/giu,
-              "drop policy if exists $1 on $2;\ncreate policy $1 on $2\n",
+              /^create policy ("[^"]+"|\w+) on ((?:"[^"]+"|\w+)\.(?:"[^"]+"|\w+))/gmu,
+              "drop policy if exists $1 on $2;\ncreate policy $1 on $2",
             )
             .replaceAll(
-              /^(alter table [^\n]+) add constraint ("[^"]+")/gmu,
+              /^(alter table [^\n]+) add constraint ("[^"]+"|\w+)/gmu,
               "$1 drop constraint if exists $2;\n$1 add constraint $2",
             )
+            .replaceAll(/^create trigger /gmu, "create or replace trigger ")
             .replaceAll(
-              /^(create (?:schema|table)) (?!if not exists)/gmu,
+              /^(create (?:schema|table|(?:unique )?index)) (?!if not exists)/gmu,
               "$1 if not exists ",
             )
             .replaceAll(
