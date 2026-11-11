@@ -475,12 +475,14 @@ export function pd107(
 
 const ROWS_CALL = /\bpermitted_\w+_rows\s*\(\s*([^()]*?)\s*\)/giu;
 const TENANT_LEAD =
-  /\bpermitted_\w+_id_array\s*\(|\bpermdock_tenant_has\s*\(/iu;
+  /\bpermitted_\w+_id_array\s*\(|\bpermitted_\w+_ids_by_permission\s*\(|\bpermdock_tenant_has\s*\(/iu;
 
 /**
- * PD108: a policy calls `permitted_<resource>_rows(p)` with no tenant argument
- * and no tenant-led predicate beside it. The set covers every tenant the caller
- * can read, so a query for one tenant still scans all of them.
+ * PD108: an app policy calls `permitted_<resource>_rows(p)` with no tenant
+ * argument and no tenant-led predicate beside it. The set covers every tenant
+ * the caller can read, so a query for one tenant still scans all of them. A
+ * generated policy reads the one-argument form only where no tenant can lead
+ * it, so it is not reported.
  */
 export function pd108(
   cwd: string,
@@ -489,6 +491,9 @@ export function pd108(
 ): readonly DoctorFinding[] {
   return policiesOf(statementsOf(cwd, config, files)).flatMap(
     (policy): DoctorFinding[] => {
+      if (policy.generated) {
+        return [];
+      }
       const text = header(policy.text);
       const alone = [...text.matchAll(ROWS_CALL)].some(
         (call) => !group(call, 1).includes(","),
@@ -502,7 +507,7 @@ export function pd108(
           severity: "warning",
           target: `${policy.file}:${policy.table}:${policy.name}`,
           message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policy.table} reads permitted_*_rows without a tenant, so it covers every tenant the caller can read`,
-          fix: "pass the tenant: permitted_<resource>_rows(p, <tenant column>), or lead with <tenant column> = any((select permdock.permitted_<scope>_id_array(p)))",
+          fix: "lead with <tenant column> = any((select permdock.permitted_<scope>_id_array(p))); a tenant argument read from the row, permitted_<resource>_rows(p, <tenant column>), runs once per row (PD103)",
         },
       ];
     },
