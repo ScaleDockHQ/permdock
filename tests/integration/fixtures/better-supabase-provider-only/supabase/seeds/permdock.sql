@@ -1,0 +1,7 @@
+-- permdock:fixtures v1
+-- Dev and test data. Do not copy this file into a migration or a schema file.
+-- user ada 00000000-0000-4000-8000-0000000000a1
+-- user bo 00000000-0000-4000-8000-0000000000b2
+-- tenant acme acme
+-- membership ada acme owner
+-- membership bo acme member

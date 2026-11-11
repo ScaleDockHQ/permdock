@@ -1,0 +1,202 @@
+{
+  "$schema": "https://permdock.com/schemas/catalog-v2.json",
+  "version": 2,
+  "generatedAt": "2026-11-11T13:33:33.994Z",
+  "generator": "permdock@0.25.1",
+  "fingerprint": "sha-256:yERygYH0uKoP4a6YRh0K_vSTtZT17XuU4Uir8g-1viA",
+  "resources": {
+    "projects": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "relations": {
+        "organization": {
+          "field": "organization_id",
+          "memberOf": "organization"
+        }
+      }
+    },
+    "organizations": {
+      "id": "id",
+      "schema": null
+    }
+  },
+  "permissions": [
+    {
+      "key": "organizations.manage",
+      "scope": "organizations:manage",
+      "resource": "organizations",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "projects.delete",
+      "scope": "projects:delete",
+      "resource": "projects",
+      "action": "delete",
+      "arity": "instance",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "projects.list",
+      "scope": "projects:list",
+      "resource": "projects",
+      "action": "list",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "projects.read",
+      "scope": "projects:read",
+      "resource": "projects",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "projects.update",
+      "scope": "projects:update",
+      "resource": "projects",
+      "action": "update",
+      "arity": "instance",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    }
+  ],
+  "scopes": [
+    {
+      "name": "organization",
+      "key": "organization_id"
+    }
+  ],
+  "roles": [
+    {
+      "key": "member",
+      "on": "organization",
+      "assignable": true
+    },
+    {
+      "key": "owner",
+      "on": "organization",
+      "assignable": true,
+      "assigns": [
+        "owner",
+        "member"
+      ]
+    },
+    {
+      "key": "platform-admin",
+      "assignable": false
+    }
+  ],
+  "grants": [
+    {
+      "permission": "organizations.manage",
+      "effect": "allow",
+      "role": "platform-admin",
+      "to": {
+        "kind": "role",
+        "role": "platform-admin",
+        "scope": "global"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "projects.delete",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "projects.list",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "projects.list",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "projects.read",
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "projects.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "projects.update",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    }
+  ]
+}

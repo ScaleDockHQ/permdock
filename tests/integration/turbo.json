@@ -5,6 +5,7 @@
   "tasks": {
     "test:integration": {
       "env": [
+        "PERMDOCK_POSTGRES_BIN",
         "PERMDOCK_SCALE",
         "PERMDOCK_SCALE_TIER",
         "PERMDOCK_SCALE_TIMEOUT_MS",
