@@ -251,15 +251,18 @@ revoke execute on function "permdock".permdock_trusted_role_permissions(text, te
 -- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function "permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')
 returns setof text
-language sql
+language plpgsql
 stable
 set search_path = ''
 as $$
+begin
+  return query
   select g.grant_key
   from pg_catalog.jsonb_array_elements_text(coalesce(
     '{"org":{"payment.approve":{"allow":["payment.approve"],"deny":[]},"payment.read":{"allow":["payment.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
     '[]'::jsonb
-  )) g(grant_key)
+  )) g(grant_key);
+end;
 $$;
 revoke execute on function "permdock".grant_keys(text, text, text) from public, anon;
 grant execute on function "permdock".grant_keys(text, text, text) to authenticated;

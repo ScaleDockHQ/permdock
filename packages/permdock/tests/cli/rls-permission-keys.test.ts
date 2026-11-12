@@ -107,6 +107,12 @@ describe("permission-key helpers", () => {
     expect(text).not.toContain("_for(p_user");
   });
 
+  it("writes grant_keys in PL/pgSQL so a session parses the permission map once", () => {
+    expect(sql(base)).toContain(
+      `"permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')\nreturns setof text\nlanguage plpgsql`,
+    );
+  });
+
   it("adds the forms for a named user in database mode, which no client role may run", () => {
     const text = sql({ ...base, authorize: "database" });
     expect(text).toContain(

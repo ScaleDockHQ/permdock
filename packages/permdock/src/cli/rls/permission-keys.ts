@@ -96,15 +96,18 @@ function grantsFunction(
   return `-- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function ${fn}(p_permission text, p_scope text, p_effect text default 'allow')
 returns setof text
-language sql
+language plpgsql
 stable
 set search_path = ''
 as $$
+begin
+  return query
   select g.grant_key
   from pg_catalog.jsonb_array_elements_text(coalesce(
     ${quoteLiteral(JSON.stringify(map))}::jsonb -> p_scope -> ${current} -> p_effect,
     '[]'::jsonb
-  )) g(grant_key)
+  )) g(grant_key);
+end;
 $$;
 ${grantsSql(fn, "text, text, text", anonExecute)}`;
 }

@@ -386,7 +386,7 @@ describe("permitted_<resource>_match", () => {
       authorize: "database",
     }).sql;
     const body = matchBody(sql);
-    expect(body).toContain("returns boolean\nlanguage sql\nstable");
+    expect(body).toContain("returns boolean\nlanguage plpgsql\nstable");
     expect(body).toContain(
       `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false)`,
     );
@@ -451,7 +451,7 @@ describe("permitted_<resource>_match", () => {
     const item = sql.slice(
       sql.indexOf('"permdock".permitted_item_match(p_row'),
     );
-    expect(item.slice(0, item.indexOf("$$;"))).toContain("language sql");
+    expect(item.slice(0, item.indexOf("$$;"))).toContain("language plpgsql");
     expect(item.slice(0, item.indexOf("$$;"))).toContain(
       `"permdock".permitted_space_rows('space.read', array(select "spaceId"::uuid from permdock_candidates))`,
     );
