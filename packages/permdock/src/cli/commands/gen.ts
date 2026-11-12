@@ -10,6 +10,8 @@ const genFlags = {
     type: "enum",
     options: [
       "constants",
+      "types",
+      "sql",
       "zod",
       "valibot",
       "arktype",
@@ -24,7 +26,8 @@ const genFlags = {
       "bundle",
     ],
     repeatable: true,
-    description: "What to write (default gen.kinds, else constants)",
+    description:
+      "What to write (default gen.kinds, else constants, types and sql)",
     valueHint: "kind",
   },
   out: {

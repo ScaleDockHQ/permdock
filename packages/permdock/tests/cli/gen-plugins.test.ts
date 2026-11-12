@@ -7,7 +7,12 @@ import { z } from "zod";
 import { projectContext } from "../../src/cli/generate/context.ts";
 import { policyModel } from "../../src/cli/generate/model.ts";
 import { runGenerate } from "../../src/cli/generate/pipeline.ts";
-import { constants, factories, messages } from "../../src/cli/plugins/app.ts";
+import {
+  constants,
+  factories,
+  messages,
+  types,
+} from "../../src/cli/plugins/app.ts";
 import {
   arktype,
   jsonSchema,
@@ -65,6 +70,7 @@ describe("typed-module plugins", () => {
       plugins: [
         zod({ specifier: "zod/mini" }),
         constants(),
+        types(),
         valibot(),
         factories(),
       ],
@@ -76,9 +82,8 @@ describe("typed-module plugins", () => {
     });
     expect(run.files.map((file) => file.path)).toStrictEqual([
       "src/permdock/constants.ts",
-      "src/permdock/types.ts",
-      "src/permdock/sql.ts",
       "src/permdock/zod.ts",
+      "src/permdock/types.ts",
       "src/permdock/valibot.ts",
       "src/permdock/factories.ts",
     ]);

@@ -1165,6 +1165,8 @@ export type GenKind =
   | "json-schema"
   | "standard-schema"
   | "constants"
+  | "types"
+  | "sql"
   | "factories"
   | "react"
   | "vue"
@@ -1177,7 +1179,11 @@ export type GenKind =
 export type GenConfig = {
   /** The directory the generated files go to; default `src/permdock`. */
   readonly out?: string;
-  /** The kinds `permdock gen` writes without `--kind`; default `['constants']`. */
+  /**
+   * The kinds `permdock gen` writes without `--kind`; default `['constants',
+   * 'types', 'sql']`. `zod`, `valibot` and `factories` add `types`, which they
+   * import.
+   */
   readonly kinds?: readonly GenKind[];
   /**
    * Also write `fields.ts`: `<resource>Fields` per resource, with each field's

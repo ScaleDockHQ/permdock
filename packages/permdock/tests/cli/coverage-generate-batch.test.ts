@@ -318,8 +318,6 @@ describe("generate coverage", () => {
         [
           "+ echo.txt (+4 bytes, 4 total)",
           "Would create src/permdock/constants.ts",
-          "Would create src/permdock/types.ts",
-          "Would create src/permdock/sql.ts",
         ].join("\n"),
       );
       expect(dry.written).toContain(join(cwd, "echo.txt"));

@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -62,6 +62,8 @@ const CONFIG = `export default {
 
 const KINDS = [
   "constants",
+  "types",
+  "sql",
   "zod",
   "valibot",
   "arktype",
@@ -78,6 +80,8 @@ const KINDS = [
 
 const FILES = {
   constants: "constants.ts",
+  types: "types.ts",
+  sql: "sql.ts",
   zod: "zod.ts",
   valibot: "valibot.ts",
   arktype: "arktype.ts",
@@ -165,9 +169,7 @@ describe("permdock gen", () => {
     for (const kind of KINDS) {
       expect(written.stdout).toContain(`gen/${FILES[kind]}`);
     }
-    for (const sibling of ["types.ts", "sql.ts", "fields.ts"]) {
-      expect(written.stdout).toContain(`gen/${sibling}`);
-    }
+    expect(written.stdout).toContain("gen/fields.ts");
     const check = await generate(dir, [
       ...kinds,
       "--out-dir",
@@ -203,6 +205,23 @@ describe("permdock gen", () => {
     expect(
       readFileSync(path.join(configured, "lib", FILES.zod), "utf8"),
     ).not.toContain("projectFields");
+    expect(existsSync(path.join(configured, "lib", FILES.types))).toBe(true);
+    expect(existsSync(path.join(configured, "lib", FILES.sql))).toBe(false);
+  });
+
+  it("writes only the gen.kinds files, without types.ts or sql.ts", async () => {
+    const configured = fixture(
+      CONFIG.replace(
+        "gen: { fields: true }",
+        "gen: { out: 'lib', kinds: ['constants', 'react'] }",
+      ),
+    );
+    const outcome = await generate(configured, []);
+    expect(outcome.code).toBe(0);
+    expect(readdirSync(path.join(configured, "lib")).toSorted()).toStrictEqual([
+      FILES.constants,
+      FILES.react,
+    ]);
   });
 
   it("reads the policy from --policy and runs without operations", async () => {
@@ -329,6 +348,7 @@ describe("permdock gen", () => {
     beforeAll(async () => {
       const kinds = [
         "constants",
+        "sql",
         "zod",
         "valibot",
         "standard-schema",

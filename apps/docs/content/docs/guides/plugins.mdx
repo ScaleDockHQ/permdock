@@ -37,21 +37,22 @@ The cache key hashes each plugin's name and version, its canonical `options`, th
 
 ## Built-in plugins
 
-| Plugin                                                                | Writes                                                               |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `rls()`                                                               | Helpers, policies, seeds and the split parts                         |
-| `supabaseHook()`                                                      | The Custom Access Token Hook                                         |
-| `supabase()`                                                          | `rls()`, `supabaseHook()` and the manifest in one plugin             |
-| `powersync()`                                                         | Sync Streams for `powersync.resources`                               |
-| `betterSupabase()`                                                    | The better-supabase authorization file                               |
-| `openapi()`                                                           | An annotated document, and the operations map when `routes` is set   |
-| `scim()`                                                              | The SCIM schema file                                                 |
-| `constants()`                                                         | `constants.ts`, `types.ts`, `sql.ts` and, with `fields`, `fields.ts` |
-| `zod()`, `valibot()`, `arktype()`, `jsonSchema()`, `standardSchema()` | Row validators, one file each                                        |
-| `reactHooks()`, `vueHooks()`, `svelteHooks()`, `solidHooks()`         | The adapter's exports bound to the policy                            |
-| `factories()`, `messages()`                                           | Test row factories, the messages skeleton                            |
+| Plugin                                                                | Writes                                                              |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `rls()`                                                               | Helpers, policies, seeds and the split parts                        |
+| `supabaseHook()`                                                      | The Custom Access Token Hook                                        |
+| `supabase()`                                                          | `rls()`, `supabaseHook()` and the manifest in one plugin            |
+| `powersync()`                                                         | Sync Streams for `powersync.resources`                              |
+| `betterSupabase()`                                                    | The better-supabase authorization file                              |
+| `openapi()`                                                           | An annotated document, and the operations map when `routes` is set  |
+| `scim()`                                                              | The SCIM schema file                                                |
+| `constants()`                                                         | `constants.ts` and, with `fields`, `fields.ts`                      |
+| `types()`, `sql()`                                                    | `types.ts`, which the validators and factories import, and `sql.ts` |
+| `zod()`, `valibot()`, `arktype()`, `jsonSchema()`, `standardSchema()` | Row validators, one file each                                       |
+| `reactHooks()`, `vueHooks()`, `svelteHooks()`, `solidHooks()`         | The adapter's exports bound to the policy                           |
+| `factories()`, `messages()`                                           | Test row factories, the messages skeleton                           |
 
-The factories are `rls` from `permdock/cli/plugins/rls`, `supabaseHook` from `permdock/cli/plugins/supabase-hook`, `supabase` from `permdock/cli/plugins/supabase`, `powersync` from `permdock/cli/plugins/powersync`, `betterSupabase` from `permdock/cli/plugins/better-supabase`, `openapi` from `permdock/cli/plugins/openapi`, `scim` from `permdock/cli/plugins/scim`, the schema plugins `zod`, `valibot`, `arktype`, `jsonSchema` and `standardSchema` from `permdock/cli/plugins/schemas`, the hook plugins `reactHooks`, `vueHooks`, `svelteHooks` and `solidHooks` from `permdock/cli/plugins/ui`, and `constants`, `factories` and `messages` from `permdock/cli/plugins/app`.
+The factories are `rls` from `permdock/cli/plugins/rls`, `supabaseHook` from `permdock/cli/plugins/supabase-hook`, `supabase` from `permdock/cli/plugins/supabase`, `powersync` from `permdock/cli/plugins/powersync`, `betterSupabase` from `permdock/cli/plugins/better-supabase`, `openapi` from `permdock/cli/plugins/openapi`, `scim` from `permdock/cli/plugins/scim`, the schema plugins `zod`, `valibot`, `arktype`, `jsonSchema` and `standardSchema` from `permdock/cli/plugins/schemas`, the hook plugins `reactHooks`, `vueHooks`, `svelteHooks` and `solidHooks` from `permdock/cli/plugins/ui`, and `constants`, `types`, `sql`, `factories` and `messages` from `permdock/cli/plugins/app`.
 
 `gen.kinds` in the config is the shorthand for the same plugins and keeps working. `permdock generate --only rls` runs one of them. Repeat `--only` for more than one. Plugin order is the `plugins` array, then each plugin's `after` list.
 

@@ -24,6 +24,8 @@ import {
  */
 export const FILE_NAMES: Readonly<Record<GenKind, string>> = {
   constants: "constants.ts",
+  types: "types.ts",
+  sql: "sql.ts",
   zod: "zod.ts",
   valibot: "valibot.ts",
   arktype: "arktype.ts",
@@ -67,8 +69,8 @@ export type RenderedFile = { readonly name: string; readonly text: string };
 
 /**
  * The files of one `permdock gen` kind; the first is the kind's own file. The
- * caller supplies any previous file. `constants` also writes `types.ts`,
- * `sql.ts` and, with `fields`, `fields.ts`.
+ * caller supplies any previous file. `constants` also writes `fields.ts` with
+ * `fields`.
  */
 export function renderGen(
   kind: GenKind,
@@ -83,14 +85,6 @@ export function renderGen(
     case "constants":
       return [
         ...own(constantsModule(model, header)),
-        {
-          name: "types.ts",
-          text: typesModule(model, generatedHeader("types", context.header)),
-        },
-        {
-          name: "sql.ts",
-          text: sqlModule(model, generatedHeader("sql", context.header)),
-        },
         ...(context.fields
           ? [
               {
@@ -103,6 +97,10 @@ export function renderGen(
             ]
           : []),
       ];
+    case "types":
+      return own(typesModule(model, header));
+    case "sql":
+      return own(sqlModule(model, header));
     case "zod":
     case "valibot":
     case "arktype":

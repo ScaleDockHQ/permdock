@@ -20,6 +20,8 @@ import { genModel } from "./model.ts";
 
 const GEN_KINDS = [
   "constants",
+  "types",
+  "sql",
   "zod",
   "valibot",
   "arktype",
@@ -36,6 +38,20 @@ const GEN_KINDS = [
 
 const DEFAULT_GEN_OUT = "src/permdock";
 
+const DEFAULT_KINDS: readonly GenKind[] = ["constants", "types", "sql"];
+
+const IMPORTS_TYPES: ReadonlySet<GenKind> = new Set([
+  "zod",
+  "valibot",
+  "factories",
+]);
+
+function withImports(kinds: readonly GenKind[]): readonly GenKind[] {
+  return kinds.some((kind) => IMPORTS_TYPES.has(kind))
+    ? [...new Set([...kinds, "types" as const])]
+    : kinds;
+}
+
 function isGenKind(value: unknown): value is GenKind {
   return GEN_KINDS.some((kind) => kind === value);
 }
@@ -43,13 +59,14 @@ function isGenKind(value: unknown): value is GenKind {
 function kindsOf(
   flags: readonly GenKind[],
   config: PermDockConfig,
+  out: string | undefined,
 ): readonly GenKind[] {
   if (flags.length > 0) {
     return [...new Set(flags)];
   }
   const configured = config.gen?.kinds;
   if (configured === undefined) {
-    return ["constants"];
+    return out === undefined ? DEFAULT_KINDS : ["constants"];
   }
   for (const kind of configured) {
     if (!isGenKind(kind)) {
@@ -78,7 +95,7 @@ export type GenInput = {
 
 /** The files `permdock gen` writes: one per kind under the output directory. */
 async function genFiles(input: GenInput): Promise<readonly OutputFile[]> {
-  const kinds = kindsOf(input.kinds, input.config);
+  const kinds = kindsOf(input.kinds, input.config, input.out);
   if (input.out !== undefined && kinds.length > 1) {
     throw new CliError(
       "usage",
@@ -97,7 +114,7 @@ async function genFiles(input: GenInput): Promise<readonly OutputFile[]> {
     config: input.config,
     policy,
     policyPath,
-    kinds,
+    kinds: input.out === undefined ? withImports(kinds) : kinds,
     dir: input.outDir ?? input.config.gen?.out ?? DEFAULT_GEN_OUT,
     ...(input.out === undefined ? {} : { out: input.out }),
   });
