@@ -3,14 +3,12 @@ export type {
   CatalogConfig,
   CollectConfig,
   DoctorConfig,
-  DoctorWaiver,
   GenConfig,
   GenKind,
   PermDockConfig,
 } from "./types-config.ts";
 export type {
   PowerSyncConfig,
-  PowerSyncFollow,
   PowerSyncMemberLevel,
   PowerSyncTable,
 } from "./types-powersync.ts";
@@ -28,18 +26,15 @@ export type {
   RlsAudit,
   RlsCustomRoleAudit,
   RlsCustomRoleTable,
-  RlsCustomRolesConfig,
   RlsCustomRolesFrom,
   RlsMigrateConfig,
   RlsMigrateHelper,
-  RlsMigrateTable,
   RlsShimsConfig,
   RlsTrigger,
 } from "./types-rls-roles.ts";
 export type {
   RlsPermissionRef,
   RlsRealtime,
-  RlsRealtimeTopic,
   RlsStorage,
   RlsStorageBucket,
 } from "./types-rls-surfaces.ts";
@@ -55,7 +50,6 @@ export type {
   RlsSuspension,
   RlsTable,
   RlsTableOwner,
-  RlsTableVia,
   RlsTarget,
 } from "./types-rls.ts";
 export type {
