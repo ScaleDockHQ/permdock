@@ -11,7 +11,7 @@ Conventions are rules: code in `architecture.mdc`, names in `naming.mdc`, prose 
 | Rule                                   | Read it when                                                                |
 | -------------------------------------- | --------------------------------------------------------------------------- |
 | `architecture.mdc`                     | Always on: layout, boundary tags, code rules                                |
-| `git-workflow.mdc`                     | Always on: one branch and one PR per chat or plan, never merge unasked      |
+| `git-workflow.mdc`                     | Always on: at most one open agent PR per repo, never merge unasked          |
 | `writing.mdc`                          | Always on: prose in docs, skills, changesets, comments, commits, PRs        |
 | `source-map.mdc`                       | Changing `packages/permdock`: folder map and a traced call                  |
 | `invariants.mdc`                       | Changing `packages/permdock/src`, `tests` or `apps/examples`                |
@@ -128,7 +128,7 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 
 ## Agent workflow
 
-One branch and one PR per chat or plan, small conventional commits, and merge only when asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end on the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question; never carry it forward.
+At most one open agent PR per repository with new fixes added to it, small conventional commits, and merge only when asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end on the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question; never carry it forward.
 
 ## Deviations and pins
 
