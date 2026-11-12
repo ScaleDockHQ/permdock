@@ -1,14 +1,11 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { ShimGrants } from "./shims.ts";
 
+import { scopeTypeOf } from "../sql/columns.ts";
 import { BOOTSTRAP_PERMISSIONS, memberIdsHelper } from "../sql/names.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { rootName } from "../sql/shared.ts";
-import {
-  checkName,
-  PERMISSION_HELPERS,
-  permissionKeysHelper,
-} from "./permission-keys.ts";
+import { checkName, permissionKeysHelper } from "./permission-keys.ts";
 
 function textArray(values: readonly string[]): string {
   return values.length === 0
@@ -57,7 +54,6 @@ export function bootstrapPermissionsSql(
     .toSorted();
   const memberIds = qualified(ctx, memberIdsHelper(root));
   const held = qualified(ctx, checkName(permissionKeysHelper(root)));
-  const has = qualified(ctx, PERMISSION_HELPERS.has);
   return `-- the caller's permissions in better-supabase's compact BootstrapPermissionsWire: the policy's keys once, a bitset per ${root} the caller is a member of (p_tenant alone when given) and one for platform
 create or replace function ${fn}(p_tenant text default null)
 returns jsonb
@@ -75,8 +71,8 @@ as $$
     where p_tenant is null or t.id::text = p_tenant
   ),
   pdk_p(n) as (
-    select k.n from pdk_k k
-    where k.key = any(${textArray(platform)}) and ${has}(k.key)
+    select k.n from ${held}(null::${scopeTypeOf(ctx, root)}) h(key) join pdk_k k on k.key = h.key
+    where k.key = any(${textArray(platform)})
   )
   select jsonb_strip_nulls(jsonb_build_object(
     'apiVersion', 1,

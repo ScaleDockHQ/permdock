@@ -2627,8 +2627,8 @@ as $$
     where p_tenant is null or t.id::text = p_tenant
   ),
   pdk_p(n) as (
-    select k.n from pdk_k k
-    where k.key = any(array['jobs.read', 'platformRole.manage']::text[]) and "permdock".permdock_has_permission(k.key)
+    select k.n from "permdock".permitted_tenant_permission_keys(null::uuid) h(key) join pdk_k k on k.key = h.key
+    where k.key = any(array['jobs.read', 'platformRole.manage']::text[])
   )
   select jsonb_strip_nulls(jsonb_build_object(
     'apiVersion', 1,
@@ -2699,9 +2699,13 @@ cost 1000
 parallel safe
 set search_path = ''
 as $$
-  with permdock_candidates as (select (p_row).*)
-  select exists (select 1 from permdock_candidates where case p_permission
-    when 'jobs.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read')))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@own')))) and ("owner_id" = (select "permdock".permdock_user_id()))) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@team')))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@all')))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = (select "permdock".permdock_user_id()))) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
+  with permdock_candidates as (select (p_row).*),
+  permdock_hoisted as materialized (
+    select
+    case when p_permission in ('jobs.read') then (select "permdock".permdock_user_id()) end as h1
+  )
+  select exists (select 1 from permdock_candidates, permdock_hoisted where case p_permission
+    when 'jobs.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read')))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@own')))) and ("owner_id" = permdock_hoisted.h1)) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@team')))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@all')))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = permdock_hoisted.h1)) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
     else false
   end)
 $$;
@@ -2717,9 +2721,13 @@ cost 1000
 parallel safe
 set search_path = ''
 as $$
-  select "id"::uuid from "public"."jobs" as permdock_row
+  with permdock_hoisted as materialized (
+    select
+    case when p_permission in ('jobs.read') then (select "permdock".permdock_user_id()) end as h1
+  )
+  select "id"::uuid from "public"."jobs" as permdock_row, permdock_hoisted
   where case p_permission
-    when 'jobs.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read')))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@own')))) and ("owner_id" = (select "permdock".permdock_user_id()))) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@team')))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@all')))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = (select "permdock".permdock_user_id()))) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
+    when 'jobs.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read')))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@own')))) and ("owner_id" = permdock_hoisted.h1)) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@team')))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@all')))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = permdock_hoisted.h1)) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
     else "permdock".permitted_jobs_match(permdock_row, p_permission)
   end
 $$;
@@ -2787,10 +2795,14 @@ cost 1000
 parallel safe
 set search_path = ''
 as $$
-  select "id"::uuid from "public"."jobs" as permdock_row
+  with permdock_hoisted as materialized (
+    select
+    case when p_permission in ('jobs.read') then (select "permdock".permdock_user_id()) end as h1
+  )
+  select "id"::uuid from "public"."jobs" as permdock_row, permdock_hoisted
   where permdock_row."organization_id" = p_tenant
     and case p_permission
-    when 'jobs.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read')))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@own')))) and ("owner_id" = (select "permdock".permdock_user_id()))) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@team')))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@all')))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = (select "permdock".permdock_user_id()))) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
+    when 'jobs.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read')))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@own')))) and ("owner_id" = permdock_hoisted.h1)) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@team')))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@all')))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = permdock_hoisted.h1)) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
     else "permdock".permitted_jobs_match(permdock_row, p_permission)
   end
 $$;

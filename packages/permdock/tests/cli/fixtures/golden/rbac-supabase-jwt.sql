@@ -561,8 +561,8 @@ as $$
     where p_tenant is null or t.id::text = p_tenant
   ),
   pdk_p(n) as (
-    select k.n from pdk_k k
-    where k.key = any(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[]) and "app".permdock_has_permission(k.key)
+    select k.n from "app".permitted_tenant_permission_keys(null::uuid) h(key) join pdk_k k on k.key = h.key
+    where k.key = any(array['post.archive', 'post.create', 'post.delete', 'post.list', 'post.publish', 'post.read', 'post.update']::text[])
   )
   select jsonb_strip_nulls(jsonb_build_object(
     'apiVersion', 1,

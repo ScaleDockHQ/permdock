@@ -135,6 +135,45 @@ describe("rls.apiKeys", () => {
     expect(await as({ sub: ADMIN })).toMatchObject({ read: 4, has: true });
   });
 
+  const permissionKeys = async (
+    claims: Readonly<Record<string, unknown>>,
+  ): Promise<readonly string[]> => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    let keys: readonly string[] = [];
+    await target.as(
+      {
+        role: "authenticated",
+        settings: {
+          "request.jwt.claims": JSON.stringify({
+            role: "authenticated",
+            ...claims,
+          }),
+        },
+      },
+      async () => {
+        const result = await target.tester.query<{ readonly key: string }>(
+          "select k as key from permdock.permitted_tenant_permission_keys('acme') k order by 1",
+        );
+        keys = result.rows.map((row) => row.key);
+      },
+    );
+    return keys;
+  };
+
+  it("caps the permission keys of a user key at its scopes", async () => {
+    const all = await permissionKeys({ sub: ADMIN });
+    expect(all).toContain("task.update");
+    expect(
+      await permissionKeys({
+        sub: ADMIN,
+        api_key: { id: "k2", scopes: ["task.read"] },
+      }),
+    ).toStrictEqual(all.filter((key) => key === "task.read"));
+  });
+
   it("caps a user key at its scopes", async () => {
     expect(
       await as({ sub: MEMBER, api_key: { id: "k1", scopes: ["task.read"] } }),

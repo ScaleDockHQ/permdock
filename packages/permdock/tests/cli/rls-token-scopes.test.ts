@@ -79,7 +79,7 @@ describe("rls token scopes", () => {
         `select "permdock".permdock_token_scope_allows(p_grant) and coalesce((`,
       );
       expect(sql).toContain(
-        `  ) ids(id)\n  where "permdock".permdock_token_scope_allows(p_grant)`,
+        `  ) ids(id)\n  where (select "permdock".permdock_token_scope_allows(p_grant))`,
       );
       expect(sql).toContain(
         `(select "permdock".permdock_token_scope_allows('note.read'))`,
