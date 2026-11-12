@@ -124,7 +124,7 @@ describe("permitted_<resource>_rows", () => {
       `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false) and (("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#2')))) and ("locked" = true)) is not true`,
     );
     expect(sql).toContain(
-      `when 'doc.archive' then coalesce(("ownerId" = (select "permdock".permdock_user_id())), false)`,
+      `when 'doc.archive' then coalesce(("ownerId" = permdock_hoisted.h1), false)`,
     );
     expect(sql).toContain(`when 'doc.update' then`);
     const create = `when 'doc.create' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.create')))), false)`;
@@ -391,7 +391,7 @@ describe("permitted_<resource>_match", () => {
       `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false)`,
     );
     expect(body).toContain(
-      `when 'doc.archive' then coalesce(("ownerId" = (select "permdock".permdock_user_id())), false)`,
+      `when 'doc.archive' then coalesce(("ownerId" = permdock_hoisted.h1), false)`,
     );
     expect(sql).not.toContain("v_permdock_terms");
     expect(sql).not.toContain("jsonb_build_object('t");
@@ -621,6 +621,142 @@ describe("permitted_<resource>_match", () => {
         'revoke execute on function "permdock".permitted_doc_ids(text) from public;',
     });
     expect(hosted).toContain("better_supabase.memo_set");
+  });
+});
+
+describe("row-invariant calls", () => {
+  const hoistPolicy = definePolicy(permissions, {
+    scopes: { tenant: { key: "orgId" } },
+    roles: [role("member", [allow(doc.read)], { on: "tenant" })],
+    grants: [
+      allow(doc.update, {
+        requires: doc.read,
+        to: relation(doc, "owner"),
+        where: { locked: false },
+      }),
+      allow(doc.update, {
+        requires: doc.read,
+        to: relation(doc, "owner"),
+        where: { locked: true, archived: false },
+      }),
+      allow(doc.archive, { to: relation(doc, "owner") }),
+    ],
+    subject: () => null,
+  });
+
+  function hoisted(): string {
+    const ctx = context("supabase");
+    const compiled = compileGrants(
+      hoistPolicy,
+      ctx,
+      undefined,
+      [],
+      false,
+      true,
+    );
+    return rowHelpersSql(
+      ctx,
+      hoistPolicy,
+      [...compiled.branches, ...compiled.actionBranches],
+      ["doc"],
+      { doc: "app.documents" },
+      [],
+    );
+  }
+
+  function rowsBody(sql: string): string {
+    const start = sql.indexOf(
+      'create or replace function "permdock".permitted_doc_rows(p_permission text)',
+    );
+    return sql.slice(start, sql.indexOf("$$;", sql.indexOf("as $$", start)));
+  }
+
+  it("evaluates a call that several arms repeat once, only for the keys that read it", () => {
+    const body = rowsBody(hoisted());
+    expect(body).toContain("with permdock_hoisted as materialized (");
+    expect(body).toContain(
+      'from "app"."documents" as permdock_row, permdock_hoisted',
+    );
+    expect(body).toMatch(
+      /case when p_permission in \('doc\.archive', 'doc\.update'\) then \(select "permdock"\.permdock_user_id\(\)\) end as h\d/u,
+    );
+    expect(body).not.toMatch(
+      /when 'doc\.update' then .*\(select "permdock"\.permdock_user_id\(\)\)/u,
+    );
+    const update = body.slice(body.indexOf("when 'doc.update'"));
+    const column =
+      /case when p_permission in \('doc\.update'\) then array\(select "permdock"\.permitted_tenant_ids_by_permission\('doc\.read'\)\) end as (h\d)/u.exec(
+        body,
+      )?.[1];
+    expect(column).toBeDefined();
+    expect(
+      update.split(`permdock_hoisted.${column ?? ""}`).length,
+    ).toBeGreaterThan(2);
+  });
+
+  it("leaves a call that one arm makes once where it is", () => {
+    const body = rowsBody(generate("supabase", ["doc"]).sql);
+    expect(body).toContain("permitted_tenant_ids('doc.create')");
+    expect(body).not.toMatch(
+      /then array\(select "permdock"\.permitted_tenant_ids\('doc\.create'\)\) end/u,
+    );
+  });
+
+  it("enters only the relation memos its own predicate reads", () => {
+    const two = definePermissions({
+      doc: resource({
+        actions: ["read"],
+        relations: {
+          org: { field: "orgId", memberOf: "tenant" },
+          viewer: { edge: "doc_shares", object: "doc_id", subject: "user_id" },
+        },
+      }),
+      sheet: resource({
+        actions: ["read"],
+        relations: {
+          org: { field: "orgId", memberOf: "tenant" },
+          viewer: {
+            edge: "sheet_shares",
+            object: "sheet_id",
+            subject: "user_id",
+          },
+        },
+      }),
+    });
+    const twoPolicy = definePolicy(two, {
+      scopes: { tenant: { key: "orgId" } },
+      grants: [
+        allow(two.doc.read, { to: relation(two.doc, "viewer") }),
+        allow(two.sheet.read, { to: relation(two.sheet, "viewer") }),
+      ],
+      subject: () => null,
+    });
+    const ctx: RlsSqlContext = {
+      ...context("supabase"),
+      authorize: "database",
+      reuseMemo: true,
+      memoTouches: [],
+    };
+    const compiled = compileGrants(
+      twoPolicy,
+      { ...ctx, candidates: "permdock_candidates" },
+      undefined,
+      [],
+      false,
+      true,
+    );
+    const sql = rowHelpersSql(
+      ctx,
+      twoPolicy,
+      [...compiled.branches, ...compiled.actionBranches],
+      ["doc", "sheet"],
+      undefined,
+      [],
+    );
+    const start = sql.indexOf('"permdock".permitted_doc_match(p_row');
+    const docMatch = sql.slice(start, sql.indexOf("$$;", start));
+    expect(docMatch).toContain("'rel.doc'");
+    expect(docMatch).not.toContain("'rel.sheet'");
   });
 });
 

@@ -82,6 +82,14 @@ export function apiKeyAllowsCall(ctx: RlsSqlContext, grant: string): string {
   return `${qualified(ctx, API_KEY_ALLOWS)}(${grant})`;
 }
 
+export function apiKeyUnlimitedSql(key: string): string {
+  return `${key} is null or ${key} = 'null'::jsonb`;
+}
+
+export function apiKeyClaimSql(ctx: RlsSqlContext, plan: ApiKeysPlan): string {
+  return subjectClaimJsonSql(ctx, plan.claim);
+}
+
 export function apiKeyAllowsSql(
   ctx: RlsSqlContext,
   plan: ApiKeysPlan,
@@ -103,7 +111,7 @@ security definer
 set search_path = ''
 as $$
   select case
-    when k is null or k = 'null'::jsonb then true
+    when ${apiKeyUnlimitedSql("k")} then true
     when exists (
       select 1 from ${qualified(ctx, "role_permissions")} rp
       where rp.grant_key = p_grant and rp.effect = 'deny'

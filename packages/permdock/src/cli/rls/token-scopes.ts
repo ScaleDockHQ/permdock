@@ -31,6 +31,15 @@ export function tokenScopesPlan(
   return { scopes: delegatedScopeMap(permissions, policy.oauthScopes) };
 }
 
+export function tokenScopeUnlimitedSql(ctx: RlsSqlContext): string {
+  const act = subjectClaimJsonSql(ctx, "act");
+  return `coalesce(${subjectClaimSql(ctx, "client_id")}, '') = ''
+      and (${act} is null
+        or ${act} = 'null'::jsonb
+        or (jsonb_typeof(${act}) = 'object'
+          and ${act} ->> 'kind' in ('support', 'impersonation')))`;
+}
+
 export function tokenScopeAllowsCall(
   ctx: RlsSqlContext,
   grant: string,
@@ -67,7 +76,6 @@ export function tokenScopeAllowsSql(
 ): string {
   const fn = qualified(ctx, TOKEN_SCOPE_ALLOWS);
   const map = qualified(ctx, TOKEN_SCOPE_MAP);
-  const act = subjectClaimJsonSql(ctx, "act");
   const grants = anonExecute
     ? `revoke execute on function ${fn}(text) from public;
 grant execute on function ${fn}(text) to anon, authenticated;`
@@ -92,11 +100,7 @@ security definer
 set search_path = ''
 as $$
   select case
-    when coalesce(${subjectClaimSql(ctx, "client_id")}, '') = ''
-      and (${act} is null
-        or ${act} = 'null'::jsonb
-        or (jsonb_typeof(${act}) = 'object'
-          and ${act} ->> 'kind' in ('support', 'impersonation'))) then true
+    when ${tokenScopeUnlimitedSql(ctx)} then true
     when exists (
       select 1 from ${qualified(ctx, "role_permissions")} rp
       where rp.grant_key = p_grant and rp.effect = 'deny'

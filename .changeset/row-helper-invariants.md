@@ -1,0 +1,5 @@
+---
+"permdock": patch
+---
+
+Row helpers evaluate the calls their arms repeat once per call. `permitted_<resource>_rows`, its tenant form and `permitted_<resource>_match` read `permdock_user_id()`, `permdock_has_permission(key)` and `permitted_<scope>_ids_by_permission(key)` from a one-row `permdock_hoisted` CTE when more than one arm names them, computed only for the permissions whose arms read them. With `rls.apiKeys` or `rls.tokenScopes`, every `permdock_api_key_allows` and `permdock_token_scope_allows` call in those helpers first checks once whether the session carries an API key or a delegated token, so a plain session skips them. The match enters only the relation memos its own predicate reads, where it used to enter those of every resource in the policy. Regenerate the RLS SQL to pick this up.
