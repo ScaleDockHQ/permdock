@@ -105,11 +105,13 @@ grant execute on function ${fn}(text) to authenticated;`;
   return `-- API keys: the ${plan.claim} claim's ${plan.scopes} list is a ceiling on every allow; denies always apply, and a request without the claim is not limited
 create or replace function ${fn}(p_grant text)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
 as $$
+begin
+  return (
   select case
     when ${apiKeyUnlimitedSql("k")} then true
     when exists (
@@ -124,6 +126,8 @@ as $$
     )
   end
   from ${keyOf(ctx, plan)}
+  );
+end;
 $$;
 ${grants}`;
 }

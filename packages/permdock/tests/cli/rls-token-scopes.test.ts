@@ -58,7 +58,7 @@ describe("rls token scopes", () => {
       });
       expect(code).toBe(0);
       expect(sql).toContain(
-        'create or replace function "permdock".permdock_token_scope_allows(p_grant text)',
+        'create or replace function "permdock".permdock_token_scope_allows(p_grant text)\nreturns boolean\nlanguage plpgsql',
       );
       expect(sql).toContain(
         'create or replace function "permdock".permdock_token_scope_map()\nreturns jsonb\nlanguage sql\nimmutable',

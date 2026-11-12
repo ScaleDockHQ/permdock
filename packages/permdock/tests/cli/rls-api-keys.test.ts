@@ -100,7 +100,7 @@ describe("rls api keys", () => {
       });
       expect(code).toBe(0);
       expect(sql).toContain(
-        'create or replace function "permdock".permdock_api_key_allows(p_grant text)',
+        'create or replace function "permdock".permdock_api_key_allows(p_grant text)\nreturns boolean\nlanguage plpgsql',
       );
       expect(sql).toContain(
         `select "permdock".permdock_api_key_allows(p_grant) and nullif(((select auth.jwt()) -> 'api_key') ->> 'tenant', '') is null and coalesce((`,
