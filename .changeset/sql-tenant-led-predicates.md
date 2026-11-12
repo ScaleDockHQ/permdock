@@ -1,7 +1,0 @@
----
-"permdock": minor
----
-
-`rls generate` writes the scope-key predicate as `"orgId" = any(array(select permdock.permitted_organization_ids('k')))` instead of `"orgId" in (select …)`, so Postgres reads the array once and uses the tenant index instead of a hashed SubPlan over a Seq Scan; `rls import` reads both forms. The custom-role probe compares `tenant_id` uncast and the custom-role tables gain `custom_role_permissions_probe_idx` and `custom_role_includes_probe_idx`. The closure refresh casts its id array to the id type, not the id column. The helper memo key uses the `session_id` claim instead of an md5 of the whole token. `subject_for` starts from the roles a user holds instead of unioning both custom-role tables. Re-run `permdock generate` and apply the diff.
-
-`rls.tables.<resource>.follows` and a `permitted_<resource>_rows` arm read the parent rows of the caller's tenants through the tenant index when every allow of the permission is a root-scope role; other permissions keep `can_<resource>(parent, …)`. The upward manager walk and the delegation policies cast the parameter, not the column. `rls generate` indexes the `follows` foreign keys, the `walk` parent and user columns, the manager table's user and manager columns with the tenant, and `approval_delegations (delegator, "until")`. The role-key version bump runs as statement triggers over transition tables and skips rows whose key and ids did not change. Member, approval-set and walk helpers carry `cost`, `rows` and `parallel safe`.
