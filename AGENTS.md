@@ -13,6 +13,7 @@ Conventions are rules: code in `architecture.mdc`, names in `naming.mdc`, prose 
 | `architecture.mdc`                     | Always on: layout, boundary tags, code rules                                |
 | `git-workflow.mdc`                     | Always on: one branch and one PR per chat or plan, never merge unasked      |
 | `writing.mdc`                          | Always on: prose in docs, skills, changesets, comments, commits, PRs        |
+| `source-map.mdc`                       | Changing `packages/permdock`: folder map and a traced call                  |
 | `invariants.mdc`                       | Changing `packages/permdock/src`, `tests` or `apps/examples`                |
 | `naming.mdc`                           | Adding or renaming a public name, option, flag, denial reason or wire field |
 | `cli.mdc`                              | Changing `packages/permdock/src/cli`: manifest, effects, envelope, agents   |

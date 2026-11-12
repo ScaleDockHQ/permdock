@@ -1,0 +1,35 @@
+---
+description: Map of packages/permdock/src - which folder owns what, and one traced call from an adapter to a compiled RLS policy
+globs: packages/permdock/**
+alwaysApply: false
+paths:
+  - "packages/permdock/**"
+---
+
+# Source map
+
+`packages/permdock/src` has 63 folders. Each is a subpath export or a layer behind one. Tests mirror the folder under `packages/permdock/tests/<folder>`.
+
+## Layers
+
+- Core: `core` (the `PermDock` instance, decisions, sources, grants, events), `conditions` (condition AST, evaluator, JSON form, SQL compilation), `catalog` (catalog v2 documents and drift), `approvals`, `compile`, `seeds`, `preset`, `app` (`definePermDock`).
+- HTTP adapters, built on `server` and `node`: `hono`, `express`, `fastify`, `elysia`, `nest`, `h3`, `sveltekit`, `astro`, `solid-start`, `tanstack-start`, `trpc`, `orpc`, `next`.
+- Agent adapters, built on `agent`: `ai-sdk`, `claude-agent`, `openai`, `eve`, `mcp`, `a2a`, `webmcp`.
+- UI adapters, built on `client`: `react`, `vue`, `svelte`, `solid`, `react-native`.
+- Identity and tokens: `jwt`, `clerk`, `better-auth`, `scim`, `ssf`, `authzen`, `pdp`.
+- Chat, delivery and cloud: `chat`, `chat-sdk`, `delivery`, `resend`, `cloud`, `workflow`, `workflow-sdk`, `convex`, `terminal`.
+- Data layers: `supabase`, `better-supabase` (RLS, hooks, stores), `drizzle`, `kysely`, `prisma` (ORM `where` compilers), `openapi`, `otel`.
+- Tooling: `cli` (the `permdock` bin; 343 files; commands load on demand), `testing` (`permdock/testing`), `unplugin`.
+
+## Trace: a protected Hono route to its RLS policy
+
+1. `hono/create.ts` builds the middleware from `server/bind.ts`; `server/route-guard.ts` reads the route's `Policy`.
+2. `server/credentials.ts` and the subject provider (`jwt/`) resolve the `Subject`; authentication stays upstream.
+3. `core/permdock.ts` (`getPermDock`) answers the check from the frozen instance: sources for memberships and grants, conditions from `conditions/condition-evaluate.ts`, outcome `granted`, `denied` or `approval-required`.
+4. A denial leaves through `server/problem.ts` as RFC 9457 Problem Details.
+5. The same condition AST compiles to SQL in `conditions/compile.ts` and `conditions/graph-sql.ts`; `cli/sql` and `cli/rls` turn it into the policy and helper bodies (`permdock rls`).
+6. Tests: `tests/hono/hono.test.ts` for the route, `tests/conditions` for the AST, `tests/cli` for the emitted SQL, `tests/integration` (Docker, or `PERMDOCK_POSTGRES_BIN`) for RLS parity.
+
+## Large files
+
+`cli/types.ts` is split by command area. Search a file before reading it whole; the largest are in `cli/rls`, `cli/sql`, `core/permdock.ts` and `testing/cloud-api/document.ts`.
