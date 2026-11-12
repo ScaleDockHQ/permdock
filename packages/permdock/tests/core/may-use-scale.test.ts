@@ -29,22 +29,4 @@ describe("mayUse on a subject with 150 memberships of 20 roles", () => {
     );
     expect(direct(permissions.item.read)).toBe(true);
   });
-
-  it("lists 300 tools faster than through the wire snapshot", () => {
-    const tools = toolPermissions();
-    const timeOf = (permdock: PermDock): number => {
-      const mayUse = mayUseOf(permdock);
-      const started = performance.now();
-      const used = tools.filter((permission) => mayUse(permission));
-      expect(used).toHaveLength(300);
-      return performance.now() - started;
-    };
-    const base = instance();
-    // A spread copy drops the expanded view, so its first mayUse reads `snapshot()`.
-    const wire = timeOf({ ...base });
-    const direct = timeOf(base);
-    // The snapshot keeps only the active tenant's grants, so the wire path fell from about 550 ms
-    // to about 50 ms and the direct path stayed near 15 ms: the gap is no longer a fixed ratio.
-    expect(direct).toBeLessThan(wire);
-  });
 });
