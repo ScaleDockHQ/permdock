@@ -32,18 +32,18 @@ pnpm run verify
 
 Useful scripts:
 
-| Command                  | What it does                                         |
-| ------------------------ | ---------------------------------------------------- |
-| `pnpm run verify`        | Every CI gate except integration and runtimes        |
-| `pnpm run check:publish` | publint and arethetypeswrong on publishable packages |
-| `pnpm run format`        | Format with Oxfmt                                    |
-| `pnpm run lint`          | Lint with Oxlint                                     |
-| `pnpm run fix`           | Format, then apply Oxlint fixes                      |
-| `pnpm run dev:portless`  | Marketing and docs at `https://permdock.localhost`   |
-| `pnpm run build`         | `turbo run build`                                    |
-| `pnpm run test`          | `turbo run test`                                     |
-| `pnpm run typecheck`     | `turbo run typecheck`                                |
-| `pnpm changeset`         | Add a changeset for a user-visible change            |
+| Command                  | What it does                                       |
+| ------------------------ | -------------------------------------------------- |
+| `pnpm run verify`        | Every CI gate except integration and runtimes      |
+| `pnpm run check:publish` | publint on publishable packages                    |
+| `pnpm run format`        | Format with Oxfmt                                  |
+| `pnpm run lint`          | Lint with Oxlint                                   |
+| `pnpm run fix`           | Format, then apply Oxlint fixes                    |
+| `pnpm run dev:portless`  | Marketing and docs at `https://permdock.localhost` |
+| `pnpm run build`         | `turbo run build`                                  |
+| `pnpm run test`          | `turbo run test`                                   |
+| `pnpm run typecheck`     | `turbo run typecheck`                              |
+| `pnpm changeset`         | Add a changeset for a user-visible change          |
 
 ## Adding a workspace
 
