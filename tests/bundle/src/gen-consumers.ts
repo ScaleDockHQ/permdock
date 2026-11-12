@@ -30,7 +30,7 @@ const FIXTURE = join(HERE, "fixtures", "gen-shake");
 
 const CONFIG = (zod: string, out: string): string => `export default {
   policy: "./policy.ts",
-  gen: { out: "${out}", kinds: ["constants", "zod", "valibot", "standard-schema"]${zod} },
+  gen: { out: "${out}", kinds: ["constants", "sql", "zod", "valibot", "standard-schema"]${zod} },
   rls: {
     tables: { alpha: "public.alphas", beta: "public.betas" },
     realtime: {
