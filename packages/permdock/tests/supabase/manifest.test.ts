@@ -35,6 +35,27 @@ describe(parseSupabaseManifest, () => {
     expect(Object.isFrozen(manifest.rls.scopes)).toBe(true);
   });
 
+  it("reads the interactive-only helper that rls generate writes", () => {
+    const manifest = parseSupabaseManifest({
+      ...supabaseHookManifestFixture,
+      rls: {
+        ...supabaseHookManifestFixture.rls,
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          {
+            name: "permdock_interactive_allows",
+            args: "p_grant text",
+            returns: "boolean",
+            execute: ["authenticated"],
+          },
+        ],
+      },
+    });
+    expect(manifest.rls.helpers.at(-1)?.name).toBe(
+      "permdock_interactive_allows",
+    );
+  });
+
   it("refuses another major, a missing field and an unknown property", () => {
     const cases: readonly [unknown, RegExp][] = [
       [
