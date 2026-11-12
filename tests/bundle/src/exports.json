@@ -999,7 +999,14 @@
     "zod"
   ],
   "./cli/plugins/ui": ["reactHooks", "solidHooks", "svelteHooks", "vueHooks"],
-  "./cli/plugins/app": ["bundle", "constants", "factories", "messages"],
+  "./cli/plugins/app": [
+    "bundle",
+    "constants",
+    "factories",
+    "messages",
+    "sql",
+    "types"
+  ],
   "./unplugin": ["createPermDockUnplugin"],
   "./next/plugin": ["createPermDockPlugin"],
   "./next/client": ["PermissionBoundary", "usePermissionBoundary"]

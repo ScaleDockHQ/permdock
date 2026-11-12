@@ -22,6 +22,8 @@ export type ConstantsPluginOptions = GenKindPluginOptions & {
 /** The kebab name each kind's plugin and file carry. */
 const FILE: Readonly<Record<GenKind, string>> = {
   constants: "constants.ts",
+  types: "types.ts",
+  sql: "sql.ts",
   zod: "zod.ts",
   valibot: "valibot.ts",
   arktype: "arktype.ts",

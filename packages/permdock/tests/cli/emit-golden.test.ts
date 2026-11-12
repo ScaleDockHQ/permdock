@@ -114,35 +114,34 @@ describe("emitted parts", () => {
       scopes: {},
       resources: {},
     } as unknown as GenModel["names"];
-    const text = renderGen(
-      "constants",
-      {
-        resources: [],
-        operations: [],
-        scopes: [],
-        roles: [],
-        plans: [],
-        names,
-        topics: [],
-        labels: { permissions: [], roles: [] },
-        buckets: [],
-      },
-      {
-        fields: false,
-        zodSpecifier: "zod",
-        rel: "src/permdock/constants.ts",
-        file: "/tmp/constants.ts",
-        policy: "/tmp/policy.ts",
-        previous: undefined,
-        header: { version: "0.0.0", policy: "policy.ts", hash: "digest" },
-      },
-    );
-    expect(text.map((file) => file.name)).toStrictEqual([
+    const render = (kind: "constants" | "sql") =>
+      renderGen(
+        kind,
+        {
+          resources: [],
+          operations: [],
+          scopes: [],
+          roles: [],
+          plans: [],
+          names,
+          topics: [],
+          labels: { permissions: [], roles: [] },
+          buckets: [],
+        },
+        {
+          fields: false,
+          zodSpecifier: "zod",
+          rel: "src/permdock/constants.ts",
+          file: "/tmp/constants.ts",
+          policy: "/tmp/policy.ts",
+          previous: undefined,
+          header: { version: "0.0.0", policy: "policy.ts", hash: "digest" },
+        },
+      );
+    expect(render("constants").map((file) => file.name)).toStrictEqual([
       "constants.ts",
-      "types.ts",
-      "sql.ts",
     ]);
-    expect(text[2]?.text).toContain("helperSchema");
-    expect(text[0]?.text).toContain("export const roleNames");
+    expect(render("constants")[0]?.text).toContain("export const roleNames");
+    expect(render("sql")[0]?.text).toContain("helperSchema");
   });
 });

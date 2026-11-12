@@ -8,39 +8,41 @@ description: Write typed constants, row validators, JSON Schema and test factori
 ## Usage
 
 ```bash
-permdock gen                                  # gen.kinds, else constants, under gen.out, else src/permdock
+permdock gen                                  # gen.kinds, else constants, types and sql, under gen.out, else src/permdock
 permdock gen --kind zod --kind factories      # pick the kinds
 permdock gen --kind constants --out -         # one kind to stdout
 permdock gen --check                          # CI: exit 1 when a file differs; write nothing
 ```
 
-| Flag                | Meaning                                                                                      |
-| ------------------- | -------------------------------------------------------------------------------------------- |
-| `--kind <kind>`     | What to write, repeatable; default `gen.kinds`, else `constants`. The kinds are listed below |
-| `--out <file>`      | The file for a single kind, without its siblings; `-` prints it on stdout                    |
-| `--out-dir <dir>`   | The directory for the files; default `gen.out`, else `src/permdock`                          |
-| `--check`           | Exit `1` when a file on disk differs from what `gen` would write; write nothing              |
-| `--dry-run`         | Print what would change; write nothing                                                       |
-| `--policy <module>` | The module exporting the policy; default `policy` in `permdock.config.ts`                    |
+| Flag                | Meaning                                                                                                         |
+| ------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `--kind <kind>`     | What to write, repeatable; default `gen.kinds`, else `constants`, `types` and `sql`. The kinds are listed below |
+| `--out <file>`      | The file for a single kind, without its siblings; `-` prints it on stdout                                       |
+| `--out-dir <dir>`   | The directory for the files; default `gen.out`, else `src/permdock`                                             |
+| `--check`           | Exit `1` when a file on disk differs from what `gen` would write; write nothing                                 |
+| `--dry-run`         | Print what would change; write nothing                                                                          |
+| `--policy <module>` | The module exporting the policy; default `policy` in `permdock.config.ts`                                       |
 
 ## Output
 
 Output is a directory, `src/permdock` by default, with one file per kind named after the kind. There is no barrel: a barrel would join `"use client"` and `server-only` modules under one import.
 
-| Kind                              | Files                                         | Exports                                                                                                                                                                    |
-| --------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `constants`                       | `constants.ts`, `types.ts`, `sql.ts`          | `scopeNames`, `roleNames`, `permissionKeys`, `planNames`, `operationNames` and their unions; `<name>Topic`, `<name>Path`; `<Resource>Row` types; one export per SQL helper |
-| `zod`                             | `zod.ts`                                      | `<resource>Row`, `<operation>Result`                                                                                                                                       |
-| `valibot`                         | `valibot.ts`                                  | The same, as Valibot schemas                                                                                                                                               |
-| `arktype`                         | `arktype.ts`                                  | The same, as ArkType types                                                                                                                                                 |
-| `standard-schema`                 | `standard-schema.ts`                          | The same, through `resourceSchemaFromJson` from `permdock/catalog`; no validator library                                                                                   |
-| `json-schema`                     | `json-schema.json`                            | The row JSON Schemas under `resources`, `<operation>.results` as `$ref` arrays                                                                                             |
-| `factories`                       | `factories.ts`                                | `<resource>Factory`, `subjectFactory`, `resetFactories`; imports `permdock/testing`                                                                                        |
-| `react`, `vue`, `svelte`, `solid` | `react.ts`, `vue.ts`, `svelte.ts`, `solid.ts` | The adapter's exports by name, with the instance getter and roles reader bound to the policy                                                                               |
-| `messages`                        | `messages.json`                               | Titles, denial reasons, permission and role labels                                                                                                                         |
-| `bundle`                          | `bundle.ts`                                   | `clientBundle`: every declared role's grants, pinned by digest, in a `"use client"` module                                                                                 |
+| Kind                              | Files                                         | Exports                                                                                                                  |
+| --------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `constants`                       | `constants.ts`                                | `scopeNames`, `roleNames`, `permissionKeys`, `planNames`, `operationNames` and their unions; `<name>Topic`, `<name>Path` |
+| `types`                           | `types.ts`                                    | `<Resource>Row` types                                                                                                    |
+| `sql`                             | `sql.ts`                                      | One export per SQL helper                                                                                                |
+| `zod`                             | `zod.ts`                                      | `<resource>Row`, `<operation>Result`                                                                                     |
+| `valibot`                         | `valibot.ts`                                  | The same, as Valibot schemas                                                                                             |
+| `arktype`                         | `arktype.ts`                                  | The same, as ArkType types                                                                                               |
+| `standard-schema`                 | `standard-schema.ts`                          | The same, through `resourceSchemaFromJson` from `permdock/catalog`; no validator library                                 |
+| `json-schema`                     | `json-schema.json`                            | The row JSON Schemas under `resources`, `<operation>.results` as `$ref` arrays                                           |
+| `factories`                       | `factories.ts`                                | `<resource>Factory`, `subjectFactory`, `resetFactories`; imports `permdock/testing`                                      |
+| `react`, `vue`, `svelte`, `solid` | `react.ts`, `vue.ts`, `svelte.ts`, `solid.ts` | The adapter's exports by name, with the instance getter and roles reader bound to the policy                             |
+| `messages`                        | `messages.json`                               | Titles, denial reasons, permission and role labels                                                                       |
+| `bundle`                          | `bundle.ts`                                   | `clientBundle`: every declared role's grants, pinned by digest, in a `"use client"` module                               |
 
-`gen.fields: true` also writes `fields.ts`. `--out <file>` writes one kind's own file and not its siblings; the validator, factory and hook files import `./types.ts` and `./constants.ts`, so keep them in one directory.
+`gen` writes only the kinds you list. `zod`, `valibot` and `factories` import `./types.ts`, so they add `types`; the factory and hook files import `./constants.ts`, so list `constants` with them and keep them in one directory. `gen.fields: true` also writes `fields.ts` with `constants`. `--out <file>` writes one kind's own file and not its siblings.
 
 Every module starts with `// @generated by permdock generate <kind>@<version> from <policy> sha-256:<digest>; do not edit`. The digest is the model's, so a stale file shows without a cache.
 
