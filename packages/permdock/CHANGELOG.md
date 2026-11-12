@@ -1,5 +1,11 @@
 # permdock
 
+## 0.27.2
+
+### Patch Changes
+
+- [#331](https://github.com/ScaleDockHQ/permdock/pull/331) [`da7d06f`](https://github.com/ScaleDockHQ/permdock/commit/da7d06f50b9794efdff28e0a60499ce7399371c8) Thanks [@mick340](https://github.com/mick340)! - `grant_keys` and `permitted_<resource>_match` are now PL/pgSQL. A `can_<resource>(row, permission)` policy calls the match once per row, and Postgres never inlines a `security definer` SQL function, so it parsed and planned the body and the permission map again for each row. PL/pgSQL keeps the parsed statements for the session. In an adopting app, a list of 46 rows behind a `can_<resource>` select policy drops from about 39 ms to 7 ms, and a single-row read drops from 1.7 ms to 1.0 ms. Run `permdock generate` to pick up the new helpers.
+
 ## 0.27.1
 
 ### Patch Changes
