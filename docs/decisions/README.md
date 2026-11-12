@@ -72,3 +72,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0066](./0066-pnpm-store-saved-once.md)                           | The pnpm store is saved from the static job only                                                       |
 | [0067](./0067-better-supabase-0-58-0-floor-and-release-age.md)    | better-supabase 0.58.0 is the peer floor, 0.58.3 the catalog pin, and both skip the release age        |
 | [0068](./0068-cli-contract-3.md)                                  | PermDock moves to better-supabase's CLI contract 3                                                     |
+| [0069](./0069-staged-lint-on-commit.md)                           | Staged lint on commit, the affected gate on push                                                       |
