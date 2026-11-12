@@ -1,4 +1,4 @@
-# .git stays: ignoreCommand runs turbo query affected against it.
+# .git stays: scripts/vercel-ignore-build.sh diffs against it.
 **/.next
 **/.turbo
 **/.source

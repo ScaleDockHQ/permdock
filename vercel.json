@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["fra1"],
+  "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
   "git": {
     "deploymentEnabled": {
       "*": false,
@@ -15,7 +16,6 @@
       "framework": "nextjs",
       "installCommand": "corepack enable && corepack prepare pnpm@12.18.0 --activate && corepack pnpm@12.18.0 install --frozen-lockfile --filter '{.}...' --include-workspace-root",
       "buildCommand": "mkdir -p /tmp/corepack && corepack enable --install-directory /tmp/corepack pnpm && corepack prepare pnpm@12.18.0 --activate && export PATH=\"/tmp/corepack:$PATH\" && corepack pnpm@12.18.0 exec turbo run build --filter=docs",
-      "ignoreCommand": "npx -y turbo@2.11.8 query affected --packages docs --exit-code ${VERCEL_GIT_PREVIOUS_SHA:+--base $VERCEL_GIT_PREVIOUS_SHA} >/dev/null; test $? -eq 0",
       "rewrites": [
         {
           "source": "/docs/_next/:path*",
@@ -27,8 +27,7 @@
       "root": "apps/marketing",
       "framework": "nextjs",
       "installCommand": "corepack enable && corepack prepare pnpm@12.18.0 --activate && corepack pnpm@12.18.0 install --frozen-lockfile --filter '{.}...' --include-workspace-root",
-      "buildCommand": "mkdir -p /tmp/corepack && corepack enable --install-directory /tmp/corepack pnpm && corepack prepare pnpm@12.18.0 --activate && export PATH=\"/tmp/corepack:$PATH\" && corepack pnpm@12.18.0 exec turbo run build --filter=marketing",
-      "ignoreCommand": "npx -y turbo@2.11.8 query affected --packages marketing --exit-code ${VERCEL_GIT_PREVIOUS_SHA:+--base $VERCEL_GIT_PREVIOUS_SHA} >/dev/null; test $? -eq 0"
+      "buildCommand": "mkdir -p /tmp/corepack && corepack enable --install-directory /tmp/corepack pnpm && corepack prepare pnpm@12.18.0 --activate && export PATH=\"/tmp/corepack:$PATH\" && corepack pnpm@12.18.0 exec turbo run build --filter=marketing"
     }
   },
   "rewrites": [
