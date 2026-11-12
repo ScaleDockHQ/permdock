@@ -132,12 +132,10 @@ describe(`better-supabase ${version} same_tenant on a role with a null tenant`, 
     expect(await assign(db, 13, OTHER_ROLE)).toStrictEqual(MISMATCH);
   });
 
-  it("treats a derived entry over a nullable tenant column as shared from 0.58.1 on", async () => {
+  it("treats a derived entry over a nullable tenant column as shared", async () => {
     const db = await database({ auto: true });
-    // 0.58.0 derived every entry strict; 0.58.1 sets shared when the referenced tenant column may be null.
-    expect(await assign(db, 12, SYSTEM_ROLE)).toStrictEqual(
-      version === "0.58.0" ? MISMATCH : "ok",
-    );
+    // better-supabase sets shared when the referenced tenant column may be null.
+    expect(await assign(db, 12, SYSTEM_ROLE)).toBe("ok");
     expect(await assign(db, 13, OTHER_ROLE)).toStrictEqual(MISMATCH);
   });
 });

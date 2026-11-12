@@ -151,7 +151,7 @@ async function failedChecks(
   }
 }
 
-describe("better-supabase 0.26 to 0.58", () => {
+describe("better-supabase 0.26 to 0.63", () => {
   it.each(providers)(
     "0.27: every template of %s passes the template tokenizer",
     async (_, options) => {
@@ -276,7 +276,7 @@ describe("better-supabase 0.26 to 0.58", () => {
     expect(hits).toStrictEqual([]);
   });
 
-  // From the 0.57 to 0.58 migration guide; `api/naming.json` is not in the package.
+  // From the 0.57 to 0.58 migration guide, the type and function renames of `api/naming.json`.
   it("0.58: no consumer file keeps a name 0.58 renames", () => {
     const old = [
       ...[
