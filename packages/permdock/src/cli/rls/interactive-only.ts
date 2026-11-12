@@ -51,13 +51,17 @@ grant execute on function ${fn}(text) to authenticated;`;
   return `-- Interactive-only permissions: only a user's own session holds them; an API key, an OAuth client or an act chain never does, whatever its scopes
 create or replace function ${fn}(p_grant text)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
 as $$
+begin
+  return (
   select split_part(split_part(p_grant, '#', 1), '@', 1) <> all (array[${keys.map(quoteLiteral).join(", ")}]::text[])
     or ${interactiveSessionSql(ctx)}
+  );
+end;
 $$;
 ${grants}`;
 }

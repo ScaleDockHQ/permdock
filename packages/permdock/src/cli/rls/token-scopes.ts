@@ -94,11 +94,13 @@ revoke execute on function ${map}() from public, anon, authenticated;
 -- Token scopes: a delegated token holds only the permissions its scope claim maps to; denies always apply, and a token without client_id or an agent act is not limited
 create or replace function ${fn}(p_grant text)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
 as $$
+begin
+  return (
   select case
     when ${tokenScopeUnlimitedSql(ctx)} then true
     when exists (
@@ -113,6 +115,8 @@ as $$
           ? split_part(split_part(p_grant, '#', 1), '@', 1)
     )
   end
+  );
+end;
 $$;
 ${grants}`;
 }

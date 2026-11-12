@@ -65,7 +65,7 @@ describe("rls generate with interactive-only permissions", () => {
       memberships: MEMBERSHIPS,
     });
     expect(sql).toContain(
-      `create or replace function "permdock".permdock_interactive_allows(p_grant text)`,
+      `create or replace function "permdock".permdock_interactive_allows(p_grant text)\nreturns boolean\nlanguage plpgsql`,
     );
     expect(sql).toContain(`<> all (array['post.transfer']::text[])`);
     expect(sql).toContain(`((select auth.jwt()) -> 'api_key') is null`);

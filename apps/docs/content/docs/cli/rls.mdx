@@ -131,7 +131,7 @@ create policy "post_select" on "post" as permissive for select to authenticated
       or ("orgId" in (select "permdock".permitted_tenant_ids('post.read'))));
 ```
 
-`grant_keys` and `permitted_<resource>_match` are `language plpgsql` instead. `can_<resource>(row, permission)` calls the match once per row, and a `security definer` SQL function is never inlined, so Postgres parsed and planned its body, and the permission map in `grant_keys`, again for every row. A PL/pgSQL function keeps its parsed statements for the session, so a per-row check costs one execution of a cached plan.
+`grant_keys`, `permitted_<resource>_match` and the ceiling checks `permdock_api_key_allows`, `permdock_token_scope_allows` and `permdock_interactive_allows` are `language plpgsql` instead. `can_<resource>(row, permission)` calls the match once per row, and a `security definer` SQL function is never inlined, so Postgres parsed and planned its body, and the permission map in `grant_keys`, again for every row. The ceiling checks run once for every grant key a helper reads, and planning `permdock_token_scope_allows` also folded the whole scope map each time. A PL/pgSQL function keeps its parsed statements for the session, so a per-row check costs one execution of a cached plan.
 
 A grant key is the permission key. When roles grant one permission with different portable conditions (or effects), each condition group gets its own key, `post.update#1`, `post.update#2`, and becomes one OR branch with its condition ANDed on. Row conditions (`where`, `relation`, `principal.id`) stay in the policy; resource-scoped roles keep their `exists` join over the mapped membership table.
 
