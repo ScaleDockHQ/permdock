@@ -20,6 +20,7 @@ import {
 import { HELPERS } from "../sql/shared.ts";
 import { subjectIdSql } from "../sql/subject.ts";
 import { memoHitList, memoizedSetofSql, memoizes } from "./helper-bodies.ts";
+import { HOISTED, hoistInvariants } from "./hoist.ts";
 import { memoUserSql } from "./interactive-only.ts";
 import {
   PERMISSION_HELPERS,
@@ -124,8 +125,7 @@ function usingOf(branches: readonly CompiledBranch[]): string | undefined {
   return parts.length === 0 ? undefined : orSql(parts);
 }
 
-function permissionCase(
-  key: string,
+function permissionArm(
   branches: readonly CompiledBranch[],
 ): string | undefined {
   const allow = usingOf(branches.filter((branch) => branch.effect === "allow"));
@@ -134,7 +134,41 @@ function permissionCase(
   }
   const deny = usingOf(branches.filter((branch) => branch.effect === "deny"));
   const granted = `coalesce((${allow}), false)`;
-  return `    when ${quoteLiteral(key)} then ${deny === undefined ? granted : `${granted} and (${deny}) is not true`}`;
+  return deny === undefined ? granted : `${granted} and (${deny}) is not true`;
+}
+
+type CaseSql = { readonly where: string; readonly hoisted: string | undefined };
+
+function caseSql(
+  ctx: RlsSqlContext,
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
+  otherwise: string,
+): CaseSql {
+  const arms = [...branches.keys()].toSorted().flatMap((key) => {
+    const sql = permissionArm(branches.get(key) ?? []);
+    return sql === undefined ? [] : [{ key, sql }];
+  });
+  if (arms.length === 0) {
+    return { where: otherwise, hoisted: undefined };
+  }
+  const hoisted = hoistInvariants(ctx, arms);
+  const cases = hoisted.arms.map(
+    (arm) => `    when ${quoteLiteral(arm.key)} then ${arm.sql}`,
+  );
+  return {
+    where: `case p_permission\n${cases.join("\n")}\n    else ${otherwise}\n  end`,
+    hoisted: hoisted.columns,
+  };
+}
+
+function hoistedCte(hoisted: string | undefined): string {
+  return hoisted === undefined
+    ? ""
+    : `${HOISTED} as materialized (\n    select\n    ${hoisted}\n  )`;
+}
+
+function fromHoisted(hoisted: string | undefined): string {
+  return hoisted === undefined ? "" : `, ${HOISTED}`;
 }
 
 function forUserSql(
@@ -237,10 +271,11 @@ function matchSql(
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
   const fn = qualified(ctx, matchHelper(node.name));
+  const { where, hoisted } = caseSql(ctx, branches, "false");
   const seenTouch = new Set<string>();
   const touches = (ctx.memoTouches ?? [])
     .filter((touch) => {
-      if (seenTouch.has(touch.call)) {
+      if (seenTouch.has(touch.call) || !where.includes(touch.call)) {
         return false;
       }
       seenTouch.add(touch.call);
@@ -260,8 +295,8 @@ security definer
 ${plannerOf(ctx)}
 set search_path = ''
 as $$
-  with ${CANDIDATES} as (select (p_row).*)
-  select exists (select 1 from ${CANDIDATES} where ${guard}${whereOf(branches)})
+  with ${CANDIDATES} as (select (p_row).*)${hoisted === undefined ? "" : `,\n  ${hoistedCte(hoisted)}`}
+  select exists (select 1 from ${CANDIDATES}${fromHoisted(hoisted)} where ${guard}${where})
 $$;
 revoke execute on function ${fn}(${table}, text) from public, anon;
 grant execute on function ${fn}(${table}, text) to authenticated;`;
@@ -274,9 +309,7 @@ function rowSql(ctx: RlsSqlContext, node: ResourceNode, table: string): string {
 returns boolean
 language sql
 stable
-security definer
 ${plannerOf(ctx)}
-set search_path = ''
 as $$
   select ${match}(p_row, p_permission)
 $$;
@@ -313,18 +346,6 @@ as $$
 $$;
 revoke execute on function ${fn}(${idType}, text) from public, anon;
 grant execute on function ${fn}(${idType}, text) to authenticated;`;
-}
-
-function whereOf(
-  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
-): string {
-  const cases = [...branches.keys()].toSorted().flatMap((key) => {
-    const sql = permissionCase(key, branches.get(key) ?? []);
-    return sql === undefined ? [] : [sql];
-  });
-  return cases.length === 0
-    ? "false"
-    : `case p_permission\n${cases.join("\n")}\n    else false\n  end`;
 }
 
 function candidatesSql(
@@ -539,23 +560,27 @@ $$;
 ${grants}`;
 }
 
-/**
- * The `where` of `permitted_<resource>_rows(p_permission)`: one arm per key, as
- * the table's policy states it, and the match for a key the resource does not
- * declare.
- */
-function rowsWhereSql(
+function rowsCaseSql(
   ctx: RlsSqlContext,
   node: ResourceNode,
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
+): CaseSql {
+  return caseSql(
+    ctx,
+    branches,
+    `${qualified(ctx, matchHelper(node.name))}(${ROW}, p_permission)`,
+  );
+}
+
+function rowsQuery(
+  head: string,
+  table: string,
+  where: string,
+  cases: CaseSql,
 ): string {
-  const match = `${qualified(ctx, matchHelper(node.name))}(${ROW}, p_permission)`;
-  const arms = [...branches]
-    .toSorted(([a], [b]) => Number(a > b) - Number(a < b))
-    .flatMap(([key, list]) => permissionCase(key, list) ?? []);
-  return arms.length === 0
-    ? match
-    : `case p_permission\n${arms.join("\n")}\n    else ${match}\n  end`;
+  const cte = hoistedCte(cases.hoisted);
+  return `${cte === "" ? "" : `with ${cte}\n  `}${head} from ${table} as ${ROW}${fromHoisted(cases.hoisted)}
+  where ${where}${cases.where}`;
 }
 
 /**
@@ -623,9 +648,12 @@ ${rowSetFunctionSql(ctx, {
     ["p_tenant", tenantType],
   ],
   idType,
-  query: `select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
-  where ${ROW}.${quoteIdent(column)} = p_tenant
-    and ${rowsWhereSql(ctx, node, branches)}`,
+  query: rowsQuery(
+    `select ${quoteIdent(node.id)}::${idType}`,
+    table,
+    `${ROW}.${quoteIdent(column)} = p_tenant\n    and `,
+    rowsCaseSql(ctx, node, branches),
+  ),
 })}
 -- ${node.name}: how many of them the caller may act on, counted up to p_cap
 create or replace function ${count}(p_permission text, p_tenant ${tenantType}, p_cap integer)
@@ -663,8 +691,12 @@ ${rowSetFunctionSql(ctx, {
   node,
   params: [["p_permission", "text"]],
   idType,
-  query: `select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
-  where ${rowsWhereSql(ctx, node, branches)}`,
+  query: rowsQuery(
+    `select ${quoteIdent(node.id)}::${idType}`,
+    table,
+    "",
+    rowsCaseSql(ctx, node, branches),
+  ),
 })}
 ${candidatesSql(fn, table, quoteIdent(node.id), idType, match)}
 ${idsInSql(ctx, node, fn, idType)}
