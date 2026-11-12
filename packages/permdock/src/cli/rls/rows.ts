@@ -289,14 +289,18 @@ function matchSql(
   const guard = touches === "" ? "" : `${touches} and `;
   return `create or replace function ${fn}(p_row ${table}, p_permission text)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 ${plannerOf(ctx)}
 set search_path = ''
 as $$
+begin
+  return (
   with ${CANDIDATES} as (select (p_row).*)${hoisted === undefined ? "" : `,\n  ${hoistedCte(hoisted)}`}
   select exists (select 1 from ${CANDIDATES}${fromHoisted(hoisted)} where ${guard}${where})
+  );
+end;
 $$;
 revoke execute on function ${fn}(${table}, text) from public, anon;
 grant execute on function ${fn}(${table}, text) to authenticated;`;
