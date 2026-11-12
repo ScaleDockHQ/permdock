@@ -137,6 +137,19 @@ describe("AGENTS.md and CLAUDE.md", () => {
     expect(Buffer.byteLength(agents.slice(0, marker))).toBeLessThan(12 * 1024);
   });
 
+  it("the ReUI rule is scoped to the UI folders and AGENTS.md carries no copy of it", () => {
+    const meta = frontmatter(read(".agents/rules/reui.mdc"));
+    expect({
+      alwaysApply: meta["alwaysApply"],
+      paths: meta["paths"],
+      block: read("AGENTS.md").includes("<!-- BEGIN:reui-agent-rules -->"),
+    }).toStrictEqual({
+      alwaysApply: false,
+      paths: ["apps/docs/**", "apps/marketing/**", "packages/ui/**"],
+      block: false,
+    });
+  });
+
   it("every rule has Cursor and Claude Code frontmatter, a row in AGENTS.md and a symlink", () => {
     const agents = read("AGENTS.md");
     const rules = readdirSync(path.join(ROOT, ".agents/rules")).filter((file) =>
