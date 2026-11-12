@@ -18,5 +18,6 @@ paths:
 - Research is two pages: `research/landscape.mdx` (competing libraries and products; each section ends with Adopt / adapt / avoid) and `research/ecosystem-index.mdx` (every third-party tool PermDock composes with).
 - No `{`, `}` or bare `<` in prose (MDX parses them); use backticks.
 - Prose follows `.agents/rules/writing.mdc`.
+- `getting-started/naming.mdx` is 844 KB. Search it with `rg` for the identifier; never read it whole.
 
 Before pushing docs changes run `pnpm docs:drift` (CLI flags, doctor codes, package entries, `meta.json` listings, and one `packages/permdock/tests/standards/<slug>.test.ts` per standards page except `index` and `watch-list`) and `pnpm --filter docs build`.

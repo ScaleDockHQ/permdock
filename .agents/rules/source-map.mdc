@@ -32,4 +32,4 @@ paths:
 
 ## Large files
 
-`cli/types.ts` is split by command area. Search a file before reading it whole; the largest are in `cli/rls`, `cli/sql`, `core/permdock.ts` and `testing/cloud-api/document.ts`.
+`cli/types.ts` re-exports the `cli/types-<area>.ts` files; edit the area file (`types-rls.ts`, `types-rls-approvals.ts`, `types-rls-roles.ts`, `types-rls-surfaces.ts`, `types-supabase.ts`, `types-config.ts`, `types-powersync.ts`, `types-run.ts`). Search a file before reading it whole; the largest are in `cli/rls`, `cli/sql`, `core/permdock.ts` and `testing/cloud-api/document.ts`.
