@@ -377,7 +377,8 @@
     "gen": "node ../../scripts/testing-fixtures.ts",
     "gen:check": "node ../../scripts/testing-fixtures.ts --check",
     "lint": "oxlint --disable-nested-config --type-aware",
-    "test": "vitest run --coverage",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
