@@ -131,6 +131,8 @@ export default defineConfig({
       },
     ],
     coverage: {
+      // CI measures coverage; locally `pnpm test:coverage` does (49.2 s against 35.3 s without).
+      enabled: process.env["CI"] !== undefined,
       provider: "v8",
       include: ["src/**/*.ts"],
       exclude: [

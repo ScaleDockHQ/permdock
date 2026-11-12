@@ -1,6 +1,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+import type { PermDock } from "../../src/core/permdock.ts";
+
+import { mayUseOf } from "../../src/core/may-use.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";
 import { compareCell } from "./runtime-gate.ts";
@@ -183,6 +186,44 @@ function readBaseline(): Baseline {
  * fails above its margin. A cell the baseline skipped, or lacks, stays
  * skipped.
  */
+/** One pass over every tool permission through `mayUseOf`, in milliseconds. */
+function mayUseTime(permdock: PermDock): number {
+  const mayUse = mayUseOf(permdock);
+  const asked = toolPermissions();
+  const started = performance.now();
+  const used = asked.filter((permission) => mayUse(permission));
+  if (used.length !== asked.length) {
+    throw new Error(
+      `PermDock: mayUse granted ${String(used.length)} of ${String(asked.length)} tools`,
+    );
+  }
+  return performance.now() - started;
+}
+
+/**
+ * The expanded view must beat the wire snapshot on a subject with 150
+ * memberships of 20 roles. Best of `ATTEMPTS` passes, so one noisy pass does
+ * not fail the gate.
+ */
+function checkMayUseView(): string | undefined {
+  const base = getPermDockSync(policy, userFor(150, 20, 0), {
+    tenant: tenantId(0),
+  });
+  let direct = Infinity;
+  let wire = Infinity;
+  for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+    // A spread copy drops the expanded view, so its first mayUse reads `snapshot()`.
+    wire = Math.min(wire, mayUseTime({ ...base }));
+    direct = Math.min(direct, mayUseTime(base));
+  }
+  process.stdout.write(
+    `mayUse view: direct ${direct.toFixed(1)} ms, wire ${wire.toFixed(1)} ms\n`,
+  );
+  return direct < wire
+    ? undefined
+    : `mayUse on the expanded view (${direct.toFixed(1)} ms) is not faster than through the wire snapshot (${wire.toFixed(1)} ms)`;
+}
+
 async function check(): Promise<void> {
   const baseline = readBaseline();
   const sameMachine =
@@ -228,6 +269,10 @@ async function check(): Promise<void> {
         );
       }
     }
+  }
+  const viewFailure = checkMayUseView();
+  if (viewFailure !== undefined) {
+    failures.push(viewFailure);
   }
   if (!sameMachine) {
     process.stdout.write(

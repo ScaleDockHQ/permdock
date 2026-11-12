@@ -1,5 +1,6 @@
 # Hooks call binaries from node_modules/.bin: `pnpm exec` adds 70 to 260 ms per call.
-# The gate matches `pnpm check:affected`; tests run in CI only (docs/decisions/0049-affected-hook-gate.md).
+# Pre-commit formats and lints the staged files; pre-push runs the affected gate of `pnpm check:affected`.
+# Tests run in CI only (docs/decisions/0049-affected-hook-gate.md, 0069-staged-lint-on-commit.md).
 # Without `execution`, a job prints its output only when it fails.
 output:
   - meta
@@ -19,10 +20,9 @@ pre-commit:
         - "**/permissions.catalog.json"
       run: node_modules/.bin/oxfmt --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
-    - name: affected
-      env:
-        TURBO_SCM_BASE: origin/main
-      run: node_modules/.bin/turbo run lint:root lint typecheck --affected --cache=local:rw,remote:r --output-logs=errors-only --continue=dependencies-successful
+    - name: lint
+      glob: "*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"
+      run: node scripts/lint-staged.ts {staged_files}
 
 commit-msg:
   jobs:
@@ -34,4 +34,4 @@ pre-push:
     - name: affected
       env:
         TURBO_SCM_BASE: origin/main
-      run: node_modules/.bin/turbo run lint:root lint typecheck --affected --cache=local:rw,remote:r --output-logs=errors-only --continue=dependencies-successful
+      run: env -u TURBO_CACHE_DIR node_modules/.bin/turbo run lint:root lint typecheck --affected --cache=local:rw,remote:r --output-logs=errors-only --continue=dependencies-successful

@@ -11,9 +11,19 @@ alwaysApply: true
 1. **Check the tree.** Run `git status` first. If there are uncommitted changes you did not make, stop and ask. Never discard them.
 2. **Branch.** On `main`, run `git fetch` and create `<type>/<short-topic>` from `origin/main`, where `<type>` is a commitlint type (`feat/org-switcher`, `fix/mcp-401`). On this work's branch already, keep using it.
 3. **Commit.** Small conventional commits with a lower-case subject; the header has no length limit. A commit that moves a baseline (bundle size, type instantiations, CLI startup, coverage) states the before and after numbers.
-4. **Open one pull request.** After the first push, run `gh pr create --base main` as a draft until `pnpm verify` passes, then mark it ready. The title is a conventional commit header: it becomes the squash commit and the `pr-title` job checks it. The body follows `.github/pull_request_template.md`.
+4. **Open one pull request.** After the first push, run `gh pr create --base main` as a normal pull request, never a draft. Run `pnpm verify` once, before the first push; while working use `pnpm check:affected` and the touched test files (`pnpm --filter permdock exec vitest run <path>`). `pnpm verify` needs Docker. The title is a conventional commit header: it becomes the squash commit and the `pr-title` job checks it. The body follows `.github/pull_request_template.md`.
 5. **Keep everything on that pull request.** Follow-ups, review fixes and extra todos from the same chat or plan go onto the same branch. Never open a second pull request, stack them, or split a plan into one per todo.
 6. **New work, new branch.** Only when the user starts a new chat or plan, or asks for a separate pull request.
 7. **Never merge without being asked.** Never push to `main`. When the user asks to merge, wait for the required checks, and first confirm that `main` has required status checks at all (`gh api repos/{owner}/{repo}/branches/main/protection`). With none, a pull request merges at once and CI first fails on `main`: report that gap instead of merging.
 
 Dependabot and the Changesets `chore: version packages` pull request are the only other pull requests.
+
+## Formats
+
+- Commit types: `feat`, `fix`, `docs`, `chore`, `ci`, `refactor`, `test`, `perf`, `style`, `build`, `revert`. Subject lower case: `fix(rls): filter nested-scope memberships by kind`.
+- A changeset is `.changeset/<kebab-name>.md`: front matter `"permdock": minor` (or `patch`, `major`), then one or two sentences in the user's terms, for example: `` `permdock/testing` adds `memoryPostgrestSources`, which reads `defineSeeds` fixtures without a database. ``
+- A PR body has three headings from `.github/pull_request_template.md`: `What`, `Verify`, `Checklist`.
+
+## Waiting
+
+Wait on CI with `gh pr checks --watch --fail-fast` in a backgrounded shell and read its output once. Run long commands in the foreground; never redirect to a log file and `sleep` on it.

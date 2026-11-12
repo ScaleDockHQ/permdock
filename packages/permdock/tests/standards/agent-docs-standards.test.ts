@@ -137,6 +137,19 @@ describe("AGENTS.md and CLAUDE.md", () => {
     expect(Buffer.byteLength(agents.slice(0, marker))).toBeLessThan(12 * 1024);
   });
 
+  it("the ReUI rule is scoped to the UI folders and AGENTS.md carries no copy of it", () => {
+    const meta = frontmatter(read(".agents/rules/reui.mdc"));
+    expect({
+      alwaysApply: meta["alwaysApply"],
+      paths: meta["paths"],
+      block: read("AGENTS.md").includes("<!-- BEGIN:reui-agent-rules -->"),
+    }).toStrictEqual({
+      alwaysApply: false,
+      paths: ["apps/docs/**", "apps/marketing/**", "packages/ui/**"],
+      block: false,
+    });
+  });
+
   it("every rule has Cursor and Claude Code frontmatter, a row in AGENTS.md and a symlink", () => {
     const agents = read("AGENTS.md");
     const rules = readdirSync(path.join(ROOT, ".agents/rules")).filter((file) =>
@@ -168,6 +181,72 @@ describe("AGENTS.md and CLAUDE.md", () => {
         }).toStrictEqual({ rule: name, paths: true });
       }
     }
+  });
+});
+
+function rootScripts(): Record<string, string> {
+  const scripts = json("package.json")["scripts"];
+  return scripts !== null && typeof scripts === "object"
+    ? Object.fromEntries(
+        Object.entries(scripts).filter(
+          (entry): entry is [string, string] => typeof entry[1] === "string",
+        ),
+      )
+    : {};
+}
+
+describe("agent instructions stay true", () => {
+  const instructionFiles = [
+    "AGENTS.md",
+    ...readdirSync(path.join(ROOT, ".agents/rules"))
+      .filter((file) => file.endsWith(".mdc"))
+      .map((file) => `.agents/rules/${file}`),
+  ];
+
+  it("every `pnpm <script>` they name is a root script", () => {
+    const scripts = new Set(Object.keys(rootScripts()));
+    const builtins = new Set(["install", "exec", "add", "why", "dlx", "view"]);
+    const unknown = instructionFiles.flatMap((file) =>
+      [...read(file).matchAll(/`pnpm (?:run )?([a-z][\w:-]*)/gu)]
+        .map((match) => match[1] ?? "")
+        .filter((name) => !scripts.has(name) && !builtins.has(name))
+        .map((name) => `${file}: pnpm ${name}`),
+    );
+    expect(unknown).toStrictEqual([]);
+  });
+
+  it("the source map names every folder of packages/permdock/src", () => {
+    const map = read(".agents/rules/source-map.mdc");
+    const missing = readdirSync(path.join(ROOT, "packages/permdock/src"), {
+      withFileTypes: true,
+    })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .filter((name) => !map.includes(`\`${name}\``) && !map.includes(name));
+    expect(missing).toStrictEqual([]);
+  });
+
+  it("hook and gate Turbo calls unset the sandbox TURBO_CACHE_DIR", () => {
+    const calls = [
+      ...read("lefthook.yml").split("\n"),
+      ...Object.entries(rootScripts()).map(
+        ([name, body]) => `${name}: ${body}`,
+      ),
+    ].filter((line) =>
+      /(?:^|\s)(?:node_modules\/\.bin\/)?turbo run/u.test(line),
+    );
+    expect(
+      calls.filter(
+        (line) =>
+          !line.startsWith("dev") && !line.includes("env -u TURBO_CACHE_DIR"),
+      ),
+    ).toStrictEqual([]);
+  });
+
+  it("the ReUI rule is scoped and AGENTS.md carries no copy of it", () => {
+    const meta = frontmatter(read(".agents/rules/reui.mdc"));
+    expect(meta["alwaysApply"]).toBe(false);
+    expect(read("AGENTS.md")).not.toContain("BEGIN:reui-agent-rules");
   });
 });
 

@@ -50,8 +50,3 @@ export function renamedSectionDrift(namingPage: string): readonly string[] {
     ? []
     : [`getting-started/naming.mdx has no "${RENAMED_HEADING}" section`];
 }
-
-/** The history section is not rewritten from a source file. */
-export function writeRenamedSection(_namingPage: string): void {
-  return undefined;
-}

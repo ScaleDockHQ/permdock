@@ -1,6 +1,11 @@
 ---
-description: ReUI - read the reui skill before any UI work
-alwaysApply: true
+description: ReUI design rules and the reui skill for any edit under apps/docs, apps/marketing or packages/ui
+globs: apps/docs/**,apps/marketing/**,packages/ui/**
+alwaysApply: false
+paths:
+  - "apps/docs/**"
+  - "apps/marketing/**"
+  - "packages/ui/**"
 ---
 
 ## ReUI design rules (every UI edit, follow-ups included)

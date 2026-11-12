@@ -68,7 +68,7 @@ Adopt: one package with subpath exports; zero runtime dependencies in core with 
 
 Adapt: the Next.js per-request instance memoised with React `cache()` becomes `getPermDock()` in `permdock/next`. Type-only definitions become `resource(Schema, ...)`. The definition is already the catalog, and `permdock collect` scans usages. Boolean `check()` becomes one `decide()`. Adapter-by-adapter request isolation becomes a Fetch-first server kernel with thin adapters. The HTTP PDP request becomes `permdock/authzen`.
 
-Avoid: type-only definitions; a mutable singleton or a global `ready` flag; boolean-only hydration; string paths as the public API; audit hooks without the outcome; untyped adapter generics; publishing without `publint` and `arethetypeswrong`.
+Avoid: type-only definitions; a mutable singleton or a global `ready` flag; boolean-only hydration; string paths as the public API; audit hooks without the outcome; untyped adapter generics; publishing without `publint`.
 
 ### Kilpi
 

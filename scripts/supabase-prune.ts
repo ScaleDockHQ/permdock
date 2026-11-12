@@ -21,7 +21,10 @@ const git = (...args: readonly string[]): string =>
   execFileSync("git", args, { encoding: "utf8" }).trim();
 
 const root = git("rev-parse", "--show-toplevel");
-const main = dirname(resolve(root, git("rev-parse", "--git-common-dir")));
+// Relative to the repository root, whatever folder the script runs from.
+const main = dirname(
+  resolve(root, git("-C", root, "rev-parse", "--git-common-dir")),
+);
 // The CLI offers `stack` only when run beside a `supabase/` project.
 const example = join(root, "apps/examples/next-better-supabase");
 const supabase = join(example, "node_modules/.bin/supabase");

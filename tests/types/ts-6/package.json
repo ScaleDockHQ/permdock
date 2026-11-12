@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "lint": "oxlint --disable-nested-config --type-aware",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.isolated.json"
+    "typecheck:compat": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.isolated.json"
   },
   "devDependencies": {
     "oxlint": "catalog:",

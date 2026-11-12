@@ -118,6 +118,21 @@
         }
       ]
     },
+    "typecheck:compat": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/oxlint.config.ts",
+        "$TURBO_ROOT$/packages/permdock/package.json",
+        "!**/*.md",
+        "!**/*.mdx",
+        {
+          "mode": "dependencyOutputs",
+          "from": ["^build"],
+          "globs": ["dist/**/*.d.ts"]
+        }
+      ]
+    },
     "lint": {
       "dependsOn": ["^build"],
       "inputs": [

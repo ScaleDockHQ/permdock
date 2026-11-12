@@ -5,20 +5,20 @@ Thanks for contributing to PermDock. This repository is a pnpm 12 + Turborepo mo
 ## Requirements
 
 - Node.js 24 or later (24 LTS is what CI runs)
-- pnpm 12.14.0: `devEngines` in the root `package.json` fails any other version
+- pnpm 12.18.0: `devEngines` in the root `package.json` fails any other version
 - TypeScript 7 comes from the workspace catalog; nothing to install globally
 
 npm and Yarn are not supported. On Node.js 24, enable pnpm with Corepack:
 
 ```bash
 corepack enable
-corepack prepare pnpm@12.14.0 --activate
+corepack prepare pnpm@12.18.0 --activate
 ```
 
 Node.js 25 and later no longer bundle Corepack. Install pnpm with its standalone script instead:
 
 ```bash
-curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.14.0 sh -
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.18.0 sh -
 ```
 
 ## Setup
@@ -32,18 +32,18 @@ pnpm run verify
 
 Useful scripts:
 
-| Command                  | What it does                                         |
-| ------------------------ | ---------------------------------------------------- |
-| `pnpm run verify`        | Every CI gate except integration and runtimes        |
-| `pnpm run check:publish` | publint and arethetypeswrong on publishable packages |
-| `pnpm run format`        | Format with Oxfmt                                    |
-| `pnpm run lint`          | Lint with Oxlint                                     |
-| `pnpm run fix`           | Format, then apply Oxlint fixes                      |
-| `pnpm run dev:portless`  | Marketing and docs at `https://permdock.localhost`   |
-| `pnpm run build`         | `turbo run build`                                    |
-| `pnpm run test`          | `turbo run test`                                     |
-| `pnpm run typecheck`     | `turbo run typecheck`                                |
-| `pnpm changeset`         | Add a changeset for a user-visible change            |
+| Command                  | What it does                                       |
+| ------------------------ | -------------------------------------------------- |
+| `pnpm run verify`        | Every CI gate except integration and runtimes      |
+| `pnpm run check:publish` | publint on publishable packages                    |
+| `pnpm run format`        | Format with Oxfmt                                  |
+| `pnpm run lint`          | Lint with Oxlint                                   |
+| `pnpm run fix`           | Format, then apply Oxlint fixes                    |
+| `pnpm run dev:portless`  | Marketing and docs at `https://permdock.localhost` |
+| `pnpm run build`         | `turbo run build`                                  |
+| `pnpm run test`          | `turbo run test`                                   |
+| `pnpm run typecheck`     | `turbo run typecheck`                              |
+| `pnpm changeset`         | Add a changeset for a user-visible change          |
 
 ## Adding a workspace
 

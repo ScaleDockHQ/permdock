@@ -13,8 +13,13 @@ Conventions are rules: code in `architecture.mdc`, names in `naming.mdc`, prose 
 | `architecture.mdc`                     | Always on: layout, boundary tags, code rules                                |
 | `git-workflow.mdc`                     | Always on: one branch and one PR per chat or plan, never merge unasked      |
 | `writing.mdc`                          | Always on: prose in docs, skills, changesets, comments, commits, PRs        |
+| `source-map.mdc`                       | Changing `packages/permdock`: folder map and a traced call                  |
 | `invariants.mdc`                       | Changing `packages/permdock/src`, `tests` or `apps/examples`                |
 | `naming.mdc`                           | Adding or renaming a public name, option, flag, denial reason or wire field |
+| `naming-supabase.mdc`                  | Naming in `supabase`, `better-supabase`, `cli/rls`, `cli/sql`               |
+| `naming-approvals.mdc`                 | Naming in approvals, `jwt`, `cloud`, `ssf`, `scim`, `server`, events        |
+| `naming-cli.mdc`                       | Naming in `cli`, `openapi`, generated output                                |
+| `naming-adapters.mdc`                  | Naming in UI and agent adapters                                             |
 | `cli.mdc`                              | Changing `packages/permdock/src/cli`: manifest, effects, envelope, agents   |
 | `change-checklist.mdc`                 | Before opening a PR: what else to update when you change X                  |
 | `docs.mdc`                             | Editing `apps/docs/content/docs`                                            |
@@ -22,13 +27,13 @@ Conventions are rules: code in `architecture.mdc`, names in `naming.mdc`, prose 
 | `deployment.mdc`                       | Touching app code, `packages/{ui,next-config}` or `vercel.json`             |
 | `local-dev-portless-agent-browser.mdc` | Running or checking the apps locally                                        |
 | `skills.mdc`                           | Touching shipped or vendored skills, `.claude-plugin`, `skills-lock.json`   |
-| `reui.mdc`                             | Always on: ReUI design rules for UI edits                                   |
+| `reui.mdc`                             | `apps/docs`, `apps/marketing`, `packages/ui`: ReUI design rules             |
 
 A new rule gets `description`, `globs` and `alwaysApply` (Cursor) frontmatter, plus `paths` (Claude Code) unless it is always on, a row here, and a `.claude/rules/<name>.md` symlink.
 
 ## Status
 
-`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per `roadmap.mdx` Versioning: a breaking change to a name, default or wire format carries a changeset that says so; a breaking wire-format change bumps that format's major. Every wire format is `v1` except the catalog (`catalog-v2.json`, `version: 2`). Node.js 24, pnpm 12.14.0 (`devEngines` refuses others), TypeScript 7.
+`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per `roadmap.mdx` Versioning: a breaking change to a name, default or wire format carries a changeset that says so; a breaking wire-format change bumps that format's major. Every wire format is `v1` except the catalog (`catalog-v2.json`, `version: 2`). Node.js 24, pnpm 12.18.0 (`devEngines` downloads it), TypeScript 7.
 
 ## Repo layout
 
@@ -50,9 +55,11 @@ docs/agents/ docs/decisions/   corrections agents needed twice; exceptions to th
 ```bash
 pnpm install
 pnpm build                 # turbo run build (tsdown)
-pnpm check                 # format:check, lint, typecheck: the fast gate
+pnpm check                 # format:check, lint, typecheck: the fast gate (16 to 24 s cold, 1 s warm)
+pnpm check:affected        # the pre-push gate against origin/main, cached
 pnpm verify                # every CI gate: root steps, then cached turbo runs
-pnpm test                  # vitest unit + type tests
+pnpm test                  # vitest unit + type tests; CI also measures coverage
+pnpm --filter permdock exec vitest run <path>   # one file: 1 s; tests/core: 6 s; whole package: 35 s
 pnpm test:integration      # testcontainers Postgres (Docker)
 pnpm test:runtimes         # Bun, Deno, workerd; CI requires all three
 pnpm lint && pnpm format   # oxlint, oxfmt; `pnpm fix` applies both
@@ -80,7 +87,7 @@ Run `pnpm exec portless list` and reuse a route. The Portless proxy is shared: n
 | Env key                        | The app's `env.ts`, `.env.example`, the task `env` in `turbo.json`, Vercel      |
 | Route                          | The app's `sitemap.ts`, `deployment.mdc`, a `redirects()` entry for a moved URL |
 | UI primitive                   | `packages/ui` through the shadcn CLI; `DESIGN.md` for a new token or pattern    |
-| Dependency                     | Catalog pin (`docs/agents/pnpm-catalog.md`), "Pre-release pins" below           |
+| Dependency                     | Catalog pin and "Pre-release pins" (`docs/agents/pnpm-catalog.md`)              |
 | `typescript` bump              | `oxlint-tsgolint` in the same commit                                            |
 | Next.js bump                   | Run `next dev` per Next.js app; commit the refreshed `AGENTS.md` block          |
 | Package version                | `server.json`                                                                   |
@@ -88,7 +95,7 @@ Run `pnpm exec portless list` and reuse a route. The Portless proxy is shared: n
 | Rename                         | The docs Naming page, the `docs:drift` check, the changeset's old-to-new table  |
 | Perf-sensitive change          | The bundle, type and CLI-startup baselines, before and after in the commit      |
 | User-visible change            | A changeset; the owning docs page                                               |
-| Exception to the repo standard | A record in `docs/decisions` and a line under Deviations                        |
+| Exception to the repo standard | A record in `docs/decisions`, indexed in its README                             |
 | `permdock`, docs or examples   | The rows in `change-checklist.mdc`                                              |
 
 ## Hard rules
@@ -123,31 +130,9 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 
 One branch and one PR per chat or plan, small conventional commits, and merge only when asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end on the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question; never carry it forward.
 
-## Deviations
+## Deviations and pins
 
-Records in `docs/decisions`:
-
-- 0002 no global `typescript` override; 0003 Zod and agent SDKs; 0004 `engines.node: ">=24"`
-- 0005 extra workspaces and root scripts; 0006 relaxed tsconfig for vendored UI
-- 0008 `turbo query affected`; 0009 extra boundary rules; 0010 Corepack on Vercel
-- 0011 no docs `robots.ts`; 0012 plain cross-zone anchors; 0013 no `fumadocs-openapi`
-- 0015 Ask AI input from `InputGroup`; 0016 Portless names; 0017 `permdock-<topic>` skills; 0018 blocked majors
-- 0019 `<Adapter>PermDock` and no `$` members; 0020 the CLI inside `permdock`; 0021 `^build` over `transit`
-- 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
-- 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0052 Ultracite kept-off rules
-- 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
-- 0031 tests outside Vitest projects; 0032 no actions.lock; 0033 jsx react-jsx; 0034 Instant over Temporal; 0037, 0068 CLI contract; 0038-0041, 0046-0048, 0050-0051, 0053-0054, 0059, 0067 better-supabase pins; 0044 kept-off; 0045 peers; 0049 hook gate
-- 0055 `turbo.json` `global` block
-- 0056 `permdock/app` `definePermDock`; 0061 `.next` and `.authorizer` on better-supabase
-- 0057 `oxc-parser`, `jiti` optional CLI peers; 0058 React evaluator split
-- 0062 `next-baseline.ts` suppressions; 0063 perf gates; 0065 after CI; 0066 store once
-
-## Pre-release pins
-
-- `@orpc/server`, `@orpc/client`, `@orpc/contract`, `@orpc/openapi` 2.0.0-beta.47: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
-- `drizzle-orm` 1.0.0-rc.5: the release candidate the standard asks for; the peer also accepts 0.40.
-- `@supabase/pg-delta` 1.0.0-alpha.60, `pg-topo` 1.0.0-alpha.8: Declarative Schemas 2.0 for `tests/integration` and `db diff`.
-- Prisma 8 stays on 7.10.0 until its blocker clears (0018).
+One record per deviation from the repo standard: [`docs/decisions/README.md`](./docs/decisions/README.md). Pre-release pins and blocked majors: [`docs/agents/pnpm-catalog.md`](./docs/agents/pnpm-catalog.md).
 
 ## Turbo agent guidance
 
@@ -163,19 +148,3 @@ Read `docs/README.md` inside that installed package first, then read the relevan
 
 This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": true` in the root `turbo.json` or `turbo.jsonc` to opt in; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
 <!-- END:turborepo-agent-rules -->
-
-<!-- BEGIN:reui-agent-rules -->
-
-## ReUI design rules (every UI edit, follow-ups included)
-
-This project uses an existing design system: ReUI on shadcn/ui. Keep its look. Generic frontend advice (vary fonts or themes, gradients, page-load or staggered reveals, "2-3 intentional motions", Framer Motion) does not apply here, and other design skills lose where they disagree.
-
-1. Use installed components first (`components/ui`, `components/reui`): tables `data-grid`, filtering `filters`, boards `kanban`, modals `Dialog` or `AlertDialog`, toasts `sonner`. Never set height, radius, padding, shadow or motion on them; use `size`, `variant`, `spacing`.
-2. Color: semantic tokens. State: `<Badge variant="success-light">` from `@/components/reui/badge` at default size, or Alert variants. Raw palette only for categorical identity, with its `dark:` pair.
-3. Spacing: `gap-*` on the parent: `gap-1` to `gap-2` in a row, `gap-3` to `gap-4` between groups, `gap-6` to `gap-8` between sections. Type: `text-sm` body, `text-xs` meta, nothing smaller; never resize FrameTitle or CardTitle.
-4. Motion: installed parts already animate; never retime them. Yours: hover `transition-colors`; reveal `duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]`; transform and opacity only; never `transition-all`, bounce, or a stagger on table rows or lists of 20+; at most 1 entrance per view; `MotionConfig reducedMotion="user"` plus `motion-reduce:`.
-5. Every data region: empty state with an action, `Skeleton` loading, inline error with Retry.
-6. Before UI code, write the plan from `.agents/skills/reui/SKILL.md` in your reply. Before you finish, run its self-check on the files you changed and fix every hit (2 rounds at most). Full rules: `.agents/skills/reui/SKILL.md`. If that folder is missing, call the `reui` MCP tool `get_agent_skill`.
-
-Managed by the ReUI installer. Edits between the markers are replaced on the next run.
-<!-- END:reui-agent-rules -->

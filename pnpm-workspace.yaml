@@ -18,7 +18,6 @@ catalog:
   "@nestjs/platform-fastify": 12.3.2
   "@fastify/multipart": 10.1.6
   "@hono/node-server": 2.1.5
-  "@arethetypeswrong/cli": 0.18.5
   "@expo/log-box": 58.0.15
   "@expo/metro-runtime": 58.0.17
   "@react-native/metro-config": 0.88.1
@@ -66,7 +65,7 @@ catalog:
   "@types/pg": 8.23.1
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
-  "@vitest/coverage-v8": 5.0.5
+  "@vitest/coverage-v8": 5.1.0
   class-variance-authority: 0.7.1
   cn: 0.5.1
   babel-preset-expo: 58.0.25
@@ -89,7 +88,6 @@ catalog:
   express: 5.3.0
   kysely: 0.29.8
   launch-editor: 2.14.2
-  dompurify: 3.4.17
   systeminformation: 5.33.19
   follow-redirects: 1.16.2
   node-forge: 1.4.2
@@ -106,16 +104,16 @@ catalog:
   lefthook: 2.2.1
   lucide-react: 1.66.0
   miniflare: 4.20260730.0
-  next: 16.4.3
+  next: 16.4.6
   next-themes: 0.4.6
   ajv: 8.20.0
   oxc-parser: 0.156.0
   eslint-plugin-turbo: 2.11.10
   oxlint-plugin-react-doctor: 0.9.21
   "@shadcn/lint": 0.2.3
-  oxfmt: 0.74.0
-  oxlint: 1.90.0
-  oxlint-tsgolint: 7.0.2005
+  oxfmt: 0.78.0
+  oxlint: 1.93.0
+  oxlint-tsgolint: 7.0.2006
   ultracite: 8.1.0
   pgsql-parser: 18.3.2
   pg: 8.23.1
@@ -140,7 +138,7 @@ catalog:
   react-native-worklets: 0.13.0
   tailwindcss: 4.3.3
   testcontainers: 12.2.1
-  tsdown: 0.23.4
+  tsdown: 0.23.7
   turbo: 2.11.10
   tw-animate-css: 1.4.0
   typescript: 7.0.2
@@ -148,14 +146,13 @@ catalog:
   yaml: 2.9.1
   vite: 8.3.5
   vite-plugin-solid: 2.11.15
-  vitest: 5.0.5
+  vitest: 5.1.0
   zod: 4.6.7
   motion: 14.9.0
   sonner: 2.0.8
   "@streamdown/cjk": 1.0.4
   "@streamdown/code": 2.0.0
   "@streamdown/math": 1.0.3
-  "@streamdown/mermaid": 1.0.3
   streamdown: 2.7.1
   use-stick-to-bottom: 1.1.6
   "@ai-sdk/otel": 1.0.159
@@ -183,13 +180,13 @@ catalog:
   "@supabase/pg-topo": 1.0.0-alpha.8
   "@openfeature/server-sdk": 1.23.0
   "@supabase-labs/middleware-openfeature": 0.2.0
-  "@next/playwright": 16.4.3
+  "@next/playwright": 16.4.6
   "@playwright/test": 1.64.1
   babel-plugin-react-compiler: 1.0.0
   "@babel/core": 8.0.10
   chat: 4.43.0
   resend: 6.37.0
-  workflow: 5.2.3
+  workflow: 5.4.0
   "@solidjs/start": 2.1.0
   "@sveltejs/kit": 3.1.1
   "@tanstack/react-start": 1.169.4
@@ -259,8 +256,7 @@ catalogs:
 auditConfig:
   # No patched release yet; drop each entry once one ships.
   ignoreGhsas:
-    # node-forge <=1.4.0, through listhen in the Nuxt dev server (nuxt as a peer of
-    # @vercel/analytics); no signature verification at runtime.
+    # node-forge <=1.4.0, through the Expo CLI dev server; no signature verification at runtime.
     - GHSA-86w9-cpqp-85rv
     # braces <=3.0.3, through micromatch in Expo's Metro file map; build-time globs only.
     - GHSA-vfj7-8cjw-p6xm
@@ -305,7 +301,7 @@ peerDependencyRules:
     # Reached only through `workflow`'s Nest integration, which no workspace loads; @supabase/server picks Nest 11 beside it.
     "@nestjs/core>@nestjs/common": "11"
     # typegen 0.6.0 pins oxfmt 0.66.0 exactly; the example's `better-supabase gen` formats with the repo's oxfmt.
-    "@supabase/postgrest-typegen>oxfmt": "0.74"
+    "@supabase/postgrest-typegen>oxfmt": "0.78"
     # The optional typescript peer of SvelteKit 3 reads only its public types; the repository builds with TypeScript 7.
     "@sveltejs/kit>typescript": "7"
 
@@ -342,17 +338,21 @@ packageExtensions:
 # No `typescript: 'catalog:'` override: tests/types pins TypeScript 5.9 and 6
 # through `catalog:ts59` and `catalog:ts6`, and an override would force them to 7.
 overrides:
+  # tsdown's optional attw peer is unused (no `attw` option) and pins TypeScript 5.6.1-rc exactly.
+  "@arethetypeswrong/core": "-"
+  # `@workflow/nest` peers on the SWC CLI, which only `workflow/nest` loads and no workspace does; `@swc/core` stays for `@workflow/builders`.
+  "@swc/cli": "-"
+  # `better-supabase`, `@vercel/analytics` and `@vercel/speed-insights` take Nuxt as an optional peer; no workspace uses it, and auto-installed peers pulled in about 200 packages.
+  nuxt: "-"
   # drizzle-orm takes kysely as an optional peer; one kysely keeps one drizzle-orm variant, so its `SQL` type matches between permdock and the examples.
   kysely: "catalog:"
-  # GHSA-587h-7wmj-h5pm: launch-editor <=2.14.1, through @changesets/cli and the Nuxt devtools under better-supabase.
+  # GHSA-587h-7wmj-h5pm: launch-editor <=2.14.1, through @changesets/cli.
   launch-editor: "catalog:"
-  # GHSA-cg2g-xh64-v4q7 and GHSA-mrv2-3pqr-j5jr: dompurify <=3.4.16, through mermaid under @streamdown/mermaid in packages/ui.
-  dompurify: "catalog:"
   # GHSA-3f7j-7jwc-fxfj: systeminformation <5.33.16, through @dotenvx/dotenvx under shadcn.
   systeminformation: "catalog:"
   # GHSA-mrwp-f3q8-3g9p: follow-redirects <=1.16.1, through axios under the Slack adapter in the chat-sdk example.
   follow-redirects: "catalog:"
-  # node-forge <=1.4.0 (PEM decoding ReDoS), through listhen under nuxt in better-supabase.
+  # node-forge <=1.4.0 (PEM decoding ReDoS), through the Expo CLI.
   node-forge: "catalog:"
   # drizzle-orm also takes pg as an optional peer; @prisma/adapter-pg and @supabase/server pin an older patch.
   pg: "catalog:"

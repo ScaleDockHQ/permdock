@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 
 import { cloudRouteDrift } from "./docs-drift-cloud-routes.ts";
 import { configKeyDrift } from "./docs-drift-config-keys.ts";
-import { writeRenamedSection } from "./docs-drift-renamed-section.ts";
 import { renameDrift } from "./docs-drift-renames.ts";
 import { rewriteDrift } from "./docs-drift-rewrites.ts";
 
@@ -228,10 +227,6 @@ function unnamedExports(): readonly string[] {
           `permdock/${entry.slice(2)} exports ${name}, which getting-started/naming.mdx does not list`,
       ),
   );
-}
-
-if (process.argv.includes("--write-renamed")) {
-  writeRenamedSection(NAMING_PAGE);
 }
 
 const problems = [

@@ -3,3 +3,7 @@
 .temp
 .env
 signing_keys.json
+.link.json
+..link.json.*.tmp
+.supabase.lock.*.tmp
+.supabase.lock.lease
