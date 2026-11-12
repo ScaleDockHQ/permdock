@@ -33,7 +33,7 @@ A new rule gets `description`, `globs` and `alwaysApply` (Cursor) frontmatter, p
 
 ## Status
 
-`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per `roadmap.mdx` Versioning: a breaking change to a name, default or wire format carries a changeset that says so; a breaking wire-format change bumps that format's major. Every wire format is `v1` except the catalog (`catalog-v2.json`, `version: 2`). Node.js 24, pnpm 12.14.0 (`devEngines` downloads it), TypeScript 7.
+`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per `roadmap.mdx` Versioning: a breaking change to a name, default or wire format carries a changeset that says so; a breaking wire-format change bumps that format's major. Every wire format is `v1` except the catalog (`catalog-v2.json`, `version: 2`). Node.js 24, pnpm 12.18.0 (`devEngines` downloads it), TypeScript 7.
 
 ## Repo layout
 
