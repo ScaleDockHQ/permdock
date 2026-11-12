@@ -2,6 +2,11 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.27.0 (2026-11-12)
+
+- Row helpers evaluate the calls their arms repeat once per call. `permitted_<resource>_rows`, its tenant form and `permitted_<resource>_match` read `permdock_user_id()`, `permdock_has_permission(key)` and `permitted_<scope>_ids_by_permission(key)` from a one-row `permdock_hoisted` CTE when more than one arm names them, computed only for the permissions whose arms read them. With `rls.apiKeys` or `rls.tokenScopes`, every `permdock_api_key_allows` and `permdock_token_scope_allows` call in those helpers first checks once whether the session carries an API key or a delegated token, so a plain session skips them. The match enters only the relation memos its own predicate reads, where it used to enter those of every resource in the policy. Regenerate the RLS SQL to pick this up.
+- `permdock gen` writes only the kinds that `gen.kinds` or `--kind` lists. `types` and `sql` are now kinds of their own, with `types()` and `sql()` plugins in `permdock/cli/plugins/app`, and `constants` writes only `constants.ts` (and `fields.ts` with `gen.fields`). Before, `constants` also wrote `types.ts` and the `server-only` `sql.ts`, so an app that listed only `constants` and `react` got two modules nobody imported. `zod`, `valibot` and `factories` add `types`, which they import. With no `gen.kinds`, `gen` still writes `constants`, `types` and `sql`. An app that imports `sql.ts` or `types.ts` and sets `gen.kinds` adds `sql` or `types` to it; a `plugins` config adds `sql()` or `types()`.
+
 ## 0.26.0 (2026-11-12)
 
 - A generate cache hit is reported as `Skipped (cache)` on stderr. `summary.skipped` counts those files. A config key PermDock does not read warns with the reason code `unknown_key`.

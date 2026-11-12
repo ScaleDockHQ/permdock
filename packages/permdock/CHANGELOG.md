@@ -1,5 +1,15 @@
 # permdock
 
+## 0.27.0
+
+### Minor Changes
+
+- [#326](https://github.com/ScaleDockHQ/permdock/pull/326) [`064a9fe`](https://github.com/ScaleDockHQ/permdock/commit/064a9fe5f4b8f9c55665738e0cc37af8934808a4) Thanks [@mick340](https://github.com/mick340)! - `permdock gen` writes only the kinds that `gen.kinds` or `--kind` lists. `types` and `sql` are now kinds of their own, with `types()` and `sql()` plugins in `permdock/cli/plugins/app`, and `constants` writes only `constants.ts` (and `fields.ts` with `gen.fields`). Before, `constants` also wrote `types.ts` and the `server-only` `sql.ts`, so an app that listed only `constants` and `react` got two modules nobody imported. `zod`, `valibot` and `factories` add `types`, which they import. With no `gen.kinds`, `gen` still writes `constants`, `types` and `sql`. An app that imports `sql.ts` or `types.ts` and sets `gen.kinds` adds `sql` or `types` to it; a `plugins` config adds `sql()` or `types()`.
+
+### Patch Changes
+
+- [#328](https://github.com/ScaleDockHQ/permdock/pull/328) [`1283b08`](https://github.com/ScaleDockHQ/permdock/commit/1283b085d54ecd3738d5dfe4057481956a0b9c3a) Thanks [@mick340](https://github.com/mick340)! - Row helpers evaluate the calls their arms repeat once per call. `permitted_<resource>_rows`, its tenant form and `permitted_<resource>_match` read `permdock_user_id()`, `permdock_has_permission(key)` and `permitted_<scope>_ids_by_permission(key)` from a one-row `permdock_hoisted` CTE when more than one arm names them, computed only for the permissions whose arms read them. With `rls.apiKeys` or `rls.tokenScopes`, every `permdock_api_key_allows` and `permdock_token_scope_allows` call in those helpers first checks once whether the session carries an API key or a delegated token, so a plain session skips them. The match enters only the relation memos its own predicate reads, where it used to enter those of every resource in the policy. Regenerate the RLS SQL to pick this up.
+
 ## 0.26.0
 
 ### Minor Changes
