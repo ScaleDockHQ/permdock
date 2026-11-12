@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.27.1 (2026-11-12)
+
+- The scope and permission-key helpers check the API key, token scope and interactive-only ceilings once instead of per row. `permitted_<scope>_ids(p_grant)` evaluates `permdock_api_key_allows`, `permdock_token_scope_allows` and `permdock_interactive_allows` once per call, where it used to call all three for every instance it returned. `permitted_<scope>_permission_keys` and its holders form first check once whether the session carries an API key, an OAuth client or an act, so a plain session skips the three calls for every grant key. `permdock_bootstrap_permissions` reads the platform keys from one `permitted_<root>_permission_keys(null)` call instead of one `permdock_has_permission` call per global key. On a member of 11 organizations with about 200 grant keys each, `permdock_bootstrap_permissions` drops from about 440 ms to about 40 ms on a small Supabase instance. Regenerate the RLS SQL to pick this up.
+
 ## 0.27.0 (2026-11-12)
 
 - Row helpers evaluate the calls their arms repeat once per call. `permitted_<resource>_rows`, its tenant form and `permitted_<resource>_match` read `permdock_user_id()`, `permdock_has_permission(key)` and `permitted_<scope>_ids_by_permission(key)` from a one-row `permdock_hoisted` CTE when more than one arm names them, computed only for the permissions whose arms read them. With `rls.apiKeys` or `rls.tokenScopes`, every `permdock_api_key_allows` and `permdock_token_scope_allows` call in those helpers first checks once whether the session carries an API key or a delegated token, so a plain session skips them. The match enters only the relation memos its own predicate reads, where it used to enter those of every resource in the policy. Regenerate the RLS SQL to pick this up.
