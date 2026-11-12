@@ -51,7 +51,7 @@
     "typecheck": "env -u TURBO_CACHE_DIR turbo run typecheck",
     "typecheck:perf": "node scripts/typecheck-perf.ts",
     "typecheck:tooling": "tsc --noEmit",
-    "verify": "pnpm run format:check && pnpm run lint:root && pnpm run boundaries && env -u TURBO_CACHE_DIR turbo run --continue=dependencies-successful lint typecheck typecheck:tooling knip test size docs:drift openapi:check gen:check doctor check:publish typecheck:perf generate:perf rls-bench cli:startup audit:high && env -u TURBO_CACHE_DIR turbo run runtime:perf --concurrency=1",
+    "verify": "pnpm run format:check && pnpm run lint:root && pnpm run boundaries && env -u TURBO_CACHE_DIR turbo run --continue=dependencies-successful lint typecheck typecheck:compat typecheck:tooling knip test size docs:drift openapi:check gen:check doctor check:publish typecheck:perf generate:perf rls-bench cli:startup audit:high && env -u TURBO_CACHE_DIR turbo run runtime:perf --concurrency=1",
     "version-packages": "node scripts/root-changelog.ts && changeset version && node scripts/sync-server-version.ts && node scripts/sync-generated-version.ts && oxfmt .",
     "worktree:setup": "node scripts/worktree-setup.ts"
   },
