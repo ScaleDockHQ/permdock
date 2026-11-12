@@ -55,7 +55,15 @@ for (const file of argv.slice(2).filter((f) => LINTABLE.test(f))) {
 
 let failed = false;
 for (const [dir, files] of groups) {
-  const flags = dir === ROOT ? [] : ["--disable-nested-config", "--type-aware"];
+  // Vendored folders are in ignorePatterns; a staged file there matches nothing.
+  const flags =
+    dir === ROOT
+      ? ["--no-error-on-unmatched-pattern"]
+      : [
+          "--disable-nested-config",
+          "--type-aware",
+          "--no-error-on-unmatched-pattern",
+        ];
   const run = spawnSync(
     OXLINT,
     [...flags, ...files.map((f) => relative(dir, f))],
