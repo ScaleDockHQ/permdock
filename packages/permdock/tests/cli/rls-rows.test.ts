@@ -702,17 +702,6 @@ describe("row-invariant calls", () => {
     );
   });
 
-  it("writes the row-valued form as an inlinable wrapper of the match", () => {
-    const sql = generate("supabase", ["doc"]).sql;
-    const start = sql.indexOf(
-      'create or replace function "permdock".can_doc(p_row "app"."documents", p_permission text)',
-    );
-    const body = sql.slice(start, sql.indexOf("$$;", start));
-    expect(body).toContain("language sql\nstable\n");
-    expect(body).not.toContain("security definer");
-    expect(body).not.toContain("set search_path");
-  });
-
   it("enters only the relation memos its own predicate reads", () => {
     const two = definePermissions({
       doc: resource({

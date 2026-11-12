@@ -3776,8 +3776,10 @@ create or replace function "permdock".can_quotes(p_row "public"."quotes", p_perm
 returns boolean
 language sql
 stable
+security definer
 cost 1000
 parallel safe
+set search_path = ''
 as $$
   select "permdock".permitted_quotes_match(p_row, p_permission)
 $$;

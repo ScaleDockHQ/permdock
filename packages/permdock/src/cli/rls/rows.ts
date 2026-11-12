@@ -309,7 +309,9 @@ function rowSql(ctx: RlsSqlContext, node: ResourceNode, table: string): string {
 returns boolean
 language sql
 stable
+security definer
 ${plannerOf(ctx)}
+set search_path = ''
 as $$
   select ${match}(p_row, p_permission)
 $$;
