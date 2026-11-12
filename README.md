@@ -114,33 +114,33 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 
 ## Common commands
 
-| Command                                | What it does                                                                                                                                                |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm build`                           | `turbo run build` (tsdown for `permdock`, `next build` for the apps)                                                                                        |
-| `pnpm check`                           | The fast gate: `format:check`, `lint` and `typecheck`                                                                                                       |
-| `pnpm verify`                          | Every CI gate: `format:check`, `lint:root` and `boundaries`, then cached `turbo run`s of the rest, `runtime:perf` last                                      |
-| `pnpm test`                            | Vitest unit and type tests across the workspace                                                                                                             |
-| `pnpm test:integration`                | Postgres via testcontainers: RLS parity and providers                                                                                                       |
-| `pnpm test:runtimes`                   | The WinterTC app on Bun, Deno and workerd                                                                                                                   |
-| `pnpm rls-bench`                       | Plan shapes of the generated policies on the 1k scale fixture: index use, one helper call per statement, ceilings (Docker)                                  |
-| `pnpm runtime:perf`                    | The quick runtime and token matrix against `scripts/runtime-perf.json`, failing 10% above it                                                                |
-| `pnpm size`                            | Per-entry gzip; fails when an entry grows more than 1% past the record                                                                                      |
-| `pnpm gen:check` / `pnpm doctor`       | Generated catalogs and SQL are current; `permdock doctor` (and `better-supabase doctor`) in every example                                                   |
-| `pnpm check:publish`                   | publint and arethetypeswrong on the published package                                                                                                       |
-| `pnpm docs:drift`                      | Docs mention every doctor code and package entry; every page is in `meta.json`. CLI flags are checked against their pages by `tests/cli/docs-flags.test.ts` |
-| `pnpm dev:portless`                    | Marketing and docs at the Portless URLs above, with `.env.development.local`, then `.env.local` loaded                                                      |
-| `pnpm dev:cleanup`                     | `portless prune`: stops dev servers orphaned by a crashed session. Yours to run: agents never prune the shared proxy                                        |
-| `pnpm dev:docs` / `pnpm dev:marketing` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied                                                                                                  |
-| `pnpm env:pull`                        | `.env.local` from Vercel's development environment; `env:pull:production` writes `.env.production.local`                                                    |
-| `pnpm format` / `pnpm lint`            | Oxfmt over the whole repository; Oxlint per workspace                                                                                                       |
-| `pnpm fix`                             | `format`, then Oxlint with `--fix` at the root and in every workspace                                                                                       |
-| `pnpm knip`                            | Unused files, exports and dependencies                                                                                                                      |
-| `pnpm boundaries`                      | `turbo boundaries`: workspace dependency rules by tag                                                                                                       |
-| `pnpm audit:high`                      | `pnpm audit` failing on high and critical advisories                                                                                                        |
-| `pnpm openapi:generate`                | Refresh the vendored OpenAPI and Overlay schemas; `openapi:check` fails when they changed                                                                   |
-| `pnpm analyze`                         | `next analyze` for docs and marketing; not part of `verify`                                                                                                 |
-| `pnpm standards:fixtures`              | Refresh the upstream schemas and RFC vectors `tests/standards` checks against                                                                               |
-| `pnpm changeset`                       | Record a user-visible change                                                                                                                                |
+| Command                                | What it does                                                                                                                                                                  |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm build`                           | `turbo run build` (tsdown for `permdock`, `next build` for the apps)                                                                                                          |
+| `pnpm check`                           | The fast gate: `format:check`, `lint` and `typecheck`                                                                                                                         |
+| `pnpm verify`                          | Every CI gate: `format:check`, `lint:root` and `boundaries`, then cached `turbo run`s of the rest, `runtime:perf` last                                                        |
+| `pnpm test`                            | Vitest unit and type tests across the workspace                                                                                                                               |
+| `pnpm test:integration`                | Postgres via testcontainers: RLS parity and providers                                                                                                                         |
+| `pnpm test:runtimes`                   | The WinterTC app on Bun, Deno and workerd                                                                                                                                     |
+| `pnpm rls-bench`                       | Plan shapes of the generated policies on the 1k scale fixture: index use, one helper call per statement, ceilings (Docker)                                                    |
+| `pnpm runtime:perf`                    | The quick runtime and token matrix against `scripts/runtime-perf.json`, failing 10% above it                                                                                  |
+| `pnpm size`                            | Per-entry gzip; fails when an entry grows more than 1% past the record                                                                                                        |
+| `pnpm gen:check` / `pnpm doctor`       | Generated catalogs and SQL are current; `permdock doctor` (and `better-supabase doctor`) in every example                                                                     |
+| `pnpm check:publish`                   | publint and arethetypeswrong on the published package                                                                                                                         |
+| `pnpm docs:drift`                      | Docs mention every doctor code and package entry; every page is in `meta.json`. CLI flags are checked against their pages by `packages/permdock/tests/cli/docs-flags.test.ts` |
+| `pnpm dev:portless`                    | Marketing and docs at the Portless URLs above, with `.env.development.local`, then `.env.local` loaded                                                                        |
+| `pnpm dev:cleanup`                     | `portless prune`: stops dev servers orphaned by a crashed session. Yours to run: agents never prune the shared proxy                                                          |
+| `pnpm dev:docs` / `pnpm dev:marketing` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied                                                                                                                    |
+| `pnpm env:pull`                        | `.env.local` from Vercel's development environment; `env:pull:production` writes `.env.production.local`                                                                      |
+| `pnpm format` / `pnpm lint`            | Oxfmt over the whole repository; Oxlint per workspace                                                                                                                         |
+| `pnpm fix`                             | `format`, then Oxlint with `--fix` at the root and in every workspace                                                                                                         |
+| `pnpm knip`                            | Unused files, exports and dependencies                                                                                                                                        |
+| `pnpm boundaries`                      | `turbo boundaries`: workspace dependency rules by tag                                                                                                                         |
+| `pnpm audit:high`                      | `pnpm audit` failing on high and critical advisories                                                                                                                          |
+| `pnpm openapi:generate`                | Refresh the vendored OpenAPI and Overlay schemas; `openapi:check` fails when they changed                                                                                     |
+| `pnpm analyze`                         | `next analyze` for docs and marketing; not part of `verify`                                                                                                                   |
+| `pnpm standards:fixtures`              | Refresh the upstream schemas and RFC vectors `packages/permdock/tests/standards` checks against                                                                               |
+| `pnpm changeset`                       | Record a user-visible change                                                                                                                                                  |
 
 ## Code standards
 

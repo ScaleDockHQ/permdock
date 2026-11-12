@@ -9,3 +9,12 @@ Every external dependency is an exact pin in the `catalog` of `pnpm-workspace.ya
 - Insert new catalog lines in place. Re-sorting the whole catalog rewrites unrelated lines.
 - Never undo someone else's uncommitted `package.json` edits with `git checkout --`: they may hold dependencies not yet committed.
 - To develop against an unpublished sibling release, point its catalog line at `link:../<repo>/packages/<name>` and never commit that line. While it is in place, export `pnpm_config_strict_peer_dependencies=false pnpm_config_verify_deps_before_run=false` for every command, hooks included. Otherwise the peer range fails the install, and the dependency check reinstalls the published version whenever the lefthook stash hides the link, so lint runs against the old types.
+
+## Pre-release pins
+
+- `@orpc/server`, `@orpc/client`, `@orpc/contract`, `@orpc/openapi` 2.0.0-beta.47: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
+- `drizzle-orm` 1.0.0-rc.5: the release candidate the standard asks for; the peer also accepts 0.40.
+- `@supabase/pg-delta` 1.0.0-alpha.60, `pg-topo` 1.0.0-alpha.8: Declarative Schemas 2.0 for `tests/integration` and `db diff`.
+- Prisma 8 and Expo SDK 58 stay on 7.10.0 and SDK 57 until their blockers clear (0018).
+
+Why a lockfile entry exists: `pnpm why <name>`; never open `pnpm-lock.yaml` to answer it.

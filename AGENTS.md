@@ -50,9 +50,11 @@ docs/agents/ docs/decisions/   corrections agents needed twice; exceptions to th
 ```bash
 pnpm install
 pnpm build                 # turbo run build (tsdown)
-pnpm check                 # format:check, lint, typecheck: the fast gate
+pnpm check                 # format:check, lint, typecheck: the fast gate (16 to 24 s cold, 1 s warm)
+pnpm check:affected        # the pre-push gate against origin/main, cached
 pnpm verify                # every CI gate: root steps, then cached turbo runs
-pnpm test                  # vitest unit + type tests
+pnpm test                  # vitest unit + type tests; CI also measures coverage
+pnpm --filter permdock exec vitest run <path>   # one file: 1 s; tests/core: 6 s; whole package: 35 s
 pnpm test:integration      # testcontainers Postgres (Docker)
 pnpm test:runtimes         # Bun, Deno, workerd; CI requires all three
 pnpm lint && pnpm format   # oxlint, oxfmt; `pnpm fix` applies both
@@ -80,7 +82,7 @@ Run `pnpm exec portless list` and reuse a route. The Portless proxy is shared: n
 | Env key                        | The app's `env.ts`, `.env.example`, the task `env` in `turbo.json`, Vercel      |
 | Route                          | The app's `sitemap.ts`, `deployment.mdc`, a `redirects()` entry for a moved URL |
 | UI primitive                   | `packages/ui` through the shadcn CLI; `DESIGN.md` for a new token or pattern    |
-| Dependency                     | Catalog pin (`docs/agents/pnpm-catalog.md`), "Pre-release pins" below           |
+| Dependency                     | Catalog pin and "Pre-release pins" (`docs/agents/pnpm-catalog.md`)              |
 | `typescript` bump              | `oxlint-tsgolint` in the same commit                                            |
 | Next.js bump                   | Run `next dev` per Next.js app; commit the refreshed `AGENTS.md` block          |
 | Package version                | `server.json`                                                                   |
@@ -88,7 +90,7 @@ Run `pnpm exec portless list` and reuse a route. The Portless proxy is shared: n
 | Rename                         | The docs Naming page, the `docs:drift` check, the changeset's old-to-new table  |
 | Perf-sensitive change          | The bundle, type and CLI-startup baselines, before and after in the commit      |
 | User-visible change            | A changeset; the owning docs page                                               |
-| Exception to the repo standard | A record in `docs/decisions` and a line under Deviations                        |
+| Exception to the repo standard | A record in `docs/decisions`, indexed in its README                             |
 | `permdock`, docs or examples   | The rows in `change-checklist.mdc`                                              |
 
 ## Hard rules
@@ -123,31 +125,9 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 
 One branch and one PR per chat or plan, small conventional commits, and merge only when asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end on the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question; never carry it forward.
 
-## Deviations
+## Deviations and pins
 
-Records in `docs/decisions`:
-
-- 0002 no global `typescript` override; 0003 Zod and agent SDKs; 0004 `engines.node: ">=24"`
-- 0005 extra workspaces and root scripts; 0006 relaxed tsconfig for vendored UI
-- 0008 `turbo query affected`; 0009 extra boundary rules; 0010 Corepack on Vercel
-- 0011 no docs `robots.ts`; 0012 plain cross-zone anchors; 0013 no `fumadocs-openapi`
-- 0015 Ask AI input from `InputGroup`; 0016 Portless names; 0017 `permdock-<topic>` skills; 0018 blocked majors
-- 0019 `<Adapter>PermDock` and no `$` members; 0020 the CLI inside `permdock`; 0021 `^build` over `transit`
-- 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
-- 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0052 Ultracite kept-off rules
-- 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
-- 0031 tests outside Vitest projects; 0032 no actions.lock; 0033 jsx react-jsx; 0034 Instant over Temporal; 0037, 0068 CLI contract; 0038-0041, 0046-0048, 0050-0051, 0053-0054, 0059, 0067 better-supabase pins; 0044 kept-off; 0045 peers; 0049 hook gate
-- 0055 `turbo.json` `global` block
-- 0056 `permdock/app` `definePermDock`; 0061 `.next` and `.authorizer` on better-supabase
-- 0057 `oxc-parser`, `jiti` optional CLI peers; 0058 React evaluator split
-- 0062 `next-baseline.ts` suppressions; 0063 perf gates; 0065 after CI; 0066 store once
-
-## Pre-release pins
-
-- `@orpc/server`, `@orpc/client`, `@orpc/contract`, `@orpc/openapi` 2.0.0-beta.47: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
-- `drizzle-orm` 1.0.0-rc.5: the release candidate the standard asks for; the peer also accepts 0.40.
-- `@supabase/pg-delta` 1.0.0-alpha.60, `pg-topo` 1.0.0-alpha.8: Declarative Schemas 2.0 for `tests/integration` and `db diff`.
-- Prisma 8 stays on 7.10.0 until its blocker clears (0018).
+One record per deviation from the repo standard: [`docs/decisions/README.md`](./docs/decisions/README.md). Pre-release pins and blocked majors: [`docs/agents/pnpm-catalog.md`](./docs/agents/pnpm-catalog.md).
 
 ## Turbo agent guidance
 
