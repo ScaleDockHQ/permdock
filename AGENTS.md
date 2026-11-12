@@ -16,6 +16,10 @@ Conventions are rules: code in `architecture.mdc`, names in `naming.mdc`, prose 
 | `source-map.mdc`                       | Changing `packages/permdock`: folder map and a traced call                  |
 | `invariants.mdc`                       | Changing `packages/permdock/src`, `tests` or `apps/examples`                |
 | `naming.mdc`                           | Adding or renaming a public name, option, flag, denial reason or wire field |
+| `naming-supabase.mdc`                  | Naming in `supabase`, `better-supabase`, `cli/rls`, `cli/sql`               |
+| `naming-approvals.mdc`                 | Naming in approvals, `jwt`, `cloud`, `ssf`, `scim`, `server`, events        |
+| `naming-cli.mdc`                       | Naming in `cli`, `openapi`, generated output                                |
+| `naming-adapters.mdc`                  | Naming in UI and agent adapters                                             |
 | `cli.mdc`                              | Changing `packages/permdock/src/cli`: manifest, effects, envelope, agents   |
 | `change-checklist.mdc`                 | Before opening a PR: what else to update when you change X                  |
 | `docs.mdc`                             | Editing `apps/docs/content/docs`                                            |

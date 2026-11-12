@@ -1,0 +1,27 @@
+---
+description: PermDock names for UI adapters, guard sets, adapter context types and agent options
+globs: packages/permdock/src/react/**,packages/permdock/src/vue/**,packages/permdock/src/svelte/**,packages/permdock/src/solid/**,packages/permdock/src/react-native/**,packages/permdock/src/next/**,packages/permdock/src/agent/**,packages/permdock/src/ai-sdk/**,packages/permdock/src/claude-agent/**,packages/permdock/src/openai/**,packages/permdock/src/eve/**,packages/permdock/src/mcp/**
+alwaysApply: false
+paths:
+  - "packages/permdock/src/react/**"
+  - "packages/permdock/src/vue/**"
+  - "packages/permdock/src/svelte/**"
+  - "packages/permdock/src/solid/**"
+  - "packages/permdock/src/react-native/**"
+  - "packages/permdock/src/next/**"
+  - "packages/permdock/src/agent/**"
+  - "packages/permdock/src/ai-sdk/**"
+  - "packages/permdock/src/claude-agent/**"
+  - "packages/permdock/src/openai/**"
+  - "packages/permdock/src/eve/**"
+  - "packages/permdock/src/mcp/**"
+---
+
+# Naming: UI and agent adapters
+
+Same rules as `naming.mdc`, which holds the core vocabulary; these names are public API (invariant 14).
+
+- UI: `permdock/react` exports `PermDockProvider`, `usePermDock`, `usePermission`, `<Protected>` and the `use*` hooks; `usePermission(permission)` with no row answers `{ allowed, status, outcome }` from the snapshot and `useDecision(permission, data?)` answers the `PermissionState` with its `Decision`; servers use the async `getPermDock` / `getPermission` / `requirePermission(permission, data?, options?)`, where `requirePermission` turns a denial into `forbidden()` / `unauthorized()`. `protectAction(permission, { input, data?, tenant? })(handler)` wraps a Server Action and resolves to an `ActionResult` (`{ ok: true, value }` or `{ ok: false, problem }`); the second action argument is `{ approval }`, never `token`. Vue uses `use*` composables, Svelte `setPermDock` / `getPermDock` plus readable stores, Solid accessors. `permdock/react-native` takes a required `subjectId` and names helpers by what they wrap or do: `secureStoreStorage`, `mmkvStorage`, `appStateForeground`, `netInfoOnline`, `usePermissionGuard`, `useSnapshotReady`, `powerSyncSource`, `powerSyncSourceCache`. Never a CASL-style `<Can>`; no components beyond `<Protected>` and the `<PermissionBoundary>` error boundary in `permdock/next/client`, `permdock/vue`, `permdock/svelte` and `permdock/solid` (with `usePermissionBoundary` outside Svelte, where the snippet receives the state). The boundary renders a fallback for a thrown PermDock error and never gates; its props are `denied` and `approval`, the same names as `<Protected>`'s slots (`pending`, `denied`, `approval`) and the provider `defaults`. Never `fallback` for a denied slot: in React, Vue and Solid it means a loading or error state. `PermDockDeniedError` and `PermDockApprovalRequiredError` carry a stable `digest` (`PERMDOCK_DENIED;<permission>`, `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`), read with `parsePermDockDigest`.
+- Guard sets: `protect` and the MCP guard take a permission or a non-empty list; a list is all-of, `anyOf: true` makes it any-of. `rows` loads many rows in place of `data`, every row must be granted, and the rows are the guarded data. Never `permissions` or `items` for these: `items` filters a stream. An MCP tool is public only with `permission: null`. `unscopedTokens: 'deny' | 'subject'` is the MCP option for a token with none of the policy's scopes.
+- Context and prop types are adapter-first: `ExpressPermDockRequest`, `FastifyPermDockRequest`, `HonoPermDockEnv`, `ElysiaPermDockContext`, `ConvexPermDockContext`, `NextPermDockProviderProps`, `ReactNativePermDockProviderProps`, `SveltePermDockOptions`. Spell out `Context`, never `Ctx`.
+- Agent options: every agent adapter (`ai-sdk`, `openai`, `claude-agent`, `eve`) takes the full set `subject`, `actor`, `delegation`, `tenant`, `operations`, `models`, `store`, `unmapped`, `context`, `wrap`, `otel` and `deniedText`. `permdock/mcp` takes `actor` and `delegation` next to `actorKind`. `stepUp` means "send the user to raise their own access" on `permdock/mcp` (`{ at }`) and `permdock/ai-sdk` (`{ at? }`, a denial a sign-in or an eligible activation lifts becomes `user-approval` with a `StepUp` hint); never `withStepUp` or a wrapper around `toolApproval`.
