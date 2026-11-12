@@ -183,11 +183,13 @@ function claimsOf(request: AuthorizationRequest<Permission>): unknown {
 
 /**
  * What a bootstrap read for this user, from better-supabase's runtime `seed`:
- * used only when it names the claims' user and carries a version.
+ * used only when it names the claims' user, carries a version and covers
+ * `tenant`: a seed restricted to another tenant is ignored.
  */
 function seedOf(
   runtime: AuthorizerRuntime<AnyVersionCache> | undefined,
   claims: unknown,
+  tenant: string | null,
 ): AuthzSubjectSeed | undefined {
   const seed = runtime?.seed;
   if (seed === undefined || !isRecord(claims)) {
@@ -199,7 +201,8 @@ function seedOf(
     userId === claims["sub"] &&
     typeof version === "number" &&
     Number.isSafeInteger(version) &&
-    version >= 0
+    version >= 0 &&
+    (seed.tenant ?? tenant) === tenant
     ? seed
     : undefined;
 }
@@ -245,7 +248,7 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
     intent: Intent,
     runtime: AuthorizerRuntime<AnyVersionCache> | undefined,
   ): Promise<PermDock<V>> => {
-    const seed = seedOf(runtime, claims);
+    const seed = seedOf(runtime, claims, tenant);
     return resolve(
       claims === undefined
         ? null
@@ -256,6 +259,7 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
               tenant,
               authzVersion: seed.version,
               subject: seed.subject,
+              subjectTenant: seed.tenant,
             },
       { tenant, intent },
       runtime?.versions,

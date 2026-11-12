@@ -417,7 +417,7 @@
     "astro": "catalog:",
     "babel-plugin-react-compiler": "catalog:",
     "better-supabase": "catalog:",
-    "better-supabase-floor": "npm:better-supabase@0.58.0",
+    "better-supabase-floor": "npm:better-supabase@0.63.2",
     "chat": "catalog:",
     "diff": "catalog:",
     "drizzle-orm": "catalog:",

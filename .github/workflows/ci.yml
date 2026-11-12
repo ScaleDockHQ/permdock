@@ -186,7 +186,7 @@ jobs:
           pnpm --filter @permdock/integration exec vitest run
           --project integration --maxWorkers=2 --shard=${{ matrix.shard }}/3
 
-  # The peer floor (0.58.0) and the catalog pin (0.58.3); the range has no upper bound
+  # The peer floor and the catalog pin (both 0.63.2); the range has no upper bound
   # (tests/package/better-supabase-peer-range.test.ts).
   better-supabase:
     name: better-supabase ${{ matrix.better-supabase }}
@@ -198,7 +198,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        better-supabase: ["0.58.0", "0.58.3"]
+        better-supabase: ["0.63.2"]
     steps:
       - uses: actions/checkout@v7
         with:

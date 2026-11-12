@@ -158,7 +158,7 @@ catalog:
   "@ai-sdk/otel": 1.0.159
   dotenv-cli: 11.1.0
   portless: 0.15.12
-  better-supabase: 0.58.3
+  better-supabase: 0.63.2
   better-result: 3.0.1
   "@supabase/postgrest-typegen": 0.6.0
   supabase: 3.1.0
@@ -210,8 +210,8 @@ catalogs:
     "@nestjs/platform-fastify": 11.2.7
   peers:
     "@anthropic-ai/claude-agent-sdk": ">=0.2"
-    # Every peer range is a floor with no upper bound (decision 0045); this floor is the first entry of the better-supabase CI matrices (decision 0067).
-    better-supabase: ">=0.58.0"
+    # Every peer range is a floor with no upper bound (decision 0045); this floor is the first entry of the better-supabase CI matrices (decision 0071).
+    better-supabase: ">=0.63.2"
     chat: ">=4"
     "@modelcontextprotocol/server": ">=2"
     "@napi-rs/keyring": ">=1"
@@ -268,12 +268,10 @@ catalogPrune: true
 engineStrict: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
-  # Adopted the day they shipped; drop each entry after its date (decision 0067).
-  # Drop after 2026-11-12 08:49 UTC.
-  - better-supabase@0.58.0
-  # Drop after 2026-11-12 13:34 UTC.
-  - better-supabase@0.58.3
-  # Adopted on the day it shipped (decision 0070). Drop after 2026-11-12 18:38 UTC.
+  # Adopted the day they shipped; drop each entry after its date (decisions 0070 and 0071).
+  # Drop after 2026-11-13 13:49 UTC.
+  - better-supabase@0.63.2
+  # Drop after 2026-11-12 18:38 UTC.
   - turbo@2.11.11
   - eslint-plugin-turbo@2.11.11
   - "@turbo/darwin-64@2.11.11"

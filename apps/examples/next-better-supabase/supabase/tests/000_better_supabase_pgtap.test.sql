@@ -1,6 +1,6 @@
 -- better-supabase module: pgtap
 -- @bsb-block pgtap@1 managed
--- @bsb-hash sha256:f3df69827e65fcec8127b2b802518a6ff146e039dfc0a7c102bf3255c03238a6
+-- @bsb-hash sha256:8c43bc6f38add472e2019a7272106424fa5a53d757dd9b307412be46c87ce844
 -- tests.create_user, tests.authenticate_as (by id or email), tests.authenticate_as_issued, tests.act_as, tests.visible_row_count and catalog checks (every_table_has_rls, policies_use, no_anon_policies, every_table_audited, partitions_have_rls) for `supabase test db`. Written to supabase/tests, never to your schema.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -338,12 +338,14 @@ $$;
 
 create or replace function tests.age_import_run(run uuid, age interval)
 returns void
-language sql
+language plpgsql
 set search_path = ''
 as $$
+begin
   update better_supabase.import_runs
   set lease_expires_at = now() - age, heartbeat_at = now() - age
-  where id = run
+  where id = run;
+end;
 $$;
 
 -- Moves the stored import stamp into the past so a current subject looks edited.

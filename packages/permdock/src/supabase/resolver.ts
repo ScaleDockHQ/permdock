@@ -35,6 +35,12 @@ export type SupabaseAccessResult = {
    * `authzVersion`, so the instance reads no `subject_for`.
    */
   readonly subject?: unknown;
+  /**
+   * The tenant `subject` is restricted to; `null` or absent when it covers
+   * every tenant. A subject for another tenant than the one checked is not
+   * seeded.
+   */
+  readonly subjectTenant?: string | null;
 };
 
 export type ResolverQuery = {
@@ -158,6 +164,7 @@ export function createResolver<V extends PolicyVocabulary, TSource, TVersions>(
             : readSubjectRecord(result.subject);
         if (
           record?.active === true &&
+          (result?.subjectTenant ?? tenant ?? null) === (tenant ?? null) &&
           record.id === id &&
           record.authzVersion === known
         ) {

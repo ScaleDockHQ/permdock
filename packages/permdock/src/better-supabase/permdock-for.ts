@@ -38,6 +38,8 @@ export type PermDockForResult = {
    * is `authzVersion`, so the instance reads no `subject_for`.
    */
   readonly subject?: unknown;
+  /** The tenant `subject` is restricted to, as `bsb.bootstrap()` reports it. */
+  readonly subjectTenant?: string | null;
 };
 
 /** Who an instance is for. */

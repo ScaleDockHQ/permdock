@@ -122,9 +122,14 @@ describe("authorizer with a bootstrap seed", () => {
 
   it("reads no subject_for when the seed names the user at the live version", async () => {
     const { calls, check } = setup();
-    expect(await check({ userId: USER, version: 3, subject: record(3) })).toBe(
-      "granted",
-    );
+    expect(
+      await check({
+        userId: USER,
+        version: 3,
+        subject: record(3),
+        tenant: null,
+      }),
+    ).toBe("granted");
     expect(reads(calls)).toBe(0);
     expect(calls).toStrictEqual([]);
   });
@@ -132,23 +137,64 @@ describe("authorizer with a bootstrap seed", () => {
   it("ignores a seed for another user", async () => {
     const { calls, check } = setup();
     expect(
-      await check({ userId: OTHER, version: 3, subject: record(3, OTHER) }),
+      await check({
+        userId: OTHER,
+        version: 3,
+        subject: record(3, OTHER),
+        tenant: null,
+      }),
+    ).toBe("granted");
+    expect(reads(calls)).toBe(1);
+  });
+
+  it("reads no subject_for when the seed is restricted to the checked tenant", async () => {
+    const { calls, check } = setup();
+    expect(
+      await check({
+        userId: USER,
+        version: 3,
+        subject: record(3),
+        tenant: ORG,
+      }),
+    ).toBe("granted");
+    expect(reads(calls)).toBe(0);
+  });
+
+  it("ignores a seed restricted to another tenant", async () => {
+    const { calls, check } = setup();
+    expect(
+      await check({
+        userId: USER,
+        version: 3,
+        subject: record(3),
+        tenant: OTHER,
+      }),
     ).toBe("granted");
     expect(reads(calls)).toBe(1);
   });
 
   it("ignores a seed record at another version than the seed's", async () => {
     const { calls, check } = setup();
-    expect(await check({ userId: USER, version: 3, subject: record(2) })).toBe(
-      "granted",
-    );
+    expect(
+      await check({
+        userId: USER,
+        version: 3,
+        subject: record(2),
+        tenant: null,
+      }),
+    ).toBe("granted");
     expect(reads(calls)).toBe(1);
   });
 
   it("ignores a seed whose record is another user's", async () => {
     const { calls, check } = setup();
     expect(
-      await check({ userId: USER, version: 3, subject: record(3, OTHER) }),
+      await check({
+        userId: USER,
+        version: 3,
+        subject: record(3, OTHER),
+        tenant: null,
+      }),
     ).toBe("granted");
     expect(reads(calls)).toBe(1);
   });

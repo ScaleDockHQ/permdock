@@ -74,3 +74,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0068](./0068-cli-contract-3.md)                                  | PermDock moves to better-supabase's CLI contract 3                                                     |
 | [0069](./0069-staged-lint-on-commit.md)                           | Staged lint on commit, the affected gate on push                                                       |
 | [0070](./0070-turbo-2-11-11-release-age.md)                       | turbo 2.11.11 skips the release age                                                                    |
+| [0071](./0071-better-supabase-0-63-2-floor-and-release-age.md)    | better-supabase 0.63.2 is the peer floor and catalog pin, and skips the release age                    |
