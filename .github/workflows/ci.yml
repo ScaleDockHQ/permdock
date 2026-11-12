@@ -240,7 +240,7 @@ jobs:
 
       - name: Provider tests
         if: steps.pin.outputs.skip != 'true'
-        run: pnpm exec vitest run tests/better-supabase
+        run: pnpm exec vitest run --coverage.enabled=false tests/better-supabase
         working-directory: packages/permdock
 
       - name: Provider integration

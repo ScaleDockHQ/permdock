@@ -70,4 +70,4 @@ jobs:
 
       - name: Provider conformance
         working-directory: packages/permdock
-        run: pnpm exec vitest run tests/better-supabase
+        run: pnpm exec vitest run --coverage.enabled=false tests/better-supabase
