@@ -186,7 +186,7 @@ catalog:
   "@babel/core": 8.0.10
   chat: 4.43.0
   resend: 6.37.0
-  workflow: 5.2.3
+  workflow: 5.4.0
   "@solidjs/start": 2.1.0
   "@sveltejs/kit": 3.1.1
   "@tanstack/react-start": 1.169.4
@@ -256,8 +256,7 @@ catalogs:
 auditConfig:
   # No patched release yet; drop each entry once one ships.
   ignoreGhsas:
-    # node-forge <=1.4.0, through listhen in the Nuxt dev server (nuxt as a peer of
-    # @vercel/analytics); no signature verification at runtime.
+    # node-forge <=1.4.0, through the Expo CLI dev server; no signature verification at runtime.
     - GHSA-86w9-cpqp-85rv
     # braces <=3.0.3, through micromatch in Expo's Metro file map; build-time globs only.
     - GHSA-vfj7-8cjw-p6xm
@@ -343,15 +342,17 @@ overrides:
   "@arethetypeswrong/core": "-"
   # `@workflow/nest` peers on the SWC CLI, which only `workflow/nest` loads and no workspace does; `@swc/core` stays for `@workflow/builders`.
   "@swc/cli": "-"
+  # `better-supabase`, `@vercel/analytics` and `@vercel/speed-insights` take Nuxt as an optional peer; no workspace uses it, and auto-installed peers pulled in about 200 packages.
+  nuxt: "-"
   # drizzle-orm takes kysely as an optional peer; one kysely keeps one drizzle-orm variant, so its `SQL` type matches between permdock and the examples.
   kysely: "catalog:"
-  # GHSA-587h-7wmj-h5pm: launch-editor <=2.14.1, through @changesets/cli and the Nuxt devtools under better-supabase.
+  # GHSA-587h-7wmj-h5pm: launch-editor <=2.14.1, through @changesets/cli.
   launch-editor: "catalog:"
   # GHSA-3f7j-7jwc-fxfj: systeminformation <5.33.16, through @dotenvx/dotenvx under shadcn.
   systeminformation: "catalog:"
   # GHSA-mrwp-f3q8-3g9p: follow-redirects <=1.16.1, through axios under the Slack adapter in the chat-sdk example.
   follow-redirects: "catalog:"
-  # node-forge <=1.4.0 (PEM decoding ReDoS), through listhen under nuxt in better-supabase.
+  # node-forge <=1.4.0 (PEM decoding ReDoS), through the Expo CLI.
   node-forge: "catalog:"
   # drizzle-orm also takes pg as an optional peer; @prisma/adapter-pg and @supabase/server pin an older patch.
   pg: "catalog:"
