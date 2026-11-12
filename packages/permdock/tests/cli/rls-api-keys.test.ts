@@ -106,7 +106,7 @@ describe("rls api keys", () => {
         `select "permdock".permdock_api_key_allows(p_grant) and nullif(((select auth.jwt()) -> 'api_key') ->> 'tenant', '') is null and coalesce((`,
       );
       expect(sql).toContain(
-        `  ) ids(id)\n  where "permdock".permdock_api_key_allows(p_grant)`,
+        `  ) ids(id)\n  where (select "permdock".permdock_api_key_allows(p_grant))`,
       );
       expect(sql).toContain(
         `case jsonb_typeof(k -> 'roles') when 'array' then k -> 'roles' else '["member"]'::jsonb end`,
@@ -133,7 +133,7 @@ describe("rls api keys", () => {
       );
       expect(sql).toContain(`jsonb_array_elements_text(k -> 'permissions')`);
       expect(sql).toContain(
-        `  ) ids(id)\n  where "permdock".permdock_api_key_allows(p_grant)`,
+        `  ) ids(id)\n  where (select "permdock".permdock_api_key_allows(p_grant))`,
       );
     });
 

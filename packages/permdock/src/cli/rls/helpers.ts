@@ -59,6 +59,7 @@ import {
 import {
   interactiveAllowsCall,
   interactiveAllowsSql,
+  interactiveSessionSql,
   memoUserSql,
 } from "./interactive-only.ts";
 import { memoGenerationSql } from "./memo-generation.ts";
@@ -626,18 +627,26 @@ export function grantBodies(ctx: RlsSqlContext): {
   const scoped = ctx.tokenScopes !== undefined;
   const interactive = ctx.interactiveOnly !== undefined;
   const set = ctx.grantSet === true;
-  const ceiling = (grant: string): string | undefined => {
+  const ceiling = (grant: string, once: boolean): string | undefined => {
     const calls = [
       ...(keys === undefined ? [] : [apiKeyAllowsCall(ctx, grant)]),
       ...(scoped ? [tokenScopeAllowsCall(ctx, grant)] : []),
       ...(interactive ? [interactiveAllowsCall(ctx, grant)] : []),
     ];
-    return calls.length === 0 ? undefined : calls.join(" and ");
+    if (calls.length === 0) {
+      return undefined;
+    }
+    if (set) {
+      return `((select ${interactiveSessionSql(ctx)}) or (${calls.join(" and ")}))`;
+    }
+    return once
+      ? calls.map((call) => `(select ${call})`).join(" and ")
+      : calls.join(" and ");
   };
-  const allows = ceiling(set ? "ids.grant_key" : "p_grant");
+  const allows = ceiling(set ? "ids.grant_key" : "p_grant", true);
   const keyTenant =
     keys === undefined ? "" : ` and ${keyTenantSql(ctx, undefined) ?? "true"}`;
-  const hasAllows = ceiling(set ? "g.grant_key" : "p_grant");
+  const hasAllows = ceiling(set ? "g.grant_key" : "p_grant", false);
   return {
     has: memoBody(
       ctx,
