@@ -118,9 +118,10 @@ describe("permission-key helpers", () => {
     expect(text).toContain(
       '"permdock".permitted_tenant_ids_by_permission_for(p_user uuid, p_permission text)',
     );
-    expect(text).toContain(
-      'cross join lateral "permdock".permitted_tenant_ids_for(p_user, g.grant_key) a(id)',
+    expect(text).not.toContain(
+      "permitted_tenant_ids_for(p_user, g.grant_key) a(id)",
     );
+    expect(text).toContain("with pdk_i(id, grant_key) as materialized (");
     expect(text).toContain(
       'revoke execute on function "permdock".permdock_has_permission_for(uuid, text) from public, anon, authenticated;',
     );

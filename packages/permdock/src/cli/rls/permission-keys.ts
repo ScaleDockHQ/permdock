@@ -81,6 +81,26 @@ export function checkName(name: string): string {
   return name;
 }
 
+/**
+ * Allows minus denies over one read of the memberships: `body` yields `(id,
+ * grant_key)` per membership, and each key list selects grant keys.
+ */
+function setIds(body: Body, allow: string, deny: string): Body {
+  return {
+    sql: `  with pdk_i(id, grant_key) as materialized (
+${body.sql}
+  )
+  select i.id from pdk_i i where i.grant_key in (
+    ${allow}
+  )
+  except
+  select i.id from pdk_i i where i.grant_key in (
+    ${deny}
+  )`,
+    vars: body.vars,
+  };
+}
+
 function grantsFunction(
   ctx: RlsSqlContext,
   grants: ShimGrants,
@@ -191,7 +211,23 @@ export function permissionHelpersSql(
   const has = (helper: string, user: string): string =>
     `  select exists (select 1 from ${allowKeys("global")} where ${helper}(${user}g.grant_key))
     and not exists (select 1 from ${denyKeys("global")} where ${helper}(${user}g.grant_key))`;
-  const ids = (helper: string, scope: string, user: string): string =>
+  // One read of the caller's memberships answers every grant key: the set body
+  // yields (id, grant_key) per membership, so no grant key calls a helper.
+  const keyList = (scope: string, effect: string, conditioned?: string) =>
+    conditioned === undefined
+      ? effect === "allow"
+        ? `select g.grant_key from ${allowKeys(scope)}`
+        : `select g.grant_key from ${denyKeys(scope)}`
+      : `select g.grant_key from ${keys}(p_permission, ${quoteLiteral(scope)}, ${quoteLiteral(conditioned)}) g(grant_key)\n    where p_conditioned`;
+  const ids = (body: Body, scope: string): Body =>
+    setIds(body, keyList(scope, "allow"), keyList(scope, "deny"));
+  const conditionedIds = (body: Body, scope: string): Body =>
+    setIds(
+      body,
+      `${keyList(scope, "allow")}\n    union all\n    ${keyList(scope, "allow", "conditioned-allow")}`,
+      `${keyList(scope, "deny")}\n    except\n    ${keyList(scope, "deny", "conditioned-deny")}`,
+    );
+  const callIds = (helper: string, scope: string, user: string): string =>
     `  select a.id
   from ${allowKeys(scope)}
   cross join lateral ${helper}(${user}g.grant_key) a(id)
@@ -199,7 +235,7 @@ export function permissionHelpersSql(
   select d.id
   from ${denyKeys(scope)}
   cross join lateral ${helper}(${user}g.grant_key) d(id)`;
-  const conditionedIds = (
+  const callConditionedIds = (
     helper: string,
     scope: string,
     user: string,
@@ -221,6 +257,38 @@ export function permissionHelpersSql(
     where p_conditioned
   ) g
   cross join lateral ${helper}(${user}g.grant_key) d(id)`;
+  // With custom roles the set body probes each membership's role entries, which
+  // costs more buffers than the few helper calls it replaces, so those keep
+  // calling `permitted_<scope>_ids`.
+  const setForm = ctx.customRoles === undefined;
+  const byPermission = (
+    fn: string,
+    params: string,
+    scope: string,
+    user: string,
+    conditioned: boolean,
+  ): string => {
+    const returns = `setof ${scopeTypeOf(ctx, scope)}`;
+    if (!setForm) {
+      const helper = qualified(
+        ctx,
+        user === "" ? permittedIdsHelper(scope) : permittedForHelper(scope),
+      );
+      return definer(
+        fn,
+        params,
+        returns,
+        (conditioned ? callConditionedIds : callIds)(helper, scope, user),
+      );
+    }
+    const bodies = grantBodies({
+      ...(user === "" ? ctx : forUserContext(ctx)),
+      grantSet: true,
+    }).ids(scope);
+    return `create or replace function ${fn}(${params})
+returns ${returns}
+${functionBody((conditioned ? conditionedIds : ids)(bodies, scope), parallel, true)}`;
+  };
   const keysBody = (
     scope: string,
     bodies: { readonly has: Body; readonly ids: (scope: string) => Body },
@@ -299,12 +367,7 @@ ${grantsSql(qualified(ctx, PERMISSION_HELPERS.has), "text", anonExecute)}`,
       ctx,
       checkName(permittedByPermissionHelper(scope.name)),
     );
-    chunks.push(`${definer(
-      fn,
-      "p_permission text",
-      `setof ${scopeTypeOf(ctx, scope.name)}`,
-      ids(qualified(ctx, permittedIdsHelper(scope.name)), scope.name, ""),
-    )}
+    chunks.push(`${byPermission(fn, "p_permission text", scope.name, "", false)}
 ${grantsSql(fn, "text", anonExecute)}`);
     const keysFn = qualified(ctx, checkName(permissionKeysHelper(scope.name)));
     const type = scopeTypeOf(ctx, scope.name);
@@ -325,16 +388,7 @@ ${keysFunction(
   parallel,
 )}`);
     chunks.push(`-- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
-${definer(
-  fn,
-  "p_permission text, p_conditioned boolean",
-  `setof ${scopeTypeOf(ctx, scope.name)}`,
-  conditionedIds(
-    qualified(ctx, permittedIdsHelper(scope.name)),
-    scope.name,
-    "",
-  ),
-)}
+${byPermission(fn, "p_permission text, p_conditioned boolean", scope.name, "", true)}
 ${grantsSql(fn, "text, boolean", anonExecute)}`);
   }
   if (ctx.authorize !== "database") {
@@ -357,27 +411,9 @@ ${revoke(hasFor)}`);
       ctx,
       checkName(`${permittedByPermissionHelper(scope.name)}_for`),
     );
-    chunks.push(`${definer(
-      fn,
-      `p_user ${user}, p_permission text`,
-      `setof ${scopeTypeOf(ctx, scope.name)}`,
-      ids(
-        qualified(ctx, permittedForHelper(scope.name)),
-        scope.name,
-        "p_user, ",
-      ),
-    )}
+    chunks.push(`${byPermission(fn, `p_user ${user}, p_permission text`, scope.name, "p_user, ", false)}
 ${revoke(fn)}`);
-    chunks.push(`${definer(
-      fn,
-      `p_user ${user}, p_permission text, p_conditioned boolean`,
-      `setof ${scopeTypeOf(ctx, scope.name)}`,
-      conditionedIds(
-        qualified(ctx, permittedForHelper(scope.name)),
-        scope.name,
-        "p_user, ",
-      ),
-    )}
+    chunks.push(`${byPermission(fn, `p_user ${user}, p_permission text, p_conditioned boolean`, scope.name, "p_user, ", true)}
 revoke execute on function ${fn}(${user}, text, boolean) from public, anon, authenticated;`);
     const keysFor = qualified(
       ctx,

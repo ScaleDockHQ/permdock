@@ -18,6 +18,7 @@ export async function listPosts(permdock: PermDock) {
 ```
 
 - `permdock.where(permission)` narrows the query before it runs. It leaves out closure grants and marks the result `partial`; `filter` then drops what a closure refuses, and `pick` redacts fields.
+- Under RLS, a `status = $1` filter on an enum column never uses the status column of a composite `(<tenant column>, status, ...)` index. Postgres does not mark `enum_eq` leakproof (`pg_proc.proleakproof`), so it runs the comparison after the policy filter and reads every row of the tenant through the index prefix. This is Postgres behaviour, not a PermDock defect, and it affects every status-lane board that runs as the signed-in user. Only a `security definer` function with an explicit permission check reads the status column of the index.
 - When nothing is granted, `toWhere` returns a constant false expression (no rows). A closure grant cannot compile: `toWhere` throws `PermDockValidationError`.
 - `toWhere(condition, table, { columns })` maps schema fields to differently named columns. Graph grants need `{ relations: { closure: 'permdock.permdock_closure' } }`, otherwise a `related` node throws `non-portable-condition`.
 - `checkRow` (Drizzle) answers one row as `{ found: false }` or `{ found: true, granted }`, so a handler can tell `404` from `403` with one query.

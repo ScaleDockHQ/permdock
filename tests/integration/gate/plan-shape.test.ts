@@ -222,6 +222,43 @@ describe("rls-bench plan shapes, 1k tier", () => {
     },
   );
 
+  // `_by_permission` reads the caller's memberships once for all its grant
+  // keys, so it never calls `permitted_<scope>_ids` once per key.
+  it.each(["item.read", "item.update"])(
+    "permitted_tenant_ids_by_permission('%s') reads the memberships once",
+    async (permission) => {
+      const { helperCalls, scans, ms } = await asCaller(async (client) => {
+        const counters = async () => {
+          const calls = await client.query<{ calls: string }>(
+            `select coalesce(sum(calls), 0) as calls from pg_stat_xact_user_functions where funcname = 'permitted_tenant_ids'`,
+          );
+          const reads = await client.query<{ scans: string }>(
+            `select coalesce(sum(seq_scan + idx_scan), 0) as scans from pg_stat_xact_user_tables where relname = 'organization_members'`,
+          );
+          return {
+            calls: Number(calls.rows[0]?.calls ?? 0),
+            scans: Number(reads.rows[0]?.scans ?? 0),
+          };
+        };
+        const before = await counters();
+        const started = performance.now();
+        await client.query(
+          `select count(*) from permdock.permitted_tenant_ids_by_permission('${permission}')`,
+        );
+        const elapsed = performance.now() - started;
+        const after = await counters();
+        return {
+          helperCalls: after.calls - before.calls,
+          scans: after.scans - before.scans,
+          ms: elapsed,
+        };
+      });
+      reportMs(`byPermission.${permission}`, ms);
+      expect(helperCalls).toBe(0);
+      expect(scans).toBe(1);
+    },
+  );
+
   it("keeps the fixed helper cost of a statement under the ceilings", async () => {
     const sql = `select id from public.item where "orgId" = '${foreign}'`;
     const client = await pool().connect();

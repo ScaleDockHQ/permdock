@@ -85,6 +85,8 @@ Execution Time: ~1 ms
 
 The benchmark asserts on `EXPLAIN (ANALYZE, FORMAT JSON)` that every node calling a helper has `loops = 1` (whether Postgres labels it an InitPlan or a hashed SubPlan), that both shapes return the same rows, and that the helper shape is at least 5x faster with an absolute ceiling.
 
+`permitted_<scope>_ids_by_permission` reads the caller's memberships once per call, however many grant keys the permission has, when the policy declares no custom roles. With custom roles it calls `permitted_<scope>_ids` once per grant key.
+
 Security notes on the helpers:
 
 - They are `security definer` so they can read `role_permissions`, `user_roles` and the memberships table, which `authenticated` cannot select; the policy never needs a grant on those tables, and their own RLS does not recurse into the helper.
@@ -238,6 +240,12 @@ select exists (
 ```
 
 Both forms answer what the caller forms answer when `p_user` is the caller, with the same roles, grants, custom roles, overrides and suspension filters. A third argument that is an untyped literal or parameter matches both forms, so cast claims passed positionally (`'{"tenant": "..."}'::jsonb`) or pass them by name. No client role may execute either form: a `security definer` function runs them as its owner, and a backend role needs a grant of its own (`grant execute on function permdock.permitted_doc_rows_for(uuid, text, text[], jsonb) to service_role`). The `neon` dialect, whose subject comes from `auth.session()`, gets none.
+
+### Indexes under row-level security
+
+A status filter on an enum column does not use the status column of a composite `(<tenant column>, status, ...)` index when the query runs as the signed-in user. Postgres evaluates a policy qual before any user-supplied qual that is not `LEAKPROOF`, and `enum_eq` is not: `select proleakproof from pg_proc where proname = 'enum_eq'` answers `false`. The status comparison then runs after the policy filter, and the plan reads every row of the tenant through the `<tenant column>` prefix. The behaviour is Postgres's, not a defect of the generated helpers, and it holds for every status-lane board over a table with a policy (see [Postgres RLS](/docs/standards/postgres-rls)).
+
+A `security definer` function that checks the permission explicitly runs without the policy, so the planner can use the status column. That moves the access check into the function, so review each such function as policy code.
 
 ### Ownership rules
 
