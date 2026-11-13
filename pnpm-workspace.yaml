@@ -90,7 +90,7 @@ catalog:
   launch-editor: 2.14.2
   systeminformation: 5.33.19
   follow-redirects: 1.16.2
-  node-forge: 1.4.2
+  node-forge: 1.4.3
   multer: 2.5.0
   fastify: 5.12.7
   beautiful-mermaid: 1.1.3
