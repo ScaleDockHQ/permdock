@@ -340,13 +340,32 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
-  from "permdock".grant_keys(p_permission, 'tenant') g(grant_key)
-  cross join lateral "permdock".permitted_tenant_ids(g.grant_key) a(id)
+  with pdk_i(id, grant_key) as materialized (
+  select (m ->> 'id')::uuid, rp.grant_key
+  from (select ((select auth.session()) -> 'memberships') as v) pdk_c
+    cross join lateral jsonb_array_elements(
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+    ) m
+    cross join lateral jsonb_array_elements_text(
+      case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+    ) r(role)
+  cross join lateral "permdock".permdock_role_grant_keys('tenant', r.role) rp(grant_key)
+  where coalesce((select auth.user_id())::text, '') <> ''
+    and m ->> 'scope' = 'tenant'
+    and m ->> 'id' is not null
+    and (nullif(((select auth.session()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.session()) ->> 'tenant_id'), ''))
+    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
+      else true
+    end
+  )
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'tenant') g(grant_key)
+  )
   except
-  select d.id
-  from "permdock".grant_keys(p_permission, 'tenant', 'deny') g(grant_key)
-  cross join lateral "permdock".permitted_tenant_ids(g.grant_key) d(id)
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'tenant', 'deny') g(grant_key)
+  )
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_by_permission(text) from public, anonymous;
 grant execute on function "permdock".permitted_tenant_ids_by_permission(text) to authenticated;
@@ -499,23 +518,38 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
-  from (
+  with pdk_i(id, grant_key) as materialized (
+  select (m ->> 'id')::uuid, rp.grant_key
+  from (select ((select auth.session()) -> 'memberships') as v) pdk_c
+    cross join lateral jsonb_array_elements(
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+    ) m
+    cross join lateral jsonb_array_elements_text(
+      case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+    ) r(role)
+  cross join lateral "permdock".permdock_role_grant_keys('tenant', r.role) rp(grant_key)
+  where coalesce((select auth.user_id())::text, '') <> ''
+    and m ->> 'scope' = 'tenant'
+    and m ->> 'id' is not null
+    and (nullif(((select auth.session()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.session()) ->> 'tenant_id'), ''))
+    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
+      else true
+    end
+  )
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'tenant') g(grant_key)
     union all
     select g.grant_key from "permdock".grant_keys(p_permission, 'tenant', 'conditioned-allow') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_tenant_ids(g.grant_key) a(id)
+  )
   except
-  select d.id
-  from (
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'tenant', 'deny') g(grant_key)
     except
     select g.grant_key from "permdock".grant_keys(p_permission, 'tenant', 'conditioned-deny') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_tenant_ids(g.grant_key) d(id)
+  )
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_by_permission(text, boolean) from public, anonymous;
 grant execute on function "permdock".permitted_tenant_ids_by_permission(text, boolean) to authenticated;
@@ -530,13 +564,32 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
-  from "permdock".grant_keys(p_permission, 'team') g(grant_key)
-  cross join lateral "permdock".permitted_team_ids(g.grant_key) a(id)
+  with pdk_i(id, grant_key) as materialized (
+  select (m ->> 'id')::uuid, rp.grant_key
+  from (select ((select auth.session()) -> 'memberships') as v) pdk_c
+    cross join lateral jsonb_array_elements(
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+    ) m
+    cross join lateral jsonb_array_elements_text(
+      case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+    ) r(role)
+  cross join lateral "permdock".permdock_role_grant_keys('team', r.role) rp(grant_key)
+  where coalesce((select auth.user_id())::text, '') <> ''
+    and m ->> 'scope' = 'team'
+    and m ->> 'id' is not null
+    and (nullif(((select auth.session()) ->> 'tenant_id'), '') is null or m -> 'within' ->> 'tenant' = nullif(((select auth.session()) ->> 'tenant_id'), ''))
+    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
+      else true
+    end
+  )
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'team') g(grant_key)
+  )
   except
-  select d.id
-  from "permdock".grant_keys(p_permission, 'team', 'deny') g(grant_key)
-  cross join lateral "permdock".permitted_team_ids(g.grant_key) d(id)
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'team', 'deny') g(grant_key)
+  )
 $$;
 revoke execute on function "permdock".permitted_team_ids_by_permission(text) from public, anonymous;
 grant execute on function "permdock".permitted_team_ids_by_permission(text) to authenticated;
@@ -689,23 +742,38 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
-  from (
+  with pdk_i(id, grant_key) as materialized (
+  select (m ->> 'id')::uuid, rp.grant_key
+  from (select ((select auth.session()) -> 'memberships') as v) pdk_c
+    cross join lateral jsonb_array_elements(
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+    ) m
+    cross join lateral jsonb_array_elements_text(
+      case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
+    ) r(role)
+  cross join lateral "permdock".permdock_role_grant_keys('team', r.role) rp(grant_key)
+  where coalesce((select auth.user_id())::text, '') <> ''
+    and m ->> 'scope' = 'team'
+    and m ->> 'id' is not null
+    and (nullif(((select auth.session()) ->> 'tenant_id'), '') is null or m -> 'within' ->> 'tenant' = nullif(((select auth.session()) ->> 'tenant_id'), ''))
+    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
+      else true
+    end
+  )
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'team') g(grant_key)
     union all
     select g.grant_key from "permdock".grant_keys(p_permission, 'team', 'conditioned-allow') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_team_ids(g.grant_key) a(id)
+  )
   except
-  select d.id
-  from (
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'team', 'deny') g(grant_key)
     except
     select g.grant_key from "permdock".grant_keys(p_permission, 'team', 'conditioned-deny') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_team_ids(g.grant_key) d(id)
+  )
 $$;
 revoke execute on function "permdock".permitted_team_ids_by_permission(text, boolean) from public, anonymous;
 grant execute on function "permdock".permitted_team_ids_by_permission(text, boolean) to authenticated;

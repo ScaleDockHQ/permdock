@@ -293,13 +293,22 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
-  from "permdock".grant_keys(p_permission, 'org') g(grant_key)
-  cross join lateral "permdock".permitted_org_ids(g.grant_key) a(id)
+  with pdk_i(id, grant_key) as materialized (
+  select m."org_id"::text, rp.grant_key
+  from "public"."org_members" m
+  join "public"."org_roles" mk on mk."id" = m."role_id"
+  cross join lateral "permdock".permdock_role_grant_keys('org', mk."key"::text) rp(grant_key)
+  where m."user_id" = (select current_setting('app.user_id', true))
+    and not (mk."key"::text = any(array['reviewer']::text[]))
+    and (nullif((select current_setting('app.tenant_id', true)), '') is null or m."org_id"::text = nullif((select current_setting('app.tenant_id', true)), ''))
+  )
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'org') g(grant_key)
+  )
   except
-  select d.id
-  from "permdock".grant_keys(p_permission, 'org', 'deny') g(grant_key)
-  cross join lateral "permdock".permitted_org_ids(g.grant_key) d(id)
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'org', 'deny') g(grant_key)
+  )
 $$;
 revoke execute on function "permdock".permitted_org_ids_by_permission(text) from public, anon;
 grant execute on function "permdock".permitted_org_ids_by_permission(text) to authenticated;
@@ -424,23 +433,28 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
-  from (
+  with pdk_i(id, grant_key) as materialized (
+  select m."org_id"::text, rp.grant_key
+  from "public"."org_members" m
+  join "public"."org_roles" mk on mk."id" = m."role_id"
+  cross join lateral "permdock".permdock_role_grant_keys('org', mk."key"::text) rp(grant_key)
+  where m."user_id" = (select current_setting('app.user_id', true))
+    and not (mk."key"::text = any(array['reviewer']::text[]))
+    and (nullif((select current_setting('app.tenant_id', true)), '') is null or m."org_id"::text = nullif((select current_setting('app.tenant_id', true)), ''))
+  )
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'org') g(grant_key)
     union all
     select g.grant_key from "permdock".grant_keys(p_permission, 'org', 'conditioned-allow') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_org_ids(g.grant_key) a(id)
+  )
   except
-  select d.id
-  from (
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'org', 'deny') g(grant_key)
     except
     select g.grant_key from "permdock".grant_keys(p_permission, 'org', 'conditioned-deny') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_org_ids(g.grant_key) d(id)
+  )
 $$;
 revoke execute on function "permdock".permitted_org_ids_by_permission(text, boolean) from public, anon;
 grant execute on function "permdock".permitted_org_ids_by_permission(text, boolean) to authenticated;
@@ -470,13 +484,21 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
-  from "permdock".grant_keys(p_permission, 'org') g(grant_key)
-  cross join lateral "permdock".permitted_org_ids_for(p_user, g.grant_key) a(id)
+  with pdk_i(id, grant_key) as materialized (
+  select m."org_id"::text, rp.grant_key
+  from "public"."org_members" m
+  join "public"."org_roles" mk on mk."id" = m."role_id"
+  cross join lateral "permdock".permdock_role_grant_keys('org', mk."key"::text) rp(grant_key)
+  where m."user_id" = p_user
+    and not (mk."key"::text = any(array['reviewer']::text[]))
+  )
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'org') g(grant_key)
+  )
   except
-  select d.id
-  from "permdock".grant_keys(p_permission, 'org', 'deny') g(grant_key)
-  cross join lateral "permdock".permitted_org_ids_for(p_user, g.grant_key) d(id)
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'org', 'deny') g(grant_key)
+  )
 $$;
 revoke execute on function "permdock".permitted_org_ids_by_permission_for(text, text) from public, anon, authenticated;
 
@@ -490,23 +512,27 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
-  from (
+  with pdk_i(id, grant_key) as materialized (
+  select m."org_id"::text, rp.grant_key
+  from "public"."org_members" m
+  join "public"."org_roles" mk on mk."id" = m."role_id"
+  cross join lateral "permdock".permdock_role_grant_keys('org', mk."key"::text) rp(grant_key)
+  where m."user_id" = p_user
+    and not (mk."key"::text = any(array['reviewer']::text[]))
+  )
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'org') g(grant_key)
     union all
     select g.grant_key from "permdock".grant_keys(p_permission, 'org', 'conditioned-allow') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_org_ids_for(p_user, g.grant_key) a(id)
+  )
   except
-  select d.id
-  from (
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'org', 'deny') g(grant_key)
     except
     select g.grant_key from "permdock".grant_keys(p_permission, 'org', 'conditioned-deny') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_org_ids_for(p_user, g.grant_key) d(id)
+  )
 $$;
 revoke execute on function "permdock".permitted_org_ids_by_permission_for(text, text, boolean) from public, anon, authenticated;
 

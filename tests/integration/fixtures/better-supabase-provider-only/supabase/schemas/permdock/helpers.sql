@@ -380,7 +380,7 @@ grant execute on function "permdock".permdock_has_permission(text) to authentica
 
 create or replace function "permdock".permitted_organization_ids_by_permission(p_permission text)
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -388,13 +388,37 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
-  from "permdock".grant_keys(p_permission, 'organization') g(grant_key)
-  cross join lateral "permdock".permitted_organization_ids(g.grant_key) a(id)
+declare
+  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+begin
+  return query
+  with pdk_i(id, grant_key) as materialized (
+  select (ms.id)::text, rp.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_role_grant_keys('organization', r.role) rp(grant_key)
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'organization'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    and coalesce((select "permdock".permdock_user_id()) in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)
+    and coalesce((ms.id)::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)
+  )
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization') g(grant_key)
+  )
   except
-  select d.id
-  from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key)
-  cross join lateral "permdock".permitted_organization_ids(g.grant_key) d(id)
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key)
+  );
+end;
 $$;
 revoke execute on function "permdock".permitted_organization_ids_by_permission(text) from public, anon;
 grant execute on function "permdock".permitted_organization_ids_by_permission(text) to authenticated;
@@ -547,7 +571,7 @@ grant execute on function "permdock".permitted_organization_permission_keys(text
 -- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 create or replace function "permdock".permitted_organization_ids_by_permission(p_permission text, p_conditioned boolean)
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -555,23 +579,43 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
+declare
+  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+begin
+  return query
+  with pdk_i(id, grant_key) as materialized (
+  select (ms.id)::text, rp.grant_key
   from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_role_grant_keys('organization', r.role) rp(grant_key)
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'organization'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    and coalesce((select "permdock".permdock_user_id()) in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)
+    and coalesce((ms.id)::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)
+  )
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'organization') g(grant_key)
     union all
     select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'conditioned-allow') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_organization_ids(g.grant_key) a(id)
+  )
   except
-  select d.id
-  from (
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key)
     except
     select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'conditioned-deny') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_organization_ids(g.grant_key) d(id)
+  );
+end;
 $$;
 revoke execute on function "permdock".permitted_organization_ids_by_permission(text, boolean) from public, anon;
 grant execute on function "permdock".permitted_organization_ids_by_permission(text, boolean) to authenticated;
@@ -593,7 +637,7 @@ revoke execute on function "permdock".permdock_has_permission_for(uuid, text) fr
 
 create or replace function "permdock".permitted_organization_ids_by_permission_for(p_user uuid, p_permission text)
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -601,19 +645,42 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
-  from "permdock".grant_keys(p_permission, 'organization') g(grant_key)
-  cross join lateral "permdock".permitted_organization_ids_for(p_user, g.grant_key) a(id)
+declare
+  v_user_0 "public"."memberships"."user_id"%type := p_user;
+begin
+  return query
+  with pdk_i(id, grant_key) as materialized (
+  select (ms.id)::text, rp.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_role_grant_keys('organization', r.role) rp(grant_key)
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'organization'
+    and coalesce(p_user in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)
+    and coalesce((ms.id)::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)
+  )
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization') g(grant_key)
+  )
   except
-  select d.id
-  from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key)
-  cross join lateral "permdock".permitted_organization_ids_for(p_user, g.grant_key) d(id)
+  select i.id from pdk_i i where i.grant_key in (
+    select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key)
+  );
+end;
 $$;
 revoke execute on function "permdock".permitted_organization_ids_by_permission_for(uuid, text) from public, anon, authenticated;
 
 create or replace function "permdock".permitted_organization_ids_by_permission_for(p_user uuid, p_permission text, p_conditioned boolean)
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -621,23 +688,42 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
-  select a.id
+declare
+  v_user_0 "public"."memberships"."user_id"%type := p_user;
+begin
+  return query
+  with pdk_i(id, grant_key) as materialized (
+  select (ms.id)::text, rp.grant_key
   from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_role_grant_keys('organization', r.role) rp(grant_key)
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'organization'
+    and coalesce(p_user in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)
+    and coalesce((ms.id)::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)
+  )
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'organization') g(grant_key)
     union all
     select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'conditioned-allow') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_organization_ids_for(p_user, g.grant_key) a(id)
+  )
   except
-  select d.id
-  from (
+  select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'deny') g(grant_key)
     except
     select g.grant_key from "permdock".grant_keys(p_permission, 'organization', 'conditioned-deny') g(grant_key)
     where p_conditioned
-  ) g
-  cross join lateral "permdock".permitted_organization_ids_for(p_user, g.grant_key) d(id)
+  );
+end;
 $$;
 revoke execute on function "permdock".permitted_organization_ids_by_permission_for(uuid, text, boolean) from public, anon, authenticated;
 

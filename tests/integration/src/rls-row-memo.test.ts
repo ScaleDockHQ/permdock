@@ -328,7 +328,7 @@ describe("permitted_<resource>_row memo against Postgres", () => {
     expect(calls.rows).toBe(BENCH + 3);
     expect(calls.calls).toMatchObject({
       can_doc: BENCH + 4,
-      permitted_tenant_ids: 3,
+      permitted_tenant_ids: 2,
       permitted_tenant_ids_by_permission: 1,
       permitted_doc_ids: 1,
       permdock_has_permission: 1,
