@@ -576,8 +576,8 @@ catalogs:
       specifier: 18.3.2
       version: 18.3.2
     portless:
-      specifier: 0.15.12
-      version: 0.15.12
+      specifier: 0.17.0
+      version: 0.17.0
     postcss:
       specifier: 8.5.32
       version: 8.5.32
@@ -833,7 +833,7 @@ importers:
         version: 7.0.2006
       portless:
         specifier: 'catalog:'
-        version: 0.15.12
+        version: 0.17.0
       supports-color:
         specifier: 'catalog:'
         version: 11.0.0
@@ -960,7 +960,7 @@ importers:
         version: 7.0.2006
       portless:
         specifier: 'catalog:'
-        version: 0.15.12
+        version: 0.17.0
       postcss:
         specifier: 'catalog:'
         version: 8.5.32
@@ -2565,7 +2565,7 @@ importers:
         version: 7.0.2006
       portless:
         specifier: 'catalog:'
-        version: 0.15.12
+        version: 0.17.0
       postcss:
         specifier: 'catalog:'
         version: 8.5.32
@@ -13865,8 +13865,8 @@ packages:
     resolution: {integrity: sha512-NCrCHhWmnQklfH4MtJMRjZ2a8c80qXeMlQMv2uVp9ISJMTt562SbGd6n2oq0PaPgKm7Z6pL9E2UlLIhC+SHL3w==}
     engines: {node: '>=4.0.0'}
 
-  portless@0.15.12:
-    resolution: {integrity: sha512-Lbz85zLboOMkvq2unXYfJ/YMpsvFZYQgrwGEbinZErp045y9fLm4obm7E77V2BI2Om0Mh6tX/2w2ftFqRs5kfQ==}
+  portless@0.17.0:
+    resolution: {integrity: sha512-UJdy5sGmNSwi8ETvVniUTqULJht16qvBR9rvsFqsVekEyabMH2xJ5mwIEYBmSSHVCUmQvAmaYAhBcCs8PA7IBA==}
     engines: {node: '>=24'}
     os: [darwin, linux, win32]
     hasBin: true
@@ -27760,7 +27760,7 @@ snapshots:
 
   pngjs@3.4.0: {}
 
-  portless@0.15.12: {}
+  portless@0.17.0: {}
 
   postal-mime@2.7.6: {}
 

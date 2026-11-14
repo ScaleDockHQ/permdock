@@ -157,7 +157,7 @@ catalog:
   use-stick-to-bottom: 1.1.6
   "@ai-sdk/otel": 1.0.159
   dotenv-cli: 11.1.0
-  portless: 0.15.12
+  portless: 0.17.0
   better-supabase: 0.63.2
   better-result: 3.0.1
   "@supabase/postgrest-typegen": 0.6.0
