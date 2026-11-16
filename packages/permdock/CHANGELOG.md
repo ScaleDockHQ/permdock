@@ -1,5 +1,17 @@
 # permdock
 
+## 0.28.0
+
+### Minor Changes
+
+- [#339](https://github.com/ScaleDockHQ/permdock/pull/339) [`43c53be`](https://github.com/ScaleDockHQ/permdock/commit/43c53bed154fba541015a0d17f2ff6e7e014e3cd) Thanks [@martijn00](https://github.com/martijn00)! - Breaking: `permdock/better-supabase` needs better-supabase 0.63.2 or later (`>=0.63.2`); upgrade better-supabase before this release. `authorizer` and `permdockFor` ignore a bootstrap subject seeded for another tenant.
+
+### Patch Changes
+
+- [#345](https://github.com/ScaleDockHQ/permdock/pull/345) [`47a207c`](https://github.com/ScaleDockHQ/permdock/commit/47a207ce17fdbb8e0e6fd2330403e3f7b7d42d5a) Thanks [@mick340](https://github.com/mick340)! - `usePermDock` no longer logs "A component was suspended by an uncached promise" on the first check under the lazy evaluator. The store now keeps returning the evaluator load it suspended on after that load settles, so a render React replays sees the same promise.
+
+- [#342](https://github.com/ScaleDockHQ/permdock/pull/342) [`151f48f`](https://github.com/ScaleDockHQ/permdock/commit/151f48f67460ed0072c993d7e6fd0514a3ba877e) Thanks [@martijn00](https://github.com/martijn00)! - `permitted_<scope>_ids_by_permission` and its `_for` forms read the caller's memberships once per call instead of once per grant key, for policies without custom roles. Rerun `permdock generate` to pick it up.
+
 ## 0.27.3
 
 ### Patch Changes
