@@ -69,6 +69,18 @@ describe("a store whose evaluator fails to load", () => {
   });
 });
 
+describe("a store that loads its evaluator", () => {
+  it("returns the same promise from loading() after the load settles", async () => {
+    const store = createStore(
+      { snapshot: snapshot() },
+      { build: () => undefined, load: () => Promise.resolve() },
+    );
+    const first = store.loading();
+    await first;
+    expect(store.loading()).toBe(first);
+  });
+});
+
 describe("store.quick", () => {
   it("leaves a key listed under endpoint to the evaluator", () => {
     const store = createStore(

@@ -135,8 +135,10 @@ export type ClientStore = {
    */
   quick: (permission: Permission) => PermissionOutcome | undefined;
   /**
-   * `undefined` once the evaluator has loaded; otherwise the load in flight,
-   * which a render reads with `use()`.
+   * The evaluator load, which a render reads with `use()`. After it settles the
+   * same promise comes back, so a replayed render sees the thenable it
+   * suspended on; `undefined` when the evaluator was loaded before the store
+   * existed.
    */
   loading: () => PromiseLike<void> | undefined;
   requestApproval: (decision: Decision, note?: string) => Promise<void>;
@@ -542,7 +544,7 @@ export function createStore(
 
   const loading = (): PromiseLike<void> | undefined => {
     if (evaluated) {
-      return undefined;
+      return loadingNow;
     }
     loadingNow ??= (async (): Promise<void> => {
       try {
