@@ -914,6 +914,47 @@ describe(authorizationProvider, () => {
     );
   });
 
+  it("fills roleIn from permdock_role_in only with roleIn: true", () => {
+    const manifest = withRls({
+      helpers: [
+        ...supabaseHookManifestFixture.rls.helpers,
+        {
+          name: "permdock_role_in",
+          args: "p_role text, p_tenant uuid",
+          returns: "boolean",
+          execute: [],
+        },
+      ],
+    });
+    expect(
+      Object.keys(
+        authorizationProvider({ manifest, catalog: emptyCatalog }).functions,
+      ),
+    ).not.toContain("roleIn");
+    expect(
+      authorizationProvider({
+        catalog: emptyCatalog,
+        manifest: withRls({}),
+        roleIn: true,
+      }).problems,
+    ).toContainEqual(
+      expect.stringContaining("roleIn: the manifest's rls.helpers has no"),
+    );
+    const provider = authorizationProvider({
+      manifest,
+      catalog: emptyCatalog,
+      roleIn: true,
+    });
+    expect(provider.functions).toMatchObject({
+      roleIn: "permdock.permdock_role_in({role}, {tenant})",
+    });
+    expect(provider.requires).toContainEqual({
+      function: "permdock.permdock_role_in",
+      args: "text, uuid",
+      role: "postgres",
+    });
+  });
+
   describe("fixtureRoles", () => {
     const grant = (
       role: string,

@@ -57,6 +57,7 @@ export const CUSTOM_ROLES = {
   compileFor: "permdock_compile_custom_roles_for",
   compileStatement: "permdock_compile_custom_roles",
   recompile: "permdock_recompile_custom_roles",
+  roleIn: "permdock_role_in",
 } as const;
 
 /** The function `rls.roles` adds. The name is part of the SQL contract. */

@@ -50,7 +50,7 @@ import {
   permittedIdsHelper,
 } from "../sql/names.ts";
 import { resolveNames } from "../sql/resolve-names.ts";
-import { customRolesOn, HELPERS } from "../sql/shared.ts";
+import { CUSTOM_ROLES, customRolesOn, HELPERS } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
 import { PERMDOCK_SUBJECT } from "./api.ts";
 import { hookClaims } from "./claims.ts";
@@ -126,8 +126,9 @@ function helperEntry(
 
 /**
  * The helpers `rls generate` writes beyond the ones the hook's claims feed: the
- * `_for` forms in `database` mode, and the assignment checks when a role
- * declares `assigns` (known only with the policy).
+ * `_for` forms in `database` mode, `permdock_role_in` with custom roles there,
+ * and the assignment checks when a role declares `assigns` (known only with the
+ * policy).
  */
 function trustedHelpers(
   parts: Parts,
@@ -229,6 +230,16 @@ function trustedHelpers(
         ]
       : []),
     ...forUser,
+    ...(custom
+      ? [
+          helperEntry(
+            CUSTOM_ROLES.roleIn,
+            `p_role text, p_tenant ${tenantType}`,
+            "boolean",
+            [],
+          ),
+        ]
+      : []),
   ];
   const assigns =
     policy !== undefined &&

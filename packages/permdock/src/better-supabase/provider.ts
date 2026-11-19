@@ -80,6 +80,13 @@ export type AuthorizationProviderOptions<P = undefined> = {
    */
   readonly rowHelpers?: boolean;
   /**
+   * Fill better-supabase's `roleIn` with `permdock_role_in`, which the manifest
+   * lists with `rls.customRoles` in `database` mode, so the `membership_roles`
+   * trigger refuses another tenant's custom role. Needs better-supabase 0.77.0;
+   * an older release refuses the template.
+   */
+  readonly roleIn?: boolean;
+  /**
    * Users better-supabase's access matrix signs in as, one pgTAP file each
    * (`providerPersonaTests`). `setup` creates the memberships and roles with
    * `{user}` and `{tenant}`; `permissions` are the keys the persona holds in
