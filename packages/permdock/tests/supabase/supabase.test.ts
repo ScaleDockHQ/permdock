@@ -393,6 +393,12 @@ describe("supabaseRls and authorizeSql", () => {
     expect(database).toContain('"permdock"."custom_role_includes" c');
     expect(database).toContain("any(array['admin', 'o''wner']::text[])");
     expect(database).toContain('"permdock"."permdock_custom_keys"(');
+    expect(database).toContain(
+      'v_custom_tenant "permdock"."custom_role_permissions".tenant_id%type;',
+    );
+    expect(database).toContain("v_custom_tenant := requested_tenant;");
+    expect(database).toContain("else c.tenant_id = v_custom_tenant end");
+    expect(database).not.toMatch(/tenant_id::text/u);
     const jwt = authorizeSql({
       authorize: "jwt",
       customRoles: { declared: [] },

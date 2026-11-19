@@ -97,7 +97,7 @@ describe("PowerSync streams that read token claims", () => {
         code: "PD084",
         severity: "warning",
         message: line,
-        fix: "pass nativeRefresh from permdock/react-native to refreshOn, which refreshes the session and reconnects PowerSync on each authz:<uid> message",
+        fix: "pass nativeRefresh from permdock/react-native to refreshOn, which refreshes the session and reconnects PowerSync on each authz:<uid> message; an app bridge that calls refreshSession() and refreshes PermDock through authzChangeRefresh also clears it",
       },
     ]);
     expect(
@@ -107,5 +107,21 @@ describe("PowerSync streams that read token claims", () => {
         policy: async () => policy,
       }),
     ).toStrictEqual([]);
+  });
+
+  it("is quiet when the sources wire nativeRefresh or a session-refresh bridge", async () => {
+    const input = { cwd, config, policy: async () => policy };
+    const source = (file: string, text: string) => ({ file, text });
+    expect(
+      await pd084(input, [
+        source("app.tsx", "refreshOn={[nativeRefresh({ supabase })]}"),
+      ]),
+    ).toStrictEqual([]);
+    const bridge = [
+      source("refresh.ts", "export const r = authzChangeRefresh();"),
+      source("sync.tsx", "await supabase.auth.refreshSession();"),
+    ];
+    expect(await pd084(input, bridge)).toStrictEqual([]);
+    expect(await pd084(input, bridge.slice(0, 1))).toHaveLength(1);
   });
 });

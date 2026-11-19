@@ -448,18 +448,42 @@ const CUSTOM_ROLE_TABLE = /\bcustom_role_(?:permissions|includes)\b/iu;
 const UNSARGABLE_TENANT =
   /\btenant_id"?\s*::\s*text\b|\btenant_id"?\s+is\s+not\s+distinct\s+from\b/iu;
 
+const CREATE_FUNCTION = new RegExp(
+  String.raw`^create\s+(?:or\s+replace\s+)?function\s+${NAME}\s*\(`,
+  "iu",
+);
+
+function functionName(statement: Statement): string | undefined {
+  const match = CREATE_FUNCTION.exec(statement.text);
+  return match === null ? undefined : unquote(group(match, 1));
+}
+
 /**
  * PD107: a statement reads a custom-role table and compares `tenant_id` through
  * a `text` cast or `is not distinct from`. Neither form can use the table's
- * `(tenant_id, …)` index, so each probe scans every tenant's roles.
+ * `(tenant_id, …)` index, so each probe scans every tenant's roles. A function
+ * that a later migration or the schema files define again is not reported: the
+ * database runs the last definition.
  */
 export function pd107(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  return statementsOf(cwd, config, files).flatMap((statement) => {
-    if (!CUSTOM_ROLE_TABLE.test(statement.text)) {
+  const statements = statementsOf(cwd, config, files);
+  const last = new Map<string, number>();
+  for (const [index, statement] of statements.entries()) {
+    const name = functionName(statement);
+    if (name !== undefined) {
+      last.set(name, index);
+    }
+  }
+  return statements.flatMap((statement, index) => {
+    const name = functionName(statement);
+    if (
+      !CUSTOM_ROLE_TABLE.test(statement.text) ||
+      (name !== undefined && last.get(name) !== index)
+    ) {
       return [];
     }
     const match = UNSARGABLE_TENANT.exec(statement.text);

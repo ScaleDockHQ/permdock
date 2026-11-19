@@ -156,7 +156,7 @@ const CONTRACT = [
   /->> 'tenant'|\{subject,principal,tenant\}/gu,
   /no tenant or instance|a scope of a tenant|another tenant than/gu,
   /\brequested_tenant\b/gu,
-  /\bv_(?:member_|old_|new_)?tenant\b/gu,
+  /\bv_(?:member_|old_|new_|custom_)?tenant\b/gu,
 ];
 
 /** Lines that still name a scope the sentinel policy does not declare. */
