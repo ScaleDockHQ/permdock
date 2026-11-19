@@ -46,6 +46,7 @@ create table public.job (id text primary key, "orgId" text not null);
 const SEED = `
 select permdock.permdock_trusted_replace_custom_role_grants('acme', 'tenant', null, 'reader', array['job.read'], array[]::text[], array[]::text[]);
 select permdock.permdock_trusted_replace_custom_role_grants('acme', 'tenant', null, 'editor', array['job.update'], array[]::text[], array[]::text[]);
+select permdock.permdock_trusted_replace_custom_role_grants('globex', 'tenant', null, 'auditor', array['job.read'], array[]::text[], array[]::text[]);
 `;
 
 describe("authorizationProvider canAssign with custom roles", () => {
@@ -140,6 +141,39 @@ create table permdock.permdock_authz_version (
         "permdock.permdock_can_assign('reader', 'acme')",
       ),
     ).toBe(false);
+  });
+
+  it("fills roleIn with permdock_role_in, which knows a tenant's roles only", async () => {
+    const roleIn = Object.entries(
+      authorizationProvider({ manifest, roleIn: true }).functions,
+    ).find(([name]) => name === "roleIn")?.[1];
+    if (typeof roleIn !== "string") {
+      throw new TypeError("PermDock: the provider has no roleIn template");
+    }
+    const answers: Record<string, unknown> = {};
+    for (const [role, tenant] of [
+      ["member", "globex"],
+      ["reader", "acme"],
+      ["reader", "globex"],
+      ["auditor", "globex"],
+      ["auditor", "acme"],
+      ["nobody", "acme"],
+    ] as const) {
+      answers[`${role} in ${tenant}`] = await ask(
+        database(),
+        roleIn
+          .replaceAll("{role}", `'${role}'`)
+          .replaceAll("{tenant}", `'${tenant}'`),
+      );
+    }
+    expect(answers).toStrictEqual({
+      "member in globex": true,
+      "reader in acme": true,
+      "reader in globex": false,
+      "auditor in globex": true,
+      "auditor in acme": false,
+      "nobody in acme": false,
+    });
   });
 
   it("lists assignment helpers that exist with the listed arguments", async () => {

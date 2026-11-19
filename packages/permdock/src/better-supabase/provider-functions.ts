@@ -163,6 +163,11 @@ const TEAM_SCOPE = /^teams?$/u;
 const ACTOR_MAY_WRITE = "permdock_actor_may_write";
 const APPROVER_FOR = "permdock_approver_for_ids";
 const MANAGED_USERS = "permdock_managed_user_ids";
+/**
+ * Whether a role is the tenant's, for better-supabase's `membership_roles`
+ * trigger.
+ */
+const ROLE_IN = "permdock_role_in";
 
 const OPTIONAL: readonly Template[] = [
   "idsWithFor",
@@ -309,8 +314,9 @@ export type ProviderFunctions = {
  * lists their helper, which `rls.mode: 'database'` writes. `subject` and
  * `subjectForTenant` name `permdock_subject()` and `permdock_subject(p_tenant)`
  * unless `subject: false`; `subjectForTenant`, `bootstrapPermissions`
- * (`permdock_bootstrap_permissions(p_tenant)`) and `canIn` (the tenant scope's
- * ids by permission, as a set) answer at the root scope only.
+ * (`permdock_bootstrap_permissions(p_tenant)`), `canIn` (the tenant scope's ids
+ * by permission, as a set) and `roleIn` (`permdock_role_in`) answer at the root
+ * scope only.
  */
 export function providerFunctions(
   input: ProviderFunctionsInput,
@@ -458,7 +464,24 @@ export function providerFunctions(
   )
     ? setTemplate(MANAGED_USERS, "{tenant}")
     : undefined;
-  const functions: AuthorizationFunctions = {
+  const roleInHelper =
+    options.roleIn === true && rootTenant ? helpers.get(ROLE_IN) : undefined;
+  if (options.roleIn === true && roleInHelper === undefined) {
+    problems.push(
+      `roleIn: the manifest's rls.helpers has no ${rls.schema}.${ROLE_IN} at the root tenant scope. Set rls.customRoles in database mode, run \`permdock rls generate\`, then \`permdock supabase inspect --out\`.`,
+    );
+  }
+  const roleIn =
+    roleInHelper === undefined
+      ? undefined
+      : call(
+          ROLE_IN,
+          "{role}, {tenant}",
+          "postgres",
+          argTypes(roleInHelper.args),
+        );
+  // shortcut: better-supabase 0.77 types roleIn; drop the intersection once the floor reaches it.
+  const functions: AuthorizationFunctions & { readonly roleIn?: string } = {
     ...rowTemplates,
     ...optional,
     idsWith: `${schema}.${TEMPLATES.idsWith.sql}`,
@@ -474,6 +497,7 @@ export function providerFunctions(
     ...(bootstrapPermissions === undefined ? {} : { bootstrapPermissions }),
     ...(approverFor === undefined ? {} : { approverFor }),
     ...(managedUsers === undefined ? {} : { managedUsers }),
+    ...(roleIn === undefined ? {} : { roleIn }),
   };
   return { functions, requires, canAssign: listed("canAssign", tenantScope) };
 }
