@@ -1,5 +1,9 @@
 import type { Policy } from "../../index.ts";
-import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
+import type {
+  DoctorFinding,
+  DoctorInput,
+  DoctorSource,
+} from "../shared/doctor-types.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import { scopeMembershipTable } from "../../conditions/compile.ts";
@@ -130,16 +134,39 @@ function branchGaps(
   return findings;
 }
 
+const NATIVE_REFRESH = /\bnativeRefresh\s*\(/u;
+const AUTHZ_CHANGE_REFRESH = /\bauthzChangeRefresh\s*\(/u;
+const REFRESH_SESSION = /\.refreshSession\s*\(/u;
+
+/**
+ * The sources refresh the session and reconnect on an authorization change:
+ * `nativeRefresh`, or an app bridge that calls `refreshSession()` and hands
+ * PermDock the refresh through `authzChangeRefresh`.
+ */
+function wiresRefresh(sources: readonly DoctorSource[]): boolean {
+  const has = (pattern: RegExp): boolean =>
+    sources.some((source) => pattern.test(source.text));
+  return (
+    has(NATIVE_REFRESH) || (has(AUTHZ_CHANGE_REFRESH) && has(REFRESH_SESSION))
+  );
+}
+
 /**
  * PD084: a synced stream reads a token claim. PowerSync keeps the claims a
  * connection started with, so after a role or tenant change the device syncs by
- * the old claims until the app refreshes the session and reconnects.
+ * the old claims until the app refreshes the session and reconnects. Quiet when
+ * the sources wire that refresh.
  */
 export async function pd084(
   input: DoctorInput,
+  sources: readonly DoctorSource[] = [],
 ): Promise<readonly DoctorFinding[]> {
   const { config } = input;
-  if (config.powersync === undefined || config.policy === undefined) {
+  if (
+    config.powersync === undefined ||
+    config.policy === undefined ||
+    wiresRefresh(sources)
+  ) {
     return [];
   }
   const policy = await policyOf(input);
@@ -157,7 +184,7 @@ export async function pd084(
     code: "PD084",
     severity: "warning",
     message,
-    fix: "pass nativeRefresh from permdock/react-native to refreshOn, which refreshes the session and reconnects PowerSync on each authz:<uid> message",
+    fix: "pass nativeRefresh from permdock/react-native to refreshOn, which refreshes the session and reconnects PowerSync on each authz:<uid> message; an app bridge that calls refreshSession() and refreshes PermDock through authzChangeRefresh also clears it",
   }));
 }
 

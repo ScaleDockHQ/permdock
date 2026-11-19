@@ -604,7 +604,7 @@ PowerSync keeps the claims a connection started with. A stream whose query reads
 warning PD084  stream job reads token claims region, team_ids: PowerSync keeps the claims it connected with, so refresh the session and reconnect after a role or tenant change (/docs/adapters/react-native#role-and-tenant-changes)
 ```
 
-Pass [`nativeRefresh`](/docs/adapters/react-native#role-and-tenant-changes) to `refreshOn`: on each `authz:<uid>` message it refreshes the session, reconnects PowerSync and refreshes the snapshot. `permdock powersync generate` and `verify` print the same line, and the generated file names the streams in its header. `--only powersync` (or `--only react-native`) runs PD084.
+Pass [`nativeRefresh`](/docs/adapters/react-native#role-and-tenant-changes) to `refreshOn`: on each `authz:<uid>` message it refreshes the session, reconnects PowerSync and refreshes the snapshot. The doctor is quiet when a file under `doctor.srcPath` calls `nativeRefresh(`, or when the sources call `authzChangeRefresh(` and `.refreshSession(`, the shape of an app bridge that already owns the `authz:<uid>` channel and the PowerSync reconnect. `permdock powersync generate` and `verify` print the same line, and the generated file names the streams in its header. `--only powersync` (or `--only react-native`) runs PD084.
 
 ### PD085: the token hook fails as supabase_auth_admin
 

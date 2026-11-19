@@ -406,7 +406,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: pd085,
   },
   { code: "PD058", groups: ["powersync"], run: pd058 },
-  { code: "PD084", groups: ["powersync", "react-native"], run: pd084 },
+  {
+    code: "PD084",
+    groups: ["powersync", "react-native"],
+    run: (project) => pd084(project, project.sources()),
+  },
   { code: "PD102", groups: ["powersync"], run: pd102 },
   { code: "PD086", groups: ["rls"], run: pd086 },
   {
