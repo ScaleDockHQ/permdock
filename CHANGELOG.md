@@ -2,6 +2,12 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.28.1 (2026-11-19)
+
+- PD054 understands `rls.staticGrants: 'ref'`. When `role_permissions` is the view over the policy bundle, the check compares the bundle hash the view pins with the hash the policy compiles to, instead of reporting every compiled row as missing.
+- PD084 reads the doctor sources and is quiet when the app wires the refresh: a call to `nativeRefresh`, or an app bridge that calls `refreshSession()` and refreshes PermDock through `authzChangeRefresh`. Before, it warned for every stream that reads a token claim, even with the refresh in place.
+- PD107 no longer reports a custom-role probe in a function that a later migration or the schema files define again, since the database runs the last definition. `authorize()` from `permdock/supabase` now compares the custom-role `tenant_id` uncast, through a variable of the column's type, so the tenant index serves it. Regenerate the `authorize()` SQL to pick it up.
+
 ## 0.28.0 (2026-11-16)
 
 - Breaking: `permdock/better-supabase` needs better-supabase 0.63.2 or later (`>=0.63.2`); upgrade better-supabase before this release. `authorizer` and `permdockFor` ignore a bootstrap subject seeded for another tenant.

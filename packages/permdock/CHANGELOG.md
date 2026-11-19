@@ -1,5 +1,15 @@
 # permdock
 
+## 0.28.1
+
+### Patch Changes
+
+- [#347](https://github.com/ScaleDockHQ/permdock/pull/347) [`e12e4c9`](https://github.com/ScaleDockHQ/permdock/commit/e12e4c926b168db126cd020223bf12cd1bdc7990) Thanks [@mick340](https://github.com/mick340)! - PD054 understands `rls.staticGrants: 'ref'`. When `role_permissions` is the view over the policy bundle, the check compares the bundle hash the view pins with the hash the policy compiles to, instead of reporting every compiled row as missing.
+
+- [#347](https://github.com/ScaleDockHQ/permdock/pull/347) [`cae945f`](https://github.com/ScaleDockHQ/permdock/commit/cae945fe83c6cee9fbc0e5d8d00bf0a5c7cb4875) Thanks [@mick340](https://github.com/mick340)! - PD084 reads the doctor sources and is quiet when the app wires the refresh: a call to `nativeRefresh`, or an app bridge that calls `refreshSession()` and refreshes PermDock through `authzChangeRefresh`. Before, it warned for every stream that reads a token claim, even with the refresh in place.
+
+- [#347](https://github.com/ScaleDockHQ/permdock/pull/347) [`2ef810a`](https://github.com/ScaleDockHQ/permdock/commit/2ef810ab4575005893e59f4636e03221885f1bd1) Thanks [@mick340](https://github.com/mick340)! - PD107 no longer reports a custom-role probe in a function that a later migration or the schema files define again, since the database runs the last definition. `authorize()` from `permdock/supabase` now compares the custom-role `tenant_id` uncast, through a variable of the column's type, so the tenant index serves it. Regenerate the `authorize()` SQL to pick it up.
+
 ## 0.28.0
 
 ### Minor Changes
