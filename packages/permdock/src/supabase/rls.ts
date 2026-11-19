@@ -223,7 +223,7 @@ function customDatabaseBranch(
   suspension: SupabaseSuspension | undefined,
 ): string {
   const role = tenantRole(memberships);
-  const match = `case when ${q("permdock_is_shared_role")}(${literal(scope)}, ${role.sql}) then c.tenant_id is null else c.tenant_id::text = requested_tenant end and c.scope = ${literal(scope)} and c.scope_id is null and c.role = ${role.sql}`;
+  const match = `case when ${q("permdock_is_shared_role")}(${literal(scope)}, ${role.sql}) then c.tenant_id is null else c.tenant_id = v_custom_tenant end and c.scope = ${literal(scope)} and c.scope_id is null and c.role = ${role.sql}`;
   const rows = (source: string, value: string, extra: string): string =>
     `array(select c.${value} from ${q(source)} c where ${match}${extra})`;
   return ` or exists (
@@ -302,7 +302,7 @@ function databaseBody(
     tenantBranch = `  if requested_tenant is not null then
     begin
       v_member_user := uid;
-      v_member_tenant := requested_tenant;
+      v_member_tenant := requested_tenant;${custom === undefined ? "" : "\n      v_custom_tenant := requested_tenant;"}
     exception when invalid_text_representation or numeric_value_out_of_range then
       return false; -- not an id of the memberships table
     end;
@@ -315,7 +315,7 @@ function databaseBody(
     memberships !== undefined && tenantColumn !== undefined
       ? `
   v_member_user ${quoteQualifiedTable(memberships.table)}.${ident(memberships.user)}%type;
-  v_member_tenant ${quoteQualifiedTable(memberships.table)}.${ident(tenantColumn)}%type;`
+  v_member_tenant ${quoteQualifiedTable(memberships.table)}.${ident(tenantColumn)}%type;${custom === undefined ? "" : `\n  v_custom_tenant ${q("custom_role_permissions")}.tenant_id%type;`}`
       : "";
   return `declare
   uid uuid := (select auth.uid());${typed}

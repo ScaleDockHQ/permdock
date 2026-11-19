@@ -736,7 +736,7 @@ Postgres evaluates every permissive policy for a command and ORs the results. PD
 
 #### PD107: an unsargable custom-role probe
 
-`custom_role_permissions` and `custom_role_includes` carry a `(tenant_id, …)` index. A probe written as `tenant_id::text = p_tenant` or `tenant_id is not distinct from p_tenant` cannot use it and scans every tenant's roles: 4M rows at 1,000 tenants with 20 roles of 200 permissions. Compare `tenant_id = p_tenant::uuid`, with explicit `is null` branches for shared roles. PD107 is a warning for each such statement, including generated files from before the fix.
+`custom_role_permissions` and `custom_role_includes` carry a `(tenant_id, …)` index. A probe written as `tenant_id::text = p_tenant` or `tenant_id is not distinct from p_tenant` cannot use it and scans every tenant's roles: 4M rows at 1,000 tenants with 20 roles of 200 permissions. Compare `tenant_id = p_tenant::uuid`, with explicit `is null` branches for shared roles. PD107 is a warning for each such statement, including generated files from before the fix, unless a later migration or the schema files define the same function again: the database runs the last definition. `authorize()` from `permdock/supabase` assigns the requested tenant to a variable of the column's type and compares it uncast.
 
 #### PD108: `_rows(p)` without a tenant
 

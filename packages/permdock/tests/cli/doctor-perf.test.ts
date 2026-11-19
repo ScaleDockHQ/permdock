@@ -296,6 +296,27 @@ $$;
         "supabase/schemas/b.sql:6",
       ]);
     });
+
+    it("skips a function a later migration or schema file defines again", () => {
+      const cwd = project({
+        "supabase/migrations/20260101000000_old.sql": `
+create or replace function permdock.keys(p_tenant text) returns setof text language sql as $$
+  select permission from permdock.custom_role_permissions where tenant_id::text = p_tenant
+$$;
+create or replace function permdock.stale(p_tenant text) returns setof text language sql as $$
+  select permission from permdock.custom_role_permissions where tenant_id::text = p_tenant
+$$;
+`,
+        "supabase/migrations/20260102000000_new.sql": `
+create or replace function "permdock"."keys"(p_tenant uuid) returns setof text language sql as $$
+  select permission from permdock.custom_role_permissions where tenant_id = p_tenant
+$$;
+`,
+      });
+      expect(targets(pd107(cwd, NONE, nodeFiles))).toStrictEqual([
+        "supabase/migrations/20260101000000_old.sql:5",
+      ]);
+    });
   });
 
   describe("PD108 _rows(p) without a tenant lead", () => {
