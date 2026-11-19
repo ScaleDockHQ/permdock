@@ -2,6 +2,11 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.29.0 (2026-11-19)
+
+- `authorizationProvider({ ..., roleIn: true })` fills better-supabase's `functions.roleIn` with `permdock_role_in`, so with `blocks.memberships.options.roles.many` its `membership_roles` trigger refuses another organization's custom role (SQLSTATE `23514`, `MEMBERSHIP_ROLE_SCOPE`). The option needs better-supabase 0.77.0, since older releases refuse the key, and is off by default; `problems` reports it when the manifest lists no `permdock_role_in`.
+- `permdock rls generate` writes `permdock_role_in(p_role, p_tenant)` with `rls.customRoles` in `database` mode: whether a role is declared or a custom role of the tenant (or one with no tenant), read from the `rls.customRoleWrites.roles` table or else the custom-role tables. Only trusted SQL may execute it, and `permdock supabase inspect` lists it in `rls.helpers`. Regenerate the helpers and the manifest to pick it up.
+
 ## 0.28.1 (2026-11-19)
 
 - PD054 understands `rls.staticGrants: 'ref'`. When `role_permissions` is the view over the policy bundle, the check compares the bundle hash the view pins with the hash the policy compiles to, instead of reporting every compiled row as missing.
