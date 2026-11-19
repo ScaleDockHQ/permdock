@@ -410,6 +410,12 @@ describe("supabase inspect", () => {
         returns: "boolean",
         execute: [],
       });
+      expect(manifest.rls.helpers).toContainEqual({
+        name: "permdock_role_in",
+        args: "p_role text, p_tenant uuid",
+        returns: "boolean",
+        execute: [],
+      });
       expect(manifest.rls).toMatchObject({
         customRoles: true,
         roles: {
@@ -462,6 +468,7 @@ describe("supabase inspect", () => {
       expect(plainNames).toContain("permdock_can_assign_any");
       expect(plainNames).not.toContain("permdock_can_assign_any_for");
       expect(plainNames).not.toContain("permdock_has_for");
+      expect(plainNames).not.toContain("permdock_role_in");
       expect(plain.rls.customRoles).toBe(false);
       expect(plain.rls.assignments).toBeUndefined();
     });

@@ -111,6 +111,30 @@ describe("rls.customRoleWrites.roles", () => {
     }
   };
 
+  it("answers permdock_role_in from the roles table, for trusted SQL only", async () => {
+    const roleIn = async (role: string, tenant: string): Promise<unknown> =>
+      (
+        await started().admin.query<{ ok: unknown }>(
+          "select permdock.permdock_role_in($1, $2) as ok",
+          [role, tenant],
+        )
+      ).rows[0]?.ok;
+    expect({
+      declared: await roleIn("admin", "globex"),
+      own: await roleIn("reviewer", "acme"),
+      other: await roleIn("reviewer", "globex"),
+      unknown: await roleIn("nobody", "acme"),
+    }).toStrictEqual({
+      declared: true,
+      own: true,
+      other: false,
+      unknown: false,
+    });
+    await expect(
+      as(ADMIN, "select permdock.permdock_role_in('reviewer', 'acme')"),
+    ).rejects.toThrow(/permission denied/u);
+  });
+
   it("moves the grants with a trusted rename and back", async () => {
     const admin = started().admin;
     await admin.query(

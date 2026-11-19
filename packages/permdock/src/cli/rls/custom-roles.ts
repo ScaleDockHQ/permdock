@@ -6,10 +6,12 @@ import { byKey } from "../shared/compare.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
 import { hasMemberFor, memberIdsHelper } from "../sql/names.ts";
 import {
+  declaredArray,
   helperSchema,
   qualified,
   quoteIdent,
   quoteLiteral,
+  quoteQualified,
 } from "../sql/quote.ts";
 import {
   CUSTOM_ROLES,
@@ -18,6 +20,47 @@ import {
   rootName,
   signedIn,
 } from "../sql/shared.ts";
+
+/**
+ * `permdock_role_in`: whether `p_role` is a role of tenant `p_tenant`, declared
+ * or a custom role the tenant owns or every tenant shares (a null tenant). It
+ * reads the application's roles table when `rls.customRoleWrites.roles` names
+ * one, else the custom-role tables. Trusted SQL only, such as better-supabase's
+ * `membership_roles` trigger.
+ */
+function roleInSql(
+  ctx: RlsSqlContext,
+  custom: NonNullable<RlsSqlContext["customRoles"]>,
+): string {
+  const fn = qualified(ctx, CUSTOM_ROLES.roleIn);
+  const tenantType = tenantTypeOf(ctx);
+  const table = custom.table;
+  const exists =
+    table === undefined
+      ? [CUSTOM_ROLES.permissions, CUSTOM_ROLES.includes]
+          .map(
+            (name) =>
+              `exists (select 1 from ${qualified(ctx, name)} c where c.role = p_role and (c.tenant_id = p_tenant or c.tenant_id is null))`,
+          )
+          .join("\n    or ")
+      : `exists (select 1 from ${quoteQualified(table.table)} r where r.${quoteIdent(table.key)}::text = p_role${
+          table.tenant === undefined
+            ? ""
+            : ` and (r.${quoteIdent(table.tenant)} = p_tenant or r.${quoteIdent(table.tenant)} is null)`
+        })`;
+  return `-- whether p_role is a role of tenant p_tenant: declared, or a custom role the tenant owns or shares; trusted SQL only
+create or replace function ${fn}(p_role text, p_tenant ${tenantType})
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p_role = any(${declaredArray(custom.declared)})
+    or ${exists}
+$$;
+revoke execute on function ${fn}(text, ${tenantType}) from public, anon, authenticated;`;
+}
 
 /** The readers every helpers file ends with. Names are part of the SQL contract. */
 const READERS = {
@@ -99,6 +142,9 @@ where rp.role = any(${sqlTextArray(custom.assignable)})
       and a.effect = 'allow'
   );
 revoke all on table ${ceiling} from anon, authenticated, public;`);
+  if (ctx.authorize === "database") {
+    chunks.push(roleInSql(ctx, custom));
+  }
   const renames = Object.entries(custom.renamed ?? {}).toSorted(byKey);
   const shared = sharedRoleSql(ctx);
   if (custom.levels === true) {

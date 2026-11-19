@@ -258,6 +258,12 @@
         "args": "p_permission text, p_id uuid",
         "returns": "setof uuid",
         "execute": []
+      },
+      {
+        "name": "permdock_role_in",
+        "args": "p_role text, p_tenant uuid",
+        "returns": "boolean",
+        "execute": []
       }
     ],
     "memberships": [
