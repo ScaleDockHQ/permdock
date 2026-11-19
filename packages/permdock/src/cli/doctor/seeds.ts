@@ -14,6 +14,7 @@ import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { filesOf } from "../shared/doctor-files.ts";
 import { compileGrants } from "../sql/compile.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
+import { POLICY_BUNDLE_TABLE, policyBundle } from "../sql/policy-bundle.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
 import { tableNames } from "../sql/tables.ts";
 import { policyOf } from "./inputs.ts";
@@ -33,7 +34,14 @@ const SEED_VIEW =
 const SEED_FUNCTION =
   /^create\s+(?:or\s+replace\s+)?function\s+(?:"[^"]+"|\w+)\.(?:"seed"|seed)\s*\(\s*\)[\s\S]*?\$(\w*)\$([\s\S]*)\$\1\$/iu;
 
-type Seeded = { readonly file: string; readonly rows: ReadonlySet<string> };
+const BUNDLE_HASH = /\bhash\s*=\s*'(sha-256:[\w-]+)'/u;
+
+type Seeded = {
+  readonly file: string;
+  readonly rows: ReadonlySet<string>;
+  /** `rls.staticGrants: 'ref'`: the policy bundle hash the view pins. */
+  readonly bundle?: string;
+};
 
 function rowKey(values: readonly string[]): string {
   return values.join(" ");
@@ -68,6 +76,16 @@ function lastSeed(
     for (const { text } of seedStatements(files.read(file))) {
       const insert = SEED_INSERT.exec(text) ?? SEED_VIEW.exec(text);
       if (insert !== null && tableKey(group(insert, 1)) === table) {
+        const body = group(insert, 2);
+        if (body.includes(POLICY_BUNDLE_TABLE)) {
+          const pinned = BUNDLE_HASH.exec(body);
+          seeded = {
+            file: rel(cwd, file),
+            rows: new Set(),
+            bundle: pinned === null ? "" : group(pinned, 1),
+          };
+          continue;
+        }
         const rows = new Set<string>();
         for (const row of group(insert, 2).matchAll(SEED_ROW)) {
           rows.add(
@@ -135,6 +153,7 @@ export async function pd054(
     io: { stdout: () => undefined, stderr: () => undefined },
   } as const;
   let expected: ReadonlySet<string>;
+  let hash: string;
   try {
     const options = generateOptions(generate);
     const built = isRefusal(options)
@@ -143,20 +162,34 @@ export async function pd054(
     if (isRefusal(built)) {
       return [];
     }
+    const rows = compileGrants(
+      policy,
+      built.ctx,
+      tableNames(rls?.tables),
+      [],
+      true,
+      rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0,
+    ).rolePermissions;
     expected = new Set(
-      compileGrants(
-        policy,
-        built.ctx,
-        tableNames(rls?.tables),
-        [],
-        true,
-        rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0,
-      ).rolePermissions.map((row) =>
+      rows.map((row) =>
         rowKey([row.role, row.permission, row.grantKey, row.scope, row.effect]),
       ),
     );
+    hash = policyBundle(rows).hash;
   } catch {
     return [];
+  }
+  if (seeded.bundle !== undefined) {
+    return seeded.bundle === hash
+      ? []
+      : [
+          {
+            code: "PD054",
+            severity: "warning",
+            message: `${seeded.file} pins ${schema}.role_permissions to the policy bundle ${seeded.bundle === "" ? "(none)" : seeded.bundle}, but the policy compiles to ${hash}`,
+            fix: "run permdock rls generate and permdock policy bundle, and apply both",
+          },
+        ];
   }
   const missing = [...expected].filter((row) => !seeded.rows.has(row));
   const stale = [...seeded.rows].filter((row) => !expected.has(row));

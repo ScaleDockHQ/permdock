@@ -263,5 +263,44 @@ export const policy = definePolicy(permissions, {
         "1 stale, such as (ghost quote.read quote.read organization allow)",
       );
     });
+
+    it("checks the bundle hash the role_permissions view pins with rls.staticGrants 'ref'", async () => {
+      const refConfig: PermDockConfig = {
+        ...config,
+        rls: { ...config.rls, staticGrants: "ref" },
+      };
+      const cwd = project({
+        "permdock.config.ts": `export default ${JSON.stringify(refConfig)};\n`,
+      });
+      const result = await rlsGenerate(
+        [
+          "--split",
+          "helpers",
+          "--out",
+          "supabase/migrations/20260101000001_permdock_{part}.sql",
+        ],
+        { cwd },
+      );
+      expect(result.code).toBe(0);
+      const file = path.join(
+        cwd,
+        "supabase/migrations/20260101000001_permdock_helpers.sql",
+      );
+      const sql = readFileSync(file, "utf8");
+      expect(sql).toContain('from "permdock".permdock_policy_bundle b');
+      expect(await pd054({ cwd, config: refConfig })).toStrictEqual([]);
+
+      writeFileSync(
+        file,
+        sql.replace(
+          /where b\.hash = 'sha-256:[\w-]+'/u,
+          "where b.hash = 'sha-256:old'",
+        ),
+      );
+      const [finding] = await pd054({ cwd, config: refConfig });
+      expect(finding?.message).toMatch(
+        /pins permdock\.role_permissions to the policy bundle sha-256:old, but the policy compiles to sha-256:/u,
+      );
+    });
   });
 });
