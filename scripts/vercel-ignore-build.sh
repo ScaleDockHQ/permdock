@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
 base="${VERCEL_GIT_PREVIOUS_SHA:-}"
 if [[ -z "$base" ]]; then
   echo "No previous deployment SHA; building."
