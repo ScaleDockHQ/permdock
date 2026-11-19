@@ -1,5 +1,13 @@
 # permdock
 
+## 0.29.0
+
+### Minor Changes
+
+- [#351](https://github.com/ScaleDockHQ/permdock/pull/351) [`2f8db3a`](https://github.com/ScaleDockHQ/permdock/commit/2f8db3ae5b5bf5fab5e0f8d4fad360a6ee2386b4) Thanks [@mick340](https://github.com/mick340)! - `permdock rls generate` writes `permdock_role_in(p_role, p_tenant)` with `rls.customRoles` in `database` mode: whether a role is declared or a custom role of the tenant (or one with no tenant), read from the `rls.customRoleWrites.roles` table or else the custom-role tables. Only trusted SQL may execute it, and `permdock supabase inspect` lists it in `rls.helpers`. Regenerate the helpers and the manifest to pick it up.
+
+- [#351](https://github.com/ScaleDockHQ/permdock/pull/351) [`9ce09cb`](https://github.com/ScaleDockHQ/permdock/commit/9ce09cb44f86829300dd3dfc8832812a28cf8c9c) Thanks [@mick340](https://github.com/mick340)! - `authorizationProvider({ ..., roleIn: true })` fills better-supabase's `functions.roleIn` with `permdock_role_in`, so with `blocks.memberships.options.roles.many` its `membership_roles` trigger refuses another organization's custom role (SQLSTATE `23514`, `MEMBERSHIP_ROLE_SCOPE`). The option needs better-supabase 0.77.0, since older releases refuse the key, and is off by default; `problems` reports it when the manifest lists no `permdock_role_in`.
+
 ## 0.28.1
 
 ### Patch Changes
