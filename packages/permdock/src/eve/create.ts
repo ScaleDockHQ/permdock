@@ -47,21 +47,27 @@ export type EveApprovalContext = {
 export type EveResponseContext = {
   readonly request: {
     readonly callId: string;
-    readonly requestId?: string;
+    readonly interactionId: string;
+    /** The caller of the turn that made the call; `null` when unauthenticated. */
+    readonly principal: EvePrincipal | null;
     readonly toolName: string;
     readonly toolInput?: unknown;
   };
-  /**
-   * Who answered and how; eve settles the request only on `allowed`. Eve 0.91
-   * sends `deny`. Earlier releases sent `cancel` for the same refusal.
-   */
+  /** Who answered and how; eve settles the request only on `allowed`. */
   readonly response: {
-    readonly decision: "approve" | "deny" | "cancel";
+    readonly decision: "approve" | "deny";
     readonly principal: EvePrincipal;
   };
   readonly session: {
     readonly id: string;
     readonly initiator: EvePrincipal | null;
+    readonly parent?: {
+      readonly callId: string;
+      readonly rootSessionId: string;
+      readonly sessionId: string;
+      readonly turn: { readonly id: string; readonly sequence: number };
+    };
+    readonly turn: { readonly id: string; readonly sequence: number };
   };
 };
 
