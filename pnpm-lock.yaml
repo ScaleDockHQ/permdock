@@ -165,11 +165,11 @@ settings:
 catalogs:
   default:
     '@ai-sdk/otel':
-      specifier: 1.0.159
-      version: 1.0.159
+      specifier: 1.0.177
+      version: 1.0.177
     '@ai-sdk/react':
-      specifier: 4.0.163
-      version: 4.0.163
+      specifier: 4.0.181
+      version: 4.0.181
     '@anthropic-ai/claude-agent-sdk':
       specifier: 0.3.316
       version: 0.3.316
@@ -198,11 +198,11 @@ catalogs:
       specifier: 1.0.1
       version: 1.0.1
     '@chat-adapter/slack':
-      specifier: 4.43.0
-      version: 4.43.0
+      specifier: 4.45.0
+      version: 4.45.0
     '@chat-adapter/state-memory':
-      specifier: 4.43.0
-      version: 4.43.0
+      specifier: 4.45.0
+      version: 4.45.0
     '@clack/prompts':
       specifier: 1.8.1
       version: 1.8.1
@@ -399,8 +399,8 @@ catalogs:
       specifier: 2.0.1
       version: 2.0.1
     '@vercel/detect-agent':
-      specifier: 1.2.5
-      version: 1.2.5
+      specifier: 1.2.7
+      version: 1.2.7
     '@vercel/firewall':
       specifier: 1.2.6
       version: 1.2.6
@@ -417,8 +417,8 @@ catalogs:
       specifier: 5.1.0
       version: 5.1.0
     ai:
-      specifier: 7.0.159
-      version: 7.0.159
+      specifier: 7.0.177
+      version: 7.0.177
     ajv:
       specifier: 8.20.0
       version: 8.20.0
@@ -444,8 +444,8 @@ catalogs:
       specifier: 1.5.12
       version: 1.5.12
     chat:
-      specifier: 4.43.0
-      version: 4.43.0
+      specifier: 4.45.0
+      version: 4.45.0
     class-variance-authority:
       specifier: 0.7.1
       version: 0.7.1
@@ -855,10 +855,10 @@ importers:
     dependencies:
       '@ai-sdk/otel':
         specifier: 'catalog:'
-        version: 1.0.159(zod@4.6.7)
+        version: 1.0.177(zod@4.6.7)
       '@ai-sdk/react':
         specifier: 'catalog:'
-        version: 4.0.163(react@19.3.1)(zod@4.6.7)
+        version: 4.0.181(react@19.3.1)(zod@4.6.7)
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
         version: 2.4.0
@@ -885,7 +885,7 @@ importers:
         version: 2.0.0(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0))(vue@3.5.44(typescript@7.0.2))
       ai:
         specifier: 'catalog:'
-        version: 7.0.159(zod@4.6.7)
+        version: 7.0.177(zod@4.6.7)
       beautiful-mermaid:
         specifier: 'catalog:'
         version: 1.1.3
@@ -1125,13 +1125,13 @@ importers:
     dependencies:
       '@chat-adapter/slack':
         specifier: 'catalog:'
-        version: 4.43.0(ai@7.0.159(zod@4.6.7))(debug@4.4.3(supports-color@11.0.0))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+        version: 4.45.0(ai@7.0.177(zod@4.6.7))(debug@4.4.3(supports-color@11.0.0))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
       '@chat-adapter/state-memory':
         specifier: 'catalog:'
-        version: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+        version: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
       chat:
         specifier: 'catalog:'
-        version: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+        version: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
       permdock:
         specifier: workspace:*
         version: link:../../../packages/permdock
@@ -1720,7 +1720,7 @@ importers:
     dependencies:
       better-supabase:
         specifier: 'catalog:'
-        version: 0.63.2(b2e1de7b372af0cdfa0b69a47ed0bd51)
+        version: 0.63.2(ef15687be5e1c111bddf9ac777e0ab1c)
       jose:
         specifier: 'catalog:'
         version: 6.2.14
@@ -2691,13 +2691,13 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       '@vercel/detect-agent':
         specifier: 'catalog:'
-        version: 1.2.5
+        version: 1.2.7
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 5.1.0(vitest@5.1.0)
       ai:
         specifier: 'catalog:'
-        version: 7.0.159(zod@4.6.7)
+        version: 7.0.177(zod@4.6.7)
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -2709,13 +2709,13 @@ importers:
         version: 1.0.0
       better-supabase:
         specifier: 'catalog:'
-        version: 0.63.2(df7e3e479282836089be154ef9ea4be5)
+        version: 0.63.2(4e7543415cfbc6f186ae3506bf764d47)
       better-supabase-floor:
         specifier: npm:better-supabase@0.63.2
-        version: better-supabase@0.63.2(df7e3e479282836089be154ef9ea4be5)
+        version: better-supabase@0.63.2(4e7543415cfbc6f186ae3506bf764d47)
       chat:
         specifier: 'catalog:'
-        version: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+        version: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
       diff:
         specifier: 'catalog:'
         version: 9.0.0
@@ -2727,7 +2727,7 @@ importers:
         version: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
       eve:
         specifier: 'catalog:'
-        version: 0.91.0(c23d84376af98c04406dc731207190aa)
+        version: 0.91.0(e23f4a197450e57d3437fd3624e523be)
       express:
         specifier: 'catalog:'
         version: 5.3.0(supports-color@11.0.0)
@@ -2852,7 +2852,7 @@ importers:
         version: 1.0.3(react@19.3.1)(supports-color@11.0.0)
       ai:
         specifier: 'catalog:'
-        version: 7.0.159(zod@4.6.7)
+        version: 7.0.177(zod@4.6.7)
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
@@ -3039,10 +3039,10 @@ importers:
         version: 8.23.1
       ai:
         specifier: 'catalog:'
-        version: 7.0.159(zod@4.6.7)
+        version: 7.0.177(zod@4.6.7)
       better-supabase:
         specifier: 'catalog:'
-        version: 0.63.2(23ff2808283eff63876624373b760854)
+        version: 0.63.2(6b0d1ce27aef8066fa9e06725802f317)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(effect@3.22.4)(mysql2@3.24.5(@types/node@26.6.6))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
@@ -3051,7 +3051,7 @@ importers:
         version: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
       eve:
         specifier: 'catalog:'
-        version: 0.91.0(4c7581dec9bc3062d533f6c9d24c9eb9)
+        version: 0.91.0(675e9d5ac364344ca7780797ccd6a28e)
       express:
         specifier: 'catalog:'
         version: 5.3.0(supports-color@11.0.0)
@@ -3280,34 +3280,34 @@ packages:
       typescript:
         optional: true
 
-  '@ai-sdk/gateway@4.0.132':
-    resolution: {integrity: sha512-ppStDEz96g+JEuxGiVTP29OKBjPyYZXRxs38wnq3427U2QbZtxe6TukrgSAAq0n4yaHvSvVAWJY9kBlW8XudYg==}
+  '@ai-sdk/gateway@4.0.150':
+    resolution: {integrity: sha512-39jDj4UIN2M5kI/wW0IVMsD1PpjmZHSMFUU/yZSQerE4mg0Oo9AKPOSwn6Vu0MJ31aK+Mi9rUiUgl88Q2lkorg==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: 4.6.7
 
-  '@ai-sdk/mcp@2.0.88':
-    resolution: {integrity: sha512-4Vn+F0MvRJGt7Dq9Jw4eEdSkRLmtwpN/cXWHKopUzlDztN4AnUehXSFw5NksSPcMWkmvoxNunDBqVLrv/njH1w==}
+  '@ai-sdk/mcp@2.0.101':
+    resolution: {integrity: sha512-lat/6Y6IT5zBRoy1klgfGs9KWhYPjxLkbws4iLd4j3svw2IKcc8nP3huNn8vSqn4VlzGo8nYH20mJITt+eSFrA==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: 4.6.7
 
-  '@ai-sdk/otel@1.0.159':
-    resolution: {integrity: sha512-NfGWczWt+mFp8f2PRndDAIUHiPForTQOY+Rpu0lPIWoNGuYqdZBaFivFurQxtzR6eTnDMnHyKQfNWwsR4k1qGA==}
+  '@ai-sdk/otel@1.0.177':
+    resolution: {integrity: sha512-As0Vu9k7YGGauECLuZyaJ82hOUq7h1q/YqHjHhZUSP0WPOspZUQT8VenN6tsJ/izTAUX76E4euJ+CxSg9bQFjw==}
     engines: {node: '>=22'}
 
-  '@ai-sdk/provider-utils@5.0.72':
-    resolution: {integrity: sha512-M6QAztI84jWumQSvKcGOL91DxhChsWxn3D3gYtV0/7E1TPQg9BmLdIerOolUC/jghQbMlQrHyzp0hqdIhUZ2Rw==}
+  '@ai-sdk/provider-utils@5.0.82':
+    resolution: {integrity: sha512-9s3Le9LsTR0exy14H8SERw4uMgFhiP0yJVoLefzfQCnnptj71noYh1AoVEsjfJjmMH1y16+1OqBVTDpTpU6M3Q==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: 4.6.7
 
-  '@ai-sdk/provider@4.0.35':
-    resolution: {integrity: sha512-yBz6fmLS8MSCIzy7NiHEUAq56ZLD4ZA1GR6bpXBxgbwUacP1La7LuwAr/xy9jSzthem4F8Xu2OrhvU/JrE9fYA==}
+  '@ai-sdk/provider@4.0.39':
+    resolution: {integrity: sha512-jRvAhvW23+TeMGVCME2WGejP/TjzyDg7TplUep3t8HcEYnC2/8zqhCy9RRrjjVs1ljcygABZ8pQ21MbCRdF01w==}
     engines: {node: '>=22'}
 
-  '@ai-sdk/react@4.0.163':
-    resolution: {integrity: sha512-7BPOUcSEuVy9Q9Y53nxyEd6E6tcqnUZ8WstsNUleGWik0W5oLYAyjFeUUpednW69zlkPwdrVrqVbQx3ZUqrAXQ==}
+  '@ai-sdk/react@4.0.181':
+    resolution: {integrity: sha512-RApGEr3dTkujWPxMbanOMtKZ5IcKrvbdAuDopcnoaOKj3wHBcEHhKYoNkU27JPoZP4t4PrN3RcIdWK48JFprVQ==}
     engines: {node: '>=22'}
     peerDependencies:
       react: 19.3.1
@@ -4144,20 +4144,20 @@ packages:
     resolution: {integrity: sha512-q/ThtP9gcnEP6xlv7LrY26C2mHqdGBti/MmOVngt/M/oIGYkssmQGxPK9WzBNt2juVcH/vml2WQ+ra8LXYOTaA==}
     engines: {node: ^22.11 || ^24 || >=26}
 
-  '@chat-adapter/catalog@4.43.0':
-    resolution: {integrity: sha512-JRH40HwYIXdIiwSc/gNw65q5T/gaf691n4//2YOhjRE4YO9KzSFJ/N+RrTD3M8iGz2jI4Jg92wb6OAqfYsAkTQ==}
+  '@chat-adapter/catalog@4.45.0':
+    resolution: {integrity: sha512-oP8ySvXTYRVRIusTehLTvpwynMLkEcaFZBASZRDDfNFZzSO02xQX1kVgMAz4VbtiMTMU6k01tjZE4KEDbrmonA==}
     engines: {node: '>=20'}
 
-  '@chat-adapter/shared@4.43.0':
-    resolution: {integrity: sha512-uclU9sQLQa5f9pN9xpCHkMC7eypnIvXnZRnpgdAzltL2d0PhrsJlSPkijmc4Q4FzSfof4kh+gE6yAMFp/tNsQQ==}
+  '@chat-adapter/shared@4.45.0':
+    resolution: {integrity: sha512-q2V7uNMqIcT1OE6E0ckz9QLtHj2rCyn/XA9apNz0u0XP5Iex7KQBqnXytUyCLEncHD4R9tNTES6AWfjpRESrKQ==}
     engines: {node: '>=20'}
 
-  '@chat-adapter/slack@4.43.0':
-    resolution: {integrity: sha512-OFu6YURQNTKAqijtMddRRT12duYtj3g8j5xaNq2w846+zYnx+Ywjmjoi9iLA51SCoO8zo1nJb34LRTYUbhjkDw==}
+  '@chat-adapter/slack@4.45.0':
+    resolution: {integrity: sha512-SJZ/XOclZjXFd4iUXL9uvkLZdb8IfQ4E4WmR52j5B2hdFrBV8j3DzkdorvupKgNTYUhD73vBIFVaSZKwqkuexA==}
     engines: {node: '>=20'}
 
-  '@chat-adapter/state-memory@4.43.0':
-    resolution: {integrity: sha512-VG9ZbKAIMPh0tcLN/BM/sJ/DQNiwQJhtwvq0IlHEI32mDfjnrZbXKNI6j8kRB1hbU2Xw6eesLue2N6uNsVm5xg==}
+  '@chat-adapter/state-memory@4.45.0':
+    resolution: {integrity: sha512-50wq0veX52i5ayyz01coPJI/XRNt/DlncGUFB0MEFqtJVg4qSRLM/W7lCKDj9TCvJeUvyLgkF4yLmmaNEuUB/w==}
     engines: {node: '>=20'}
 
   '@clack/core@1.5.1':
@@ -8929,8 +8929,8 @@ packages:
     resolution: {integrity: sha512-g9XerViJ/paZujufXYcu5XYI2vU2rtB4sgdpjUHde5RnOkdmpu0ngH46LCFGHoPXO/C+qDPSczIHIRN+8Q2YKQ==}
     engines: {node: '>= 18'}
 
-  '@vercel/detect-agent@1.2.5':
-    resolution: {integrity: sha512-0krENrjuitlW8s6TJu0MlqCevyCU7K7JK63jZAf7xZ6n17tx+vUEwzHT3sTxawtwZxaW21hu+oFUpoOrm49FsQ==}
+  '@vercel/detect-agent@1.2.7':
+    resolution: {integrity: sha512-5tWaC9V+u4SHcSMKBz9FQb3Dhl/1A2lQ6QqHovu8uQeb8dTyjEevpJMANm/uQEn/usYB63fpdjWYjkJ8/bGtjA==}
     engines: {node: '>=14'}
 
   '@vercel/firewall@1.2.6':
@@ -9368,8 +9368,8 @@ packages:
     engines: {node: '>=18.18'}
     hasBin: true
 
-  ai@7.0.159:
-    resolution: {integrity: sha512-4e/BwDoKJlMNYZaqERcTbGte+4TwroN9qKnCprog/XVfD9InzVPlhCviDhN452JIRrRsYg9BT0WsQ2C3Ds2mVQ==}
+  ai@7.0.177:
+    resolution: {integrity: sha512-DQNKH2lL4h+5Rxe34AxTdxXtNu3EnsDHpxIE6p4ETsi+r7sM187nP6JKrbASoSNEbR355H3FCGlSP7mj+m6Pzw==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: 4.6.7
@@ -10091,8 +10091,8 @@ packages:
   character-reference-invalid@2.0.1:
     resolution: {integrity: sha512-iBZ4F4wRbyORVsu0jPV7gXkOsGYjGHPmAyv+HiHG8gi5PtC9KI2j1+v8/tlibRvjoWX027ypmG/n0HtO5t7unw==}
 
-  chat@4.43.0:
-    resolution: {integrity: sha512-9ICxMewK1+4J0pEbR7eMBTh3JCL3NkyDHAgGrU/gblyyw/+QUcwFHCXIoQMt0Xlyup1c5smS0/gYytTt8NVc6w==}
+  chat@4.45.0:
+    resolution: {integrity: sha512-7p1fkEupHEqYhXmSxLnHcK4hWEg93182/F2YxHSwqc7xtF4mekmG9EuJjRYX3aNEJJa2Rvu48A1f3ulOxxHIrA==}
     engines: {node: '>=20'}
     peerDependencies:
       ai: ^6.0.182 || ^7.0.0
@@ -15988,48 +15988,47 @@ snapshots:
     optionalDependencies:
       typescript: 7.0.2
 
-  '@ai-sdk/gateway@4.0.132(zod@4.6.7)':
+  '@ai-sdk/gateway@4.0.150(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/provider': 4.0.35
-      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
+      '@ai-sdk/provider': 4.0.39
+      '@ai-sdk/provider-utils': 5.0.82(zod@4.6.7)
       '@vercel/oidc': 3.2.0
       zod: 4.6.7
 
-  '@ai-sdk/mcp@2.0.88(zod@4.6.7)':
+  '@ai-sdk/mcp@2.0.101(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/provider': 4.0.35
-      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
+      '@ai-sdk/provider': 4.0.39
+      '@ai-sdk/provider-utils': 5.0.82(zod@4.6.7)
       cross-spawn: 7.0.6
       pkce-challenge: 5.0.1
       zod: 4.6.7
 
-  '@ai-sdk/otel@1.0.159(zod@4.6.7)':
+  '@ai-sdk/otel@1.0.177(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/provider': 4.0.35
+      '@ai-sdk/provider': 4.0.39
       '@opentelemetry/api': 1.9.1
-      ai: 7.0.159(zod@4.6.7)
+      ai: 7.0.177(zod@4.6.7)
     transitivePeerDependencies:
       - zod
 
-  '@ai-sdk/provider-utils@5.0.72(zod@4.6.7)':
+  '@ai-sdk/provider-utils@5.0.82(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/provider': 4.0.35
+      '@ai-sdk/provider': 4.0.39
       '@standard-schema/spec': 1.1.0
       '@workflow/serde': 4.1.0
       eventsource-parser: 3.1.1
-      undici: 7.30.1
       zod: 4.6.7
 
-  '@ai-sdk/provider@4.0.35':
+  '@ai-sdk/provider@4.0.39':
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@4.0.163(react@19.3.1)(zod@4.6.7)':
+  '@ai-sdk/react@4.0.181(react@19.3.1)(zod@4.6.7)':
     dependencies:
-      '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
-      '@ai-sdk/provider': 4.0.35
-      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
-      ai: 7.0.159(zod@4.6.7)
+      '@ai-sdk/mcp': 2.0.101(zod@4.6.7)
+      '@ai-sdk/provider': 4.0.39
+      '@ai-sdk/provider-utils': 5.0.82(zod@4.6.7)
+      ai: 7.0.177(zod@4.6.7)
       react: 19.3.1
       swr: 2.5.1(react@19.3.1)
       throttleit: 2.1.0
@@ -17006,23 +17005,23 @@ snapshots:
       '@changesets/types': 7.0.0
       human-id: 4.2.1
 
-  '@chat-adapter/catalog@4.43.0': {}
+  '@chat-adapter/catalog@4.45.0': {}
 
-  '@chat-adapter/shared@4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)':
+  '@chat-adapter/shared@4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)':
     dependencies:
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+      chat: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
     transitivePeerDependencies:
       - ai
       - supports-color
       - workflow
       - zod
 
-  '@chat-adapter/slack@4.43.0(ai@7.0.159(zod@4.6.7))(debug@4.4.3(supports-color@11.0.0))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)':
+  '@chat-adapter/slack@4.45.0(ai@7.0.177(zod@4.6.7))(debug@4.4.3(supports-color@11.0.0))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)':
     dependencies:
-      '@chat-adapter/shared': 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+      '@chat-adapter/shared': 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
       '@slack/socket-mode': 2.0.7(debug@4.4.3(supports-color@11.0.0))(supports-color@11.0.0)
       '@slack/web-api': 7.19.0(debug@4.4.3(supports-color@11.0.0))(supports-color@11.0.0)
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+      chat: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
     transitivePeerDependencies:
       - ai
       - bufferutil
@@ -17032,9 +17031,9 @@ snapshots:
       - workflow
       - zod
 
-  '@chat-adapter/state-memory@4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)':
+  '@chat-adapter/state-memory@4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)':
     dependencies:
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+      chat: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
     transitivePeerDependencies:
       - ai
       - supports-color
@@ -21784,7 +21783,7 @@ snapshots:
     dependencies:
       execa: 5.1.1
 
-  '@vercel/detect-agent@1.2.5': {}
+  '@vercel/detect-agent@1.2.7': {}
 
   '@vercel/firewall@1.2.6': {}
 
@@ -22705,11 +22704,11 @@ snapshots:
 
   agent-cli-detector@0.1.7: {}
 
-  ai@7.0.159(zod@4.6.7):
+  ai@7.0.177(zod@4.6.7):
     dependencies:
-      '@ai-sdk/gateway': 4.0.132(zod@4.6.7)
-      '@ai-sdk/provider': 4.0.35
-      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
+      '@ai-sdk/gateway': 4.0.150(zod@4.6.7)
+      '@ai-sdk/provider': 4.0.39
+      '@ai-sdk/provider-utils': 5.0.82(zod@4.6.7)
       zod: 4.6.7
 
   ajv-formats@2.1.1:
@@ -23191,7 +23190,7 @@ snapshots:
 
   better-result@3.0.1: {}
 
-  better-supabase@0.63.2(23ff2808283eff63876624373b760854):
+  better-supabase@0.63.2(4e7543415cfbc6f186ae3506bf764d47):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -23200,9 +23199,64 @@ snapshots:
       '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
       '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
     optionalDependencies:
-      '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
-      '@ai-sdk/react': 4.0.163(react@19.3.1)(zod@4.6.7)
-      '@chat-adapter/catalog': 4.43.0
+      '@ai-sdk/mcp': 2.0.101(zod@4.6.7)
+      '@ai-sdk/react': 4.0.181(react@19.3.1)(zod@4.6.7)
+      '@chat-adapter/catalog': 4.45.0
+      '@modelcontextprotocol/server': 2.4.0
+      '@nestjs/common': 12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0)
+      '@next/playwright': 16.4.6(@playwright/test@1.64.1)
+      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
+      '@opentelemetry/api': 1.9.1
+      '@orpc/server': 2.0.0-beta.48(crossws@0.4.12(srvx@1.0.7))(fastify@5.12.7)
+      '@solidjs/start': 2.1.0(@solidjs/router@1.0.1(solid-js@1.9.18))(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@supabase-labs/middleware-openfeature': 0.2.0(typescript@7.0.2)
+      '@supabase/auth-js': 2.118.0
+      '@supabase/pg-delta': 1.0.0-alpha.60(@supabase/pg-topo@1.0.0-alpha.8(supports-color@11.0.0))(supports-color@11.0.0)
+      '@supabase/pg-topo': 1.0.0-alpha.8(supports-color@11.0.0)
+      '@supabase/realtime-js': 2.118.0
+      '@sveltejs/kit': 3.1.1(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.3(@typescript-eslint/types@8.71.0))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(svelte@5.57.3(@typescript-eslint/types@8.71.0))(typescript@7.0.2)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@tanstack/react-start': 1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.3.2)(rollup@4.63.5)(supports-color@11.0.0)(vite-plugin-solid@2.11.15(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@vercel/queue': 0.8.0(@opentelemetry/api@1.9.1)
+      '@workflow/world': 5.1.0
+      ai: 7.0.177(zod@4.6.7)
+      astro: 7.4.4(@types/node@26.6.6)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@11.0.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
+      better-result: 3.0.1
+      chat: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
+      eve: 0.91.0(e23f4a197450e57d3437fd3624e523be)
+      expo-server: 58.1.0
+      express: 5.3.0(supports-color@11.0.0)
+      fastify: 5.12.7
+      h3: 2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)
+      hono: 4.13.16
+      next: 16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      oxfmt: 0.78.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0))
+      pg: 8.23.1
+      react: 19.3.1
+      react-router: 8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      solid-js: 1.9.18
+      svelte: 5.57.3(@typescript-eslint/types@8.71.0)
+      temporal-polyfill: 1.0.6
+      undici: 7.30.1
+      valibot: 1.5.0(typescript@7.0.2)
+      vue: 3.5.44(typescript@7.0.2)
+      workflow: 5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0)
+      zod: 4.6.7
+    transitivePeerDependencies:
+      - typescript
+
+  better-supabase@0.63.2(6b0d1ce27aef8066fa9e06725802f317):
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@supabase/middleware': 1.0.0(typescript@7.0.2)
+      '@supabase/postgrest-js': 2.119.0
+      '@supabase/server': 1.9.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0))(hono@4.13.16)(pg@8.23.1)(typescript@7.0.2)
+      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
+      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
+    optionalDependencies:
+      '@ai-sdk/mcp': 2.0.101(zod@4.6.7)
+      '@ai-sdk/react': 4.0.181(react@19.3.1)(zod@4.6.7)
+      '@chat-adapter/catalog': 4.45.0
       '@modelcontextprotocol/server': 2.3.1
       '@nestjs/common': 12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0)
       '@next/playwright': 16.4.6(@playwright/test@1.64.1)
@@ -23218,12 +23272,12 @@ snapshots:
       '@tanstack/react-start': 1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.16)(rollup@4.63.5)(supports-color@11.0.0)(vite-plugin-solid@2.11.15(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@vercel/queue': 0.8.0(@opentelemetry/api@1.9.1)
       '@workflow/world': 5.1.0
-      ai: 7.0.159(zod@4.6.7)
+      ai: 7.0.177(zod@4.6.7)
       astro: 7.4.4(@types/node@26.6.6)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@11.0.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
       better-result: 3.0.1
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
+      chat: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
       elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
-      eve: 0.91.0(4c7581dec9bc3062d533f6c9d24c9eb9)
+      eve: 0.91.0(675e9d5ac364344ca7780797ccd6a28e)
       expo-server: 58.1.0
       express: 5.3.0(supports-color@11.0.0)
       fastify: 5.12.7
@@ -23245,7 +23299,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@0.63.2(b2e1de7b372af0cdfa0b69a47ed0bd51):
+  better-supabase@0.63.2(ef15687be5e1c111bddf9ac777e0ab1c):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -23254,9 +23308,9 @@ snapshots:
       '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
       '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
     optionalDependencies:
-      '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
-      '@ai-sdk/react': 4.0.163(react@19.3.1)(zod@4.6.7)
-      '@chat-adapter/catalog': 4.43.0
+      '@ai-sdk/mcp': 2.0.101(zod@4.6.7)
+      '@ai-sdk/react': 4.0.181(react@19.3.1)(zod@4.6.7)
+      '@chat-adapter/catalog': 4.45.0
       '@modelcontextprotocol/server': 2.3.1
       '@nestjs/common': 11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0)
       '@next/playwright': 16.4.6(@playwright/test@1.64.1)
@@ -23273,12 +23327,12 @@ snapshots:
       '@tanstack/react-start': 1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.16)(rollup@4.63.5)(supports-color@11.0.0)(vite-plugin-solid@2.11.15(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@vercel/queue': 0.8.0(@opentelemetry/api@1.9.1)
       '@workflow/world': 5.1.0
-      ai: 7.0.159(zod@4.6.7)
+      ai: 7.0.177(zod@4.6.7)
       astro: 7.4.4(@types/node@26.6.6)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@11.0.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
       better-result: 3.0.1
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+      chat: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
       elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
-      eve: 0.91.0(6c111f2fb82eed458da21155cbf6585d)
+      eve: 0.91.0(84006bb1bc89a54fa411bb4ec446f867)
       expo-server: 58.1.0
       express: 5.3.0(supports-color@11.0.0)
       fastify: 5.12.7
@@ -23296,61 +23350,6 @@ snapshots:
       valibot: 1.5.0(typescript@7.0.2)
       vue: 3.5.44(typescript@7.0.2)
       workflow: 5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0)
-      zod: 4.6.7
-    transitivePeerDependencies:
-      - typescript
-
-  better-supabase@0.63.2(df7e3e479282836089be154ef9ea4be5):
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@supabase/middleware': 1.0.0(typescript@7.0.2)
-      '@supabase/postgrest-js': 2.119.0
-      '@supabase/server': 1.9.2(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0))(hono@4.13.16)(pg@8.23.1)(typescript@7.0.2)
-      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
-      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
-    optionalDependencies:
-      '@ai-sdk/mcp': 2.0.88(zod@4.6.7)
-      '@ai-sdk/react': 4.0.163(react@19.3.1)(zod@4.6.7)
-      '@chat-adapter/catalog': 4.43.0
-      '@modelcontextprotocol/server': 2.4.0
-      '@nestjs/common': 12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0)
-      '@next/playwright': 16.4.6(@playwright/test@1.64.1)
-      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
-      '@opentelemetry/api': 1.9.1
-      '@orpc/server': 2.0.0-beta.48(crossws@0.4.12(srvx@1.0.7))(fastify@5.12.7)
-      '@solidjs/start': 2.1.0(@solidjs/router@1.0.1(solid-js@1.9.18))(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      '@supabase-labs/middleware-openfeature': 0.2.0(typescript@7.0.2)
-      '@supabase/auth-js': 2.118.0
-      '@supabase/pg-delta': 1.0.0-alpha.60(@supabase/pg-topo@1.0.0-alpha.8(supports-color@11.0.0))(supports-color@11.0.0)
-      '@supabase/pg-topo': 1.0.0-alpha.8(supports-color@11.0.0)
-      '@supabase/realtime-js': 2.118.0
-      '@sveltejs/kit': 3.1.1(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.3(@typescript-eslint/types@8.71.0))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(svelte@5.57.3(@typescript-eslint/types@8.71.0))(typescript@7.0.2)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      '@tanstack/react-start': 1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.3.2)(rollup@4.63.5)(supports-color@11.0.0)(vite-plugin-solid@2.11.15(solid-js@1.9.18)(supports-color@11.0.0)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      '@vercel/queue': 0.8.0(@opentelemetry/api@1.9.1)
-      '@workflow/world': 5.1.0
-      ai: 7.0.159(zod@4.6.7)
-      astro: 7.4.4(@types/node@26.6.6)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@11.0.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
-      better-result: 3.0.1
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
-      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
-      eve: 0.91.0(c23d84376af98c04406dc731207190aa)
-      expo-server: 58.1.0
-      express: 5.3.0(supports-color@11.0.0)
-      fastify: 5.12.7
-      h3: 2.0.8(crossws@0.4.12(srvx@1.0.7))(ocache@0.3.0)
-      hono: 4.13.16
-      next: 16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      oxfmt: 0.78.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.3(@typescript-eslint/types@8.71.0))
-      pg: 8.23.1
-      react: 19.3.1
-      react-router: 8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      solid-js: 1.9.18
-      svelte: 5.57.3(@typescript-eslint/types@8.71.0)
-      temporal-polyfill: 1.0.6
-      undici: 7.30.1
-      valibot: 1.5.0(typescript@7.0.2)
-      vue: 3.5.44(typescript@7.0.2)
-      workflow: 5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0)
       zod: 4.6.7
     transitivePeerDependencies:
       - typescript
@@ -23565,9 +23564,9 @@ snapshots:
 
   character-reference-invalid@2.0.1: {}
 
-  chat@4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7):
+  chat@4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7):
     dependencies:
-      '@chat-adapter/catalog': 4.43.0
+      '@chat-adapter/catalog': 4.45.0
       '@workflow/serde': 4.1.0-beta.2
       mdast-util-to-string: 4.0.0
       remark-gfm: 4.0.1(supports-color@11.0.0)
@@ -23576,16 +23575,16 @@ snapshots:
       remend: 1.4.0
       unified: 11.0.5
     optionalDependencies:
-      ai: 7.0.159(zod@4.6.7)
+      ai: 7.0.177(zod@4.6.7)
       workflow: 5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0)
       zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
     optional: true
 
-  chat@4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7):
+  chat@4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7):
     dependencies:
-      '@chat-adapter/catalog': 4.43.0
+      '@chat-adapter/catalog': 4.45.0
       '@workflow/serde': 4.1.0-beta.2
       mdast-util-to-string: 4.0.0
       remark-gfm: 4.0.1(supports-color@11.0.0)
@@ -23594,15 +23593,15 @@ snapshots:
       remend: 1.4.0
       unified: 11.0.5
     optionalDependencies:
-      ai: 7.0.159(zod@4.6.7)
+      ai: 7.0.177(zod@4.6.7)
       workflow: 5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0)
       zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
-  chat@4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7):
+  chat@4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7):
     dependencies:
-      '@chat-adapter/catalog': 4.43.0
+      '@chat-adapter/catalog': 4.45.0
       '@workflow/serde': 4.1.0-beta.2
       mdast-util-to-string: 4.0.0
       remark-gfm: 4.0.1(supports-color@11.0.0)
@@ -23611,7 +23610,7 @@ snapshots:
       remend: 1.4.0
       unified: 11.0.5
     optionalDependencies:
-      ai: 7.0.159(zod@4.6.7)
+      ai: 7.0.177(zod@4.6.7)
       workflow: 5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0)
       zod: 4.6.7
     transitivePeerDependencies:
@@ -24410,32 +24409,32 @@ snapshots:
 
   etag@1.8.1: {}
 
-  eve@0.91.0(4c7581dec9bc3062d533f6c9d24c9eb9):
+  eve@0.91.0(675e9d5ac364344ca7780797ccd6a28e):
     dependencies:
-      ai: 7.0.159(zod@4.6.7)
+      ai: 7.0.177(zod@4.6.7)
       nitro: 3.0.260903-beta
       undici: 8.12.2
     optionalDependencies:
       '@nuxt/kit': 4.6.3(@nuxt/schema@4.5.2)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.156.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
       '@nuxt/schema': 4.5.2
       '@opentelemetry/api': 1.9.1
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
+      chat: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
       next: 16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
       svelte: 5.57.3(@typescript-eslint/types@8.71.0)
       vite: 8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
       vue: 3.5.44(typescript@7.0.2)
 
-  eve@0.91.0(6c111f2fb82eed458da21155cbf6585d):
+  eve@0.91.0(84006bb1bc89a54fa411bb4ec446f867):
     dependencies:
-      ai: 7.0.159(zod@4.6.7)
+      ai: 7.0.177(zod@4.6.7)
       nitro: 3.0.260903-beta
       undici: 8.12.2
     optionalDependencies:
       '@nuxt/kit': 4.6.3(@nuxt/schema@4.5.2)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.156.0)(rolldown@1.2.16)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
       '@nuxt/schema': 4.5.2
       '@opentelemetry/api': 1.9.1
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+      chat: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.2.16)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.16)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
       next: 16.4.6(@babel/core@7.29.7(supports-color@11.0.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
       svelte: 5.57.3(@typescript-eslint/types@8.71.0)
@@ -24443,16 +24442,16 @@ snapshots:
       vue: 3.5.44(typescript@7.0.2)
     optional: true
 
-  eve@0.91.0(c23d84376af98c04406dc731207190aa):
+  eve@0.91.0(e23f4a197450e57d3437fd3624e523be):
     dependencies:
-      ai: 7.0.159(zod@4.6.7)
+      ai: 7.0.177(zod@4.6.7)
       nitro: 3.0.260903-beta
       undici: 8.12.2
     optionalDependencies:
       '@nuxt/kit': 4.6.3(@nuxt/schema@4.5.2)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(oxc-parser@0.156.0)(rolldown@1.3.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
       '@nuxt/schema': 4.5.2
       '@opentelemetry/api': 1.9.1
-      chat: 4.43.0(ai@7.0.159(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
+      chat: 4.45.0(ai@7.0.177(zod@4.6.7))(supports-color@11.0.0)(workflow@5.4.0(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.3.2)(@nuxt/schema@4.5.2)(@opentelemetry/api@1.9.1)(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(confbox@0.3.1)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.3)(mlly@1.8.2)(next@16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(oxc-parser@0.156.0)(react@19.3.1)(rolldown@1.3.2)(supports-color@11.0.0)(typescript@7.0.2)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.3.2)(rollup@4.63.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(ws@8.22.0))(zod@4.6.7)
       next: 16.4.6(@babel/core@8.0.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
       svelte: 5.57.3(@typescript-eslint/types@8.71.0)

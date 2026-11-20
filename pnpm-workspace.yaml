@@ -7,7 +7,7 @@ packages:
   - tests/types/*
 
 catalog:
-  "@ai-sdk/react": 4.0.163
+  "@ai-sdk/react": 4.0.181
   "@anthropic-ai/claude-agent-sdk": 0.3.316
   "@modelcontextprotocol/client": 2.4.0
   "@modelcontextprotocol/server": 2.4.0
@@ -24,7 +24,7 @@ catalog:
   "@sveltejs/vite-plugin-svelte": 7.3.1
   "@vitejs/plugin-react": 6.1.2
   "@vitejs/plugin-vue": 6.0.10
-  ai: 7.0.159
+  ai: 7.0.177
   "@changesets/cli": 3.0.3
   "@types/mdast": 4.0.4
   "@sentry/nextjs": 11.10.0
@@ -156,7 +156,7 @@ catalog:
   "@streamdown/math": 1.0.3
   streamdown: 2.7.1
   use-stick-to-bottom: 1.1.6
-  "@ai-sdk/otel": 1.0.159
+  "@ai-sdk/otel": 1.0.177
   dotenv-cli: 11.1.0
   portless: 0.17.0
   better-supabase: 0.63.2
@@ -172,7 +172,7 @@ catalog:
   smol-toml: 1.9.1
   diff: 9.0.0
   fastest-levenshtein: 1.0.16
-  "@vercel/detect-agent": 1.2.5
+  "@vercel/detect-agent": 1.2.7
   "@vercel/firewall": 1.2.6
   botid: 1.5.12
   "@pgkit/client": 0.6.1
@@ -185,7 +185,7 @@ catalog:
   "@playwright/test": 1.64.1
   babel-plugin-react-compiler: 1.0.0
   "@babel/core": 8.0.10
-  chat: 4.43.0
+  chat: 4.45.0
   resend: 6.37.0
   workflow: 5.4.0
   "@solidjs/start": 2.1.0
@@ -195,8 +195,8 @@ catalog:
   h3: 2.0.8
   "@solidjs/router": 1.0.1
   "@tanstack/react-router": 1.170.46
-  "@chat-adapter/slack": 4.43.0
-  "@chat-adapter/state-memory": 4.43.0
+  "@chat-adapter/slack": 4.45.0
+  "@chat-adapter/state-memory": 4.45.0
 
 catalogs:
   ts59:
