@@ -79,7 +79,7 @@ catalog:
   "@prisma/adapter-pg": 7.10.1
   "@prisma/client": 7.10.1
   prisma: 7.10.0
-  eve: 0.91.0
+  eve: 1.2.0
   expo: 58.0.23
   expo-constants: 58.0.16
   expo-linking: 58.0.16
@@ -213,7 +213,7 @@ catalogs:
     "@anthropic-ai/claude-agent-sdk": ">=0.2"
     # Every peer range is a floor with no upper bound (decision 0045); this floor is the first entry of the better-supabase CI matrices (decision 0071).
     better-supabase: ">=0.63.2"
-    chat: ">=4"
+    chat: ">=4.45.0"
     "@modelcontextprotocol/server": ">=2"
     "@napi-rs/keyring": ">=1"
     "@nestjs/common": ">=11"
@@ -227,11 +227,11 @@ catalogs:
     "@solidjs/start": ">=2"
     "@sveltejs/kit": ">=2"
     "@tanstack/react-start": ">=1.168"
-    ai: ">=5"
+    ai: ">=7.0.177"
     astro: ">=5"
     drizzle-orm: ">=0.40 || >=1.0.0-rc.0"
     elysia: ">=1"
-    eve: ">=0.40"
+    eve: ">=1.2.0"
     express: ">=4"
     fastify: ">=5"
     h3: ">=2"
@@ -272,6 +272,8 @@ minimumReleaseAgeExclude:
   # Adopted the day they shipped; drop each entry after its date (decisions 0070 and 0071).
   # Drop after 2026-11-13 13:49 UTC.
   - better-supabase@0.63.2
+  # Drop after 2026-11-21 15:55 UTC (decision 0073).
+  - eve@1.2.0
   # Drop after 2026-11-12 18:38 UTC.
   - turbo@2.11.11
   - eslint-plugin-turbo@2.11.11
@@ -302,6 +304,8 @@ trustPolicyExcludePrune: true
 
 peerDependencyRules:
   allowedVersions:
+    # better-supabase 0.63.2, the peer floor, caps eve below 1; the eve adapter needs 1.2.0 (decision 0073).
+    "better-supabase>eve": "1"
     # expo-router's optional peer resolves to 4.6.0 until 4.7.1 (0.86 - 0.88) clears minimumReleaseAge; the example runs web only.
     "react-native-reanimated>react-native": "0.88"
     # Only its optional Nest integration needs the peer; tests/integration runs Nest 12.

@@ -76,3 +76,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0070](./0070-turbo-2-11-11-release-age.md)                       | turbo 2.11.11 skips the release age                                                                    |
 | [0071](./0071-better-supabase-0-63-2-floor-and-release-age.md)    | better-supabase 0.63.2 is the peer floor and catalog pin, and skips the release age                    |
 | [0072](./0072-selected-tests-on-pull-requests.md)                 | Pull requests run selected tests; main runs everything                                                 |
+| [0073](./0073-eve-1-2-0-ai-chat-floors-and-release-age.md)        | eve 1.2.0, ai and chat 4.45.0 are peer floors; eve 1.2.0 skips the release age; workflow stays 5.4.0   |
