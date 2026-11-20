@@ -25,8 +25,11 @@ npx shadcn add @better-supabase/use-notifications @better-supabase/notifications
 
 import type { NotificationCounts } from "better-supabase/blocks/notifications";
 
+import { tenantOf } from "better-supabase/next";
+import { useBlockEnv } from "better-supabase/react";
 import { BellIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
+import { useCallback } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -34,12 +37,41 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/hooks";
 
-import { loadNotificationCounts } from "../notifications-actions";
+/**
+ * The badge numbers through the browser client: the `notification_counts`
+ * function on the block's `api` schema, which `notifications.counts()` calls on
+ * the server. Calling it directly keeps the notifications client, which renders
+ * and delivers, out of the shell's first load (ADR 0643). Pass it as `load` to
+ * `useNotifications`.
+ */
+function useNotificationCountsLoader(): () => Promise<
+  readonly NotificationCounts[]
+> {
+  const { supabase } = useBlockEnv();
+  const tenant = tenantOf(useAuth());
 
-async function loadCounts(): Promise<readonly NotificationCounts[]> {
-  const result = await loadNotificationCounts({});
+  return useCallback(async () => {
+    if (tenant === undefined) {
+      return [];
+    }
 
-  return result.ok ? [result.data] : [];
+    const result: { readonly data: unknown } = await supabase
+      .schema("api")
+      .rpc("notification_counts", { tenant, actionable: [] });
+
+    // SAFETY: the function returns `{ unread, actionable, actionable_subjects }` as jsonb numbers.
+    const counts = result.data as Record<string, number> | null;
+
+    return counts
+      ? [
+          {
+            unread: counts["unread"] ?? 0,
+            actionable: counts["actionable"] ?? 0,
+            actionableSubjects: counts["actionable_subjects"] ?? 0,
+          },
+        ]
+      : [];
+  }, [supabase, tenant]);
 }
 
 const unreadOf = (counts: readonly NotificationCounts[]): number =>
@@ -49,13 +81,14 @@ const unreadOf = (counts: readonly NotificationCounts[]): number =>
  * The unread count from the block's `counts()`, loaded again after each
  * broadcast on the caller's private topic `notifications:<user id>`.
  */
-function useUnreadCount() {
+export function useUnreadCount() {
   const auth = useAuth();
   const userId = auth.user?.id;
+  const load = useNotificationCountsLoader();
 
   const { items, count, status } = useNotifications({
     topic: userId ? `notifications:${userId}` : null,
-    load: loadCounts,
+    load,
     count: unreadOf,
   });
 
@@ -86,7 +119,7 @@ export function UnreadBadge() {
         className="tabular-nums"
         data-testid="unread-count"
       >
-        {count ?? "–"}
+        {count === undefined ? "–" : count >= 100 ? "99+" : count}
       </Badge>
     </Link>
   );
@@ -345,124 +378,499 @@ A search dialog over the search index, with favorites and recents before the use
 Web, with shadcn components:
 
 ```bash
-npx shadcn add button dialog input
+npx shadcn add button command dialog kbd
 ```
 
 ```bash
 npx shadcn add @better-supabase/use-search
 ```
 
-```tsx title="apps/examples/nextjs/src/features/search/components/command-search.tsx"
+```tsx title="apps/examples/nextjs/src/features/search/components/command-center.tsx"
 "use client";
 
-import { SearchIcon } from "lucide-react";
-import { useExtracted } from "next-intl";
+import type { LucideIcon } from "lucide-react";
 
+import { useTheme } from "@wrksz/themes/client";
+import {
+  ArrowRightIcon,
+  BotIcon,
+  ClockIcon,
+  CompassIcon,
+  FileTextIcon,
+  HandshakeIcon,
+  LanguagesIcon,
+  MonitorIcon,
+  MoonIcon,
+  PlusIcon,
+  RotateCwIcon,
+  SearchIcon,
+  StarIcon,
+  SunIcon,
+  UserPlusIcon,
+} from "lucide-react";
+import { hasLocale, useExtracted, useLocale } from "next-intl";
+import { useState } from "react";
+
+import type { CommandSearchItem } from "@/hooks/use-search";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+  CommandDialog,
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CreateOrganizationDialog } from "@/features/organization/components/create-organization-dialog";
 import { useCommandSearch } from "@/hooks/use-search";
-import { Link, toAppHref } from "@/i18n/navigation";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { usePathname, useRouter, toAppHref } from "@/i18n/navigation";
+import { routing } from "@/i18n/routing";
+import { searchConfig } from "@/lib/supabase/blocks/slices";
+
+import { useSubjectTypeLabel } from "../use-subject-type-label";
+import { CommandSearchTrigger } from "./command-search-trigger";
+import { OrganizationCommands } from "./organization-commands";
+
+/** A page of the side menu the caller may open. */
+export interface CommandPage {
+  readonly id: string;
+  /** Without the locale prefix. */
+  readonly href: string;
+  readonly label: string;
+}
 
 /** The API schema `gen` wrote for the search block. */
-const API_SCHEMA = blockConfig.search.api;
+const API_SCHEMA = searchConfig.api;
 
-/** Cmd+K over the search index: customers by name, plus recents and favorites. */
-export function CommandSearch() {
+/** Pages listed before the user types; typing searches all of them. */
+const PAGES_WHEN_EMPTY = 6;
+
+const LOCALE_NAMES = { en: "English", nl: "Nederlands" } as const;
+
+/** Every word of `query` appears in one of the texts. */
+function matches(query: string, ...texts: readonly string[]): boolean {
+  const haystack = texts.join(" ").toLowerCase();
+
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word !== "")
+    .every((word) => haystack.includes(word));
+}
+
+/**
+ * The record types the caller may create; each has a page whose dialog opens on
+ * `?new=1`.
+ */
+export interface CommandCreate {
+  readonly customer?: boolean;
+  readonly contact?: boolean;
+  readonly deal?: boolean;
+  readonly quote?: boolean;
+}
+
+interface CommandAction {
+  readonly id: string;
+  readonly label: string;
+  readonly keywords: string;
+  readonly icon: LucideIcon;
+  readonly run: () => void;
+}
+
+/**
+ * Cmd+K over the app: records from every subject the search block indexes (one
+ * call to `search(q)` per typing burst, answered by Postgres under the caller's
+ * access), recents and favorites, actions, and the pages of the menu. The code
+ * loads on the first intent (ADR 0483), so it stays out of every route's first
+ * load.
+ */
+export function CommandCenter({
+  pages,
+  canCreate,
+}: {
+  pages: readonly CommandPage[];
+  canCreate: CommandCreate;
+}) {
   const t = useExtracted("search");
-  const search = useCommandSearch({ schema: API_SCHEMA });
+  const typeLabel = useSubjectTypeLabel();
+  const router = useRouter();
+  const pathname = usePathname();
+  const locale = useLocale();
+  const { setTheme } = useTheme();
+  const [creatingOrganization, setCreatingOrganization] = useState(false);
+  const search = useCommandSearch({ schema: API_SCHEMA, limit: 30 });
+  const query = search.query.trim();
 
-  const heading = (key: string) => {
-    if (key === "favorites") {
-      return t("Favorites");
-    }
-
-    if (key === "recents") {
-      return t("Recent");
-    }
-
-    if (key === "customer") {
-      return t("Customers");
-    }
-
-    return key;
+  const go = (href: string) => {
+    search.setOpen(false);
+    router.push(toAppHref(href));
   };
+
+  const open = (item: CommandSearchItem) => {
+    if (item.url === null) {
+      return;
+    }
+
+    const href = item.url;
+    void search.select(item);
+    router.push(toAppHref(href));
+  };
+
+  const actions: readonly CommandAction[] = [
+    ...(canCreate.customer
+      ? [
+          {
+            id: "new-customer",
+            label: t("New customer"),
+            keywords: t("create add customer"),
+            icon: UserPlusIcon,
+            run: () => {
+              go("/customers?new=1");
+            },
+          },
+        ]
+      : []),
+    ...(canCreate.contact
+      ? [
+          {
+            id: "new-contact",
+            label: t("New contact"),
+            keywords: t("create add contact company person"),
+            icon: UserPlusIcon,
+            run: () => {
+              go("/crm/contacts?new=1");
+            },
+          },
+        ]
+      : []),
+    ...(canCreate.deal
+      ? [
+          {
+            id: "new-deal",
+            label: t("New deal"),
+            keywords: t("create add deal opportunity"),
+            icon: HandshakeIcon,
+            run: () => {
+              go("/crm/deals?new=1");
+            },
+          },
+        ]
+      : []),
+    ...(canCreate.quote
+      ? [
+          {
+            id: "new-quote",
+            label: t("New quote"),
+            keywords: t("create add quote proposal"),
+            icon: FileTextIcon,
+            run: () => {
+              go("/crm/quotes?new=1");
+            },
+          },
+        ]
+      : []),
+    {
+      id: "new-organization",
+      label: t("Create organization"),
+      keywords: t("new organization workspace"),
+      icon: PlusIcon,
+      run: () => {
+        search.setOpen(false);
+        setCreatingOrganization(true);
+      },
+    },
+    {
+      id: "theme-light",
+      label: t("Light theme"),
+      keywords: t("theme appearance light"),
+      icon: SunIcon,
+      run: () => {
+        setTheme("light");
+        search.setOpen(false);
+      },
+    },
+    {
+      id: "theme-dark",
+      label: t("Dark theme"),
+      keywords: t("theme appearance dark"),
+      icon: MoonIcon,
+      run: () => {
+        setTheme("dark");
+        search.setOpen(false);
+      },
+    },
+    {
+      id: "theme-system",
+      label: t("System theme"),
+      keywords: t("theme appearance system"),
+      icon: MonitorIcon,
+      run: () => {
+        setTheme("system");
+        search.setOpen(false);
+      },
+    },
+    ...routing.locales
+      .filter((option) => option !== locale)
+      .map((option) => ({
+        id: `locale-${option}`,
+        label: t("Switch language to {language}", {
+          language: LOCALE_NAMES[option],
+        }),
+        keywords: t("language locale"),
+        icon: LanguagesIcon,
+        run: () => {
+          search.setOpen(false);
+
+          if (hasLocale(routing.locales, option)) {
+            router.replace(pathname, { locale: option });
+          }
+        },
+      })),
+  ];
+
+  const shownActions =
+    query === ""
+      ? actions
+      : actions.filter((action) =>
+          matches(query, action.label, action.keywords),
+        );
+
+  const shownPages =
+    query === ""
+      ? pages.slice(0, PAGES_WHEN_EMPTY)
+      : pages.filter((page) => matches(query, page.label, page.href));
+
+  const waiting = search.loading && search.results.length === 0;
+  const noMatches = query !== "" && !search.loading;
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-label={t("Search")}
-        aria-keyshortcuts="Meta+K Control+K"
+      <CommandSearchTrigger
         onClick={() => {
           search.setOpen(true);
         }}
+      />
+      <CommandDialog
+        open={search.open}
+        onOpenChange={search.setOpen}
+        title={t("Search")}
+        description={t(
+          "Find records, run an action or open a page. Press Escape to close.",
+        )}
+        className="sm:max-w-xl"
       >
-        <SearchIcon />
-        <span className="hidden sm:inline">{t("Search")}</span>
-        <kbd className="hidden text-xs text-muted-foreground sm:inline">⌘K</kbd>
-      </Button>
-      <Dialog open={search.open} onOpenChange={search.setOpen}>
-        <DialogContent className="gap-4 sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t("Search")}</DialogTitle>
-            <DialogDescription>
-              {t("Find a customer by name, even with a typo.")}
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            type="search"
+        <Command shouldFilter={false} loop>
+          <CommandInput
             value={search.query}
-            onChange={(event) => {
-              search.setQuery(event.target.value);
-            }}
-            placeholder={t("Search customers")}
-            aria-label={t("Search customers")}
+            onValueChange={search.setQuery}
+            placeholder={t("Search records, actions and pages")}
+            aria-label={t("Search records, actions and pages")}
           />
-          <div className="max-h-80 overflow-y-auto" aria-live="polite">
+          <CommandList aria-live="polite">
             {search.error === undefined ? null : (
-              <p className="text-sm text-destructive">
-                {t("Search failed. Try again.")}
-              </p>
+              <div className="p-1">
+                <Alert variant="destructive">
+                  <AlertTitle>{t("Search failed")}</AlertTitle>
+                  <AlertDescription className="flex items-center justify-between gap-2">
+                    {t("Records could not load. Actions and pages still work.")}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        // The controller queries again only when the trimmed text changes.
+                        const again = search.query;
+                        search.setQuery("");
+                        search.setQuery(again);
+                      }}
+                    >
+                      <RotateCwIcon />
+                      {t("Retry")}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              </div>
             )}
-            {search.groups.length === 0 && !search.loading ? (
-              <p className="text-sm text-muted-foreground">
-                {search.query.trim() === ""
-                  ? t("Type to search.")
-                  : t("No matches.")}
+
+            {query === "" ? (
+              <>
+                {search.groups.map((group) => (
+                  <CommandGroup
+                    key={group.key}
+                    heading={
+                      group.key === "favorites" ? t("Favorites") : t("Recent")
+                    }
+                  >
+                    {group.items.map((item) => (
+                      <CommandItem
+                        key={`${group.key}:${item.subjectType}:${item.subjectId}`}
+                        value={`${group.key}:${item.subjectType}:${item.subjectId}`}
+                        disabled={item.url === null}
+                        onSelect={() => {
+                          open(item);
+                        }}
+                      >
+                        {group.key === "favorites" ? (
+                          <StarIcon />
+                        ) : (
+                          <ClockIcon />
+                        )}
+                        <span className="truncate">
+                          {item.title ?? item.subjectId}
+                        </span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {typeLabel(item.subjectType)}
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                ))}
+              </>
+            ) : (
+              <>
+                {search.groups.map((group) => (
+                  <CommandGroup key={group.key} heading={typeLabel(group.key)}>
+                    {group.items.map((item) => (
+                      <CommandItem
+                        key={`${item.subjectType}:${item.subjectId}`}
+                        value={`${item.subjectType}:${item.subjectId}`}
+                        disabled={item.url === null}
+                        onSelect={() => {
+                          open(item);
+                        }}
+                      >
+                        <span className="truncate">
+                          {item.title ?? item.subjectId}
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                ))}
+                {waiting ? (
+                  <CommandGroup heading={t("Records")}>
+                    <div className="flex flex-col gap-2 p-2" aria-busy="true">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-5 w-1/2" />
+                      <Skeleton className="h-5 w-2/3" />
+                    </div>
+                  </CommandGroup>
+                ) : null}
+                <CommandGroup>
+                  <CommandItem
+                    value={`all:${query}`}
+                    onSelect={() => {
+                      go(`/search?q=${encodeURIComponent(query)}`);
+                    }}
+                  >
+                    <SearchIcon />
+                    {t("See all results for {query}", { query })}
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            )}
+
+            {shownActions.length === 0 ? null : (
+              <>
+                <CommandSeparator />
+                <CommandGroup heading={t("Actions")}>
+                  {shownActions.map((action) => (
+                    <CommandItem
+                      key={action.id}
+                      value={`action:${action.id}`}
+                      onSelect={action.run}
+                    >
+                      <action.icon />
+                      {action.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+            )}
+
+            <OrganizationCommands
+              query={query}
+              onSwitched={() => {
+                search.setOpen(false);
+              }}
+            />
+
+            {shownPages.length === 0 ? null : (
+              <>
+                <CommandSeparator />
+                <CommandGroup heading={t("Go to")}>
+                  {shownPages.map((page) => (
+                    <CommandItem
+                      key={page.id}
+                      value={`page:${page.id}`}
+                      onPointerEnter={() => {
+                        router.prefetch(toAppHref(page.href));
+                      }}
+                      onSelect={() => {
+                        go(page.href);
+                      }}
+                    >
+                      <CompassIcon />
+                      {page.label}
+                      <ArrowRightIcon className="ml-auto opacity-50" />
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+            )}
+
+            {query === "" ? null : (
+              <>
+                <CommandSeparator />
+                <CommandGroup heading={t("Assistant")}>
+                  <CommandItem
+                    value="ask-assistant"
+                    onSelect={() => {
+                      go(`/assistant?ask=${encodeURIComponent(query)}`);
+                    }}
+                  >
+                    <BotIcon />
+                    {t("Ask the assistant: {query}", { query })}
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            )}
+
+            {noMatches &&
+            search.results.length === 0 &&
+            shownActions.length === 0 &&
+            shownPages.length === 0 ? (
+              <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                {t("No records match. Ask the assistant or see all results.")}
               </p>
             ) : null}
-            {search.groups.map((group) => (
-              <section key={group.key} className="mb-3">
-                <h3 className="mb-1 text-xs font-medium text-muted-foreground">
-                  {heading(group.key)}
-                </h3>
-                <ul>
-                  {group.items.map((item) => (
-                    <li key={`${item.subjectType}:${item.subjectId}`}>
-                      <Link
-                        href={toAppHref(item.url)}
-                        onClick={() => void search.select(item)}
-                        className="block rounded-md px-2 py-1.5 outline-none hover:bg-muted focus-visible:bg-muted"
-                      >
-                        {item.title ?? item.subjectId}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
+          </CommandList>
+          <div className="flex items-center justify-between gap-2 border-t px-3 py-2 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <KbdGroup>
+                <Kbd>↑</Kbd>
+                <Kbd>↓</Kbd>
+              </KbdGroup>
+              {t("to move")}
+            </span>
+            <span className="flex items-center gap-1">
+              <Kbd>↵</Kbd>
+              {t("to open")}
+            </span>
+            <span className="flex items-center gap-1">
+              <Kbd>Esc</Kbd>
+              {t("to close")}
+            </span>
           </div>
-        </DialogContent>
-      </Dialog>
+        </Command>
+      </CommandDialog>
+      <CreateOrganizationDialog
+        open={creatingOrganization}
+        onOpenChange={setCreatingOrganization}
+      />
     </>
   );
 }
@@ -559,7 +967,7 @@ export function CommandSearch() {
               </Pressable>
             )}
             ListEmptyComponent={
-              search.loading ? null : (
+              search.loading ? undefined : (
                 <Text>
                   {search.query.trim() === ""
                     ? "Type to search."
@@ -618,10 +1026,10 @@ import { gettingStarted } from "@/features/onboarding/checklist";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { Link, toAppHref } from "@/i18n/navigation";
 import { useAuth } from "@/lib/hooks";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { onboardingConfig } from "@/lib/supabase/blocks/slices";
 
 /** The API schema `gen` wrote for the onboarding block. */
-const API_SCHEMA = blockConfig.onboarding.api;
+const API_SCHEMA = onboardingConfig.api;
 
 /** The organization's getting-started checklist; hidden once every step is done. */
 export function OnboardingCard() {
@@ -790,19 +1198,19 @@ npx shadcn add @better-supabase/use-comments
 
 import type { SubmitEvent } from "react";
 
+import { useErrorMessage } from "better-supabase/react";
 import { useExtracted, useFormatter } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useOptimistic, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useComments } from "@/hooks/use-comments";
-import { useErrorMessage } from "@/lib/use-error-message";
 
 /**
  * A record's comments, oldest first, through the browser client. `subject` is
- * any type in `config.subjects`, such as a customer or a project.
+ * any type in `config.recordTypes`, such as a customer or a project.
  */
 export function CommentThread({
   subject,
@@ -819,13 +1227,19 @@ export function CommentThread({
   const errorMessage = useErrorMessage();
   const fieldId = useId();
   const [body, setBody] = useState("");
-  const [pending, setPending] = useState(false);
+  const [pending, startTransition] = useTransition();
 
   const { comments, error, add } = useComments({ subject });
 
   const visible = comments?.filter((comment) => !comment.deletedAt);
 
-  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
+  // The comment shows at once and settles when the server's list arrives.
+  const [sending, addPending] = useOptimistic<string | undefined, string>(
+    undefined,
+    (_current, text) => text,
+  );
+
+  const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const text = body.trim();
 
@@ -833,25 +1247,25 @@ export function CommentThread({
       return;
     }
 
-    setPending(true);
+    startTransition(async () => {
+      addPending(text);
 
-    if ((await add(text)).ok) {
-      setBody("");
-    }
-
-    setPending(false);
+      if ((await add({ body: text })).ok) {
+        setBody("");
+      }
+    });
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {visible === undefined ? (
         <Skeleton className="h-16" />
-      ) : visible.length === 0 ? (
+      ) : visible.length === 0 && sending === undefined ? (
         <p className="text-sm text-muted-foreground">{t("No comments yet.")}</p>
       ) : (
-        <ol className="space-y-4" data-testid="comments">
+        <ol className="flex flex-col gap-4" data-testid="comments">
           {visible.map((comment) => (
-            <li key={comment.id} className="space-y-1">
+            <li key={comment.id} className="flex flex-col gap-1">
               <p className="text-sm">
                 <span className="font-medium">
                   {(comment.authorId && authors[comment.authorId]) ??
@@ -867,10 +1281,18 @@ export function CommentThread({
               <p className="text-sm whitespace-pre-wrap">{comment.body}</p>
             </li>
           ))}
+          {sending === undefined ? null : (
+            <li
+              className="text-sm whitespace-pre-wrap text-muted-foreground"
+              aria-busy
+            >
+              {sending}
+            </li>
+          )}
         </ol>
       )}
       {canComment ? (
-        <form onSubmit={(event) => void submit(event)} className="space-y-3">
+        <form onSubmit={submit} className="flex flex-col gap-3">
           <Field data-invalid={error ? true : undefined}>
             <FieldLabel htmlFor={`${fieldId}-comment-body`} className="sr-only">
               {t("Comment")}
@@ -935,7 +1357,7 @@ export function CommentThread({ customerId }: { readonly customerId: string }) {
 
     setPending(true);
 
-    if ((await add(text)).ok) {
+    if ((await add({ body: text })).ok) {
       setBody("");
     }
 
@@ -998,10 +1420,10 @@ npx shadcn add @better-supabase/use-organizations
 "use client";
 
 import { DbException } from "better-supabase";
+import { useErrorMessage } from "better-supabase/react";
 import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
 
 import {
   DropdownMenu,
@@ -1014,8 +1436,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { useOrganizations } from "@/hooks/use-organizations";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { organizationsConfig } from "@/lib/supabase/blocks/slices";
+import { toast } from "@/lib/toast";
 
 import type { OrganizationSummary } from "../organization-queries";
 
@@ -1026,7 +1448,10 @@ import { CreateOrganizationDialog } from "./create-organization-dialog";
 
 function Mark({ name }: { name: string }) {
   return (
-    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
+    <div
+      aria-hidden="true"
+      className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground"
+    >
       {name.slice(0, 1).toUpperCase()}
     </div>
   );
@@ -1065,7 +1490,7 @@ export function OrganizationSwitcherMenu({
     load: loadOrganizations,
     initial,
     activeId: serverActiveId,
-    schema: blockConfig.organizations.api,
+    schema: organizationsConfig.api,
     onSwitched: () => refreshSession("/"),
   });
 
@@ -1092,7 +1517,6 @@ export function OrganizationSwitcherMenu({
             <SidebarMenuButton
               size="lg"
               className="data-popup-open:bg-sidebar-accent"
-              aria-label={t("Switch organization")}
             />
           }
         >
@@ -1108,6 +1532,7 @@ export function OrganizationSwitcherMenu({
               {active ? active.plan : t("Create one to start")}
             </span>
           </div>
+          <span className="sr-only">{t("Switch organization")}</span>
           <ChevronsUpDownIcon className="ml-auto" />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-64" align="start" side="bottom">
@@ -1162,7 +1587,7 @@ import type { OrganizationMembership } from "better-supabase/blocks/organization
 
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
-import type { OrganizationSource } from "../hooks/use-organizations";
+import type { UseOrganizationsOptions } from "../hooks/use-organizations";
 
 import { useOrganizations } from "../hooks/use-organizations";
 import { API_SCHEMA } from "../lib/blocks";
@@ -1170,19 +1595,17 @@ import { API_SCHEMA } from "../lib/blocks";
 /**
  * The caller's organizations. Pressing one switches to it, refreshes the
  * session so the token carries the new tenant, and loads the list again. `load`
- * reads them elsewhere, such as from the PowerSync database.
+ * reads them elsewhere, such as from the PowerSync database, and `onSwitched`
+ * replaces the refresh, such as one that also reconnects sync.
  */
-export function OrganizationSwitcher({
-  load,
-}: {
-  readonly load?: OrganizationSource<OrganizationMembership>;
-}) {
+export function OrganizationSwitcher(
+  props: Pick<
+    UseOrganizationsOptions<OrganizationMembership>,
+    "load" | "onSwitched"
+  >,
+) {
   const { organizations, activeId, switching, error, switchTo } =
-    useOrganizations(
-      load === undefined
-        ? { schema: API_SCHEMA }
-        : { schema: API_SCHEMA, load },
-    );
+    useOrganizations({ ...props, schema: API_SCHEMA });
 
   if (organizations === undefined) {
     return <ActivityIndicator />;
@@ -1237,8 +1660,8 @@ import type { Money } from "better-supabase/commerce";
 
 import { DbException } from "better-supabase";
 import { formatMoney } from "better-supabase/commerce";
+import { useErrorMessage } from "better-supabase/react";
 import { useExtracted, useLocale } from "next-intl";
-import { toast } from "sonner";
 
 import type { PlanCatalog } from "@/hooks/use-billing";
 
@@ -1252,7 +1675,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { usePlanPicker } from "@/hooks/use-billing";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 
 import type { PlanOption } from "../billing-queries";
 
@@ -1481,10 +1904,10 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUsageMeter } from "@/hooks/use-usage";
 import { useAuth } from "@/lib/hooks";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { usageConfig } from "@/lib/supabase/blocks/slices";
 
 /** The API schema `gen` wrote for the usage block. */
-const API_SCHEMA = blockConfig.usage.api;
+const API_SCHEMA = usageConfig.api;
 
 /** This period's usage per meter against the plan's quota. */
 export function UsageCard() {
@@ -1768,10 +2191,9 @@ npx shadcn add @better-supabase/use-settings
 
 import type { SettingEntries } from "better-supabase/blocks/settings";
 
-import { tenantOf } from "better-supabase/react";
+import { tenantOf, useErrorMessage } from "better-supabase/react";
 import { useExtracted } from "next-intl";
 import { useId } from "react";
-import { toast } from "sonner";
 
 import type { SettingField, SettingsState } from "@/hooks/use-settings";
 
@@ -1801,13 +2223,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useSettings } from "@/hooks/use-settings";
 import { useAuth } from "@/lib/hooks";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { settingsConfig } from "@/lib/supabase/blocks/slices";
+import { toast } from "@/lib/toast";
 
 import { settings } from "../settings-definition";
 
 /** The API schema `gen` wrote for the settings block. */
-const API_SCHEMA = blockConfig.settings.api;
+const API_SCHEMA = settingsConfig.api;
 
 /** What a control produces; the key's schema validates it before it is stored. */
 type ControlValue = string | number | boolean;
@@ -2018,11 +2440,11 @@ npx shadcn add @better-supabase/use-settings
 ```tsx title="apps/examples/expo-powersync/src/components/settings-layout.tsx"
 import type { SettingEntries } from "better-supabase/blocks/settings";
 
+import { FlashList } from "@shopify/flash-list";
 import { tenantOf, useAuth } from "better-supabase/react";
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Switch,
   Text,
   TextInput,
@@ -2162,14 +2584,29 @@ export function SettingsLayout() {
     schema: API_SCHEMA,
   });
 
+  const sections = organizationId
+    ? (["user", "organization"] as const)
+    : (["user"] as const);
+
   return (
-    <ScrollView contentContainerStyle={{ gap: 24, padding: 16 }}>
-      <SettingsSection title="Your preferences" state={user} />
-      {organizationId ? (
-        <SettingsSection title="Organization defaults" state={organization} />
-      ) : null}
-    </ScrollView>
+    <FlashList
+      data={sections}
+      keyExtractor={(item) => item}
+      contentContainerStyle={{ padding: 16 }}
+      ItemSeparatorComponent={SettingsGap}
+      renderItem={({ item }) =>
+        item === "user" ? (
+          <SettingsSection title="Your preferences" state={user} />
+        ) : (
+          <SettingsSection title="Organization defaults" state={organization} />
+        )
+      }
+    />
   );
+}
+
+function SettingsGap() {
+  return <View style={{ height: 24 }} />;
 }
 ```
 
@@ -2194,25 +2631,26 @@ import type { CellContext, ColumnDef } from "@tanstack/react-table";
 
 import { useTable } from "@tanstack/react-table";
 import { DbException } from "better-supabase";
+import { useErrorMessage } from "better-supabase/react";
 import { UserMinusIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
 import { createContext, use, useCallback, useMemo, useState } from "react";
-import { toast } from "sonner";
 import * as v from "valibot";
 
-import type { DataGridFeatures } from "@/components/reui/data-grid/data-grid";
+import type { ReadOnlyGridFeatures } from "@/components/reui/data-grid/data-grid";
 import type { Member } from "@/features/organization/organization-queries";
 
 import {
   DataGrid,
   DataGridContainer,
-  dataGridFeatures,
 } from "@/components/reui/data-grid/data-grid";
+import { readOnlyGridFeatures } from "@/components/reui/data-grid/data-grid-features-read-only";
 import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
 import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Empty,
   EmptyContent,
@@ -2233,13 +2671,15 @@ import {
   memberChanged,
 } from "@/features/organization/organization-actions";
 import { useRoleLabel } from "@/features/organization/use-role-label";
+import { ViewAsMemberButton } from "@/features/support/components/view-as-member-button";
 import { RoleBadge } from "@/features/user/components/role-badge";
 import { useMembers } from "@/hooks/use-organizations";
 import { Link } from "@/i18n/navigation";
 import { Role } from "@/lib/claims";
 import { initials } from "@/lib/initials";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { organizationsConfig } from "@/lib/supabase/blocks/slices";
+import { toast } from "@/lib/toast";
+import { useSearchParam } from "@/lib/url-filters";
 
 async function loadOrganizationMembers(): Promise<readonly Member[]> {
   const result = await loadMembers({});
@@ -2264,10 +2704,12 @@ type MemberRow = Member & {
   /** The roles the caller may pick here, empty when the role is fixed. */
   readonly roleChoices: readonly Role[];
   readonly removable: boolean;
+  /** The caller may start a support session on this member. */
+  readonly viewable: boolean;
   readonly busy: boolean;
 };
 
-type MemberCell = CellContext<DataGridFeatures, MemberRow>;
+type MemberCell = CellContext<ReadOnlyGridFeatures, MemberRow>;
 
 const ALL_ROLES = "all";
 
@@ -2339,6 +2781,8 @@ function JoinedCell({ row }: MemberCell) {
 interface MemberActions {
   readonly changeRole: (member: Member, role: Role) => Promise<void>;
   readonly removeMember: (member: Member) => Promise<void>;
+  readonly selected: ReadonlySet<string>;
+  readonly toggle: (userId: string, on: boolean) => void;
 }
 
 const MemberActionsContext = createContext<MemberActions | null>(null);
@@ -2351,6 +2795,29 @@ function useMemberActions(): MemberActions {
   }
 
   return actions;
+}
+
+function SelectCell({ row }: MemberCell) {
+  const t = useExtracted("members");
+  const { selected, toggle } = useMemberActions();
+  const member = row.original;
+
+  if (member.roleChoices.length === 0) {
+    return null;
+  }
+
+  return (
+    <Checkbox
+      checked={selected.has(member.userId)}
+      disabled={member.busy}
+      aria-label={t("Select {name}", {
+        name: member.name ?? member.email ?? "",
+      })}
+      onCheckedChange={(checked) => {
+        toggle(member.userId, checked);
+      }}
+    />
+  );
 }
 
 function RoleCell({ row }: MemberCell) {
@@ -2398,24 +2865,34 @@ function ActionsCell({ row }: MemberCell) {
   const { removeMember } = useMemberActions();
   const member = row.original;
 
-  if (!member.removable) {
+  if (!member.removable && !member.viewable) {
     return null;
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      disabled={member.busy}
-      aria-label={t("Remove {name}", {
-        name: member.name ?? member.email ?? "",
-      })}
-      onClick={() => {
-        void removeMember(member);
-      }}
-    >
-      <UserMinusIcon />
-    </Button>
+    <div className="flex items-center gap-1">
+      {member.viewable ? (
+        <ViewAsMemberButton
+          userId={member.userId}
+          name={member.name ?? member.email ?? ""}
+        />
+      ) : null}
+      {member.removable ? (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          disabled={member.busy}
+          aria-label={t("Remove {name}", {
+            name: member.name ?? member.email ?? "",
+          })}
+          onClick={() => {
+            void removeMember(member);
+          }}
+        >
+          <UserMinusIcon />
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -2432,6 +2909,7 @@ export function MemberTable({
   assignable,
   canUpdateRole,
   canRemove,
+  canViewAs,
 }: {
   organizationId: string;
   initial: readonly Member[];
@@ -2440,21 +2918,22 @@ export function MemberTable({
   assignable: readonly Role[];
   canUpdateRole: boolean;
   canRemove: boolean;
+  canViewAs: boolean;
 }) {
   const t = useExtracted("members");
   const roleLabel = useRoleLabel();
   const errorMessage = useErrorMessage();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useSearchParam();
 
   const [roleFilter, setRoleFilter] = useState<Role | typeof ALL_ROLES>(
     ALL_ROLES,
   );
 
-  const { members, pending, setRole, remove } = useMembers({
+  const { members, pending, setRole, setRoles, remove } = useMembers({
     organizationId,
     load: loadOrganizationMembers,
     initial,
-    schema: blockConfig.organizations.api,
+    schema: organizationsConfig.api,
     onChanged: async ({ userId }) => {
       await memberChanged({ userId });
     },
@@ -2473,7 +2952,7 @@ export function MemberTable({
 
   const changeRole = useCallback(
     async (member: Member, role: Role) => {
-      const result = await setRole(member.userId, role);
+      const result = await setRole({ userId: member.userId, role });
 
       if (result.ok) {
         toast.success(t("Role updated"));
@@ -2497,12 +2976,33 @@ export function MemberTable({
     [remove, t, errorMessage],
   );
 
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [bulkRole, setBulkRole] = useState<Role | null>(null);
+  const [applying, setApplying] = useState(false);
+
+  const toggle = useCallback((userId: string, on: boolean) => {
+    setSelected((current) => {
+      const next = new Set(current);
+
+      if (on) {
+        next.add(userId);
+      } else {
+        next.delete(userId);
+      }
+
+      return next;
+    });
+  }, []);
+
   const actions = useMemo(
-    () => ({ changeRole, removeMember }),
-    [changeRole, removeMember],
+    () => ({ changeRole, removeMember, selected, toggle }),
+    [changeRole, removeMember, selected, toggle],
   );
 
-  const columns: ColumnDef<DataGridFeatures, MemberRow>[] = [
+  const columns: ColumnDef<ReadOnlyGridFeatures, MemberRow>[] = [
+    ...(canUpdateRole
+      ? [{ id: "select", header: "", cell: SelectCell, size: 40 }]
+      : []),
     { id: "member", header: t("Member"), cell: MemberCellView, size: 280 },
     { accessorKey: "role", header: t("Role"), cell: RoleCell, size: 150 },
     { id: "teams", header: t("Teams"), cell: TeamsCell, size: 200 },
@@ -2533,15 +3033,48 @@ export function MemberTable({
       you: member.userId === currentUserId,
       roleChoices: canUpdateRole && editable(member) ? assignable : [],
       removable: canRemove && editable(member),
+      viewable: canViewAs && member.userId !== currentUserId,
       busy: pending.includes(member.userId),
     }));
 
   const table = useTable({
-    features: dataGridFeatures,
+    features: readOnlyGridFeatures,
     columns,
     data,
     getRowId: (row) => row.userId,
   });
+
+  const applyBulkRole = async () => {
+    if (!bulkRole) {
+      return;
+    }
+
+    setApplying(true);
+
+    const result = await setRoles({ userIds: [...selected], role: bulkRole });
+    let changed = 0;
+
+    if (result.ok) {
+      changed = result.data.succeeded.length;
+
+      for (const failure of result.data.failed) {
+        toast.error(errorMessage(failure.error));
+      }
+    } else {
+      toast.error(errorMessage(result.error));
+    }
+
+    setApplying(false);
+    setSelected(new Set());
+
+    if (changed > 0) {
+      toast.success(
+        t("{count, plural, one {# role updated} other {# roles updated}}", {
+          count: changed,
+        }),
+      );
+    }
+  };
 
   const clearFilters = () => {
     setSearch("");
@@ -2581,6 +3114,60 @@ export function MemberTable({
             </SelectContent>
           </Select>
         </div>
+        {selected.size > 0 ? (
+          <div
+            className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2"
+            data-testid="members-bulk-bar"
+          >
+            <span className="text-sm">
+              {t("{count, number} selected", { count: selected.size })}
+            </span>
+            <Select
+              value={bulkRole}
+              items={assignable.map((role) => ({
+                value: role,
+                label: roleLabel(role),
+              }))}
+              onValueChange={(value) => {
+                setBulkRole(v.is(Role, value) ? value : null);
+              }}
+            >
+              <SelectTrigger
+                size="sm"
+                className="w-40"
+                aria-label={t("New role")}
+              >
+                <SelectValue placeholder={t("Change role to")} />
+              </SelectTrigger>
+              <SelectContent>
+                {assignable.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {roleLabel(role)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              disabled={!bulkRole || applying}
+              onClick={() => {
+                void applyBulkRole();
+              }}
+            >
+              {t("Apply")}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={applying}
+              onClick={() => {
+                setSelected(new Set());
+              }}
+            >
+              {t("Clear selection")}
+            </Button>
+          </div>
+        ) : null}
         <div data-testid="members">
           <DataGrid
             table={table}
@@ -2675,7 +3262,9 @@ export function MembersTable() {
               accessibilityRole="button"
               accessibilityHint={editable ? `Changes the role to ${next}` : ""}
               disabled={!editable || busy}
-              onPress={() => void setRole(member.userId, next)}
+              onPress={() =>
+                void setRole({ userId: member.userId, role: next })
+              }
             >
               <Text style={{ color: editable ? "#2563eb" : "#737373" }}>
                 {member.role}
@@ -2718,10 +3307,10 @@ npx shadcn add @better-supabase/use-organizations
 
 import type { SubmitEvent } from "react";
 
+import { useErrorMessage } from "better-supabase/react";
 import { CopyIcon, UserPlusIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useId, useState } from "react";
-import { toast } from "sonner";
 import * as v from "valibot";
 
 import { Button } from "@/components/ui/button";
@@ -2755,8 +3344,8 @@ import { useInviteLink } from "@/features/organization/use-invite-link";
 import { useRoleLabel } from "@/features/organization/use-role-label";
 import { useInvitations } from "@/hooks/use-organizations";
 import { Role } from "@/lib/claims";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { organizationsConfig } from "@/lib/supabase/blocks/slices";
+import { toast } from "@/lib/toast";
 
 /**
  * Invites a teammate through `invite_member` in the browser, then shows the
@@ -2786,7 +3375,7 @@ export function InviteMemberDialog({
   // The server renders the pending list; `invitationSent` renders it again.
   const { invite, inviting, sent, error, clear } = useInvitations({
     organizationId,
-    schema: blockConfig.organizations.api,
+    schema: organizationsConfig.api,
     onChanged: async ({ kind }) => {
       if (kind === "invited") {
         await invitationSent({});
@@ -2845,9 +3434,9 @@ export function InviteMemberDialog({
                 size="icon"
                 aria-label={t("Copy link")}
                 onClick={() => {
-                  void navigator.clipboard
-                    .writeText(link)
-                    .then(() => toast.success(t("Link copied")));
+                  void navigator.clipboard.writeText(link).then(() => {
+                    toast.success(t("Link copied"));
+                  });
                 }}
               >
                 <CopyIcon />
@@ -3065,9 +3654,9 @@ npx shadcn add @better-supabase/use-api-keys
 ```tsx title="apps/examples/nextjs/src/features/api-keys/components/api-key-table.tsx"
 "use client";
 
+import { useErrorMessage } from "better-supabase/react";
 import { KeyRoundIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -3088,10 +3677,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useApiKeys } from "@/hooks/use-api-keys";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { apiKeysConfig } from "@/lib/supabase/blocks/slices";
+import { toast } from "@/lib/toast";
 
-import { apiKeyCreated } from "../api-key-actions";
+import { apiKeyCreated } from "../api-keys-actions";
 import { CreateApiKeyDialog } from "./create-api-key-dialog";
 
 /**
@@ -3113,7 +3702,7 @@ export function ApiKeyTable({
   const { keys, created, creating, revoking, error, create, revoke, dismiss } =
     useApiKeys({
       organizationId,
-      schema: blockConfig["api-keys"].api,
+      schema: apiKeysConfig.api,
       onChanged: async ({ kind }) => {
         if (kind === "created") {
           await apiKeyCreated({});
@@ -3354,6 +3943,7 @@ npx shadcn add @better-supabase/use-audit
 ```tsx title="apps/examples/nextjs/src/features/audit/components/audit-log-table.tsx"
 "use client";
 
+import { useErrorMessage } from "better-supabase/react";
 import { useExtracted, useFormatter } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -3374,8 +3964,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuditLog } from "@/hooks/use-audit";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { auditConfig } from "@/lib/supabase/blocks/slices";
 
 const ALL = "all";
 
@@ -3400,7 +3989,7 @@ export function AuditLogTable({ organizationId }: { organizationId: string }) {
   const errorMessage = useErrorMessage();
 
   const { entries, filters, hasMore, loading, error, setFilters, loadMore } =
-    useAuditLog({ organizationId, schema: blockConfig.audit.api });
+    useAuditLog({ organizationId, schema: auditConfig.api });
 
   const actors = new Map(
     (entries ?? []).flatMap((entry) =>
@@ -3664,6 +4253,7 @@ npx shadcn add @better-supabase/use-tags
 
 import type { SubmitEvent } from "react";
 
+import { useErrorMessage } from "better-supabase/react";
 import { XIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useId, useState } from "react";
@@ -3673,7 +4263,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTagInput } from "@/hooks/use-tags";
-import { useErrorMessage } from "@/lib/use-error-message";
 
 /**
  * A record's tags. Typing a name adds the organization's tag of the subject's
@@ -3962,10 +4551,9 @@ npx shadcn add button field input
 ```tsx title="apps/examples/nextjs/src/features/user/components/profile-form.tsx"
 "use client";
 
-import { useActionForm } from "better-supabase/react";
+import { useActionForm, useErrorMessage } from "better-supabase/react";
 import { useExtracted } from "next-intl";
 import { useId } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -3977,7 +4565,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SubmitLabel } from "@/features/offline/components/submit-label";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 
 import { updateProfile } from "../user-actions";
 
@@ -4059,7 +4647,6 @@ import { ShieldCheckIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import Image from "next/image";
 import { useId, useState, useTransition } from "react";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -4083,8 +4670,9 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { useSupabase } from "@/lib/hooks";
+import { toast } from "@/lib/toast";
 
-import type { AuthRead } from "../security-queries";
+import type { AuthRead } from "../user-queries";
 
 import { sessionChanged } from "../user-actions";
 
@@ -4288,34 +4876,44 @@ export function TwoFactorCard({
 
 ## Inbox with threads
 
-A shared inbox of conversations with status tabs, an assignee filter and the open thread beside the list. It calls `useInbox` from `@/hooks/use-inbox`; the [inbox block](https://bettersupabase.com/blocks/inbox) must be installed (`npx better-supabase add inbox`). Page: https://bettersupabase.com/recipes/inbox-threads.
+A shared inbox queue with search and status, assignee and channel filters in the URL; each row opens its thread beside the list. It calls `useInbox` from `@/hooks/use-inbox`; the [inbox block](https://bettersupabase.com/blocks/inbox) must be installed (`npx better-supabase add inbox`). Page: https://bettersupabase.com/recipes/inbox-threads.
 
 Web, with shadcn components:
 
 ```bash
-npx shadcn add badge empty select tabs
+npx shadcn add badge button empty input select skeleton
 ```
 
 ```bash
 npx shadcn add @better-supabase/use-inbox
 ```
 
-```tsx title="apps/examples/nextjs/src/features/inbox/components/inbox-view.tsx"
+```tsx title="apps/examples/nextjs/src/features/inbox/components/conversation-queue.tsx"
 "use client";
 
-import { InboxIcon } from "lucide-react";
-import { useExtracted, useFormatter } from "next-intl";
-import { useState } from "react";
-import * as v from "valibot";
+import { useAction } from "better-supabase/react";
+import { InboxIcon, SearchIcon } from "lucide-react";
+import { useExtracted, useFormatter, useNow } from "next-intl";
+import { useParams } from "next/navigation";
+import {
+  debounce,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs";
+import { useEffect, useEffectEvent, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/reui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -4323,18 +4921,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useInbox } from "@/hooks/use-inbox";
+import { Link, toAppHref } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
-import type { ConversationRow } from "../inbox-types";
+import type { ConversationRow, InboxSummary } from "../inbox-types";
 
-import { loadConversations } from "../inbox-actions";
+import { loadConversations, loadInboxes } from "../inbox-actions";
 import { unwrap } from "../inbox-load";
-import { AssigneeFilter, ConversationStatus } from "../inbox-types";
-import { ConversationPanel } from "./conversation-panel";
+import {
+  QUEUE_ASSIGNEES,
+  QUEUE_PRIORITIES,
+  QUEUE_SLAS,
+  QUEUE_STATUSES,
+  slaStateOf,
+} from "../inbox-types";
+import { ChannelBadge, SlaBadge } from "./conversation-badges";
 
-export function InboxView({
+const ALL_CHANNELS = "all";
+
+const queueParsers = {
+  q: parseAsString.withDefault(""),
+  status: parseAsStringLiteral(QUEUE_STATUSES).withDefault("open"),
+  assignee: parseAsStringLiteral(QUEUE_ASSIGNEES).withDefault("anyone"),
+  channel: parseAsString.withDefault(""),
+  priority: parseAsStringLiteral(QUEUE_PRIORITIES).withDefault("any"),
+  sla: parseAsStringLiteral(QUEUE_SLAS).withDefault("any"),
+};
+
+/**
+ * The conversation queue: search, status, assignee, channel, priority and the
+ * first response state run in the database (`loadConversations`), the filters
+ * live in the URL, and Realtime pings reload the list without refetching the
+ * page. A row links to `/inbox/<id>` and keeps the filters, so the thread opens
+ * beside the queue.
+ */
+export function ConversationQueue({
   organizationId,
   initial,
 }: {
@@ -4342,187 +4965,465 @@ export function InboxView({
   initial: readonly ConversationRow[];
 }) {
   const t = useExtracted("inbox");
-  const [status, setStatus] = useState<ConversationStatus>("open");
-  const [assignee, setAssignee] = useState<AssigneeFilter>("anyone");
-  const [selected, setSelected] = useState<string | null>(null);
+
+  const [filters, setFilters] = useQueryStates(queueParsers, {
+    limitUrlUpdates: debounce(300),
+  });
+
+  const inboxes = useAction(loadInboxes);
+
+  const loadChannels = useEffectEvent(() => {
+    void inboxes.run(undefined);
+  });
+
+  useEffect(() => {
+    loadChannels();
+  }, []);
+
+  const channelItems = [
+    { value: ALL_CHANNELS, label: t("All channels") },
+    ...(inboxes.data ?? []).map((inbox: InboxSummary) => ({
+      value: inbox.id,
+      label: inbox.name,
+    })),
+  ];
+
+  const statusItems = [
+    { value: "open", label: t("Open") },
+    { value: "pending", label: t("Pending") },
+    { value: "snoozed", label: t("Snoozed") },
+    { value: "resolved", label: t("Resolved") },
+    { value: "all", label: t("All statuses") },
+  ];
 
   const assigneeItems = [
     { value: "anyone", label: t("Anyone") },
     { value: "me", label: t("Mine") },
     { value: "unassigned", label: t("Unassigned") },
-  ] satisfies readonly { value: AssigneeFilter; label: string }[];
+  ];
+
+  const priorityItems = [
+    { value: "any", label: t("All priorities") },
+    { value: "urgent", label: t("Urgent") },
+    { value: "high", label: t("High") },
+    { value: "normal", label: t("Normal") },
+    { value: "low", label: t("Low") },
+  ];
+
+  const slaItems = [
+    { value: "any", label: t("Any first response") },
+    { value: "due", label: t("Due") },
+    { value: "breached", label: t("Breached") },
+    { value: "ok", label: t("On track") },
+    { value: "met", label: t("Met") },
+  ];
+
+  const isDefault =
+    filters.status === "open" &&
+    filters.assignee === "anyone" &&
+    filters.channel === "" &&
+    filters.priority === "any" &&
+    filters.sla === "any" &&
+    filters.q === "";
 
   return (
-    <div className="grid min-h-128 gap-4 lg:grid-cols-3">
-      <section aria-label={t("Conversations")} className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Tabs
-            value={status}
-            onValueChange={(value) => {
-              if (!v.is(ConversationStatus, value)) {
-                return;
-              }
-
-              setStatus(value);
-            }}
-          >
-            <TabsList>
-              <TabsTrigger value="open">{t("Open")}</TabsTrigger>
-              <TabsTrigger value="pending">{t("Pending")}</TabsTrigger>
-              <TabsTrigger value="resolved">{t("Resolved")}</TabsTrigger>
-              <TabsTrigger value="all">{t("All")}</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Select
-            value={assignee}
-            items={assigneeItems}
-            onValueChange={(value) => {
-              if (!v.is(AssigneeFilter, value)) {
-                return;
-              }
-
-              setAssignee(value);
-            }}
-          >
-            <SelectTrigger
-              size="sm"
-              className="w-32"
-              aria-label={t("Assignee")}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {assigneeItems.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <ConversationList
-          key={`${status}:${assignee}`}
-          organizationId={organizationId}
-          status={status}
-          assignee={assignee}
-          initial={status === "open" && assignee === "anyone" ? initial : []}
-          selected={selected}
-          onSelect={setSelected}
+    <section
+      aria-label={t("Conversations")}
+      className="flex h-full min-h-0 flex-col gap-3 p-3"
+    >
+      <div className="relative">
+        <SearchIcon
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
         />
-      </section>
-      {selected === null ? (
-        <Empty className="border lg:col-span-2">
-          <EmptyHeader>
-            <EmptyTitle>{t("Pick a conversation")}</EmptyTitle>
-            <EmptyDescription>
-              {t("Its messages, notes and actions show here.")}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <div className="lg:col-span-2">
-          <ConversationPanel key={selected} conversationId={selected} />
-        </div>
-      )}
-    </div>
+        <Input
+          type="search"
+          value={filters.q}
+          placeholder={t("Search conversations")}
+          aria-label={t("Search conversations")}
+          className="pl-8"
+          onChange={(event) => {
+            void setFilters({ q: event.target.value });
+          }}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Select
+          value={filters.status}
+          items={statusItems}
+          onValueChange={(value) => {
+            const status = QUEUE_STATUSES.find((item) => item === value);
+
+            if (status !== undefined) {
+              void setFilters({ status });
+            }
+          }}
+        >
+          <SelectTrigger size="sm" className="w-full" aria-label={t("Status")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {statusItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.assignee}
+          items={assigneeItems}
+          onValueChange={(value) => {
+            const assignee = QUEUE_ASSIGNEES.find((item) => item === value);
+
+            if (assignee !== undefined) {
+              void setFilters({ assignee });
+            }
+          }}
+        >
+          <SelectTrigger
+            size="sm"
+            className="flex-1"
+            aria-label={t("Assignee")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {assigneeItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.channel === "" ? ALL_CHANNELS : filters.channel}
+          items={channelItems}
+          onValueChange={(value) => {
+            void setFilters({
+              channel: value === null || value === ALL_CHANNELS ? "" : value,
+            });
+          }}
+        >
+          <SelectTrigger
+            size="sm"
+            className="col-span-2 w-full"
+            aria-label={t("Channel")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {channelItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.priority}
+          items={priorityItems}
+          onValueChange={(value) => {
+            const priority = QUEUE_PRIORITIES.find((item) => item === value);
+
+            if (priority !== undefined) {
+              void setFilters({ priority });
+            }
+          }}
+        >
+          <SelectTrigger
+            size="sm"
+            className="w-full"
+            aria-label={t("Priority")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {priorityItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.sla}
+          items={slaItems}
+          onValueChange={(value) => {
+            const sla = QUEUE_SLAS.find((item) => item === value);
+
+            if (sla !== undefined) {
+              void setFilters({ sla });
+            }
+          }}
+        >
+          <SelectTrigger size="sm" className="w-full" aria-label={t("SLA")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {slaItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <QueueRows
+        key={`${filters.status}:${filters.assignee}:${filters.channel}:${filters.priority}:${filters.sla}:${filters.q}`}
+        organizationId={organizationId}
+        status={filters.status}
+        assignee={filters.assignee}
+        channel={filters.channel}
+        priority={filters.priority}
+        slaFilter={filters.sla}
+        q={filters.q}
+        initial={isDefault ? initial : null}
+        onClear={() => {
+          void setFilters({
+            q: "",
+            status: "open",
+            assignee: "anyone",
+            channel: "",
+            priority: "any",
+            sla: "any",
+          });
+        }}
+      />
+    </section>
   );
 }
 
-function ConversationList({
+const PAGE_SIZE = 40;
+
+function QueueRows({
   organizationId,
   status,
   assignee,
+  channel,
+  priority,
+  slaFilter,
+  q,
   initial,
-  selected,
-  onSelect,
+  onClear,
 }: {
   organizationId: string;
-  status: ConversationStatus;
-  assignee: AssigneeFilter;
-  initial: readonly ConversationRow[];
-  selected: string | null;
-  onSelect: (id: string) => void;
+  status: ConversationRow["status"] | "all";
+  assignee: (typeof QUEUE_ASSIGNEES)[number];
+  channel: string;
+  priority: (typeof QUEUE_PRIORITIES)[number];
+  slaFilter: (typeof QUEUE_SLAS)[number];
+  q: string;
+  initial: readonly ConversationRow[] | null;
+  onClear: () => void;
 }) {
   const t = useExtracted("inbox");
   const format = useFormatter();
+  const selected = useParams<{ conversation?: string }>().conversation;
+  const [search] = useQueryStates(queueParsers);
+  const [more, setMore] = useState<readonly ConversationRow[]>([]);
+  const nowDate = useNow({ updateInterval: 60_000 });
+  const now = nowDate.getTime();
 
   const inbox = useInbox({
     organizationId,
-    load: async () => unwrap(await loadConversations({ status, assignee })),
+    load: async () =>
+      unwrap(
+        await loadConversations({
+          status,
+          assignee,
+          channel,
+          priority,
+          sla: slaFilter,
+          q,
+        }),
+      ),
   });
 
-  const conversations = inbox.items ?? initial;
+  const next = useAction(loadConversations);
 
-  // Staff reads send no broadcast, so an opened conversation clears its badge here.
-  const [openedAt, setOpenedAt] = useState<ReadonlyMap<string, number>>(
-    () => new Map(),
-  );
+  const first = inbox.items ?? initial;
 
-  const unread = (conversation: ConversationRow): boolean => {
-    const opened = openedAt.get(conversation.id);
-
-    return (
-      conversation.unread &&
-      (opened === undefined ||
-        (conversation.lastMessageAt !== null &&
-          Date.parse(conversation.lastMessageAt) > opened))
-    );
-  };
-
-  return conversations.length === 0 ? (
-    <Empty className="border">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <InboxIcon />
-        </EmptyMedia>
-        <EmptyTitle>{t("No conversations")}</EmptyTitle>
-        <EmptyDescription>
-          {t("Open Help in the header to start one as a customer.")}
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  ) : (
-    <ul className="divide-y rounded-xl border">
-      {conversations.map((conversation) => (
-        <li key={conversation.id}>
-          <button
-            type="button"
-            aria-current={selected === conversation.id ? "true" : undefined}
-            className={cn(
-              "flex w-full flex-col gap-1 px-4 py-3 text-left text-sm hover:bg-muted/50",
-              selected === conversation.id && "bg-muted",
-            )}
+  if (first === null) {
+    return inbox.error === undefined || inbox.error === null ? (
+      <QueueSkeleton />
+    ) : (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyTitle>{t("The queue did not load")}</EmptyTitle>
+          <EmptyDescription>
+            {inbox.error instanceof Error
+              ? inbox.error.message
+              : t("Check your connection and try again.")}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => {
-              setOpenedAt((current) =>
-                new Map(current).set(conversation.id, Date.now()),
-              );
-              onSelect(conversation.id);
+              void inbox.refresh();
             }}
           >
-            <span className="flex items-center gap-2">
-              <span className="flex-1 truncate font-medium">
-                {conversation.contactName || t("Visitor")}
-              </span>
-              {unread(conversation) ? <Badge>{t("New")}</Badge> : null}
-            </span>
-            <span className="truncate">
-              {conversation.subject ?? t("No subject")}
-            </span>
-            <span className="flex gap-2 text-xs text-muted-foreground">
-              <span className="flex-1 truncate">{conversation.preview}</span>
-              {conversation.lastMessageAt ? (
-                <span className="tabular-nums">
-                  {format.dateTime(new Date(conversation.lastMessageAt), {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  })}
+            {t("Retry")}
+          </Button>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  const rows = [...first, ...more];
+  const last = rows.at(-1);
+  const hasMore = first.length >= PAGE_SIZE && more.length % PAGE_SIZE === 0;
+
+  const query = new URLSearchParams();
+
+  if (search.q !== "") {
+    query.set("q", search.q);
+  }
+
+  if (search.status !== "open") {
+    query.set("status", search.status);
+  }
+
+  if (search.assignee !== "anyone") {
+    query.set("assignee", search.assignee);
+  }
+
+  if (search.channel !== "") {
+    query.set("channel", search.channel);
+  }
+
+  if (search.priority !== "any") {
+    query.set("priority", search.priority);
+  }
+
+  if (search.sla !== "any") {
+    query.set("sla", search.sla);
+  }
+
+  const suffix = query.size === 0 ? "" : `?${query.toString()}`;
+
+  if (rows.length === 0) {
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <InboxIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No conversations")}</EmptyTitle>
+          <EmptyDescription>
+            {t(
+              "Nothing matches these filters. Clear them, or use the simulator to receive a message.",
+            )}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button variant="outline" size="sm" onClick={onClear}>
+            {t("Clear filters")}
+          </Button>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  return (
+    <ul className="-mx-3 min-h-0 flex-1 divide-y overflow-y-auto border-y">
+      {rows.map((conversation) => {
+        const sla = slaStateOf(conversation, now);
+
+        return (
+          <li key={conversation.id}>
+            <Link
+              href={toAppHref(`/inbox/${conversation.id}${suffix}`)}
+              aria-current={selected === conversation.id ? "page" : undefined}
+              prefetch={false}
+              className={cn(
+                "flex flex-col gap-1 px-3 py-3 text-sm transition-colors hover:bg-muted/50",
+                selected === conversation.id && "bg-muted",
+              )}
+            >
+              <span className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "flex-1 truncate",
+                    conversation.unread ? "font-semibold" : "font-medium",
+                  )}
+                >
+                  {conversation.contactName || t("Visitor")}
                 </span>
-              ) : null}
-            </span>
-          </button>
+                {conversation.unread ? (
+                  <Badge variant="primary-light">{t("New")}</Badge>
+                ) : null}
+                {conversation.lastMessageAt ? (
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {format.relativeTime(
+                      new Date(conversation.lastMessageAt),
+                      now,
+                    )}
+                  </span>
+                ) : null}
+              </span>
+              <span className="truncate">
+                {conversation.subject ?? t("No subject")}
+              </span>
+              <span className="truncate text-xs text-muted-foreground">
+                {conversation.preview}
+              </span>
+              <span className="flex flex-wrap items-center gap-1">
+                <ChannelBadge channel={conversation.channel} />
+                <SlaBadge state={sla} />
+                {conversation.assigneeId === null ? (
+                  <Badge variant="secondary">{t("Unassigned")}</Badge>
+                ) : null}
+                {conversation.botMode === "bot" ? (
+                  <Badge variant="secondary">{t("Bot")}</Badge>
+                ) : null}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+      {hasMore && last ? (
+        <li className="p-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={next.pending}
+            onClick={() => {
+              void next
+                .run({
+                  status,
+                  assignee,
+                  channel,
+                  priority,
+                  sla: slaFilter,
+                  q,
+                  cursor: { id: last.id, lastMessageAt: last.lastMessageAt },
+                })
+                .then((result) => {
+                  if (result.ok) {
+                    setMore((current) => [...current, ...result.data]);
+                  }
+                });
+            }}
+          >
+            {t("Load more")}
+          </Button>
         </li>
-      ))}
+      ) : null}
     </ul>
+  );
+}
+
+export function QueueSkeleton() {
+  return (
+    <div className="flex flex-col gap-2" aria-busy="true">
+      {Array.from({ length: 6 }, (_, index) => (
+        <Skeleton key={index} className="h-20 w-full" />
+      ))}
+    </div>
   );
 }
 ```
@@ -4546,7 +5447,7 @@ npx shadcn add @better-supabase/use-messaging
 
 import type { SubmitEvent } from "react";
 
-import { useAction } from "better-supabase/react";
+import { useAction, useErrorMessage } from "better-supabase/react";
 import {
   HashIcon,
   LockIcon,
@@ -4556,7 +5457,6 @@ import {
 } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useId, useState } from "react";
-import { toast } from "sonner";
 
 import { Alert, AlertAction, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
@@ -4598,7 +5498,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useConversations } from "@/hooks/use-messaging";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 import type { ChannelRow } from "../chat-actions";
@@ -4997,6 +5897,7 @@ npx shadcn add @better-supabase/use-messaging
 
 import type { Message } from "better-supabase/blocks/messaging";
 
+import { useErrorMessage } from "better-supabase/react";
 import { MessagesSquareIcon, RotateCwIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useRef } from "react";
@@ -5020,10 +5921,16 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMessages } from "@/hooks/use-messaging";
-import { useErrorMessage } from "@/lib/use-error-message";
 
 import { MessageComposer } from "./message-composer";
 import { MessageItem } from "./message-item";
@@ -5120,30 +6027,40 @@ export function MessageList({
             </EmptyContent>
           </Empty>
         ) : (
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="flex flex-col gap-4 pr-3">
-              {hasOlder ? (
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="ghost"
-                  className="self-center"
-                  onClick={() => void loadOlder()}
+          <MessageScrollerProvider autoScroll>
+            <MessageScroller>
+              <MessageScrollerViewport>
+                <MessageScrollerContent
+                  className="gap-4"
+                  data-testid="messages"
                 >
-                  {t("Load older messages")}
-                </Button>
-              ) : null}
-              <ol className="flex flex-col gap-4" data-testid="messages">
-                {messages.map((message) => (
-                  <MessageItem
-                    key={message.id}
-                    message={message}
-                    onOpenThread={onOpenThread}
-                  />
-                ))}
-              </ol>
-            </div>
-          </ScrollArea>
+                  {hasOlder ? (
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      className="self-center"
+                      onClick={() => void loadOlder()}
+                    >
+                      {t("Load older messages")}
+                    </Button>
+                  ) : null}
+                  {messages.map((message) => (
+                    <MessageScrollerItem
+                      key={message.id}
+                      messageId={message.id}
+                    >
+                      <MessageItem
+                        message={message}
+                        onOpenThread={onOpenThread}
+                      />
+                    </MessageScrollerItem>
+                  ))}
+                </MessageScrollerContent>
+              </MessageScrollerViewport>
+              <MessageScrollerButton />
+            </MessageScroller>
+          </MessageScrollerProvider>
         )}
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-1">
@@ -5184,11 +6101,10 @@ npx shadcn add badge button label spinner textarea
 import type { Result } from "better-supabase";
 import type { DragEvent, Ref } from "react";
 
-import { useAction } from "better-supabase/react";
+import { useAction, useErrorMessage } from "better-supabase/react";
 import { PaperclipIcon, SendIcon, XIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useId, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import type { MessageDraft } from "@/hooks/use-messaging";
 
@@ -5198,7 +6114,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useSupabase } from "@/lib/hooks";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 
 import { confirmChatUpload, startChatUpload } from "../chat-actions";
 
@@ -5227,7 +6143,10 @@ export function MessageComposer({
   conversationId: string;
   placeholder: string;
   inputRef?: Ref<HTMLTextAreaElement>;
-  onSend: (body: string, draft: MessageDraft) => Promise<Result<unknown>>;
+  onSend: (input: {
+    body: string;
+    draft: MessageDraft;
+  }) => Promise<Result<unknown>>;
   onTyping: (typing: boolean) => void;
 }) {
   const t = useExtracted("chat");
@@ -5302,8 +6221,11 @@ export function MessageComposer({
 
     setSending(true);
 
-    const result = await onSend(text, {
-      attachmentIds: files.flatMap((file) => (file.id ? [file.id] : [])),
+    const result = await onSend({
+      body: text,
+      draft: {
+        attachmentIds: files.flatMap((file) => (file.id ? [file.id] : [])),
+      },
     });
 
     setSending(false);
@@ -5441,6 +6363,7 @@ npx shadcn add @better-supabase/use-messaging
 
 import type { Message } from "better-supabase/blocks/messaging";
 
+import { useErrorMessage } from "better-supabase/react";
 import { MessageSquareIcon, RotateCwIcon, XIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useRef } from "react";
@@ -5463,11 +6386,17 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMessages } from "@/hooks/use-messaging";
-import { useErrorMessage } from "@/lib/use-error-message";
 
 import { MessageComposer } from "./message-composer";
 import { MessageItem } from "./message-item";
@@ -5534,42 +6463,48 @@ export function ThreadPanel({
             <Skeleton className="h-12" />
           </div>
         ) : (
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="flex flex-col gap-4 pr-3">
-              <ol>
-                <MessageItem message={root} />
-              </ol>
-              <Separator />
-              {thread.messages.length === 0 ? (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <MessageSquareIcon />
-                    </EmptyMedia>
-                    <EmptyTitle>{t("No replies yet")}</EmptyTitle>
-                    <EmptyDescription>
-                      {t("Replies stay here, out of the channel.")}
-                    </EmptyDescription>
-                  </EmptyHeader>
-                  <EmptyContent>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => input.current?.focus()}
-                    >
-                      {t("Reply")}
-                    </Button>
-                  </EmptyContent>
-                </Empty>
-              ) : (
-                <ol className="flex flex-col gap-4">
-                  {thread.messages.map((message) => (
-                    <MessageItem key={message.id} message={message} />
-                  ))}
-                </ol>
-              )}
-            </div>
-          </ScrollArea>
+          <MessageScrollerProvider autoScroll>
+            <MessageScroller>
+              <MessageScrollerViewport>
+                <MessageScrollerContent className="gap-4">
+                  <MessageItem message={root} />
+                  <Separator />
+                  {thread.messages.length === 0 ? (
+                    <Empty>
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                          <MessageSquareIcon />
+                        </EmptyMedia>
+                        <EmptyTitle>{t("No replies yet")}</EmptyTitle>
+                        <EmptyDescription>
+                          {t("Replies stay here, out of the channel.")}
+                        </EmptyDescription>
+                      </EmptyHeader>
+                      <EmptyContent>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => input.current?.focus()}
+                        >
+                          {t("Reply")}
+                        </Button>
+                      </EmptyContent>
+                    </Empty>
+                  ) : (
+                    thread.messages.map((message) => (
+                      <MessageScrollerItem
+                        key={message.id}
+                        messageId={message.id}
+                      >
+                        <MessageItem message={message} />
+                      </MessageScrollerItem>
+                    ))
+                  )}
+                </MessageScrollerContent>
+              </MessageScrollerViewport>
+              <MessageScrollerButton />
+            </MessageScroller>
+          </MessageScrollerProvider>
         )}
       </CardContent>
       <CardFooter className="flex-col items-stretch">
@@ -5613,7 +6548,7 @@ import {
   AvatarGroup,
   AvatarGroupCount,
 } from "@/components/ui/avatar";
-import { useSession } from "@/lib/hooks";
+import { useAuth } from "@/lib/hooks";
 
 const SHOWN = 4;
 
@@ -5633,8 +6568,9 @@ export function PresenceAvatars({
   subject: { readonly type: string; readonly id: string };
 }) {
   const t = useExtracted("chat");
-  const session = useSession();
-  const me = session.kind === "user" ? session.user : null;
+  // `useAuth` reads the browser client; `useSession` needs a provider that
+  // the app shell doesn't wrap around its pages.
+  const me = useAuth().user;
 
   const { members } = usePresence(
     viewers,
@@ -5689,10 +6625,9 @@ npx shadcn add button field input
 ```tsx title="apps/examples/nextjs/src/features/organization/components/organization-form.tsx"
 "use client";
 
-import { useActionForm } from "better-supabase/react";
+import { useActionForm, useErrorMessage } from "better-supabase/react";
 import { useExtracted } from "next-intl";
 import { useId } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -5703,7 +6638,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 
 import { updateOrganization } from "../organization-actions";
 
@@ -5801,14 +6736,21 @@ npx shadcn add button textarea
 import type { UIMessage } from "ai";
 
 import { useAssistant } from "better-supabase/ai-sdk/react";
-import { useDurableAssistant } from "better-supabase/ai-sdk/workflow/react";
+import { useDurableAssistant } from "better-supabase/ai-sdk/workflow-react";
 import { useExtracted } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { present } from "@/lib/present";
 
+import type { MessageBranch, ModelOption } from "../assistant-queries";
+
+import { switchChatBranch } from "../assistant-actions";
 import { ChatView } from "./chat-view";
+
+const NO_MODELS: readonly ModelOption[] = [];
+const NO_BRANCHES: readonly MessageBranch[] = [];
 
 export type ChatMode = "standard" | "durable" | "research";
 
@@ -5816,24 +6758,56 @@ interface PanelProps {
   readonly id: string;
   readonly messages: UIMessage[];
   readonly streaming: boolean;
+  readonly models: readonly ModelOption[];
+  readonly model: string | undefined;
+  readonly onModelChange: (model: string) => void;
+  readonly branches: readonly MessageBranch[];
 }
 
 /**
  * The answer streams from the request; a reload picks it up from the stream
  * store.
  */
-function StandardPanel({ id, messages }: PanelProps) {
+function StandardPanel({
+  id,
+  messages,
+  models,
+  model,
+  onModelChange,
+  branches,
+}: PanelProps) {
   const router = useRouter();
 
   const chat = useAssistant({
     id,
     messages,
+    ...present({ model }),
     onFinish: () => {
       router.refresh();
     },
   });
 
-  return <ChatView id={id} chat={chat} />;
+  return (
+    <ChatView
+      id={id}
+      chat={chat}
+      models={models}
+      {...(model === undefined ? {} : { model })}
+      onModelChange={onModelChange}
+      branches={branches}
+      onSwitchBranch={(messageId) => {
+        void switchChatBranch({ chatId: id, messageId }).then((result) => {
+          // The leaf goes in the URL, so a reload or a shared link opens this branch.
+          router.replace(
+            result.ok ? `?leaf=${encodeURIComponent(result.data)}` : "?",
+          );
+          router.refresh();
+        });
+      }}
+      uploads
+      rating
+    />
+  );
 }
 
 /**
@@ -5859,7 +6833,7 @@ function DurablePanel({
     },
   });
 
-  return <ChatView id={id} chat={chat} />;
+  return <ChatView id={id} chat={chat} uploads rating />;
 }
 
 /**
@@ -5872,12 +6846,18 @@ export function AssistantChat({
   streaming = false,
   initialMode = "standard",
   durableAvailable,
+  models = NO_MODELS,
+  initialModel,
+  branches = NO_BRANCHES,
 }: {
   id: string;
   messages: UIMessage[];
   streaming?: boolean;
   initialMode?: ChatMode;
   durableAvailable: boolean;
+  models?: readonly ModelOption[];
+  initialModel?: string | undefined;
+  branches?: readonly MessageBranch[];
 }) {
   const t = useExtracted("assistant");
 
@@ -5891,7 +6871,19 @@ export function AssistantChat({
     { mode: "research", label: t("Research") },
   ];
 
-  const panel = { id, messages, streaming };
+  const [model, setModel] = useState<string | undefined>(
+    initialModel ?? models[0]?.id,
+  );
+
+  const panel = {
+    id,
+    messages,
+    streaming,
+    models,
+    model,
+    onModelChange: setModel,
+    branches,
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -5931,6 +6923,83 @@ export function AssistantChat({
 }
 ```
 
+## Chat message as Markdown
+
+An assistant answer rendered as Markdown with Streamdown: a caret while it streams, static once stored, and only safe elements and links. It loads its data on the server through the block's client; the [ai-chat block](https://bettersupabase.com/blocks/ai-chat) must be installed (`npx better-supabase add ai-chat`). Page: https://bettersupabase.com/recipes/chat-message-markdown.
+
+Web, with no shadcn components.
+
+```tsx title="apps/examples/nextjs/src/features/assistant/components/message-text.tsx"
+"use client";
+
+import { code } from "@streamdown/code";
+import { Streamdown } from "streamdown";
+
+/**
+ * Model output is untrusted: only these elements render (no images, raw HTML or
+ * forms), and a link must be http, https or mailto.
+ */
+const ALLOWED_ELEMENTS = [
+  "p",
+  "br",
+  "hr",
+  "strong",
+  "em",
+  "del",
+  "a",
+  "ul",
+  "ol",
+  "li",
+  "blockquote",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "code",
+  "pre",
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+];
+
+const SAFE_URL = /^(https?:|mailto:|#)/i;
+
+const safeUrl = (url: string): string => (SAFE_URL.test(url) ? url : "");
+
+const PLUGINS = { code };
+
+/**
+ * An answer's text as Markdown. While it streams, the caret follows the last
+ * word; a stored answer renders once, in static mode.
+ */
+export function MessageText({
+  text,
+  animating,
+}: {
+  text: string;
+  animating: boolean;
+}) {
+  return (
+    <Streamdown
+      mode={animating ? "streaming" : "static"}
+      plugins={PLUGINS}
+      isAnimating={animating}
+      caret="block"
+      allowedElements={ALLOWED_ELEMENTS}
+      urlTransform={safeUrl}
+      linkSafety={{ enabled: true }}
+    >
+      {text}
+    </Streamdown>
+  );
+}
+```
+
 ## Knowledge base upload
 
 A form that adds a document to the knowledge base, which chunks and embeds it for search. It loads its data on the server through the block's client; the [knowledge block](https://bettersupabase.com/blocks/knowledge) must be installed (`npx better-supabase add knowledge`). Page: https://bettersupabase.com/recipes/knowledge-upload.
@@ -5944,7 +7013,7 @@ npx shadcn add button field input textarea
 ```tsx title="apps/examples/nextjs/src/features/knowledge/components/add-document-form.tsx"
 "use client";
 
-import { useActionForm } from "better-supabase/react";
+import { useActionForm, useErrorMessage } from "better-supabase/react";
 import { useExtracted } from "next-intl";
 import { useId } from "react";
 
@@ -5952,7 +7021,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useErrorMessage } from "@/lib/use-error-message";
 
 import { addDocument } from "../knowledge-actions";
 
@@ -6173,11 +7241,10 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useAction } from "better-supabase/react";
+import { useAction, useErrorMessage } from "better-supabase/react";
 import { PlayIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6191,7 +7258,7 @@ import {
 } from "@/components/ui/select";
 import { useWorkflowCanvasRun } from "@/hooks/use-workflow-editor";
 import { useWorkflowRuns } from "@/hooks/use-workflows";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 
 import type { BuilderDetail } from "../builder-queries";
 import type { GraphFlowNode, GraphNodeData } from "./graph-node";
@@ -6606,7 +7673,7 @@ export function WorkflowRuns({ tenant }: { tenant: string | null }) {
             <TableRow key={run.id}>
               <TableCell>
                 <Link
-                  href={`/workflows/${run.id}`}
+                  href={`/workflows/runs/${run.id}`}
                   prefetch
                   className="font-medium"
                 >
@@ -6630,7 +7697,7 @@ export function WorkflowRuns({ tenant }: { tenant: string | null }) {
   );
 }
 
-export function WorkflowRunsSkeleton() {
+function WorkflowRunsSkeleton() {
   return (
     <div className="space-y-2" aria-busy="true">
       {Array.from({ length: 4 }, (_, index) => (
@@ -6654,11 +7721,10 @@ npx shadcn add button field input sheet
 ```tsx title="apps/examples/nextjs/src/features/workflows/builder/components/credential-sheet.tsx"
 "use client";
 
-import { useAction } from "better-supabase/react";
+import { useAction, useErrorMessage } from "better-supabase/react";
 import { KeySquareIcon, Trash2Icon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useId } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -6671,7 +7737,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 
 import type { CredentialRow } from "../builder-queries";
 
@@ -6787,10 +7853,17 @@ npx shadcn add alert
 import { LifeBuoyIcon } from "lucide-react";
 import { getExtracted } from "next-intl/server";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
+import { ExitSupportButton } from "@/features/support/components/exit-support-button";
 
 import { getSession } from "../user-queries";
 
+// skeleton: renders from props and translations, so nothing of its own suspends
 /**
  * Shown during a support session (`bsb.startSupport`): staff see the app as the
  * user, and the audit log records who acted. Render inside `<Suspense>`.
@@ -6813,6 +7886,9 @@ export async function ImpersonationBanner() {
           ? t("Signed in by support ({id}): {reason}", { id, reason })
           : t("Signed in by support ({id}).", { id })}
       </AlertDescription>
+      <AlertAction>
+        <ExitSupportButton />
+      </AlertAction>
     </Alert>
   );
 }
@@ -6833,11 +7909,10 @@ npx shadcn add alert badge button card empty skeleton table
 
 import type { AiTaskRunStatus } from "better-supabase/blocks/ai-schedules";
 
-import { useAction } from "better-supabase/react";
+import { useAction, useErrorMessage } from "better-supabase/react";
 import { CalendarClockIcon, PauseIcon, PlayIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
 import { useTransition } from "react";
-import { toast } from "sonner";
 
 import {
   Alert,
@@ -6863,7 +7938,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -6873,11 +7947,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useRouter } from "@/i18n/navigation";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 
-import type { AiTaskRow, AiTasksRead } from "../ai-task-queries";
+import type { AiTaskRow, AiTasksRead } from "../ai-tasks-queries";
 
-import { scheduleSampleTask, setAiTaskEnabled } from "../ai-task-actions";
+import { scheduleSampleTask, setAiTaskEnabled } from "../ai-tasks-actions";
 
 function RunStatusBadge({ status }: { status: AiTaskRunStatus | undefined }) {
   const t = useExtracted("aiTasks");
@@ -7037,8 +8111,8 @@ function TaskRows({ tasks }: { tasks: readonly AiTaskRow[] }) {
 
 /**
  * The caller's scheduled AI tasks, read on the server through `aiTasks.list`,
- * with each task's next occurrence and its latest run. An admin with `ai.admin`
- * sees every task in the organization.
+ * with each task's next occurrence and its latest run. An admin with
+ * `ai_schedules.manage` sees every task in the organization.
  */
 export function AiTaskQueue({ read }: { read: AiTasksRead }) {
   const t = useExtracted("aiTasks");
@@ -7109,24 +8183,6 @@ export function AiTaskQueue({ read }: { read: AiTasksRead }) {
     </Card>
   );
 }
-
-const SKELETON_ROWS = ["first", "second", "third"];
-
-export function AiTaskQueueSkeleton() {
-  return (
-    <Card aria-busy="true">
-      <CardHeader>
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-4 w-72" />
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        {SKELETON_ROWS.map((row) => (
-          <Skeleton key={row} className="h-11 w-full" />
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
 ```
 
 ## AI provider settings
@@ -7144,11 +8200,10 @@ npx shadcn add alert alert-dialog badge button card dialog empty field input sel
 
 import type { SubmitEvent } from "react";
 
-import { useAction } from "better-supabase/react";
+import { useAction, useErrorMessage } from "better-supabase/react";
 import { CpuIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
 import { useId, useState, useTransition } from "react";
-import { toast } from "sonner";
 
 import {
   Alert,
@@ -7210,7 +8265,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -7220,13 +8274,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useRouter } from "@/i18n/navigation";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 
 import type { Provider } from "../ai-provider-options";
-import type { ProviderKeyRow, ProviderKeysRead } from "../ai-provider-queries";
+import type { ProviderKeyRow, ProviderKeysRead } from "../ai-providers-queries";
 
-import { addProviderKey, removeProviderKey } from "../ai-provider-actions";
 import { PROVIDERS } from "../ai-provider-options";
+import { addProviderKey, removeProviderKey } from "../ai-providers-actions";
 
 const PROVIDER_LABELS = {
   anthropic: "Anthropic",
@@ -7564,30 +8618,7 @@ export function AiProviderSettings({ read }: { read: ProviderKeysRead }) {
   );
 }
 
-const SKELETON_ROWS = ["first", "second"];
-
 /** Keeps the card's title in the static shell, so the tab commits it at once. */
-export function AiProviderSettingsSkeleton() {
-  const t = useExtracted("aiProviders");
-
-  return (
-    <Card aria-busy="true">
-      <CardHeader>
-        <CardTitle>{t("AI providers")}</CardTitle>
-        <CardDescription>
-          {t(
-            "The organization's own provider keys, used instead of the app's key for the assistant.",
-          )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        {SKELETON_ROWS.map((row) => (
-          <Skeleton key={row} className="h-11 w-full" />
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
 ```
 
 ## Push opt-in
@@ -7634,9 +8665,9 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { env } from "@/env";
+import { publicEnv as env } from "@/env-public";
 import { useSupabase } from "@/lib/hooks";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { pushConfig } from "@/lib/supabase/blocks/slices";
 
 /**
  * The app's one service worker in `public/`, which shows the pushes. It must be
@@ -7703,7 +8734,7 @@ export function PushOptIn() {
 
   const devices = createPush({
     transport: rpcTransport(supabase),
-    schema: blockConfig.push.api,
+    schema: pushConfig.api,
   });
 
   const read = () => {
@@ -8042,9 +9073,19 @@ async function loadPanels(
     metrics.map(async ({ key }) => {
       const [kpi, series] = await Promise.all([
         client
-          .kpi(key, range, { organizationId, compare: "previous" })
+          .kpi({
+            metric: key,
+            range,
+            options: { organizationId, compare: "previous" },
+          })
           .orThrow(),
-        client.series(key, range, { organizationId, grain: "day" }).orThrow(),
+        client
+          .series({
+            metric: key,
+            range,
+            options: { organizationId, grain: "day" },
+          })
+          .orThrow(),
       ]);
 
       return { key, kpi, rows: toChartData(series) };
@@ -8131,7 +9172,14 @@ export async function MetricsDashboard() {
         return (
           <Card key={panel.key}>
             <CardHeader>
-              <CardTitle>{labels[panel.key]}</CardTitle>
+              <CardTitle>
+                <Link
+                  href={`/metrics/${panel.key}`}
+                  className="hover:underline"
+                >
+                  {labels[panel.key]}
+                </Link>
+              </CardTitle>
               <CardDescription>
                 {t("{previous} in the 30 days before", {
                   previous: format.number(previous ?? 0),
@@ -8399,6 +9447,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { contains, ruleOperators } from "better-supabase/blocks/automations";
 import { FILTER_OPERATOR_LABELS } from "better-supabase/list";
+import { useErrorMessage } from "better-supabase/react";
 import {
   GripVerticalIcon,
   ListFilterIcon,
@@ -8451,8 +9500,7 @@ import { Switch } from "@/components/ui/switch";
 import { useStatusLabel } from "@/features/customers/use-status-label";
 import { useRuleBuilder } from "@/hooks/use-automations";
 import { useRouter } from "@/i18n/navigation";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { automationsConfig } from "@/lib/supabase/blocks/slices";
 
 import {
   initialConditions,
@@ -8549,7 +9597,7 @@ export function RuleBuilder({
     trigger: RULE_TRIGGER,
     initial: initialConditions,
     locked: LOCKED,
-    schema: blockConfig.automations.api,
+    schema: automationsConfig.api,
   });
 
   const enabled = enabledEdit ?? builder.rule?.enabled ?? false;
@@ -8733,7 +9781,7 @@ function EmptyConditions() {
             type="button"
             size="sm"
             onClick={() => {
-              builder.addRule(undefined, builder.fields?.[0]?.id);
+              builder.addRule({ field: builder.fields?.[0]?.id });
             }}
           >
             <PlusIcon />
@@ -8771,7 +9819,7 @@ function GroupEditor({
     const index = group.rules.findIndex((child) => child.id === over.id);
 
     if (index !== -1) {
-      builder.move(String(active.id), group.id, index);
+      builder.move({ id: String(active.id), group: group.id, index });
     }
   };
 
@@ -8811,7 +9859,10 @@ function GroupEditor({
             size="sm"
             variant="ghost"
             onClick={() => {
-              builder.addRule(group.id, builder.fields?.[0]?.id);
+              builder.addRule({
+                group: group.id,
+                field: builder.fields?.[0]?.id,
+              });
             }}
           >
             <PlusIcon />
@@ -8823,12 +9874,15 @@ function GroupEditor({
               size="sm"
               variant="ghost"
               onClick={() => {
-                const added = builder.addGroup(
-                  group.id,
-                  group.combinator === "and" ? "or" : "and",
-                );
+                const added = builder.addGroup({
+                  group: group.id,
+                  combinator: group.combinator === "and" ? "or" : "and",
+                });
 
-                builder.addRule(added, builder.fields?.[0]?.id);
+                builder.addRule({
+                  group: added,
+                  field: builder.fields?.[0]?.id,
+                });
               }}
             >
               <PlusIcon />
@@ -8942,7 +9996,7 @@ function Connective({
       ]}
       onValueChange={(value) => {
         if (value === "and" || value === "or") {
-          builder.setCombinator(group.id, value);
+          builder.setCombinator({ group: group.id, combinator: value });
         }
       }}
     >
@@ -9091,7 +10145,7 @@ function ConditionRow({ rule }: { rule: FilterRule }) {
           }))}
           onValueChange={(value) => {
             if (value !== null) {
-              builder.setField(rule.id, value);
+              builder.setField({ id: rule.id, field: value });
             }
           }}
         >
@@ -9115,7 +10169,7 @@ function ConditionRow({ rule }: { rule: FilterRule }) {
           }))}
           onValueChange={(value) => {
             if (value !== null) {
-              builder.setOperator(rule.id, value);
+              builder.setOperator({ id: rule.id, operator: value });
             }
           }}
         >
@@ -9136,7 +10190,7 @@ function ConditionRow({ rule }: { rule: FilterRule }) {
             value={valueText(field, rule)}
             disabled={disabled}
             onChange={(text) => {
-              builder.setValue(rule.id, valueOf(field, text));
+              builder.setValue({ id: rule.id, value: valueOf(field, text) });
             }}
           />
         ) : null}
@@ -9327,7 +10381,7 @@ function ValueControl({
   }
 }
 
-export function RuleBuilderSkeleton() {
+function RuleBuilderSkeleton() {
   return (
     <Card aria-busy="true">
       <CardHeader>
@@ -9357,7 +10411,7 @@ Web, with no shadcn components.
 "use client";
 
 import { Can } from "@/hooks/use-permissions";
-import { permissions } from "@/lib/supabase/blocks.generated";
+import { permissions } from "@/lib/supabase/blocks/permissions";
 
 import { TaskImportDialog } from "./task-import-dialog";
 
@@ -9403,7 +10457,7 @@ import { useSubject } from "@/hooks/use-subjects";
 import { Link, toAppHref } from "@/i18n/navigation";
 
 /**
- * A link to any subject in `config.subjects`, titled and routed by
+ * A link to any subject in `config.recordTypes`, titled and routed by
  * `subject_titles`. The links rendered in one pass share one round trip, and a
  * subject the caller can't read shows as plain text.
  */
@@ -9796,15 +10850,18 @@ npx shadcn add alert badge button card empty skeleton
  * with and whether they must sign in with SSO.
  */
 export async function SsoSettings() {
-  if (!can(await getPermissions(), "sso.manage")) {
-    forbidden();
-  }
-
-  const [t, format, result] = await Promise.all([
+  // `loadSettings` never rejects, so starting it with the permission check
+  // leaves no unhandled promise behind when the caller is refused.
+  const [permissions, t, format, result] = await Promise.all([
+    getPermissions(),
     getExtracted("sso"),
     getFormatter(),
     loadSettings(),
   ]);
+
+  if (!can(permissions, "sso.manage")) {
+    forbidden();
+  }
 
   if (result.kind === "error") {
     return (
@@ -10001,15 +11058,18 @@ npx shadcn add alert badge button card empty skeleton table
  * back to the previous one when the duration runs out.
  */
 export async function AccessRequestsInbox() {
-  if (!can(await getPermissions(), "access_requests.create")) {
-    forbidden();
-  }
-
-  const [t, format, result] = await Promise.all([
+  // The permission check and the read start together; `loadInbox` never
+  // rejects, so a refused caller leaves no unhandled promise behind.
+  const [permissions, t, format, result] = await Promise.all([
+    getPermissions(),
     getExtracted("accessRequests"),
     getFormatter(),
     loadInbox(),
   ]);
+
+  if (!can(permissions, "access_requests.create")) {
+    forbidden();
+  }
 
   if (result.kind === "error") {
     return (
@@ -10488,6 +11548,386 @@ function SharingPanel({
 }
 ```
 
+## File request upload
+
+The public page of a file request link, where anyone with the link sends a file into a folder, with the link's password when it has one. It loads its data on the server through the block's client; the [drive](https://bettersupabase.com/blocks/drive), [share-links](https://bettersupabase.com/blocks/share-links) blocks must be installed (`npx better-supabase add drive share-links`). Page: https://bettersupabase.com/recipes/file-request-upload.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add badge button card empty field input
+```
+
+```tsx title="apps/examples/nextjs/src/features/drive/components/file-request-upload.tsx"
+/**
+ * The public page of a file request link: pick a file and send it into the
+ * folder, with the link's password when it has one. The sender never sees what
+ * the folder holds.
+ */
+export function FileRequestUpload({ token }: { token: string }) {
+  const t = useExtracted("drive");
+  const fieldId = useId();
+  const errorMessage = useErrorMessage();
+  const [password, setPassword] = useState<"none" | "asked" | "wrong">("none");
+  const [sent, setSent] = useState<string | null>(null);
+
+  const form = useActionForm(sendToFileRequest, {
+    resetOnSuccess: false,
+    onSuccess: (result, element) => {
+      if (result.passwordRequired) {
+        setPassword((current) => (current === "none" ? "asked" : "wrong"));
+
+        return;
+      }
+
+      element.reset();
+      setSent(result.name);
+    },
+  });
+
+  const error = form.error === undefined ? null : errorMessage(form.error);
+  const locked = password !== "none";
+  const wrongPassword = password === "wrong";
+
+  return (
+    <Card data-recipe="file-request-upload">
+      <CardHeader>
+        <CardTitle>{t("Send files")}</CardTitle>
+        <CardDescription>
+          {t("Files you send go straight to the folder's owner.")}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {sent === null ? (
+          <form {...form.formProps} className="flex flex-col gap-4">
+            <input type="hidden" name="token" value={token} />
+            <FieldGroup>
+              <Field data-invalid={form.fieldErrors["file"] ? true : undefined}>
+                <FieldLabel htmlFor={`${fieldId}-file`}>{t("File")}</FieldLabel>
+                <Input
+                  id={`${fieldId}-file`}
+                  name="file"
+                  type="file"
+                  required
+                />
+                <FieldDescription>{t("Up to 1 MB per file.")}</FieldDescription>
+              </Field>
+              {locked ? (
+                <Field data-invalid={wrongPassword ? true : undefined}>
+                  <FieldLabel htmlFor={`${fieldId}-password`}>
+                    {t("Password")}
+                  </FieldLabel>
+                  <Input
+                    id={`${fieldId}-password`}
+                    name="password"
+                    type="password"
+                    required
+                    maxLength={200}
+                    autoComplete="off"
+                  />
+                  {wrongPassword ? (
+                    <FieldError>
+                      {t(
+                        "This link needs its password. Check it and try again.",
+                      )}
+                    </FieldError>
+                  ) : null}
+                </Field>
+              ) : null}
+              {error ? <FieldError>{error}</FieldError> : null}
+            </FieldGroup>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={form.pending}>
+                {t("Send")}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <CircleCheckIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("File sent")}</EmptyTitle>
+              <EmptyDescription>{sent}</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Badge variant="success-light">{t("Received")}</Badge>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  form.reset();
+                  setSent(null);
+                }}
+              >
+                {t("Send another file")}
+              </Button>
+            </EmptyContent>
+          </Empty>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+## Document register
+
+The organization's controlled documents in a data grid with their number, status, effective version and next review date, flagged when the review is due. It loads its data on the server through the block's client; the [drive block](https://bettersupabase.com/blocks/drive) must be installed (`npx better-supabase add drive`). Page: https://bettersupabase.com/recipes/document-register.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty skeleton @reui/data-grid @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/drive/components/document-register.tsx"
+"use client";
+
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
+import type { DriveDocumentStatus } from "better-supabase/blocks/drive";
+
+import { useTable } from "@tanstack/react-table";
+import { FileCheckIcon, TriangleAlertIcon } from "lucide-react";
+import { useExtracted, useFormatter } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+
+import type { ReadOnlyGridFeatures } from "@/components/reui/data-grid/data-grid";
+
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/reui/alert";
+import { Badge } from "@/components/reui/badge";
+import {
+  DataGrid,
+  DataGridContainer,
+} from "@/components/reui/data-grid/data-grid";
+import { readOnlyGridFeatures } from "@/components/reui/data-grid/data-grid-features-read-only";
+import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
+import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
+import {
+  Frame,
+  FrameDescription,
+  FrameHeader,
+  FramePanel,
+  FrameTitle,
+} from "@/components/reui/frame";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+
+import type { DocumentRegisterView, DocumentRow } from "../drive-queries";
+
+type DocumentCell = CellContext<ReadOnlyGridFeatures, DocumentRow>;
+
+function NumberCell({ row }: DocumentCell) {
+  return (
+    <span className="font-mono text-xs text-muted-foreground">
+      {row.original.number}
+    </span>
+  );
+}
+
+function NameCell({ row }: DocumentCell) {
+  return <span className="font-medium">{row.original.name}</span>;
+}
+
+function StatusCell({ row }: DocumentCell) {
+  const t = useExtracted("drive");
+  const status: DriveDocumentStatus = row.original.status;
+
+  switch (status) {
+    case "draft": {
+      return <Badge variant="secondary">{t("Draft")}</Badge>;
+    }
+
+    case "in_review": {
+      return <Badge variant="info-light">{t("In review")}</Badge>;
+    }
+
+    case "effective": {
+      return <Badge variant="success-light">{t("Effective")}</Badge>;
+    }
+
+    case "obsolete": {
+      return <Badge variant="secondary">{t("Obsolete")}</Badge>;
+    }
+
+    default: {
+      const unknown: never = status;
+
+      return unknown;
+    }
+  }
+}
+
+function VersionCell({ row }: DocumentCell) {
+  const t = useExtracted("drive");
+  const { effectiveVersion } = row.original;
+
+  return effectiveVersion === null ? (
+    <span className="text-muted-foreground">–</span>
+  ) : (
+    <span className="tabular-nums">
+      {t("v{version, number}", { version: effectiveVersion })}
+    </span>
+  );
+}
+
+function ReviewCell({ row }: DocumentCell) {
+  const t = useExtracted("drive");
+  const format = useFormatter();
+  const { nextReviewOn, reviewDue } = row.original;
+
+  if (nextReviewOn === null) {
+    return <span className="text-muted-foreground">–</span>;
+  }
+
+  return (
+    <span className="flex items-center gap-2">
+      <span className="tabular-nums">
+        {format.dateTime(new Date(nextReviewOn), {
+          dateStyle: "medium",
+          timeZone: "UTC",
+        })}
+      </span>
+      {reviewDue ? (
+        <Badge variant="warning-light">{t("Review due")}</Badge>
+      ) : null}
+    </span>
+  );
+}
+
+function DocumentGrid({ documents }: { documents: readonly DocumentRow[] }) {
+  const t = useExtracted("drive");
+
+  const columns: ColumnDef<ReadOnlyGridFeatures, DocumentRow>[] = [
+    { accessorKey: "number", header: t("Number"), cell: NumberCell, size: 110 },
+    { accessorKey: "name", header: t("Document"), cell: NameCell, size: 260 },
+    { accessorKey: "type", header: t("Type"), size: 110 },
+    { accessorKey: "status", header: t("Status"), cell: StatusCell, size: 120 },
+    {
+      accessorKey: "effectiveVersion",
+      header: t("Effective"),
+      cell: VersionCell,
+      size: 100,
+    },
+    {
+      accessorKey: "nextReviewOn",
+      header: t("Next review"),
+      cell: ReviewCell,
+      size: 200,
+    },
+  ];
+
+  const table = useTable({
+    features: readOnlyGridFeatures,
+    columns,
+    data: [...documents],
+    getRowId: (row) => row.id,
+  });
+
+  return (
+    <DataGrid
+      table={table}
+      recordCount={documents.length}
+      tableLayout={{ dense: true }}
+    >
+      <DataGridContainer>
+        <DataGridScrollArea>
+          <DataGridTable />
+        </DataGridScrollArea>
+      </DataGridContainer>
+    </DataGrid>
+  );
+}
+
+/**
+ * The organization's controlled documents: each with its number, status, the
+ * released version readers get and the date of its next review.
+ */
+export function DocumentRegister({ state }: { state: DocumentRegisterView }) {
+  const t = useExtracted("drive");
+  const router = useRouter();
+  const [retrying, startRetry] = useTransition();
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  return (
+    <Frame spacing="sm" data-recipe="document-register">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>{t("Document register")}</FrameTitle>
+        <FrameDescription>
+          {t(
+            "Files under document control. Readers get the effective version; a revision replaces it once its release is approved.",
+          )}
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel>
+        {state.kind === "error" ? (
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("The document register didn't load")}</AlertTitle>
+            <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+            <AlertAction>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                disabled={retrying}
+                onClick={() => {
+                  startRetry(() => {
+                    router.refresh();
+                  });
+                }}
+              >
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : state.documents.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileCheckIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No controlled documents yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  "Put a file under document control to give it a number, an owner and a review date.",
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <a
+                className="text-sm underline underline-offset-4"
+                href="https://bettersupabase.com/docs/blocks/drive-documents"
+              >
+                {t("Read the controlled documents guide")}
+              </a>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <DocumentGrid documents={state.documents} />
+        )}
+      </FramePanel>
+    </Frame>
+  );
+}
+```
+
 ## Reactions bar
 
 Emoji reactions under a record with counts, which toggle the caller's own reaction. It loads its data on the server through the block's client; the [reactions block](https://bettersupabase.com/blocks/reactions) must be installed (`npx better-supabase add reactions`). Page: https://bettersupabase.com/recipes/reactions-bar.
@@ -10575,7 +12015,7 @@ export function ReactionsBar({
                     disabled={!canReact || busy !== null}
                     onClick={() => {
                       setBusy(emoji);
-                      void toggle(subject, emoji).finally(() => {
+                      void toggle({ subject, emoji }).finally(() => {
                         setBusy(null);
                       });
                     }}
@@ -10801,9 +12241,9 @@ function CreateShareLink({ customerId }: { customerId: string }) {
                 size="icon"
                 aria-label={t("Copy link")}
                 onClick={() => {
-                  void navigator.clipboard
-                    .writeText(url)
-                    .then(() => toast.success(t("Link copied")));
+                  void navigator.clipboard.writeText(url).then(() => {
+                    toast.success(t("Link copied"));
+                  });
                 }}
               >
                 <CopyIcon />
@@ -10939,7 +12379,7 @@ Web, with shadcn components:
 npx shadcn add alert-dialog badge button card empty
 ```
 
-```tsx title="apps/examples/nextjs/src/features/customers/components/attachments-uploader.tsx"
+```tsx title="apps/examples/nextjs/src/features/records/components/attachments-uploader.tsx"
 type FileState = "unfinished" | "scanning" | "ready" | "blocked" | "failed";
 
 function stateOf(file: AttachmentRow): FileState {
@@ -10977,24 +12417,24 @@ const VARIANT = {
 } as const satisfies Record<FileState, string>;
 
 /**
- * Files on the customer, in the private `attachments` bucket. Pick, drop or
- * paste files: the server records each one and signs its upload,
+ * Files on a record, in the private `attachments` bucket. Pick, drop or paste
+ * files: the server records each one and signs its upload,
  * `useAttachmentUpload` sends the bytes with progress, and the server confirms
  * it. A file downloads once the scanner marked it clean.
  */
 export function AttachmentsUploader({
-  customerId,
+  subject,
   files,
   canUpload,
   canRemove,
 }: {
-  customerId: string;
+  subject: RecordSubject;
   files: Loaded<readonly AttachmentRow[]>;
   canUpload: boolean;
   canRemove: boolean;
 }) {
-  const t = useExtracted("customers");
-  const upload = useCustomerUpload(customerId);
+  const t = useExtracted("records");
+  const upload = useRecordUpload(subject);
 
   return (
     <Card size="sm" data-recipe="attachments-uploader">
@@ -11028,7 +12468,7 @@ export function AttachmentsUploader({
                   <EmptyTitle>{t("No files yet")}</EmptyTitle>
                   <EmptyDescription>
                     {t(
-                      "Attach contracts, quotes or anything else about this customer.",
+                      "Attach contracts, quotes or anything else about this record.",
                     )}
                   </EmptyDescription>
                 </EmptyHeader>
@@ -11041,7 +12481,7 @@ export function AttachmentsUploader({
             )
           ) : (
             <FileList
-              customerId={customerId}
+              subject={subject}
               files={files.data}
               canRemove={canRemove}
             />
@@ -11053,19 +12493,19 @@ export function AttachmentsUploader({
 }
 
 /**
- * Uploads to the customer through the server actions, which check
+ * Uploads to the record through the server actions, which check
  * `attachments.upload` and read the page again once a file is confirmed.
  */
-function useCustomerUpload(customerId: string): AttachmentUploadState {
-  const t = useExtracted("customers");
+function useRecordUpload(subject: RecordSubject): AttachmentUploadState {
+  const t = useExtracted("records");
   const start = useAction(startAttachmentUpload);
   const confirm = useAction(confirmAttachment);
 
   return useAttachmentUpload({
-    subject: { type: "customer", id: customerId },
+    subject,
     start: (file) =>
       start.run({
-        customerId,
+        subject,
         name: file.name,
         mimeType: file.mimeType,
         size: file.size,
@@ -11202,7 +12642,7 @@ function UploadRow({
   onRetry: (key: string) => void;
   onDismiss: (key: string) => void;
 }) {
-  const t = useExtracted("customers");
+  const t = useExtracted("records");
   const errorMessage = useErrorMessage();
 
   const label: Record<AttachmentUploadItem["status"], string> = {
@@ -11264,15 +12704,15 @@ function UploadRow({
 }
 
 function FileList({
-  customerId,
+  subject,
   files,
   canRemove,
 }: {
-  customerId: string;
+  subject: RecordSubject;
   files: readonly AttachmentRow[];
   canRemove: boolean;
 }) {
-  const t = useExtracted("customers");
+  const t = useExtracted("records");
   const format = useFormatter();
   const errorMessage = useErrorMessage();
 
@@ -11329,11 +12769,7 @@ function FileList({
                 <DownloadIcon />
               </Button>
               {canRemove ? (
-                <RemoveFile
-                  id={file.id}
-                  customerId={customerId}
-                  name={file.name}
-                />
+                <RemoveFile id={file.id} subject={subject} name={file.name} />
               ) : null}
             </div>
           </li>
@@ -11350,7 +12786,7 @@ function UploadButton({
   busy: boolean;
   onPick: (files: readonly AttachmentFileInput[]) => void;
 }) {
-  const t = useExtracted("customers");
+  const t = useExtracted("records");
   const input = useRef<HTMLInputElement>(null);
 
   const pick = (event: ChangeEvent<HTMLInputElement>) => {
@@ -11383,17 +12819,17 @@ function UploadButton({
 
 function RemoveFile({
   id,
-  customerId,
+  subject,
   name,
 }: {
   id: string;
-  customerId: string;
+  subject: RecordSubject;
   name: string;
 }) {
-  const t = useExtracted("customers");
+  const t = useExtracted("records");
   const errorMessage = useErrorMessage();
 
-  const remove = useAction(removeCustomerAttachments, {
+  const remove = useAction(recordActions[subject.type].removeAttachment, {
     onSuccess: () => {
       toast.success(t("File removed"));
     },
@@ -11421,7 +12857,7 @@ function RemoveFile({
           <AlertDialogAction
             variant="destructive"
             onClick={() => {
-              void remove.run({ id: customerId, input: { id } });
+              void remove.run({ id: subject.id, input: { id } });
             }}
           >
             {t("Remove")}
@@ -11575,17 +13011,21 @@ npx shadcn add badge card empty skeleton
  * people (for a company) and the activity timeline.
  */
 export async function ContactDetail({
-  params,
+  id,
+  tab,
+  kind,
 }: {
-  params: Promise<{ id: string }>;
+  id: string;
+  tab: string;
+  /** `company` is the companies route: a person's id there is a 404. */
+  kind?: "company";
 }) {
-  const [{ id }, t, permissions] = await Promise.all([
-    params,
+  const [t, permissions] = await Promise.all([
     getExtracted("crm"),
     getPermissions(),
   ]);
 
-  if (!can(permissions, "parties.read")) {
+  if (!can(permissions, "contacts.read")) {
     forbidden();
   }
 
@@ -11601,8 +13041,17 @@ export async function ContactDetail({
 
   const contact = loaded.data;
 
-  if (!contact) {
+  if (!contact || (kind !== undefined && contact.kind !== kind)) {
     notFound();
+  }
+
+  // A company has its own route; the contact route is for people.
+  if (kind === undefined && contact.kind === "company") {
+    redirect(
+      tab === "overview"
+        ? `/crm/companies/${contact.id}`
+        : `/crm/companies/${contact.id}?tab=${tab}`,
+    );
   }
 
   const lifecycles = new Map([
@@ -11614,6 +13063,8 @@ export async function ContactDetail({
     ["sql", t("Sales qualified")],
     ["opportunity", t("Opportunity")],
   ]);
+
+  const subject = { type: contact.kind, id: contact.id } as const;
 
   const details = [
     { label: t("Email"), value: contact.email },
@@ -11657,9 +13108,57 @@ export async function ContactDetail({
             )}
           </CardContent>
         </Card>
-        <Suspense fallback={<ActivityTimelineSkeleton />}>
-          <ActivityTimeline subject={{ type: contact.kind, id: contact.id }} />
-        </Suspense>
+        <RecordDetailTabs
+          base={
+            contact.kind === "company"
+              ? `/crm/companies/${contact.id}`
+              : `/crm/contacts/${contact.id}`
+          }
+          active={tab}
+          tabs={[
+            { value: "overview", label: t("Overview") },
+            { value: "activity", label: t("Activity") },
+            { value: "related", label: t("Related") },
+          ]}
+        />
+        {tab === "related" ? (
+          <>
+            <Suspense fallback={<RecordFilesSkeleton />}>
+              <AfterNavigation>
+                <RecordFiles subject={subject} />
+              </AfterNavigation>
+            </Suspense>
+            <Suspense fallback={<RecordRelationsSkeleton />}>
+              <AfterNavigation>
+                <RecordRelations subject={subject} />
+              </AfterNavigation>
+            </Suspense>
+          </>
+        ) : tab === "activity" ? (
+          <>
+            <Suspense fallback={<ActivityTimelineSkeleton />}>
+              <AfterNavigation>
+                <ActivityTimeline subject={subject} />
+              </AfterNavigation>
+            </Suspense>
+            <Suspense fallback={<RecordDiscussionSkeleton />}>
+              <AfterNavigation>
+                <RecordDiscussion subject={subject} />
+              </AfterNavigation>
+            </Suspense>
+            <Suspense fallback={<RecordHistorySkeleton />}>
+              <AfterNavigation>
+                <RecordHistory subject={subject} />
+              </AfterNavigation>
+            </Suspense>
+          </>
+        ) : (
+          <Suspense fallback={<ContactSalesPanelSkeleton />}>
+            <AfterNavigation>
+              <ContactSalesPanel type={contact.kind} id={contact.id} />
+            </AfterNavigation>
+          </Suspense>
+        )}
       </div>
       {contact.kind === "company" ? (
         <Card>
@@ -11716,7 +13215,7 @@ export async function ContactDetail({
                 ))}
               </ul>
             )}
-            {can(permissions, "parties.write") ? (
+            {can(permissions, "contacts.write") ? (
               <LinkPersonForm
                 companyId={contact.id}
                 people={contact.candidates.map((person) => ({
@@ -11800,7 +13299,11 @@ export async function DealBoard() {
         </CardDescription>
         {pipeline && can(permissions, "deals.write") ? (
           <CardAction>
-            <CreateDealDialog pipelineId={pipeline.id} stages={openStages} />
+            <CreateDealDialog
+              pipelineId={pipeline.id}
+              stages={openStages}
+              openFromUrl
+            />
           </CardAction>
         ) : null}
       </CardHeader>
@@ -11868,10 +13371,13 @@ const stepIcons = {
   task: ListChecksIcon,
 } as const satisfies Record<SequenceStep["kind"], LucideIcon>;
 
-/** Render inside `<Suspense>`: the organization's sequences and their steps. */
-export async function SequenceBuilder() {
+/**
+ * Render inside `<Suspense>`: one sequence with its steps, the contacts at each
+ * stage and the buttons that add a step or start and pause it.
+ */
+export async function SequenceBuilder({ id }: { id: string }) {
   const [view, t, permissions] = await Promise.all([
-    getSequences(),
+    getSequence(id),
     getExtracted("sequences"),
     getPermissions(),
   ]);
@@ -11884,7 +13390,7 @@ export async function SequenceBuilder() {
     return (
       <Alert variant="destructive">
         <TriangleAlertIcon />
-        <AlertTitle>{t("The sequences didn't load")}</AlertTitle>
+        <AlertTitle>{t("The sequence didn't load")}</AlertTitle>
         <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
         <AlertAction>
           <form action={retry}>
@@ -11897,34 +13403,13 @@ export async function SequenceBuilder() {
     );
   }
 
-  const manage = can(permissions, "sequences.manage");
+  const sequence = view.data;
 
-  if (view.data.length === 0) {
-    return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <SendIcon />
-          </EmptyMedia>
-          <EmptyTitle>{t("No sequences yet")}</EmptyTitle>
-          <EmptyDescription>
-            {manage
-              ? t(
-                  "Create a sample sequence, then activate it to enroll contacts.",
-                )
-              : t(
-                  "An admin sets up the sequences your team enrolls contacts in.",
-                )}
-          </EmptyDescription>
-        </EmptyHeader>
-        {manage ? (
-          <EmptyContent>
-            <SampleSequenceButton />
-          </EmptyContent>
-        ) : null}
-      </Empty>
-    );
+  if (!sequence) {
+    notFound();
   }
+
+  const manage = can(permissions, "sequences.manage");
 
   const statusLabels: Record<SequenceStatus, string> = {
     draft: t("Draft"),
@@ -11955,72 +13440,88 @@ export async function SequenceBuilder() {
     }
   };
 
+  const counts = [
+    { label: t("Active"), value: sequence.counts.active },
+    { label: t("Completed"), value: sequence.counts.completed },
+    { label: t("Replied"), value: sequence.counts.replied },
+  ];
+
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {view.data.map((sequence) => (
-        <Card key={sequence.id}>
+    <RecordDetailFrame
+      title={sequence.name}
+      description={t("{count, plural, one {# step} other {# steps}}", {
+        count: sequence.steps.length,
+      })}
+      status={
+        <Badge variant={statusVariants[sequence.status]}>
+          {statusLabels[sequence.status]}
+        </Badge>
+      }
+      actions={
+        manage && sequence.status !== "archived" ? (
+          <>
+            <AddStepDialog sequenceId={sequence.id} />
+            <SequenceStatusButton
+              sequenceId={sequence.id}
+              active={sequence.status === "active"}
+            />
+          </>
+        ) : undefined
+      }
+      aside={
+        <Card size="sm">
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <CardTitle>{sequence.name}</CardTitle>
-              <Badge variant={statusVariants[sequence.status]}>
-                {statusLabels[sequence.status]}
-              </Badge>
-            </div>
-            {manage && sequence.status !== "archived" ? (
-              <CardAction className="flex gap-2">
-                <AddStepDialog sequenceId={sequence.id} />
-                <SequenceStatusButton
-                  sequenceId={sequence.id}
-                  active={sequence.status === "active"}
-                />
-              </CardAction>
-            ) : null}
+            <CardTitle>{t("Enrollments")}</CardTitle>
           </CardHeader>
           <CardContent>
-            {sequence.steps.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t("No steps yet.")}
-              </p>
-            ) : (
-              <ol className="flex flex-col gap-2">
-                {sequence.steps.map((step, index) => {
-                  const Icon = stepIcons[step.kind];
-
-                  return (
-                    <li
-                      key={step.id}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      <span className="w-5 text-xs text-muted-foreground tabular-nums">
-                        {index + 1}
-                      </span>
-                      <Icon
-                        aria-hidden
-                        className="size-4 text-muted-foreground"
-                      />
-                      <span className="truncate">{stepLabel(step)}</span>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
+            <dl className="grid gap-3">
+              {counts.map((count) => (
+                <div key={count.label} className="flex justify-between gap-2">
+                  <dt className="text-sm text-muted-foreground">
+                    {count.label}
+                  </dt>
+                  <dd className="text-sm font-medium tabular-nums">
+                    {count.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </CardContent>
-          <CardFooter className="gap-4 text-xs text-muted-foreground tabular-nums">
-            <span>
-              {t("{count} active", { count: String(sequence.counts.active) })}
-            </span>
-            <span>
-              {t("{count} completed", {
-                count: String(sequence.counts.completed),
-              })}
-            </span>
-            <span>
-              {t("{count} replied", { count: String(sequence.counts.replied) })}
-            </span>
-          </CardFooter>
         </Card>
-      ))}
-    </div>
+      }
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("Steps")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sequence.steps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("No steps yet.")}
+            </p>
+          ) : (
+            <ol className="flex flex-col gap-2">
+              {sequence.steps.map((step, index) => {
+                const Icon = stepIcons[step.kind];
+
+                return (
+                  <li key={step.id} className="flex items-center gap-2 text-sm">
+                    <span className="w-5 text-xs text-muted-foreground tabular-nums">
+                      {index + 1}
+                    </span>
+                    <Icon
+                      aria-hidden
+                      className="size-4 text-muted-foreground"
+                    />
+                    <span className="truncate">{stepLabel(step)}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </CardContent>
+      </Card>
+    </RecordDetailFrame>
   );
 }
 ```
@@ -12051,7 +13552,7 @@ const ICONS = new Map<string, LucideIcon>([
 export async function ActivityTimeline({
   subject,
 }: {
-  subject: { type: ContactKind; id: string };
+  subject: { type: TimelineSubjectType; id: string };
 }) {
   const [t, format, permissions] = await Promise.all([
     getExtracted("crm"),
@@ -12059,7 +13560,7 @@ export async function ActivityTimeline({
     getPermissions(),
   ]);
 
-  if (!can(permissions, "engagements.read")) {
+  if (!can(permissions, "activities.read")) {
     return null;
   }
 
@@ -12069,7 +13570,7 @@ export async function ActivityTimeline({
     return null;
   }
 
-  const canLog = can(permissions, "engagements.write");
+  const canLog = can(permissions, "activities.write");
 
   const types = new Map([
     ["call", t("Call")],
@@ -12175,17 +13676,12 @@ npx shadcn add card skeleton table
 
 ```tsx title="apps/examples/nextjs/src/features/crm/components/quote-builder.tsx"
 /**
- * Render inside `<Suspense>`: a quote's line items and totals. A draft (or a
- * quote with changes requested) is editable; the status decides what comes
- * next: send, record the customer's answer, or revise.
+ * Render inside `<Suspense>`: a quote's detail page, with its line items and
+ * totals. A draft (or a quote with changes requested) is editable; the status
+ * decides what comes next: send, record the customer's answer, or revise.
  */
-export async function QuoteBuilder({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const [{ id }, t, locale, permissions] = await Promise.all([
-    params,
+export async function QuoteBuilder({ id }: { id: string }) {
+  const [t, locale, permissions] = await Promise.all([
     getExtracted("crm"),
     getLocale(),
     getPermissions(),
@@ -12223,109 +13719,122 @@ export async function QuoteBuilder({
     { label: t("Tax"), value: quote.taxTotal },
   ];
 
+  const lines = editable ? (
+    <QuoteLinesEditor
+      key={quote.lines
+        .map((line) => `${line.description}:${line.unitAmount.amount}`)
+        .join(",")}
+      quoteId={quote.id}
+      currency={quote.currency}
+      initialLines={quote.lines}
+    />
+  ) : (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t("Description")}</TableHead>
+          <TableHead className="text-right">{t("Qty")}</TableHead>
+          <TableHead className="text-right">{t("Unit price")}</TableHead>
+          <TableHead className="text-right">{t("Discount %")}</TableHead>
+          <TableHead className="text-right">{t("Tax %")}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {quote.lines.length === 0 ? (
+          <TableRow>
+            <TableCell
+              colSpan={5}
+              className="text-center text-sm text-muted-foreground"
+            >
+              {t("This quote has no lines.")}
+            </TableCell>
+          </TableRow>
+        ) : null}
+        {quote.lines.map((line) => (
+          <TableRow key={line.position}>
+            <TableCell>{line.description}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              {line.quantity}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatMoney(line.unitAmount, locale)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {line.discountBps / 100}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {line.taxRateBps / 100}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+
   return (
-    <Card data-recipe="quote-builder">
-      <CardHeader>
-        <CardTitle>{quote.title}</CardTitle>
-        <CardDescription className="flex flex-wrap items-center gap-2">
-          <span className="tabular-nums">
-            {t("{identifier} rev. {revision, number}", {
-              identifier: quote.identifier,
-              revision: quote.revision,
-            })}
-          </span>
-          <QuoteStatusBadge status={quote.status} />
-          {quote.validUntil ? (
-            <span>
-              {t("Valid until {date}", {
-                date: Temporal.PlainDate.from(quote.validUntil).toLocaleString(
-                  locale,
-                  { dateStyle: "medium" },
-                ),
-              })}
-            </span>
-          ) : null}
-        </CardDescription>
-        {canWrite ? (
-          <CardAction>
+    <div data-recipe="quote-builder">
+      <RecordDetailFrame
+        title={quote.title}
+        description={t("{identifier} rev. {revision, number}", {
+          identifier: quote.identifier,
+          revision: quote.revision,
+        })}
+        status={<QuoteStatusBadge status={quote.status} />}
+        actions={
+          canWrite ? (
             <QuoteStatusActions
               quoteId={quote.id}
               status={quote.status}
               hasLines={quote.lines.length > 0}
             />
-          </CardAction>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        {editable ? (
-          <QuoteLinesEditor
-            key={quote.lines
-              .map((line) => `${line.description}:${line.unitAmount.amount}`)
-              .join(",")}
-            quoteId={quote.id}
-            currency={quote.currency}
-            initialLines={quote.lines}
-          />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("Description")}</TableHead>
-                <TableHead className="text-right">{t("Qty")}</TableHead>
-                <TableHead className="text-right">{t("Unit price")}</TableHead>
-                <TableHead className="text-right">{t("Discount %")}</TableHead>
-                <TableHead className="text-right">{t("Tax %")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {quote.lines.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="text-center text-sm text-muted-foreground"
-                  >
-                    {t("This quote has no lines.")}
-                  </TableCell>
-                </TableRow>
+          ) : undefined
+        }
+        aside={
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle>{t("Totals")}</CardTitle>
+              {quote.validUntil ? (
+                <CardDescription>
+                  {t("Valid until {date}", {
+                    date: Temporal.PlainDate.from(
+                      quote.validUntil,
+                    ).toLocaleString(locale, { dateStyle: "medium" }),
+                  })}
+                </CardDescription>
               ) : null}
-              {quote.lines.map((line) => (
-                <TableRow key={line.position}>
-                  <TableCell>{line.description}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {line.quantity}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatMoney(line.unitAmount, locale)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {line.discountBps / 100}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {line.taxRateBps / 100}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-      <CardFooter className="justify-end">
-        <dl className="grid w-full max-w-xs grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-sm">
-          {totals.map((total) => (
-            <div key={total.label} className="contents">
-              <dt className="text-muted-foreground">{total.label}</dt>
-              <dd className="text-right tabular-nums">
-                {formatMoney(total.value, locale)}
-              </dd>
-            </div>
-          ))}
-          <dt className="font-semibold">{t("Total")}</dt>
-          <dd className="text-right font-semibold tabular-nums">
-            {formatMoney(quote.total, locale)}
-          </dd>
-        </dl>
-      </CardFooter>
-    </Card>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-sm">
+                {totals.map((total) => (
+                  <div key={total.label} className="contents">
+                    <dt className="text-muted-foreground">{total.label}</dt>
+                    <dd className="text-right tabular-nums">
+                      {formatMoney(total.value, locale)}
+                    </dd>
+                  </div>
+                ))}
+                <dt className="font-semibold">{t("Total")}</dt>
+                <dd className="text-right font-semibold tabular-nums">
+                  {formatMoney(quote.total, locale)}
+                </dd>
+              </dl>
+            </CardContent>
+          </Card>
+        }
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("Line items")}</CardTitle>
+            <CardDescription>
+              {editable
+                ? t("Edit the lines, then send the quote for acceptance.")
+                : t("This quote is no longer editable.")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>{lines}</CardContent>
+        </Card>
+      </RecordDetailFrame>
+    </div>
   );
 }
 ```
@@ -12353,7 +13862,7 @@ export async function TargetsProgress() {
     getPermissions(),
   ]);
 
-  if (!can(permissions, "targets.read")) {
+  if (!can(permissions, "goals.read")) {
     return null;
   }
 
@@ -12363,7 +13872,7 @@ export async function TargetsProgress() {
     return null;
   }
 
-  const canManage = can(permissions, "targets.manage");
+  const canManage = can(permissions, "goals.manage");
 
   const amountOf = (target: TargetRow, value: bigint) =>
     target.currency === null
@@ -12616,13 +14125,12 @@ npx shadcn add button checkbox dialog field input select
 import type { DbError } from "better-supabase";
 import type { RecordFormInput } from "better-supabase/records";
 
-import { workItemInputSchema } from "better-supabase/blocks/tasks";
-import { useRecordForm } from "better-supabase/react";
+import { taskInputSchema } from "better-supabase/blocks/tasks";
+import { useRecordForm, useErrorMessage } from "better-supabase/react";
 import { recordForm } from "better-supabase/records";
 import { PlusIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useId, useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import type { FieldRow } from "@/features/custom-fields/custom-fields-types";
 
@@ -12652,7 +14160,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 
 import type { TeamOption } from "../work-types";
 
@@ -12695,7 +14203,7 @@ export function CreateWorkItemDialog({
 
   const definition = useMemo(
     () =>
-      recordForm(workItemInputSchema, {
+      recordForm(taskInputSchema, {
         fields: ["title", "priority"],
         customFields: customFields.map((field) => ({
           key: field.key,
@@ -12939,7 +14447,57 @@ export function WorkItemGrid({
   const sortLabel = useSortLabel();
   const [navigating, startTransition] = useTransition();
   const [search, setSearch] = useState(query.q);
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  // The controller outlives renders, so it reads the latest message formatter.
+  const latestErrorMessage = useLatest(errorMessage);
+
+  const { view: bulk } = useController(
+    () =>
+      createBulkSelectionController({
+        run: async ({ rows: ids, action, args }) => {
+          const to = WORK_ITEM_STATES.find((state) => state === args?.["to"]);
+
+          const result = await runWorkBulkAction(
+            action === "state" && to !== undefined
+              ? { action: "state", ids: [...ids], to }
+              : { action: "delete", ids: [...ids] },
+          );
+
+          if (!result.ok) {
+            toast.error(latestErrorMessage.current(result.error));
+            throw new Error(result.error.message);
+          }
+
+          const failed = new Map(
+            result.data.failed.map((row) => [row.id, row]),
+          );
+
+          return {
+            mode: "now",
+            total: result.data.total,
+            succeeded: result.data.succeeded,
+            failed: failed.size,
+            results: ids.map((id) => {
+              const row = failed.get(id);
+
+              return {
+                id,
+                ok: row === undefined,
+                error: row
+                  ? {
+                      code: row.code ?? undefined,
+                      message: row.message,
+                      sqlstate: undefined,
+                    }
+                  : null,
+              };
+            }),
+          };
+        },
+      }),
+    [latestErrorMessage],
+  );
+
+  const selected = new Set(bulk.selected);
 
   const onEditError = (error: DbError) => {
     toast.error(workErrorHint(error.hint) ?? errorMessage(error));
@@ -13111,14 +14669,7 @@ export function WorkItemGrid({
           )}
         </div>
       </div>
-      {canBulk ? (
-        <BulkActionBar
-          selected={selectedRows}
-          onSettled={(failedIds) => {
-            setSelected(new Set(failedIds));
-          }}
-        />
-      ) : null}
+      {canBulk ? <BulkActionBar selected={selectedRows} bulk={bulk} /> : null}
       <Table>
         <TableHeader>
           <TableRow>
@@ -13129,15 +14680,18 @@ export function WorkItemGrid({
                   indeterminate={selection.length > 0 && !allSelected}
                   aria-label={t("Select all")}
                   onCheckedChange={(checked) => {
-                    setSelected(
-                      checked ? new Set(rows.map((row) => row.id)) : new Set(),
-                    );
+                    if (checked) {
+                      bulk.selectMany(rows.map((row) => row.id));
+                    } else {
+                      bulk.clear();
+                    }
                   }}
                 />
               </TableHead>
             ) : null}
             <TableHead>{t("ID")}</TableHead>
             <TableHead>{t("Title")}</TableHead>
+            <TableHead>{t("Stage")}</TableHead>
             <TableHead>{t("State")}</TableHead>
             <TableHead>{t("Priority")}</TableHead>
             <TableHead>{t("Assignee")}</TableHead>
@@ -13170,17 +14724,11 @@ export function WorkItemGrid({
                         identifier: row.identifier,
                       })}
                       onCheckedChange={(checked) => {
-                        setSelected((current) => {
-                          const next = new Set(current);
-
-                          if (checked) {
-                            next.add(row.id);
-                          } else {
-                            next.delete(row.id);
-                          }
-
-                          return next;
-                        });
+                        if (checked) {
+                          bulk.select(row.id);
+                        } else {
+                          bulk.deselect(row.id);
+                        }
                       }}
                     />
                   </TableCell>
@@ -13204,7 +14752,7 @@ export function WorkItemGrid({
                       <SelectTrigger
                         size="sm"
                         className="w-40"
-                        aria-label={t("State of {identifier}", {
+                        aria-label={t("Stage of {identifier}", {
                           identifier: row.identifier,
                         })}
                       >
@@ -13219,10 +14767,16 @@ export function WorkItemGrid({
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Badge variant={stateBadgeVariant(row.state)}>
-                      {stateLabel(row.state)}
-                    </Badge>
+                    <span className="text-muted-foreground">
+                      {stageItems.find((item) => item.value === row.stageId)
+                        ?.label ?? "–"}
+                    </span>
                   )}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={stateBadgeVariant(row.state)}>
+                    {stateLabel(row.state)}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {priorityLabel(row.priority)}
@@ -13452,10 +15006,13 @@ npx shadcn add alert badge button card empty skeleton
  * `loadMyWork`, newest first.
  */
 export async function MyWorkList() {
+  // `relativeTime` reads the clock, which a prerender rejects unless the
+  // render has already waited on I/O.
   const [work, t, format] = await Promise.all([
     getMyWork(),
     getExtracted("myWork"),
     getFormatter(),
+    io(),
   ]);
 
   if (work.kind === "no-organization") {
@@ -13579,12 +15136,12 @@ Web, with shadcn components:
 npx shadcn add badge button card empty
 ```
 
-```tsx title="apps/examples/nextjs/src/features/customers/components/customer-timeline.tsx"
+```tsx title="apps/examples/nextjs/src/features/records/components/record-timeline.tsx"
 /**
- * The customer's history from `customerRecord.timeline`: comments, files and
- * versions in one list, newest first.
+ * A record's history from its page's `timeline`: comments, files and versions
+ * in one list, newest first.
  */
-export async function CustomerTimeline({
+export async function RecordTimeline({
   timeline,
   authors,
 }: {
@@ -13592,7 +15149,7 @@ export async function CustomerTimeline({
   authors: Readonly<Record<string, string>>;
 }) {
   const [t, format] = await Promise.all([
-    getExtracted("customers"),
+    getExtracted("records"),
     getFormatter(),
   ]);
 
@@ -13860,13 +15417,12 @@ npx shadcn add alert badge button card empty skeleton table
  * them.
  */
 export async function CustomFieldsEditor({
-  searchParams,
+  query,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  query: Record<string, string | string[] | undefined>;
 }) {
-  const [t, params, permissions] = await Promise.all([
+  const [t, permissions] = await Promise.all([
     getExtracted("custom-fields"),
-    searchParams,
     getPermissions(),
   ]);
 
@@ -13874,7 +15430,7 @@ export async function CustomFieldsEditor({
     forbidden();
   }
 
-  const parsed = v.safeParse(FieldEntitySchema, params["entity"]);
+  const parsed = v.safeParse(FieldEntitySchema, query["entity"]);
   const entity = parsed.success ? parsed.output : "customer";
   const fields = await getFields(entity);
 
@@ -13987,7 +15543,7 @@ export async function CustomFieldsEditor({
 
 ## Bulk action bar
 
-A bar over a selection of rows that runs an action on all of them and reports failures. It loads its data on the server through the block's client; the [bulk block](https://bettersupabase.com/blocks/bulk) must be installed (`npx better-supabase add bulk`). Page: https://bettersupabase.com/recipes/bulk-action-bar.
+A bar over a selection of rows that runs an action on all of them and reports failures. It loads its data on the server through the block's client; the [bulk-actions block](https://bettersupabase.com/blocks/bulk-actions) must be installed (`npx better-supabase add bulk-actions`). Page: https://bettersupabase.com/recipes/bulk-action-bar.
 
 Web, with shadcn components:
 
@@ -14003,59 +15559,60 @@ npx shadcn add alert alert-dialog button select
  */
 export function BulkActionBar({
   selected,
-  onSettled,
+  bulk,
 }: {
   selected: readonly Pick<WorkItemRow, "id" | "identifier">[];
-  onSettled: (failedIds: readonly string[]) => void;
+  bulk: BulkSelectionSnapshot & BulkSelectionActions;
 }) {
   const t = useExtracted("work");
-  const errorMessage = useErrorMessage();
   const stateLabel = useStateLabel();
-  const [to, setTo] = useState<WorkItemState | null>(null);
+  const [to, setTo] = useState<TaskState | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [failures, setFailures] = useState<readonly BulkFailure[]>([]);
-  const bulk = useAction(runWorkBulkAction);
+  const [failures, setFailures] = useState<readonly BulkItemError[]>([]);
 
   const identifiers = new Map(selected.map((row) => [row.id, row.identifier]));
 
   const run = async (
-    input: { action: "state"; to: WorkItemState } | { action: "delete" },
+    input: { action: "state"; to: TaskState } | { action: "delete" },
   ): Promise<void> => {
-    const ids = selected.map((row) => row.id);
-    const result = await bulk.run({ ...input, ids });
+    const outcome = await bulk.run(
+      input.action === "state"
+        ? { action: "state", args: { to: input.to } }
+        : { action: "delete" },
+    );
 
-    if (!result.ok) {
-      toast.error(errorMessage(result.error));
-
+    // The grid's `run` already showed the error of a call that threw.
+    if (outcome?.mode !== "now") {
       return;
     }
 
-    const { succeeded, failed } = result.data;
+    const failed = outcome.results.flatMap((row) =>
+      row.ok || row.error === null ? [] : [{ id: row.id, error: row.error }],
+    );
 
     setFailures(
       failed.map((row) => ({
         id: row.id,
         identifier: identifiers.get(row.id) ?? row.id,
-        message: row.message === "" ? t("No reason given.") : row.message,
+        message:
+          row.error.message === "" ? t("No reason given.") : row.error.message,
       })),
     );
 
     if (failed.length === 0) {
       toast.success(
         t("{count, plural, one {# item updated} other {# items updated}}", {
-          count: succeeded,
+          count: outcome.succeeded,
         }),
       );
     } else {
       toast.warning(
         t("{failed, number} of {total, number} items failed", {
           failed: failed.length,
-          total: result.data.total,
+          total: outcome.total,
         }),
       );
     }
-
-    onSettled(failed.map((row) => row.id));
   };
 
   const stateItems = WORK_ITEM_STATES.map((state) => ({
@@ -14175,7 +15732,7 @@ export function BulkActionBar({
             variant="ghost"
             disabled={bulk.pending}
             onClick={() => {
-              onSettled([]);
+              bulk.clear();
             }}
           >
             <XIcon />
@@ -14236,11 +15793,10 @@ npx shadcn add sonner
 ```tsx title="apps/examples/nextjs/src/features/trash/components/undo-toast.tsx"
 "use client";
 
-import { useAction } from "better-supabase/react";
+import { useAction, useErrorMessage } from "better-supabase/react";
 import { useExtracted } from "next-intl";
-import { toast } from "sonner";
 
-import { useErrorMessage } from "@/lib/use-error-message";
+import { toast } from "@/lib/toast";
 
 import { restoreTrashItem } from "../trash-actions";
 
@@ -14268,7 +15824,7 @@ export function useUndoToast() {
   });
 
   return function show({ trashItemId, name }: TrashedRecord) {
-    toast(
+    toast.message(
       <span data-recipe="undo-toast">
         {t("{name} moved to the trash", { name })}
       </span>,
@@ -14295,30 +15851,33 @@ Web, with shadcn components:
 npx shadcn add badge button card empty field select
 ```
 
-```tsx title="apps/examples/nextjs/src/features/customers/components/related-items-panel.tsx"
-/** Customers linked to this one (the `relates` kind), and a picker to link more. */
+```tsx title="apps/examples/nextjs/src/features/records/components/related-items-panel.tsx"
+/**
+ * Records linked to this one (the `relates` kind), and a picker to link more of
+ * its type.
+ */
 export function RelatedItemsPanel({
-  customerId,
+  subject,
   relations,
   canManage,
 }: {
-  customerId: string;
+  subject: RecordSubject;
   relations: Loaded<Relations>;
   canManage: boolean;
 }) {
-  const t = useExtracted("customers");
+  const t = useExtracted("records");
 
   return (
     <Card size="sm" data-recipe="related-items-panel">
       <CardHeader>
-        <CardTitle>{t("Related customers")}</CardTitle>
+        <CardTitle>{t("Related records")}</CardTitle>
         <CardDescription>
-          {t("Link customers that belong together, such as a parent company.")}
+          {t("Link records that belong together, such as a parent company.")}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {relations.kind === "error" ? (
-          <RecordLoadError title={t("The related customers didn't load")} />
+          <RecordLoadError title={t("The related records didn't load")} />
         ) : (
           <>
             {relations.data.links.length === 0 ? (
@@ -14327,29 +15886,29 @@ export function RelatedItemsPanel({
                   <EmptyMedia variant="icon">
                     <LinkIcon />
                   </EmptyMedia>
-                  <EmptyTitle>{t("No related customers")}</EmptyTitle>
+                  <EmptyTitle>{t("No related records")}</EmptyTitle>
                   <EmptyDescription>
                     {canManage
-                      ? t("Pick a customer below to link it.")
-                      : t("Nobody linked a customer yet.")}
+                      ? t("Pick a record below to link it.")
+                      : t("Nobody linked a record yet.")}
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
             ) : (
               <RelatedList
-                customerId={customerId}
+                subject={subject}
                 links={relations.data.links}
                 canManage={canManage}
               />
             )}
             {canManage ? (
               <LinkForm
-                customerId={customerId}
+                subject={subject}
                 options={relations.data.options.filter(
                   (option) =>
                     !relations.data.links.some(
                       (link) =>
-                        link.subjectType === "customer" &&
+                        link.subjectType === subject.type &&
                         link.subjectId === option.id,
                     ),
                 )}
@@ -14363,18 +15922,18 @@ export function RelatedItemsPanel({
 }
 
 function RelatedList({
-  customerId,
+  subject,
   links,
   canManage,
 }: {
-  customerId: string;
-  links: readonly RelatedCustomer[];
+  subject: RecordSubject;
+  links: readonly RelatedRecord[];
   canManage: boolean;
 }) {
-  const t = useExtracted("customers");
+  const t = useExtracted("records");
   const errorMessage = useErrorMessage();
 
-  const unlink = useAction(unlinkCustomerRelations, {
+  const unlink = useAction(recordActions[subject.type].unlink, {
     onSuccess: () => {
       toast.success(t("Link removed"));
     },
@@ -14384,7 +15943,7 @@ function RelatedList({
   });
 
   return (
-    <ul className="flex flex-col divide-y" data-testid="related-customers">
+    <ul className="flex flex-col divide-y" data-testid="related-records">
       {links.map((link) => (
         <li
           key={link.id}
@@ -14410,7 +15969,7 @@ function RelatedList({
               )}
               onClick={() => {
                 void unlink.run({
-                  id: customerId,
+                  id: subject.id,
                   input: {
                     kind: link.kind,
                     target: { type: link.subjectType, id: link.subjectId },
@@ -14428,21 +15987,21 @@ function RelatedList({
 }
 
 function LinkForm({
-  customerId,
+  subject,
   options,
 }: {
-  customerId: string;
+  subject: RecordSubject;
   options: readonly { readonly id: string; readonly name: string }[];
 }) {
-  const t = useExtracted("customers");
+  const t = useExtracted("records");
   const fieldId = useId();
   const errorMessage = useErrorMessage();
   const [targetId, setTargetId] = useState<string | null>(null);
 
-  const link = useAction(linkCustomerRelations, {
+  const link = useAction(recordActions[subject.type].link, {
     onSuccess: () => {
       setTargetId(null);
-      toast.success(t("Customer linked"));
+      toast.success(t("Record linked"));
     },
   });
 
@@ -14463,10 +16022,10 @@ function LinkForm({
 
         if (targetId) {
           void link.run({
-            id: customerId,
+            id: subject.id,
             input: {
               kind: "relates",
-              target: { type: "customer", id: targetId },
+              target: { type: subject.type, id: targetId },
             },
           });
         }
@@ -14474,7 +16033,7 @@ function LinkForm({
     >
       <Field data-invalid={link.error ? true : undefined}>
         <FieldLabel htmlFor={`${fieldId}-related`}>
-          {t("Link a customer")}
+          {t("Link a record")}
         </FieldLabel>
         <Select
           value={targetId}
@@ -14484,7 +16043,7 @@ function LinkForm({
           }}
         >
           <SelectTrigger id={`${fieldId}-related`} className="w-full">
-            <SelectValue placeholder={t("Pick a customer")} />
+            <SelectValue placeholder={t("Pick a record")} />
           </SelectTrigger>
           <SelectContent>
             {items.map((item) => (
@@ -14517,21 +16076,16 @@ export function RelatedItemsPanelSkeleton() {
 
 ## Employee directory
 
-A searchable list of employees with an org chart of who reports to whom. It loads its data on the server through the block's client; the [employees block](https://bettersupabase.com/blocks/employees) must be installed (`npx better-supabase add employees`). Page: https://bettersupabase.com/recipes/employee-directory.
+A list of employees with server-side search, a status filter and a link to each record. It loads its data on the server through the block's client; the [employees block](https://bettersupabase.com/blocks/employees) must be installed (`npx better-supabase add employees`). Page: https://bettersupabase.com/recipes/employee-directory.
 
-Web, with shadcn components:
+Web, with no shadcn components.
 
-```bash
-npx shadcn add card empty skeleton
-```
-
-```tsx title="apps/examples/nextjs/src/features/people/components/employee-directory.tsx"
+```tsx title="apps/examples/nextjs/src/features/people/components/employee-overview.tsx"
 /**
- * Render inside `<Suspense>`: the employees as an org chart, each manager above
- * their reports, with a search. Private details open in a sheet for callers
- * with `employees.view_sensitive`.
+ * Render inside `<Suspense>`: every employee on the list kit, with the add
+ * action for callers who can write.
  */
-export async function EmployeeDirectory() {
+export async function EmployeeOverview() {
   const [t, permissions] = await Promise.all([
     getExtracted("people"),
     getPermissions(),
@@ -14547,61 +16101,1323 @@ export async function EmployeeDirectory() {
     return null;
   }
 
-  const canWrite = can(permissions, "employees.write");
-  const canViewSensitive = can(permissions, "employees.view_sensitive");
+  if (directory.kind === "error") {
+    return <PeopleLoadError title={t("The directory didn't load")} />;
+  }
 
-  const managers =
-    directory.kind === "ok"
-      ? directory.data.map((employee) => ({
-          value: employee.id,
-          label: employee.name,
-        }))
-      : [];
-
-  const addEmployee = canWrite ? (
-    <AddEmployeeDialog
-      managers={managers}
-      canViewSensitive={canViewSensitive}
-    />
-  ) : null;
+  const { initial, managers } = directory.data;
 
   return (
-    <Card data-recipe="employee-directory">
+    <div className="flex flex-col gap-4">
+      {can(permissions, "employees.write") ? (
+        <div className="flex justify-end">
+          <AddEmployeeDialog
+            managers={managers}
+            canViewSensitive={can(permissions, "employees.read_sensitive")}
+          />
+        </div>
+      ) : null}
+      <EmployeeRecordList initial={initial} />
+    </div>
+  );
+}
+```
+
+## Qualification matrix
+
+A table of the members who lack a required qualification, hold an expired one or will lose one soon. It loads its data on the server through the block's client; the [qualifications block](https://bettersupabase.com/blocks/qualifications) must be installed (`npx better-supabase add qualifications`). Page: https://bettersupabase.com/recipes/qualification-matrix.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton table
+```
+
+```tsx title="apps/examples/nextjs/src/features/qualifications/components/qualification-matrix.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+const GAP_VARIANT = {
+  missing: "destructive-light",
+  expired: "destructive-light",
+  expiring: "warning-light",
+} as const satisfies Record<QualificationGapStatus, string>;
+
+/**
+ * Render inside `<Suspense>` for members with `qualifications.read`: each
+ * required qualification a member lacks, has let lapse or is about to lose.
+ */
+export async function QualificationMatrix() {
+  const [state, t, format] = await Promise.all([
+    getMatrix(),
+    getExtracted("qualifications"),
+    getFormatter(),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="qualification-matrix">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The qualification gaps didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const { types, gaps } = state.data;
+
+  if (types === 0) {
+    return (
+      <Empty className="border" data-recipe="qualification-matrix">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <BadgeCheckIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No qualifications yet")}</EmptyTitle>
+          <EmptyDescription>
+            {t(
+              "Add a qualification type such as a forklift licence, then name the roles or teams that must hold it.",
+            )}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <a
+            className="text-sm underline underline-offset-4"
+            href="https://bettersupabase.com/docs/blocks/qualifications"
+          >
+            {t("Read the qualifications guide")}
+          </a>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  const label = (status: QualificationGapStatus) => {
+    switch (status) {
+      case "missing": {
+        return t("Missing");
+      }
+
+      case "expired": {
+        return t("Expired");
+      }
+
+      case "expiring": {
+        return t("Expiring");
+      }
+
+      default: {
+        const unknown: never = status;
+
+        return unknown;
+      }
+    }
+  };
+
+  const day = (date: string) =>
+    format.dateTime(new Date(date), { dateStyle: "medium", timeZone: "UTC" });
+
+  return (
+    <Card data-recipe="qualification-matrix">
       <CardHeader>
-        <CardTitle>{t("Employees")}</CardTitle>
+        <CardTitle>{t("Qualification gaps")}</CardTitle>
         <CardDescription>
-          {t("Everyone in the organization and who they report to.")}
+          {t(
+            "Members who lack a required qualification, hold an expired one or will lose one soon.",
+          )}
         </CardDescription>
-        {addEmployee && managers.length > 0 ? (
-          <CardAction>{addEmployee}</CardAction>
-        ) : null}
       </CardHeader>
       <CardContent>
-        {directory.kind === "error" ? (
-          <PeopleLoadError title={t("The directory didn't load")} />
-        ) : directory.data.length === 0 ? (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <UsersIcon />
-              </EmptyMedia>
-              <EmptyTitle>{t("No employees yet")}</EmptyTitle>
-              <EmptyDescription>
-                {canWrite
-                  ? t("Add the first employee to start the org chart.")
-                  : t("Ask an admin to add employees.")}
-              </EmptyDescription>
-            </EmptyHeader>
-            {addEmployee ? <EmptyContent>{addEmployee}</EmptyContent> : null}
-          </Empty>
+        {gaps.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {t("Every member holds the qualifications their role requires.")}
+          </p>
         ) : (
-          <EmployeeTable
-            employees={directory.data}
-            canViewSensitive={canViewSensitive}
-          />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("Member")}</TableHead>
+                <TableHead>{t("Qualification")}</TableHead>
+                <TableHead>{t("Status")}</TableHead>
+                <TableHead>{t("Expires")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {gaps.map((gap) => (
+                <TableRow key={gap.key}>
+                  <TableCell className="font-medium">
+                    {gap.holderTitle}
+                  </TableCell>
+                  <TableCell>{gap.typeName}</TableCell>
+                  <TableCell>
+                    <Badge variant={GAP_VARIANT[gap.status]}>
+                      {label(gap.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {gap.expiresOn ? day(gap.expiresOn) : "–"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+export function QualificationMatrixSkeleton() {
+  return <Skeleton className="h-64" aria-busy="true" />;
+}
+```
+
+## My qualifications
+
+The signed-in member's certificates and licences with their expiry, and the required ones they still lack. It loads its data on the server through the block's client; the [qualifications block](https://bettersupabase.com/blocks/qualifications) must be installed (`npx better-supabase add qualifications`). Page: https://bettersupabase.com/recipes/my-qualifications.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/qualifications/components/my-qualifications.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+const STATUS_VARIANT = {
+  valid: "success-light",
+  expiring: "warning-light",
+  expired: "destructive-light",
+  revoked: "secondary",
+} as const satisfies Record<QualificationStatus, string>;
+
+/**
+ * Render inside `<Suspense>`: the signed-in member's certificates and licences
+ * with their expiry, then the required ones they still lack. Needs no
+ * permission; members read their own holdings and gaps.
+ */
+export async function MyQualifications() {
+  const [state, t, format] = await Promise.all([
+    getMyQualifications(),
+    getExtracted("qualifications"),
+    getFormatter(),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="my-qualifications">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("Your qualifications didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const { holdings, gaps } = state.data;
+
+  const label = (status: QualificationStatus) => {
+    switch (status) {
+      case "valid": {
+        return t("Valid");
+      }
+
+      case "expiring": {
+        return t("Expiring");
+      }
+
+      case "expired": {
+        return t("Expired");
+      }
+
+      case "revoked": {
+        return t("Revoked");
+      }
+
+      default: {
+        const unknown: never = status;
+
+        return unknown;
+      }
+    }
+  };
+
+  const day = (date: string) =>
+    format.dateTime(new Date(date), { dateStyle: "medium", timeZone: "UTC" });
+
+  return (
+    <Card data-recipe="my-qualifications">
+      <CardHeader>
+        <CardTitle>{t("My qualifications")}</CardTitle>
+        <CardDescription>
+          {t(
+            "The certificates and licences you hold, and the ones your role still requires.",
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {holdings.length === 0 && gaps.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <IdCardIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("Nothing to show yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  "Qualifications appear here once an admin grants one or you complete a course that awards one.",
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : null}
+        {holdings.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {holdings.map((holding) => (
+              <li
+                key={holding.id}
+                className="flex flex-wrap items-center justify-between gap-2"
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium">
+                    {holding.typeName}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {holding.expiresOn
+                      ? t("Expires {date}", { date: day(holding.expiresOn) })
+                      : t("Never expires")}
+                  </span>
+                </div>
+                <Badge variant={STATUS_VARIANT[holding.status]}>
+                  {label(holding.status)}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {gaps.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium">{t("Still required")}</span>
+            <div className="flex flex-wrap gap-2">
+              {gaps.map((gap) => (
+                <Badge key={gap.key} variant="destructive-light">
+                  {gap.typeName}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function MyQualificationsSkeleton() {
+  return <Skeleton className="h-48" aria-busy="true" />;
+}
+```
+
+## Roster board
+
+This week's shifts in a column per day, with their status and how many places are filled. It loads its data on the server through the block's client; the [shifts block](https://bettersupabase.com/blocks/shifts) must be installed (`npx better-supabase add shifts`). Page: https://bettersupabase.com/recipes/roster-board.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/shifts/components/roster-board.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+const STATUS_VARIANT = {
+  draft: "secondary",
+  published: "success-light",
+  canceled: "destructive-light",
+} as const satisfies Record<ShiftStatus, string>;
+
+/**
+ * Render inside `<Suspense>`: this week's shifts in a column per day, each with
+ * its times, status and how many of its places are filled. Members see the
+ * published shifts; planners with `shifts.write` also the drafts.
+ */
+export async function RosterBoard() {
+  await io();
+  const today = Temporal.Now.plainDateISO("UTC");
+  const monday = today.subtract({ days: today.dayOfWeek - 1 });
+
+  const days = Array.from({ length: 7 }, (_, index) =>
+    monday.add({ days: index }).toString(),
+  );
+
+  const [state, t, format] = await Promise.all([
+    getRoster(monday.toString()),
+    getExtracted("shifts"),
+    getFormatter(),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="roster-board">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The roster didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const shifts = state.data;
+
+  if (shifts.length === 0) {
+    return (
+      <Empty className="border" data-recipe="roster-board">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <CalendarDaysIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No shifts this week")}</EmptyTitle>
+          <EmptyDescription>
+            {t(
+              "Save a shift template, generate the week's shifts from it, then publish them.",
+            )}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <a
+            className="text-sm underline underline-offset-4"
+            href="https://bettersupabase.com/docs/blocks/shifts"
+          >
+            {t("Read the shifts guide")}
+          </a>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  const label = (status: ShiftStatus) => {
+    switch (status) {
+      case "draft": {
+        return t("Draft");
+      }
+
+      case "published": {
+        return t("Published");
+      }
+
+      case "canceled": {
+        return t("Canceled");
+      }
+
+      default: {
+        const unknown: never = status;
+
+        return unknown;
+      }
+    }
+  };
+
+  const dayLabel = (date: string) =>
+    format.dateTime(new Date(`${date}T12:00:00Z`), {
+      weekday: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+
+  const time = (instant: string) =>
+    format.dateTime(new Date(instant), { timeStyle: "short", timeZone: "UTC" });
+
+  return (
+    <Card data-recipe="roster-board">
+      <CardHeader>
+        <CardTitle>{t("This week's roster")}</CardTitle>
+        <CardDescription>
+          {t("The shifts of each day and how many of their places are filled.")}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-7">
+        {days.map((day) => (
+          <div key={day} className="flex flex-col gap-2">
+            <span className="text-sm font-medium">{dayLabel(day)}</span>
+            {shifts
+              .filter((shift) => shift.day === day)
+              .map((shift) => (
+                <Link
+                  key={shift.id}
+                  href={`/shifts/${shift.id}?on=${shift.day}`}
+                  className="flex flex-col gap-2 rounded-md border p-2 transition-colors hover:bg-muted/50"
+                >
+                  <span className="text-sm">
+                    {time(shift.startsAt)} – {time(shift.endsAt)}
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant={STATUS_VARIANT[shift.status]}>
+                      {label(shift.status)}
+                    </Badge>
+                    <Badge
+                      variant={
+                        shift.assigned < shift.headcount
+                          ? "warning-light"
+                          : "secondary"
+                      }
+                    >
+                      {t("{assigned}/{headcount} filled", {
+                        assigned: String(shift.assigned),
+                        headcount: String(shift.headcount),
+                      })}
+                    </Badge>
+                  </div>
+                  {shift.requested > 0 ? (
+                    <span className="text-xs text-muted-foreground">
+                      {t("{count} requested", {
+                        count: String(shift.requested),
+                      })}
+                    </span>
+                  ) : null}
+                </Link>
+              ))}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function RosterBoardSkeleton() {
+  return <Skeleton className="h-64" aria-busy="true" />;
+}
+```
+
+## Medication chart
+
+A record's medication orders for today, with the status of each planned dose. It loads its data on the server through the block's client; the [medications block](https://bettersupabase.com/blocks/medications) must be installed (`npx better-supabase add medications`). Page: https://bettersupabase.com/recipes/medication-chart.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/medications/components/medication-chart.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+const DOSE_VARIANT = {
+  planned: "secondary",
+  given: "success-light",
+  refused: "warning-light",
+  skipped: "outline",
+  missed: "destructive-light",
+} as const satisfies Record<MedicationAdministrationStatus, string>;
+
+/**
+ * Render inside `<Suspense>`: today's medication chart of a record, an order
+ * per row with its dose and route and each of today's doses with its status.
+ * Members with `medications.read` and read access to the record see it.
+ */
+export async function MedicationChart({
+  clientId,
+}: { clientId?: string } = {}) {
+  await io();
+
+  const [state, t, format] = await Promise.all([
+    getCustomerChart(clientId),
+    getExtracted("medications"),
+    getFormatter(),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="medication-chart">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The medication chart didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const chart = state.data;
+
+  if (chart === "no-customer" || chart.orders.length === 0) {
+    return (
+      <Empty className="border" data-recipe="medication-chart">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <PillIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No medication today")}</EmptyTitle>
+          <EmptyDescription>
+            {t(
+              "Add a medication to the list, then prescribe it for a customer with a dose and a schedule.",
+            )}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <a
+            className="text-sm underline underline-offset-4"
+            href="https://bettersupabase.com/docs/blocks/medications"
+          >
+            {t("Read the medications guide")}
+          </a>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  const label = (status: MedicationAdministrationStatus) => {
+    switch (status) {
+      case "planned": {
+        return t("Planned");
+      }
+
+      case "given": {
+        return t("Given");
+      }
+
+      case "refused": {
+        return t("Refused");
+      }
+
+      case "skipped": {
+        return t("Skipped");
+      }
+
+      case "missed": {
+        return t("Missed");
+      }
+
+      default: {
+        const unknown: never = status;
+
+        return unknown;
+      }
+    }
+  };
+
+  const time = (instant: string) =>
+    format.dateTime(new Date(instant), { timeStyle: "short", timeZone: "UTC" });
+
+  return (
+    <Card data-recipe="medication-chart">
+      <CardHeader>
+        <CardTitle>
+          {t("Medication for {customer}", { customer: chart.customer })}
+        </CardTitle>
+        <CardDescription>
+          {t("Today's orders and the status of each dose.")}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {chart.orders.map((order) => (
+          <div
+            key={order.id}
+            className="flex flex-col gap-2 border-b pb-4 last:border-b-0 last:pb-0"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">{order.medication}</span>
+              <span className="text-sm text-muted-foreground">
+                {order.route ? `${order.dose}, ${order.route}` : order.dose}
+              </span>
+              {order.asNeeded ? (
+                <Badge variant="info-light">{t("As needed")}</Badge>
+              ) : null}
+              {order.highRisk ? (
+                <Badge variant="warning-light">{t("Double check")}</Badge>
+              ) : null}
+              {order.paused ? (
+                <Badge variant="secondary">{t("Paused")}</Badge>
+              ) : null}
+            </div>
+            {order.doses.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {order.doses.map((dose) => (
+                  <Badge key={dose.id} variant={DOSE_VARIANT[dose.status]}>
+                    {dose.at ? `${time(dose.at)} ` : ""}
+                    {label(dose.status)}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                {t("No doses today")}
+              </span>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function MedicationChartSkeleton() {
+  return <Skeleton className="h-64" aria-busy="true" />;
+}
+```
+
+## Care plan editor
+
+A client's care plan as a tree of problems, goals and actions, with the status of each and the actions that wait for an approval. It loads its data on the server through the block's client; the [care-plans block](https://bettersupabase.com/blocks/care-plans) must be installed (`npx better-supabase add care-plans`). Page: https://bettersupabase.com/recipes/care-plan-editor.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty skeleton @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/care-plans/components/care-plan-editor.tsx"
+"use client";
+
+import type {
+  CarePlanActionKind,
+  CarePlanActionStatus,
+  CarePlanGoalStatus,
+  CarePlanStatus,
+} from "better-supabase/blocks/care-plans";
+
+import { ClipboardPlusIcon, TriangleAlertIcon } from "lucide-react";
+import { useExtracted, useFormatter } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/reui/alert";
+import { Badge } from "@/components/reui/badge";
+import {
+  Frame,
+  FrameDescription,
+  FrameHeader,
+  FramePanel,
+  FrameTitle,
+} from "@/components/reui/frame";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+
+import type {
+  CarePlanActionRow,
+  CarePlanGoalRow,
+  CarePlanProblemRow,
+  CarePlanState,
+  CarePlanView,
+  Loaded,
+} from "../care-plans-queries";
+
+function PlanStatusBadge({ status }: { status: CarePlanStatus }) {
+  const t = useExtracted("care-plans");
+
+  switch (status) {
+    case "draft": {
+      return <Badge variant="secondary">{t("Draft")}</Badge>;
+    }
+
+    case "active": {
+      return <Badge variant="success-light">{t("Active")}</Badge>;
+    }
+
+    case "archived": {
+      return <Badge variant="outline">{t("Archived")}</Badge>;
+    }
+
+    default: {
+      const unknown: never = status;
+
+      return unknown;
+    }
+  }
+}
+
+export function GoalStatusBadge({ status }: { status: CarePlanGoalStatus }) {
+  const t = useExtracted("care-plans");
+
+  switch (status) {
+    case "planned": {
+      return <Badge variant="secondary">{t("Planned")}</Badge>;
+    }
+
+    case "in_progress": {
+      return <Badge variant="info-light">{t("In progress")}</Badge>;
+    }
+
+    case "achieved": {
+      return <Badge variant="success-light">{t("Achieved")}</Badge>;
+    }
+
+    case "not_achieved": {
+      return <Badge variant="warning-light">{t("Not achieved")}</Badge>;
+    }
+
+    case "canceled": {
+      return <Badge variant="outline">{t("Canceled")}</Badge>;
+    }
+
+    default: {
+      const unknown: never = status;
+
+      return unknown;
+    }
+  }
+}
+
+function ActionKindLabel({ kind }: { kind: CarePlanActionKind }) {
+  const t = useExtracted("care-plans");
+
+  switch (kind) {
+    case "intervention": {
+      return t("Intervention");
+    }
+
+    case "appointment": {
+      return t("Appointment");
+    }
+
+    case "task": {
+      return t("Task");
+    }
+
+    case "measure": {
+      return t("Restrictive measure");
+    }
+
+    default: {
+      const unknown: never = kind;
+
+      return unknown;
+    }
+  }
+}
+
+function ActionStatusBadge({
+  status,
+  requiresApproval,
+}: {
+  status: CarePlanActionStatus;
+  requiresApproval: boolean;
+}) {
+  const t = useExtracted("care-plans");
+
+  switch (status) {
+    case "planned": {
+      return requiresApproval ? (
+        <Badge variant="warning-light">{t("Awaiting approval")}</Badge>
+      ) : (
+        <Badge variant="secondary">{t("Planned")}</Badge>
+      );
+    }
+
+    case "active": {
+      return <Badge variant="success-light">{t("Running")}</Badge>;
+    }
+
+    case "ended": {
+      return <Badge variant="outline">{t("Ended")}</Badge>;
+    }
+
+    default: {
+      const unknown: never = status;
+
+      return unknown;
+    }
+  }
+}
+
+function ActionItem({ action }: { action: CarePlanActionRow }) {
+  return (
+    <li className="flex items-center justify-between gap-2 py-1.5">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-sm">{action.title}</span>
+        <span className="text-xs text-muted-foreground">
+          <ActionKindLabel kind={action.kind} />
+          {action.teamRole === null ? null : ` · ${action.teamRole}`}
+        </span>
+      </div>
+      <ActionStatusBadge
+        status={action.status}
+        requiresApproval={action.requiresApproval}
+      />
+    </li>
+  );
+}
+
+function GoalItem({ goal }: { goal: CarePlanGoalRow }) {
+  const t = useExtracted("care-plans");
+  const format = useFormatter();
+
+  return (
+    <li className="flex flex-col gap-1 border-l pl-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate text-sm font-medium">{goal.title}</span>
+          {goal.targetOn === null ? null : (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {t("Target {date}", {
+                date: format.dateTime(new Date(goal.targetOn), {
+                  dateStyle: "medium",
+                  timeZone: "UTC",
+                }),
+              })}
+            </span>
+          )}
+        </div>
+        <GoalStatusBadge status={goal.status} />
+      </div>
+      {goal.actions.length === 0 ? (
+        <span className="text-xs text-muted-foreground">
+          {t("No actions toward this goal yet.")}
+        </span>
+      ) : (
+        <ul className="flex flex-col divide-y">
+          {goal.actions.map((action) => (
+            <ActionItem key={action.id} action={action} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+function ProblemItem({ problem }: { problem: CarePlanProblemRow }) {
+  const t = useExtracted("care-plans");
+
+  return (
+    <li className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate font-medium tracking-tight">
+            {problem.title}
+          </span>
+          {problem.code === null ? null : (
+            <span className="font-mono text-xs text-muted-foreground">
+              {problem.code}
+            </span>
+          )}
+        </div>
+        {problem.status === "resolved" ? (
+          <Badge variant="success-light">{t("Resolved")}</Badge>
+        ) : (
+          <Badge variant="info-light">{t("Active")}</Badge>
+        )}
+      </div>
+      <ul className="flex flex-col gap-3">
+        {problem.goals.map((goal) => (
+          <GoalItem key={goal.id} goal={goal} />
+        ))}
+      </ul>
+    </li>
+  );
+}
+
+function PlanTree({ plan }: { plan: CarePlanView }) {
+  return (
+    <ul className="flex flex-col gap-6">
+      {plan.problems.map((problem) => (
+        <ProblemItem key={problem.id} problem={problem} />
+      ))}
+    </ul>
+  );
+}
+
+function PlanHeader({ plan }: { plan: CarePlanView }) {
+  const t = useExtracted("care-plans");
+  const format = useFormatter();
+
+  return (
+    <FrameHeader className="gap-0.5">
+      <div className="flex items-center gap-2">
+        <FrameTitle>{plan.title}</FrameTitle>
+        <PlanStatusBadge status={plan.status} />
+      </div>
+      <FrameDescription>
+        {plan.reviewOn === null
+          ? t("{client}, version {version, number}", {
+              client: plan.clientName,
+              version: plan.version,
+            })
+          : t("{client}, version {version, number}, review on {date}", {
+              client: plan.clientName,
+              version: plan.version,
+              date: format.dateTime(new Date(plan.reviewOn), {
+                dateStyle: "medium",
+                timeZone: "UTC",
+              }),
+            })}
+      </FrameDescription>
+    </FrameHeader>
+  );
+}
+
+/**
+ * A client's care plan as a tree: each problem with its code, the goals that
+ * answer it and the actions toward each goal, with their status.
+ */
+export function CarePlanEditor({ state }: { state: Loaded<CarePlanState> }) {
+  const t = useExtracted("care-plans");
+  const router = useRouter();
+  const [retrying, startRetry] = useTransition();
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "ok" && "problems" in state.data) {
+    return (
+      <Frame spacing="sm" data-recipe="care-plan-editor">
+        <PlanHeader plan={state.data} />
+        <FramePanel>
+          <PlanTree plan={state.data} />
+        </FramePanel>
+      </Frame>
+    );
+  }
+
+  return (
+    <Frame spacing="sm" data-recipe="care-plan-editor">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>{t("Care plan")}</FrameTitle>
+        <FrameDescription>
+          {t(
+            "The client's problems, the goals that answer them and the actions toward each goal.",
+          )}
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel>
+        {state.kind === "error" ? (
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("The care plan didn't load")}</AlertTitle>
+            <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+            <AlertAction>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                disabled={retrying}
+                onClick={() => {
+                  startRetry(() => {
+                    router.refresh();
+                  });
+                }}
+              >
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <ClipboardPlusIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No care plan yet")}</EmptyTitle>
+              <EmptyDescription>
+                {state.data.clientName === null
+                  ? t("Add a customer, then draft a care plan for them.")
+                  : t(
+                      "Draft a plan for {client} with a problem, a goal and an action, then publish it.",
+                      { client: state.data.clientName },
+                    )}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <a
+                className="text-sm underline underline-offset-4"
+                href="https://bettersupabase.com/docs/blocks/care-plans"
+              >
+                {t("Read the care plans guide")}
+              </a>
+            </EmptyContent>
+          </Empty>
+        )}
+      </FramePanel>
+    </Frame>
+  );
+}
+```
+
+## Care plan evaluations
+
+The evaluations of a care plan's goals in a data grid, the newest first, with the goal status each one found. It loads its data on the server through the block's client; the [care-plans block](https://bettersupabase.com/blocks/care-plans) must be installed (`npx better-supabase add care-plans`). Page: https://bettersupabase.com/recipes/care-plan-evaluations.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty skeleton @reui/data-grid @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/care-plans/components/care-plan-evaluations.tsx"
+"use client";
+
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
+
+import { useTable } from "@tanstack/react-table";
+import { ListChecksIcon, TriangleAlertIcon } from "lucide-react";
+import { useExtracted, useFormatter } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+
+import type { ReadOnlyGridFeatures } from "@/components/reui/data-grid/data-grid";
+
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/reui/alert";
+import {
+  DataGrid,
+  DataGridContainer,
+} from "@/components/reui/data-grid/data-grid";
+import { readOnlyGridFeatures } from "@/components/reui/data-grid/data-grid-features-read-only";
+import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
+import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
+import {
+  Frame,
+  FrameDescription,
+  FrameHeader,
+  FramePanel,
+  FrameTitle,
+} from "@/components/reui/frame";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+
+import type {
+  CarePlanEvaluationRow,
+  CarePlanState,
+  Loaded,
+} from "../care-plans-queries";
+
+import { GoalStatusBadge } from "./care-plan-editor";
+
+type EvaluationCell = CellContext<ReadOnlyGridFeatures, CarePlanEvaluationRow>;
+
+function DateCell({ row }: EvaluationCell) {
+  const format = useFormatter();
+
+  return (
+    <span className="tabular-nums">
+      {format.dateTime(new Date(row.original.evaluatedAt), {
+        dateStyle: "medium",
+      })}
+    </span>
+  );
+}
+
+function GoalCell({ row }: EvaluationCell) {
+  return <span className="font-medium">{row.original.goal}</span>;
+}
+
+function StatusCell({ row }: EvaluationCell) {
+  return <GoalStatusBadge status={row.original.status} />;
+}
+
+function OutcomeCell({ row }: EvaluationCell) {
+  return row.original.outcome === null ? (
+    <span className="text-muted-foreground">–</span>
+  ) : (
+    <span className="line-clamp-2">{row.original.outcome}</span>
+  );
+}
+
+function EvaluationGrid({
+  evaluations,
+}: {
+  evaluations: readonly CarePlanEvaluationRow[];
+}) {
+  const t = useExtracted("care-plans");
+
+  const columns: ColumnDef<ReadOnlyGridFeatures, CarePlanEvaluationRow>[] = [
+    {
+      accessorKey: "evaluatedAt",
+      header: t("Date"),
+      cell: DateCell,
+      size: 130,
+    },
+    { accessorKey: "goal", header: t("Goal"), cell: GoalCell, size: 240 },
+    { accessorKey: "status", header: t("Status"), cell: StatusCell, size: 140 },
+    {
+      accessorKey: "outcome",
+      header: t("Outcome"),
+      cell: OutcomeCell,
+      size: 320,
+    },
+  ];
+
+  const table = useTable({
+    features: readOnlyGridFeatures,
+    columns,
+    data: [...evaluations],
+    getRowId: (row) => row.id,
+  });
+
+  return (
+    <DataGrid
+      table={table}
+      recordCount={evaluations.length}
+      tableLayout={{ dense: true }}
+    >
+      <DataGridContainer>
+        <DataGridScrollArea>
+          <DataGridTable />
+        </DataGridScrollArea>
+      </DataGridContainer>
+    </DataGrid>
+  );
+}
+
+/**
+ * The evaluations of a care plan's goals, the newest first, with the goal
+ * status each one found.
+ */
+export function CarePlanEvaluations({
+  state,
+}: {
+  state: Loaded<CarePlanState>;
+}) {
+  const t = useExtracted("care-plans");
+  const router = useRouter();
+  const [retrying, startRetry] = useTransition();
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  const evaluations =
+    state.kind === "ok" && "evaluations" in state.data
+      ? state.data.evaluations
+      : [];
+
+  return (
+    <Frame spacing="sm" data-recipe="care-plan-evaluations">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>{t("Evaluations")}</FrameTitle>
+        <FrameDescription>
+          {t(
+            "What each evaluation found for a goal. A new status becomes the goal's status.",
+          )}
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel>
+        {state.kind === "error" ? (
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("The evaluations didn't load")}</AlertTitle>
+            <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+            <AlertAction>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                disabled={retrying}
+                onClick={() => {
+                  startRetry(() => {
+                    router.refresh();
+                  });
+                }}
+              >
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : evaluations.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <ListChecksIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No evaluations yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  "Evaluate a goal of the active plan to record what it reached.",
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <a
+                className="text-sm underline underline-offset-4"
+                href="https://bettersupabase.com/docs/blocks/care-plans#evaluations-and-reviews"
+              >
+                {t("Read about evaluations")}
+              </a>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <EvaluationGrid evaluations={evaluations} />
+        )}
+      </FramePanel>
+    </Frame>
   );
 }
 ```
@@ -14623,13 +17439,12 @@ npx shadcn add badge button card empty skeleton
  * to another open stage, moves it. `?job=` picks the opening.
  */
 export async function HiringBoard({
-  searchParams,
+  query,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  query: Record<string, string | string[] | undefined>;
 }) {
-  const [t, query, permissions] = await Promise.all([
+  const [t, permissions] = await Promise.all([
     getExtracted("people"),
-    searchParams,
     getPermissions(),
   ]);
 
@@ -14761,7 +17576,7 @@ export async function HiringBoard({
 
 ## Timesheet
 
-A week of time entries per project with a running timer and totals. It loads its data on the server through the block's client; the [time-tracking block](https://bettersupabase.com/blocks/time-tracking) must be installed (`npx better-supabase add time-tracking`). Page: https://bettersupabase.com/recipes/timesheet.
+A week of time entries per project with a running timer and totals. It loads its data on the server through the block's client; the [time-entries block](https://bettersupabase.com/blocks/time-entries) must be installed (`npx better-supabase add time-entries`). Page: https://bettersupabase.com/recipes/timesheet.
 
 Web, with shadcn components:
 
@@ -14776,19 +17591,18 @@ npx shadcn add badge button card empty skeleton table
  * `?week=YYYY-MM-DD` picks the week.
  */
 export async function Timesheet({
-  searchParams,
+  query,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  query: Record<string, string | string[] | undefined>;
 }) {
-  const [t, format, query, permissions] = await Promise.all([
+  const [t, format, permissions] = await Promise.all([
     getExtracted("people"),
     getFormatter(),
-    searchParams,
     getPermissions(),
-    connection(),
+    io(),
   ]);
 
-  if (!can(permissions, "time_tracking.track")) {
+  if (!can(permissions, "time_entries.track")) {
     forbidden();
   }
 
@@ -14989,16 +17803,15 @@ npx shadcn add alert badge button card dialog empty field input skeleton table
  * week.
  */
 export async function DispatchBoard({
-  searchParams,
+  query,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  query: Record<string, string | string[] | undefined>;
 }) {
-  const [t, format, query, permissions] = await Promise.all([
+  const [t, format, permissions] = await Promise.all([
     getExtracted("field"),
     getFormatter(),
-    searchParams,
     getPermissions(),
-    connection(),
+    io(),
   ]);
 
   if (!can(permissions, "dispatch.read")) {
@@ -15206,16 +18019,15 @@ npx shadcn add alert badge button card empty skeleton
  * with the button that moves it on. `?day=YYYY-MM-DD` picks the day.
  */
 export async function TechnicianDay({
-  searchParams,
+  query,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  query: Record<string, string | string[] | undefined>;
 }) {
-  const [t, format, query, permissions] = await Promise.all([
+  const [t, format, permissions] = await Promise.all([
     getExtracted("field"),
     getFormatter(),
-    searchParams,
     getPermissions(),
-    connection(),
+    io(),
   ]);
 
   if (!can(permissions, "dispatch.work")) {
@@ -15346,16 +18158,15 @@ npx shadcn add alert badge button card dialog empty field input skeleton table
  * picks the shipment.
  */
 export async function ShipmentTracking({
-  searchParams,
+  query,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  query: Record<string, string | string[] | undefined>;
 }) {
-  const [t, format, query, permissions] = await Promise.all([
+  const [t, format, permissions] = await Promise.all([
     getExtracted("field"),
     getFormatter(),
-    searchParams,
     getPermissions(),
-    connection(),
+    io(),
   ]);
 
   if (!can(permissions, "shipments.read")) {
@@ -15597,6 +18408,10 @@ export async function InvoicesTable() {
 
       case "uncollectible": {
         return <Badge variant="destructive-light">{t("Uncollectible")}</Badge>;
+      }
+
+      case "credited": {
+        return <Badge variant="outline">{t("Credited")}</Badge>;
       }
 
       default: {
@@ -15979,6 +18794,18 @@ export async function InventoryTable() {
             <TableBody>
               {stock.data.levels.map((level) => {
                 const location = locationName.get(level.locationId) ?? "";
+                const label = `${level.productTitle} (${level.sku}), ${location}`;
+
+                const low =
+                  level.available <= 0 ||
+                  (level.reorderPoint !== null &&
+                    level.available <= level.reorderPoint);
+
+                // Enough to reach twice the reorder point, or 10 units without one.
+                const shortfall = Math.max(
+                  (level.reorderPoint ?? 5) * 2 - level.available,
+                  1,
+                );
 
                 return (
                   <TableRow key={`${level.variantId}:${level.locationId}`}>
@@ -16013,12 +18840,22 @@ export async function InventoryTable() {
                       )}
                     </TableCell>
                     {canManage ? (
-                      <TableCell className="text-right">
-                        <AdjustStockDialog
-                          variantId={level.variantId}
-                          locationId={level.locationId}
-                          label={`${level.productTitle} (${level.sku}), ${location}`}
-                        />
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          {low ? (
+                            <RequestPurchaseButton
+                              variantId={level.variantId}
+                              locationId={level.locationId}
+                              quantity={shortfall}
+                              label={label}
+                            />
+                          ) : null}
+                          <AdjustStockDialog
+                            variantId={level.variantId}
+                            locationId={level.locationId}
+                            label={label}
+                          />
+                        </div>
                       </TableCell>
                     ) : null}
                   </TableRow>
@@ -16054,23 +18891,18 @@ async function retry() {
  * Render inside `<Suspense>`: a placed order, or the caller's draft (an open
  * cart) with the same id, with its lines, totals and next steps.
  */
-export async function OrderDetail({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const [{ id }, permissions] = await Promise.all([params, getPermissions()]);
-
-  if (!can(permissions, "orders.read")) {
-    forbidden();
-  }
-
-  const [detail, t, format, locale] = await Promise.all([
+export async function OrderDetail({ id }: { id: string }) {
+  const [permissions, detail, t, format, locale] = await Promise.all([
+    getPermissions(),
     getOrderDetail(id),
     getExtracted("shop"),
     getFormatter(),
     getLocale(),
   ]);
+
+  if (!can(permissions, "orders.read")) {
+    forbidden();
+  }
 
   if (detail.kind === "not-found") {
     notFound();
@@ -16387,13 +19219,14 @@ npx shadcn add alert badge button card empty skeleton
  * page refreshes when a line changes anywhere in the kitchen.
  */
 export async function KitchenDisplay({
-  searchParams,
+  query,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  query: Record<string, string | string[] | undefined>;
 }) {
-  const [params, permissions] = await Promise.all([
-    searchParams,
+  const [permissions, kitchen, t] = await Promise.all([
     getPermissions(),
+    getKitchen(v.is(StationParam, query["station"]) ? query["station"] : null),
+    getExtracted("shop"),
   ]);
 
   if (!can(permissions, "orders.read") && !can(permissions, "orders.prepare")) {
@@ -16402,13 +19235,6 @@ export async function KitchenDisplay({
 
   const canPrepare =
     can(permissions, "orders.prepare") || can(permissions, "orders.manage");
-
-  const [kitchen, t] = await Promise.all([
-    getKitchen(
-      v.is(StationParam, params["station"]) ? params["station"] : null,
-    ),
-    getExtracted("shop"),
-  ]);
 
   if (kitchen.kind === "no-organization") {
     return null;
@@ -16844,33 +19670,29 @@ npx shadcn add badge button card empty skeleton
 
 ```tsx title="apps/examples/nextjs/src/features/calendar/components/calendar-view.tsx"
 export async function CalendarView({
-  searchParams,
+  query,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  query: Record<string, string | string[] | undefined>;
 }) {
-  const permissions = await getPermissions();
+  // The current month is read from the clock, which a prerender may not do.
+  await io();
+  const { first, weeks, from, until } = monthWindow(query);
+
+  // `settle` never rejects, so the month loads next to the permission check
+  // and a refused caller leaves no unhandled promise behind.
+  const [permissions, t, format, month] = await Promise.all([
+    getPermissions(),
+    getExtracted("calendar"),
+    getFormatter(),
+    settle(() => loadCalendarMonth(from.toString(), until.toString())),
+  ]);
 
   if (!can(permissions, "calendar.read")) {
     forbidden();
   }
 
-  const [t, format, query] = await Promise.all([
-    getExtracted("calendar"),
-    getFormatter(),
-    searchParams,
-    connection(),
-  ]);
-
   const canWrite = can(permissions, "calendar.write");
   const canManage = can(permissions, "calendar.manage");
-  const first = firstOfMonth(query["month"], "UTC");
-  const weeks = weeksOf(first);
-  const from = weeks[0]?.[0] ?? first;
-  const until = (weeks.at(-1)?.[6] ?? first).add({ days: 1 });
-
-  const month = await settle(() =>
-    loadCalendarMonth(from.toString(), until.toString()),
-  );
 
   const monthKey = (date: Temporal.PlainDate) =>
     date.toPlainYearMonth().toString();
@@ -17057,15 +19879,13 @@ npx shadcn add button card empty skeleton
 ```tsx title="apps/examples/nextjs/src/features/bookings/components/booking-page.tsx"
 /** The public page of a booking link: open slots for a week, then a form. */
 export async function BookingPage({
-  params,
-  searchParams,
+  token,
+  query,
 }: {
-  params: Promise<{ token: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  token: string;
+  query: Record<string, string | string[] | undefined>;
 }) {
-  const [{ token }, query, t, format] = await Promise.all([
-    params,
-    searchParams,
+  const [t, format] = await Promise.all([
     getExtracted("bookings"),
     getFormatter(),
   ]);
@@ -17258,14 +20078,21 @@ npx shadcn add card empty skeleton
  * The next events with the caller's reminders on each. A reminder fires its
  * offset before every occurrence of the event, once per occurrence.
  */
-export async function RemindersList() {
-  // The read starts with the permission check; RLS guards it either way.
+export async function RemindersList({
+  query,
+}: {
+  query: Record<string, string | string[] | undefined>;
+}) {
+  await io();
+  const { from, until } = monthWindow(query);
+
+  // The read starts with the permission check; RLS guards it either way. It
+  // is the entry the month card reads, so the database is called once.
   const [permissions, t, format, upcoming] = await Promise.all([
     getPermissions(),
     getExtracted("calendar"),
     getFormatter(),
-    settle(loadUpcomingReminders),
-    connection(),
+    settle(() => loadUpcomingReminders(from.toString(), until.toString())),
   ]);
 
   if (!can(permissions, "reminders.manage")) {
@@ -17411,6 +20238,7 @@ const APPROVAL_BADGE: Record<
   rejected: "destructive-light",
   cancelled: "secondary",
   expired: "secondary",
+  consumed: "success-light",
 };
 
 // oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
@@ -17460,6 +20288,7 @@ export async function DriveExplorer({
     rejected: t("Rejected"),
     cancelled: t("Approval cancelled"),
     expired: t("Approval expired"),
+    consumed: t("Approved"),
   };
 
   return (
@@ -17583,6 +20412,9 @@ export async function DriveExplorer({
                       id={item.id}
                       kind={item.kind}
                       name={item.name}
+                      locked={item.locked}
+                      downloadBlocked={item.downloadBlocked}
+                      downloadable={item.downloadable}
                     />
                   </TableCell>
                 </TableRow>
@@ -18237,13 +21069,7 @@ function answerText(
 }
 
 /** Render inside `<Suspense>`: a form's builder, preview and responses. */
-export async function FormBuilder({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-
+export async function FormBuilder({ id }: { id: string }) {
   const [view, t, format] = await Promise.all([
     getForm(id),
     getExtracted("forms"),
@@ -18653,13 +21479,7 @@ const kindIcons = {
  * Render inside `<Suspense>`: a course's modules, lessons and the caller's
  * progress.
  */
-export async function CourseOutline({
-  params,
-}: {
-  params: Promise<{ courseId: string }>;
-}) {
-  const { courseId } = await params;
-
+export async function CourseOutline({ courseId }: { courseId: string }) {
   const [view, t] = await Promise.all([
     getOutline(courseId),
     getExtracted("courses"),
@@ -18924,12 +21744,12 @@ async function retry() {
 
 /** Render inside `<Suspense>`: one lesson's content, or its quiz. */
 export async function LessonPlayer({
-  params,
+  courseId,
+  lessonId,
 }: {
-  params: Promise<{ courseId: string; lessonId: string }>;
+  courseId: string;
+  lessonId: string;
 }) {
-  const { courseId, lessonId } = await params;
-
   const [view, t] = await Promise.all([
     getLesson(lessonId),
     getExtracted("courses"),
@@ -19066,7 +21886,7 @@ npx shadcn add alert badge button card empty field select @reui/stepper table
 import type { DbError } from "better-supabase";
 
 import { parseCsv, suggestMapping } from "better-supabase/blocks/imports";
-import { useAction } from "better-supabase/react";
+import { useAction, useErrorMessage } from "better-supabase/react";
 import {
   ArrowLeftIcon,
   CheckIcon,
@@ -19125,7 +21945,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link } from "@/i18n/navigation";
-import { useErrorMessage } from "@/lib/use-error-message";
 
 import type { ImportOutcome, ImportPreview } from "../imports-actions";
 import type { ColumnMapping, CustomerImportField } from "../imports-fields";
@@ -19743,6 +22562,7 @@ async function retry() {
   refresh();
 }
 
+// skeleton: renders from props and translations, so nothing of its own suspends
 /** The New template button, for members who may manage templates. */
 export async function TemplateManagerActions() {
   const permissions = await getPermissions();
@@ -19928,7 +22748,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useSupabase } from "@/lib/hooks";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { documentsConfig } from "@/lib/supabase/blocks/slices";
 
 const DOCUMENT_NAME = "notes";
 const LOCAL = Symbol("local edit");
@@ -20060,7 +22880,7 @@ function DocumentSession({
 
     const documents = createDocuments({
       transport: rpcTransport(supabase),
-      schema: blockConfig.documents.api,
+      schema: documentsConfig.api,
     });
 
     const provider = createDocumentProvider({
@@ -20112,7 +22932,7 @@ function DocumentSession({
     }
 
     setSuggestions({ kind: "loading" });
-    const listed = await session.current.documents.suggestions(documentId);
+    const listed = await session.current.documents.suggestions({ documentId });
 
     setSuggestions(
       listed.ok ? { kind: "ok", items: listed.data } : { kind: "error" },
@@ -20281,10 +23101,10 @@ function DocumentSession({
             const decided =
               decision === "accepted"
                 ? await session.current.provider.acceptSuggestion(suggestion.id)
-                : await session.current.documents.decideSuggestion(
-                    suggestion.id,
-                    "rejected",
-                  );
+                : await session.current.documents.decideSuggestion({
+                    suggestionId: suggestion.id,
+                    decision: "rejected",
+                  });
 
             if (decided.ok) {
               await loadSuggestions();
@@ -20454,7 +23274,7 @@ function statusVariant(
 
 ## Webhook endpoints
 
-The organization's webhook endpoints with their recent deliveries and a retry button. It loads its data on the server through the block's client; the [webhooks-out block](https://bettersupabase.com/blocks/webhooks-out) must be installed (`npx better-supabase add webhooks-out`). Page: https://bettersupabase.com/recipes/webhook-endpoints.
+The organization's webhook endpoints with their recent deliveries and a retry button. It loads its data on the server through the block's client; the [webhooks block](https://bettersupabase.com/blocks/webhooks) must be installed (`npx better-supabase add webhooks`). Page: https://bettersupabase.com/recipes/webhook-endpoints.
 
 Web, with shadcn components:
 
@@ -20486,38 +23306,44 @@ async function retry() {
   refresh();
 }
 
-type Translate = Awaited<ReturnType<typeof getExtracted>>;
+type DeliveryLabels = Readonly<Record<WebhookStatus, string>>;
+
+interface EndpointLabels {
+  readonly off: string;
+  readonly failing: string;
+  readonly active: string;
+}
 
 function DeliveryStatusBadge({
   status,
-  t,
+  labels,
 }: {
   status: WebhookStatus;
-  t: Translate;
+  labels: DeliveryLabels;
 }) {
   switch (status) {
     case "pending": {
-      return <Badge variant="info-light">{t("Pending")}</Badge>;
+      return <Badge variant="info-light">{labels.pending}</Badge>;
     }
 
     case "delivering": {
-      return <Badge variant="info-light">{t("Delivering")}</Badge>;
+      return <Badge variant="info-light">{labels.delivering}</Badge>;
     }
 
     case "succeeded": {
-      return <Badge variant="success-light">{t("Delivered")}</Badge>;
+      return <Badge variant="success-light">{labels.succeeded}</Badge>;
     }
 
     case "retrying": {
-      return <Badge variant="warning-light">{t("Retrying")}</Badge>;
+      return <Badge variant="warning-light">{labels.retrying}</Badge>;
     }
 
     case "dead": {
-      return <Badge variant="destructive-light">{t("Failed")}</Badge>;
+      return <Badge variant="destructive-light">{labels.dead}</Badge>;
     }
 
     case "canceled": {
-      return <Badge variant="secondary">{t("Canceled")}</Badge>;
+      return <Badge variant="secondary">{labels.canceled}</Badge>;
     }
 
     default: {
@@ -20530,19 +23356,19 @@ function DeliveryStatusBadge({
 
 function EndpointStatusBadge({
   endpoint,
-  t,
+  labels,
 }: {
   endpoint: WebhookEndpointRow;
-  t: Translate;
+  labels: EndpointLabels;
 }) {
   if (!endpoint.enabled) {
-    return <Badge variant="secondary">{t("Off")}</Badge>;
+    return <Badge variant="secondary">{labels.off}</Badge>;
   }
 
   return endpoint.failingSince ? (
-    <Badge variant="warning-light">{t("Failing")}</Badge>
+    <Badge variant="warning-light">{labels.failing}</Badge>
   ) : (
-    <Badge variant="success-light">{t("Active")}</Badge>
+    <Badge variant="success-light">{labels.active}</Badge>
   );
 }
 
@@ -20568,6 +23394,21 @@ export async function WebhookEndpoints() {
   }
 
   const manage = can(permissions, "webhooks.manage");
+
+  const deliveryLabels: DeliveryLabels = {
+    pending: t("Pending"),
+    delivering: t("Delivering"),
+    succeeded: t("Delivered"),
+    retrying: t("Retrying"),
+    dead: t("Failed"),
+    canceled: t("Canceled"),
+  };
+
+  const endpointLabels: EndpointLabels = {
+    off: t("Off"),
+    failing: t("Failing"),
+    active: t("Active"),
+  };
 
   const firstEnabled =
     state.kind === "ok"
@@ -20665,7 +23506,10 @@ export async function WebhookEndpoints() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <EndpointStatusBadge endpoint={endpoint} t={t} />
+                      <EndpointStatusBadge
+                        endpoint={endpoint}
+                        labels={endpointLabels}
+                      />
                     </TableCell>
                     {manage ? (
                       <TableCell>
@@ -20746,7 +23590,10 @@ export async function WebhookEndpoints() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <DeliveryStatusBadge status={delivery.status} t={t} />
+                        <DeliveryStatusBadge
+                          status={delivery.status}
+                          labels={deliveryLabels}
+                        />
                       </TableCell>
                       <TableCell className="tabular-nums">
                         {delivery.attempt}
@@ -20793,9 +23640,9 @@ export function WebhookEndpointsSkeleton() {
 }
 ```
 
-## Service principals table
+## Service accounts table
 
-Machine identities with their scopes, last use and a button to disable one. It loads its data on the server through the block's client; the [service-accounts block](https://bettersupabase.com/blocks/service-accounts) must be installed (`npx better-supabase add service-accounts`). Page: https://bettersupabase.com/recipes/service-principals-table.
+Machine identities with their scopes, last use and a button to disable one. It loads its data on the server through the block's client; the [service-accounts block](https://bettersupabase.com/blocks/service-accounts) must be installed (`npx better-supabase add service-accounts`). Page: https://bettersupabase.com/recipes/service-accounts-table.
 
 Web, with shadcn components:
 
@@ -20831,8 +23678,8 @@ async function retry() {
 
 /**
  * Render inside `<Suspense>`: the machine identities workflows and webhooks run
- * as, with their role. Members with `service_principals.manage` add and disable
- * them. Members without `service_principals.read` see nothing.
+ * as, with their role. Members with `service_accounts.manage` add and disable
+ * them. Members without `service_accounts.read` see nothing.
  */
 export async function ServicePrincipalsTable() {
   const [t, format, permissions] = await Promise.all([
@@ -20841,7 +23688,7 @@ export async function ServicePrincipalsTable() {
     getPermissions(),
   ]);
 
-  if (!can(permissions, "service_principals.read")) {
+  if (!can(permissions, "service_accounts.read")) {
     return null;
   }
 
@@ -20851,7 +23698,7 @@ export async function ServicePrincipalsTable() {
     return null;
   }
 
-  const manage = can(permissions, "service_principals.manage");
+  const manage = can(permissions, "service_accounts.manage");
 
   const roles = new Map([
     ["owner", t("Owner")],
@@ -20860,7 +23707,7 @@ export async function ServicePrincipalsTable() {
   ]);
 
   return (
-    <Card data-recipe="service-principals-table">
+    <Card data-recipe="service-accounts-table">
       <CardHeader>
         <CardTitle>{t("Service principals")}</CardTitle>
         <CardDescription>
@@ -21130,7 +23977,7 @@ npx shadcn add alert badge button card empty skeleton
 
 ```tsx title="apps/examples/nextjs/src/features/privacy/components/privacy-settings.tsx"
 /**
- * Data exports for the caller and, with `organization.export`, for the
+ * Data exports for the caller and, with `data_lifecycle.export`, for the
  * organization, each with its status and a download. Owners schedule the
  * organization's deletion here; account deletion stays on the security page.
  */
@@ -21360,32 +24207,38 @@ async function retry() {
   refresh();
 }
 
-type Translate = Awaited<ReturnType<typeof getExtracted>>;
+type JobStatusLabels = Readonly<Record<JobRunStatus, string>>;
 
-function JobStatusBadge({ status, t }: { status: JobRunStatus; t: Translate }) {
+function JobStatusBadge({
+  status,
+  labels,
+}: {
+  status: JobRunStatus;
+  labels: JobStatusLabels;
+}) {
   switch (status) {
     case "queued": {
-      return <Badge variant="info-light">{t("Queued")}</Badge>;
+      return <Badge variant="info-light">{labels.queued}</Badge>;
     }
 
     case "scheduled": {
-      return <Badge variant="secondary">{t("Scheduled")}</Badge>;
+      return <Badge variant="secondary">{labels.scheduled}</Badge>;
     }
 
     case "running": {
-      return <Badge variant="primary-light">{t("Running")}</Badge>;
+      return <Badge variant="primary-light">{labels.running}</Badge>;
     }
 
     case "retrying": {
-      return <Badge variant="warning-light">{t("Retrying")}</Badge>;
+      return <Badge variant="warning-light">{labels.retrying}</Badge>;
     }
 
     case "succeeded": {
-      return <Badge variant="success-light">{t("Succeeded")}</Badge>;
+      return <Badge variant="success-light">{labels.succeeded}</Badge>;
     }
 
     case "dead": {
-      return <Badge variant="destructive-light">{t("Failed")}</Badge>;
+      return <Badge variant="destructive-light">{labels.dead}</Badge>;
     }
 
     default: {
@@ -21411,6 +24264,15 @@ export async function JobRunsTable() {
   if (!can(permissions, JOBS_PERMISSION)) {
     forbidden();
   }
+
+  const statusLabels: JobStatusLabels = {
+    queued: t("Queued"),
+    scheduled: t("Scheduled"),
+    running: t("Running"),
+    retrying: t("Retrying"),
+    succeeded: t("Succeeded"),
+    dead: t("Failed"),
+  };
 
   const state = await loadJobRunsState();
 
@@ -21494,7 +24356,7 @@ export async function JobRunsTable() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <JobStatusBadge status={run.status} t={t} />
+                    <JobStatusBadge status={run.status} labels={statusLabels} />
                   </TableCell>
                   <TableCell className="tabular-nums">{run.attempts}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
@@ -21892,7 +24754,14 @@ export async function ControlPosture() {
           return (
             <Card key={framework.frameworkId}>
               <CardHeader>
-                <CardTitle>{framework.name}</CardTitle>
+                <CardTitle>
+                  <Link
+                    href={`/compliance/${framework.frameworkId}`}
+                    className="hover:underline"
+                  >
+                    {framework.name}
+                  </Link>
+                </CardTitle>
                 <CardDescription>
                   {t(
                     "{passing, number} of {applicable, number} controls passing",
@@ -21987,6 +24856,312 @@ export function ControlPostureSkeleton() {
       <Skeleton className="h-36 rounded-xl" />
     </div>
   );
+}
+```
+
+## Acknowledgement inbox
+
+The records a member is asked to read, soonest due first, with the due date and a button that acknowledges the version they read. It loads its data on the server through the block's client; the [acknowledgements block](https://bettersupabase.com/blocks/acknowledgements) must be installed (`npx better-supabase add acknowledgements`). Page: https://bettersupabase.com/recipes/acknowledgement-inbox.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/acknowledgements/components/acknowledgement-inbox.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+/**
+ * Render inside `<Suspense>`: the records the signed-in member is asked to
+ * read, soonest due first, each with a button that acknowledges the version
+ * they read.
+ */
+export async function AcknowledgementInbox() {
+  const [state, t, format] = await Promise.all([
+    getPending(),
+    getExtracted("acknowledgements"),
+    getFormatter(),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="acknowledgement-inbox">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("Your reading list didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  if (state.rows.length === 0) {
+    return (
+      <Empty className="border" data-recipe="acknowledgement-inbox">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <BookCheckIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("Nothing to read")}</EmptyTitle>
+          <EmptyDescription>
+            {t(
+              "When an admin asks you to acknowledge a policy, it shows here until you confirm you read its current version.",
+            )}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <a
+            className="text-sm underline underline-offset-4"
+            href="https://bettersupabase.com/docs/blocks/acknowledgements"
+          >
+            {t("Read the acknowledgements guide")}
+          </a>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  const day = (date: string) =>
+    format.dateTime(new Date(date), { dateStyle: "medium", timeZone: "UTC" });
+
+  return (
+    <Card data-recipe="acknowledgement-inbox">
+      <CardHeader>
+        <CardTitle>{t("To read")}</CardTitle>
+        <CardDescription>
+          {t(
+            "{count, plural, one {# record waits} other {# records wait}} for you to confirm you read the current version.",
+            { count: state.rows.length },
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="flex flex-col divide-y">
+          {state.rows.map((row) => {
+            const title = row.title ?? t("Untitled {type}", { type: row.type });
+
+            return (
+              <li
+                key={`${row.type}:${row.id}`}
+                className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+              >
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate text-sm font-medium">{title}</span>
+                  <span className="text-xs text-muted-foreground capitalize">
+                    {row.type}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {row.dueOn === null ? null : (
+                    <Badge
+                      variant={row.overdue ? "destructive-light" : "secondary"}
+                    >
+                      {row.overdue
+                        ? t("Overdue since {date}", { date: day(row.dueOn) })
+                        : t("Due {date}", { date: day(row.dueOn) })}
+                    </Badge>
+                  )}
+                  <AcknowledgeButton
+                    type={row.type}
+                    id={row.id}
+                    versionId={row.versionId}
+                    title={title}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function AcknowledgementInboxSkeleton() {
+  return <Skeleton className="h-40 rounded-xl" aria-busy="true" />;
+}
+```
+
+## Consent register
+
+The purposes an organization asks consent for, with their lawful basis, version, how long a grant lasts and whether it needs a signature. It loads its data on the server through the block's client; the [consents block](https://bettersupabase.com/blocks/consents) must be installed (`npx better-supabase add consents`). Page: https://bettersupabase.com/recipes/consent-register.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton table
+```
+
+```tsx title="apps/examples/nextjs/src/features/compliance/components/consent-register.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+/**
+ * Render inside `<Suspense>`: the purposes the organization asks consent for,
+ * with their lawful basis, version and how long a grant lasts.
+ */
+export async function ConsentRegister() {
+  const [state, t] = await Promise.all([
+    getPurposes(),
+    getExtracted("compliance"),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  const basis = (legalBasis: LegalBasis) => {
+    switch (legalBasis) {
+      case "consent": {
+        return t("Consent");
+      }
+
+      case "contract": {
+        return t("Contract");
+      }
+
+      case "legal_obligation": {
+        return t("Legal obligation");
+      }
+
+      case "vital_interest": {
+        return t("Vital interest");
+      }
+
+      case "public_task": {
+        return t("Public task");
+      }
+
+      case "legitimate_interest": {
+        return t("Legitimate interest");
+      }
+
+      default: {
+        const never: never = legalBasis;
+
+        return String(never);
+      }
+    }
+  };
+
+  return (
+    <Card data-recipe="consent-register">
+      <CardHeader>
+        <CardTitle>{t("Consent register")}</CardTitle>
+        <CardDescription>
+          {t(
+            "What the organization asks consent for. A new version of a purpose asks every record again.",
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {state.kind === "error" ? (
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("The consent purposes didn't load")}</AlertTitle>
+            <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+            <AlertAction>
+              <form action={retry}>
+                <Button size="sm" variant="outline" type="submit">
+                  {t("Retry")}
+                </Button>
+              </form>
+            </AlertAction>
+          </Alert>
+        ) : state.data.length === 0 ? (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileCheckIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No consent purposes")}</EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  "Save a purpose, such as marketing email, before recording consent on a record.",
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <a
+                href="https://bettersupabase.com/docs/blocks/consents"
+                className={buttonVariants()}
+              >
+                {t("Read the consents guide")}
+              </a>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("Purpose")}</TableHead>
+                <TableHead>{t("Lawful basis")}</TableHead>
+                <TableHead>{t("Version")}</TableHead>
+                <TableHead>{t("Lasts")}</TableHead>
+                <TableHead>{t("Evidence")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {state.data.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium">{row.title}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {row.key}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{basis(row.legalBasis)}</TableCell>
+                  <TableCell className="tabular-nums">{row.version}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {row.validMonths === null
+                      ? t("Until withdrawn")
+                      : t("{months, number} months", {
+                          months: row.validMonths,
+                        })}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {row.requiresSignature ? (
+                        <Badge variant="info-light">{t("Signature")}</Badge>
+                      ) : (
+                        <Badge variant="secondary">{t("Any")}</Badge>
+                      )}
+                      {row.system ? (
+                        <Badge variant="secondary">{t("System")}</Badge>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function ConsentRegisterSkeleton() {
+  return <Skeleton className="h-40 rounded-xl" aria-busy="true" />;
 }
 ```
 
@@ -22103,13 +25278,8 @@ function OverallAlert({
  * component with its uptime, then the public incidents with their updates.
  * Anyone can open it; the incidents block returns only fields marked public.
  */
-export async function StatusPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const [{ slug }, t, format] = await Promise.all([
-    params,
+export async function StatusPage({ slug }: { slug: string }) {
+  const [t, format] = await Promise.all([
     getExtracted("status"),
     getFormatter(),
   ]);
@@ -22313,6 +25483,648 @@ export function StatusPageSkeleton() {
       <Skeleton className="h-12 rounded-xl" />
       <Skeleton className="h-64 rounded-xl" />
     </div>
+  );
+}
+```
+
+## Trial balance
+
+Total assets, liabilities and equity and this year's net income, then each account's debit, credit and balance with the totals. It loads its data on the server through the block's client; the [accounting block](https://bettersupabase.com/blocks/accounting) must be installed (`npx better-supabase add accounting`). Page: https://bettersupabase.com/recipes/trial-balance.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton table
+```
+
+```tsx title="apps/examples/nextjs/src/features/accounting/components/trial-balance.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+/**
+ * Render inside `<Suspense>`: the balance sheet totals and this year's net
+ * income, then every account's debits, credits and closing balance.
+ */
+export async function TrialBalance() {
+  const [state, t, format, locale] = await Promise.all([
+    getBooks(),
+    getExtracted("accounting"),
+    getFormatter(),
+    getLocale(),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="trial-balance">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The books didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  if (state.data === "not-set-up" || state.data.accounts.length === 0) {
+    return (
+      <Empty className="border" data-recipe="trial-balance">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <BookOpenIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No entries in the books yet")}</EmptyTitle>
+          <EmptyDescription>
+            {t(
+              "Set up the books with a chart of accounts, open a fiscal year, then post the first entry.",
+            )}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <a
+            className="text-sm underline underline-offset-4"
+            href="https://bettersupabase.com/docs/blocks/accounting"
+          >
+            {t("Read the accounting guide")}
+          </a>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  const books = state.data;
+
+  const amount = (value: MoneyJson) =>
+    formatMoney(moneyFromJson(value), locale);
+
+  const asOf = format.dateTime(new Date(books.asOf), {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  });
+
+  return (
+    <div className="flex flex-col gap-6" data-recipe="trial-balance">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardDescription>{t("Assets")}</CardDescription>
+            <CardTitle>{amount(books.totalAssets)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>{t("Liabilities and equity")}</CardDescription>
+            <CardTitle>{amount(books.liabilitiesAndEquity)}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {books.balanced ? (
+              <Badge variant="success-light">{t("Balanced")}</Badge>
+            ) : (
+              <Badge variant="destructive-light">{t("Out of balance")}</Badge>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>{t("Net income this year")}</CardDescription>
+            <CardTitle>{amount(books.netIncome)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>{t("Net tax this year")}</CardDescription>
+            <CardTitle>{amount(books.netTax)}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("Trial balance")}</CardTitle>
+          <CardDescription>
+            {t("Posted entries through {date}.", { date: asOf })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("Code")}</TableHead>
+                <TableHead>{t("Account")}</TableHead>
+                <TableHead className="text-right">{t("Debit")}</TableHead>
+                <TableHead className="text-right">{t("Credit")}</TableHead>
+                <TableHead className="text-right">{t("Balance")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {books.accounts.map((row) => (
+                <TableRow key={row.accountId}>
+                  <TableCell className="font-mono text-xs">
+                    {row.code}
+                  </TableCell>
+                  <TableCell className="font-medium">{row.name}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {amount(row.debit)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {amount(row.credit)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {amount(row.closing)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={2}>{t("Total")}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {amount(books.totals.debit)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {amount(books.totals.credit)}
+                </TableCell>
+                <TableCell />
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function TrialBalanceSkeleton() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy="true">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+      </div>
+      <Skeleton className="h-72 rounded-xl" />
+    </div>
+  );
+}
+```
+
+## Production order board
+
+Production orders in status columns from draft to done; dragging a draft to Released releases it, and a running order to Done completes it. It loads its data on the server through the block's client; the [manufacturing block](https://bettersupabase.com/blocks/manufacturing) must be installed (`npx better-supabase add manufacturing`). Page: https://bettersupabase.com/recipes/production-order-board.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add badge card @reui/kanban
+```
+
+```tsx title="apps/examples/nextjs/src/features/manufacturing/components/production-order-board.tsx"
+/**
+ * The organization's production orders in a column for their status. Dragging a
+ * draft to Released releases it, and dragging a released or started order to
+ * Done completes it with its planned quantity; any other move, or a refused one
+ * such as a component shortage, puts the card back. The parent keys it by the
+ * cards' statuses, so a refresh starts it from the saved board.
+ */
+export function ProductionOrderBoard({
+  cards,
+  canRelease,
+  canComplete,
+}: {
+  cards: readonly ProductionOrderCard[];
+  canRelease: boolean;
+  canComplete: boolean;
+}) {
+  const errorMessage = useErrorMessage();
+  const label = useStatusLabel();
+  const [columns, setColumns] = useState(() => columnsOf(cards));
+  const release = useAction(releaseProductionOrder);
+  const complete = useAction(completeProductionOrder);
+  const pending = release.pending || complete.pending;
+  const byId = new Map(cards.map((card) => [card.id, card]));
+
+  const movable = (card: ProductionOrderCard): boolean =>
+    card.status === "draft"
+      ? canRelease
+      : card.status !== "done" && canComplete;
+
+  return (
+    <div data-recipe="production-order-board">
+      <Kanban
+        value={columns}
+        onValueChange={setColumns}
+        getItemValue={(card) => card.id}
+        onValueCommit={(_value, meta) => {
+          if (meta.kind !== "item") {
+            return;
+          }
+
+          const from = v.parse(StatusSchema, meta.activeContainer);
+          const to = v.parse(StatusSchema, meta.overContainer);
+          const card = byId.get(String(meta.event.active.id));
+
+          const run =
+            card === undefined
+              ? undefined
+              : from === "draft" && to === "released"
+                ? release.run({ orderId: card.id })
+                : from !== "draft" && from !== "done" && to === "done"
+                  ? complete.run({ orderId: card.id, produced: card.quantity })
+                  : undefined;
+
+          if (run === undefined) {
+            setColumns(meta.previousValue);
+
+            return;
+          }
+
+          void run.then((result) => {
+            if (!result.ok) {
+              setColumns(meta.previousValue);
+              toast.error(errorMessage(result.error));
+            }
+
+            return result;
+          });
+        }}
+      >
+        <KanbanBoard className="flex overflow-x-auto">
+          {BOARD_STATUSES.map((status) => {
+            const column = columns[status] ?? [];
+
+            return (
+              <KanbanColumn
+                key={status}
+                value={status}
+                className="w-72 shrink-0 gap-3 rounded-lg bg-muted/50 p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">{label(status)}</span>
+                  <Badge variant="outline">{column.length}</Badge>
+                </div>
+                <KanbanColumnContent value={status} className="min-h-16">
+                  {column.map((card) => (
+                    <KanbanItem
+                      key={card.id}
+                      value={card.id}
+                      disabled={!movable(card) || pending}
+                    >
+                      <KanbanItemHandle cursor={movable(card)}>
+                        <OrderItem card={card} />
+                      </KanbanItemHandle>
+                    </KanbanItem>
+                  ))}
+                </KanbanColumnContent>
+              </KanbanColumn>
+            );
+          })}
+        </KanbanBoard>
+        <KanbanOverlay>
+          {({ value, variant }) => {
+            const card =
+              variant === "item" ? byId.get(String(value)) : undefined;
+
+            return card ? <OrderItem card={card} /> : null;
+          }}
+        </KanbanOverlay>
+      </Kanban>
+    </div>
+  );
+}
+```
+
+## Bank reconciliation
+
+Each bank account's statement balance and what is left to match, then its latest transactions; an unmatched one offers its best invoice to match or can be ignored. It loads its data on the server through the block's client; the [banking block](https://bettersupabase.com/blocks/banking) must be installed (`npx better-supabase add banking`). Page: https://bettersupabase.com/recipes/bank-reconciliation.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton @reui/frame @reui/data-grid
+```
+
+```tsx title="apps/examples/nextjs/src/features/banking/components/bank-reconciliation.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+/**
+ * Render inside `<Suspense>`: each bank account's statement balance and what is
+ * left to match, then its latest transactions with a suggested invoice for each
+ * unmatched one.
+ */
+export async function BankReconciliation() {
+  const [state, permissions, t, locale] = await Promise.all([
+    getBankReconciliation(),
+    getPermissions(),
+    getExtracted("banking"),
+    getLocale(),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="bank-reconciliation">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The bank accounts didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  if (state.data.length === 0) {
+    return (
+      <Empty className="border" data-recipe="bank-reconciliation">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <BanknoteIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No bank accounts yet")}</EmptyTitle>
+          <EmptyDescription>
+            {t(
+              "Add a bank account with its IBAN, then import a camt.053 or MT940 statement to start matching.",
+            )}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <a
+            className="text-sm underline underline-offset-4"
+            href="https://bettersupabase.com/docs/blocks/banking"
+          >
+            {t("Read the banking guide")}
+          </a>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  const amount = (value: MoneyJson) =>
+    formatMoney(moneyFromJson(value), locale);
+
+  const canReconcile = can(permissions, "banking.reconcile");
+
+  return (
+    <div className="flex flex-col gap-8" data-recipe="bank-reconciliation">
+      {state.data.map((account) => (
+        <section key={account.id} className="flex flex-col gap-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardDescription>{t("Statement balance")}</CardDescription>
+                <CardTitle>
+                  {account.statementBalance === null
+                    ? "–"
+                    : amount(account.statementBalance)}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {account.reconciled ? (
+                  <Badge variant="success-light">{t("Reconciled")}</Badge>
+                ) : (
+                  <Badge variant="warning-light">{t("Open")}</Badge>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>{t("Left to match")}</CardDescription>
+                <CardTitle>{amount(account.unmatchedTotal)}</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {t(
+                  "{count, plural, one {# transaction} other {# transactions}}",
+                  { count: account.unmatchedCount },
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>
+                  {t("Difference with the books")}
+                </CardDescription>
+                <CardTitle>
+                  {account.difference === null
+                    ? "–"
+                    : amount(account.difference)}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          </div>
+          <Frame spacing="sm">
+            <FrameHeader className="gap-0.5">
+              <FrameTitle>{account.name}</FrameTitle>
+              <FrameDescription>
+                {account.iban ?? t("The latest transactions on this account.")}
+              </FrameDescription>
+            </FrameHeader>
+            <FramePanel>
+              {account.transactions.length === 0 ? (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>{t("No transactions yet")}</EmptyTitle>
+                    <EmptyDescription>
+                      {t(
+                        "Import a statement or sync a bank feed; a transaction seen before is skipped.",
+                      )}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  <EmptyContent>
+                    <a
+                      className="text-sm underline underline-offset-4"
+                      href="https://bettersupabase.com/docs/blocks/banking"
+                    >
+                      {t("Read how to import statements")}
+                    </a>
+                  </EmptyContent>
+                </Empty>
+              ) : (
+                <BankTransactionGrid
+                  transactions={account.transactions}
+                  canReconcile={canReconcile}
+                />
+              )}
+            </FramePanel>
+          </Frame>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+export function BankReconciliationSkeleton() {
+  return (
+    <div className="flex flex-col gap-4" aria-busy="true">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
+      </div>
+      <Frame spacing="sm">
+        <FrameHeader className="gap-1">
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-4 w-64" />
+        </FrameHeader>
+        <FramePanel>
+          <Skeleton className="h-48" />
+        </FramePanel>
+      </Frame>
+    </div>
+  );
+}
+```
+
+## Payroll runs
+
+The organization's payroll runs, newest period first, with their line count, export format and whether they are locked. It loads its data on the server through the block's client; the [payroll-export block](https://bettersupabase.com/blocks/payroll-export) must be installed (`npx better-supabase add payroll-export`). Page: https://bettersupabase.com/recipes/payroll-runs.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty skeleton table @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/payroll-export/components/payroll-runs.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+/**
+ * Render inside `<Suspense>`: the organization's payroll runs, newest period
+ * first, with how many lines each holds and the format it was exported in.
+ */
+export async function PayrollRuns() {
+  const [state, t] = await Promise.all([
+    getPayrollRuns(),
+    getExtracted("payroll-export"),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="payroll-runs">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The payroll runs didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  if (state.data.length === 0) {
+    return (
+      <Empty className="border" data-recipe="payroll-runs">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <WalletIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No payroll runs yet")}</EmptyTitle>
+          <EmptyDescription>
+            {t(
+              "Create a run for a period to add up the approved hours and leave, then export it in your payroll provider's format.",
+            )}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <a
+            className="text-sm underline underline-offset-4"
+            href="https://bettersupabase.com/docs/blocks/payroll-export"
+          >
+            {t("Read the payroll export guide")}
+          </a>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  return (
+    <Frame spacing="sm" data-recipe="payroll-runs">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>{t("Payroll runs")}</FrameTitle>
+        <FrameDescription>
+          {t("An exported run is locked; its checksum proves the file.")}
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("Period")}</TableHead>
+              <TableHead>{t("Label")}</TableHead>
+              <TableHead>{t("Lines")}</TableHead>
+              <TableHead>{t("Format")}</TableHead>
+              <TableHead>{t("Status")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {state.data.map((run) => (
+              <TableRow key={run.id}>
+                <TableCell>
+                  {run.periodFrom} – {run.periodTo}
+                </TableCell>
+                <TableCell>{run.label ?? "–"}</TableCell>
+                <TableCell>{run.lineCount}</TableCell>
+                <TableCell>{run.format ?? "–"}</TableCell>
+                <TableCell>
+                  {run.status === "exported" ? (
+                    <Badge variant="success-light">{t("Exported")}</Badge>
+                  ) : (
+                    <Badge variant="warning-light">{t("Draft")}</Badge>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </FramePanel>
+    </Frame>
+  );
+}
+
+export function PayrollRunsSkeleton() {
+  return (
+    <Frame spacing="sm">
+      <FrameHeader className="gap-1">
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="h-4 w-64" />
+      </FrameHeader>
+      <FramePanel>
+        <Skeleton className="h-48" />
+      </FramePanel>
+    </Frame>
   );
 }
 ```
@@ -22773,6 +26585,7 @@ function TitleCell({ row }: GridCell) {
   return (
     <Link
       href={`/projects/${row.original.projectId}`}
+      prefetch
       className="font-medium hover:underline"
     >
       {row.original.title}
@@ -23145,13 +26958,8 @@ npx shadcn add badge card skeleton
  * tasks through the `project_id` reference, and the comments and tags that
  * reach it because `projects` is a subject.
  */
-export async function ProjectPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const [{ id }, session, permissions] = await Promise.all([
-    params,
+export async function ProjectPage({ id }: { id: string }) {
+  const [session, permissions] = await Promise.all([
     getSession(),
     getPermissions(),
   ]);
@@ -23217,7 +27025,7 @@ export async function ProjectPage({
             </CardDescription>
             <CardAction className="flex items-center gap-2">
               <TaskImportAction projectId={record.id} />
-              <TaskFormDialog
+              <TaskFormDialogLazy
                 projects={[{ id: record.id, name: record.name }]}
                 members={members.data}
                 defaultProjectId={record.id}
@@ -23507,6 +27315,7 @@ npx shadcn add badge button card
 ```tsx title="apps/examples/nextjs/src/features/projects/components/task-calendar.tsx"
 const SHOWN_PER_DAY = 3;
 
+// skeleton: renders from props and translations, so nothing of its own suspends
 /**
  * Tasks on a month grid by their due date. The month lives in the URL
  * (`?month=YYYY-MM`), so the arrows are links and the page stays a server
@@ -23678,6 +27487,7 @@ npx shadcn add button card
 ```tsx title="apps/examples/nextjs/src/features/projects/components/task-timeline.tsx"
 const UNASSIGNED = "";
 
+// skeleton: renders from props and translations, so nothing of its own suspends
 /**
  * Tasks as bars from `startsOn` to `dueOn`, one lane per assignee, over a
  * four-week window that lives in the URL (`?from=YYYY-MM-DD`).
@@ -23799,6 +27609,7 @@ const BAR = {
   done: "bg-primary/25",
 } as const satisfies Record<TaskStatus, string>;
 
+// skeleton: renders from props and translations, so nothing of its own suspends
 /**
  * One row per task under its project, with a bar from `startsOn` to `dueOn`.
  * Tasks without dates stay in the list with an empty track, so the plan shows
@@ -24380,6 +28191,1770 @@ export function TaskImportDialog({ projectId }: { projectId: string }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+```
+
+## Risk register
+
+The organization's risks in a data grid with their residual band, status and next review date, the highest residual score first. It loads its data on the server through the block's client; the [risks block](https://bettersupabase.com/blocks/risks) must be installed (`npx better-supabase add risks`). Page: https://bettersupabase.com/recipes/risk-register.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add badge @reui/data-grid
+```
+
+```tsx title="apps/examples/nextjs/src/features/risks/components/risk-record-list.tsx"
+"use client";
+
+import type { CellContext, HeaderContext } from "@tanstack/react-table";
+
+import { MAX_PAGE_SORTS } from "better-supabase/blocks";
+import { ShieldAlertIcon } from "lucide-react";
+import { useExtracted, useFormatter } from "next-intl";
+
+import type {
+  RecordListColumns,
+  RecordListSorting,
+} from "@/components/record-list/record-list-grid";
+import type { RecordListPage } from "@/components/record-list/record-list-types";
+import type { ReadOnlyGridFeatures } from "@/components/reui/data-grid/data-grid";
+
+import { RecordListSortHeader } from "@/components/record-list/record-list-sort-header";
+import { RecordListView } from "@/components/record-list/record-list-view";
+import { Link } from "@/i18n/navigation";
+
+import type { RiskRow } from "../risk-rows";
+
+import { sortFromSorting, sortingOf } from "../risk-sort";
+import { useRiskListState } from "../use-risk-list-state";
+import { RiskBandBadge } from "./risk-band-badge";
+import { RiskStatusBadge, useRiskStatusLabel } from "./risk-status-badge";
+
+const STATUSES = ["identified", "assessed", "treating", "accepted", "closed"];
+const BANDS = ["low", "medium", "high", "critical"];
+
+const CATEGORIES = [
+  "quality",
+  "safety",
+  "environment",
+  "security",
+  "compliance",
+  "operational",
+  "financial",
+  "strategic",
+];
+
+const capitalized = (value: string): string =>
+  value.charAt(0).toUpperCase() + value.slice(1);
+
+type RiskCell = CellContext<ReadOnlyGridFeatures, RiskRow>;
+
+type SortHeaderContext = HeaderContext<ReadOnlyGridFeatures, RiskRow>;
+
+function sortHeader(title: string) {
+  return function RiskSortHeader(context: SortHeaderContext) {
+    return <RecordListSortHeader {...context} title={title} />;
+  };
+}
+
+function NumberCell({ row }: RiskCell) {
+  return (
+    <span className="font-mono text-xs text-muted-foreground">
+      {row.original.number}
+    </span>
+  );
+}
+
+function TitleCell({ row }: RiskCell) {
+  return (
+    <Link
+      href={`/risks/${row.original.id}`}
+      prefetch
+      className="font-medium hover:underline"
+    >
+      {row.original.title}
+    </Link>
+  );
+}
+
+function BandCell({ row }: RiskCell) {
+  return <RiskBandBadge {...row.original} />;
+}
+
+function StatusCell({ row }: RiskCell) {
+  return <RiskStatusBadge status={row.original.status} />;
+}
+
+function ReviewCell({ row }: RiskCell) {
+  const format = useFormatter();
+  const { nextReviewOn } = row.original;
+
+  return nextReviewOn === null ? (
+    <span className="text-muted-foreground">–</span>
+  ) : (
+    <span className="tabular-nums">
+      {format.dateTime(new Date(nextReviewOn), {
+        dateStyle: "medium",
+        timeZone: "UTC",
+      })}
+    </span>
+  );
+}
+
+/**
+ * The risk register on the list kit: the URL holds the search, the status,
+ * category and band filters, the sort and the keyset cursor; the register route
+ * serves every state but the default first page, which the server renders. The
+ * sorts are the ones the block declares (the generated `risksList` checks
+ * them).
+ */
+export function RiskRecordList({
+  initial,
+}: {
+  initial: RecordListPage<RiskRow>;
+}) {
+  const t = useExtracted("risks");
+  const statusLabel = useRiskStatusLabel();
+  const list = useRiskListState();
+
+  const columns: RecordListColumns<RiskRow> = [
+    {
+      accessorKey: "number",
+      header: sortHeader(t("Number")),
+      cell: NumberCell,
+      size: 100,
+    },
+    {
+      accessorKey: "title",
+      header: t("Risk"),
+      cell: TitleCell,
+      size: 280,
+      enableSorting: false,
+    },
+    {
+      accessorKey: "category",
+      header: t("Category"),
+      size: 140,
+      enableSorting: false,
+    },
+    {
+      // The band column sorts by the score behind it.
+      id: "residualScore",
+      accessorKey: "band",
+      header: sortHeader(t("Residual")),
+      cell: BandCell,
+      size: 150,
+      sortDescFirst: true,
+    },
+    {
+      accessorKey: "status",
+      header: t("Status"),
+      cell: StatusCell,
+      size: 120,
+      enableSorting: false,
+    },
+    {
+      accessorKey: "nextReviewOn",
+      header: sortHeader(t("Next review")),
+      cell: ReviewCell,
+      size: 140,
+    },
+  ];
+
+  const sorting: RecordListSorting = {
+    state: sortingOf(list.query.sort),
+    max: MAX_PAGE_SORTS,
+    onChange: (next) => {
+      list.set({ sort: sortFromSorting(next) });
+    },
+  };
+
+  return (
+    <RecordListView
+      list={list}
+      endpoint="/api/risks/register"
+      initial={initial}
+      columns={columns}
+      sorting={sorting}
+      facets={[
+        {
+          key: "status",
+          label: t("Status"),
+          values: STATUSES,
+          valueLabel: statusLabel,
+        },
+        {
+          key: "category",
+          label: t("Category"),
+          values: CATEGORIES,
+          valueLabel: capitalized,
+        },
+        {
+          key: "band",
+          label: t("Residual"),
+          values: BANDS,
+          valueLabel: capitalized,
+        },
+      ]}
+      sorts={[
+        { value: "residualScore", label: t("Residual score") },
+        { value: "number", label: t("Number") },
+        { value: "nextReviewOn", label: t("Next review") },
+      ]}
+      searchLabel={t("Search risks")}
+      emptyIcon={<ShieldAlertIcon />}
+      emptyTitle={t("No risks found")}
+      emptyDescription={t(
+        "Register a risk with its cause and consequence, then assess it against the organization's matrix, or change the filters.",
+      )}
+    />
+  );
+}
+```
+
+## Risk heatmap
+
+The open risks on the default matrix, one cell per likelihood and impact with the count in the band's color. It loads its data on the server through the block's client; the [risks block](https://bettersupabase.com/blocks/risks) must be installed (`npx better-supabase add risks`). Page: https://bettersupabase.com/recipes/risk-heatmap.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty skeleton table @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/risks/components/risk-heatmap.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+const TONE_VARIANT = {
+  low: "success-light",
+  medium: "warning-light",
+  high: "destructive-light",
+  critical: "destructive",
+} as const;
+
+/**
+ * Render inside `<Suspense>`: the open risks on the default matrix, one cell
+ * per likelihood and impact, colored by the cell's band. The highest likelihood
+ * is the top row.
+ */
+export async function RiskHeatmap() {
+  const [state, t] = await Promise.all([
+    getRiskHeatmap(),
+    getExtracted("risks"),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="risk-heatmap">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The heatmap didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const { matrixName, likelihoods, impacts, cells, total } = state.data;
+
+  const cellAt = new Map(
+    cells.map((cell) => [`${cell.likelihood}:${cell.impact}`, cell]),
+  );
+
+  return (
+    <Frame spacing="sm" data-recipe="risk-heatmap">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>{t("Heatmap")}</FrameTitle>
+        <FrameDescription>
+          {matrixName === null
+            ? t("Create a risk matrix to see where the risks sit.")
+            : t(
+                "{total, plural, =0 {No open risks} one {# open risk} other {# open risks}} on the {matrix} matrix, by residual rating.",
+                { total, matrix: matrixName },
+              )}
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel>
+        {total === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <GridIcon />
+              </EmptyMedia>
+              <EmptyTitle>
+                {matrixName === null
+                  ? t("No risk matrix yet")
+                  : t("Nothing assessed yet")}
+              </EmptyTitle>
+              <EmptyDescription>
+                {matrixName === null
+                  ? t(
+                      "Add a matrix with its likelihood and impact levels and bands, then assess risks against it.",
+                    )
+                  : t(
+                      "Assessed risks appear here in the cell of their residual likelihood and impact.",
+                    )}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <a
+                className="text-sm underline underline-offset-4"
+                href="https://bettersupabase.com/docs/blocks/risks#assess"
+              >
+                {t("Read how assessment works")}
+              </a>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <Table aria-label={t("Risks by likelihood and impact")}>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("Likelihood / impact")}</TableHead>
+                {impacts.map((impact) => (
+                  <TableHead key={impact.level} className="text-center">
+                    {impact.label}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {likelihoods.toReversed().map((likelihood) => (
+                <TableRow key={likelihood.level}>
+                  <TableHead scope="row">{likelihood.label}</TableHead>
+                  {impacts.map((impact) => {
+                    const cell = cellAt.get(
+                      `${likelihood.level}:${impact.level}`,
+                    );
+
+                    return (
+                      <TableCell key={impact.level} className="text-center">
+                        {cell ? (
+                          <Badge
+                            variant={TONE_VARIANT[cell.tone]}
+                            aria-label={t(
+                              "{band}: {count, plural, one {# risk} other {# risks}}",
+                              { band: cell.band, count: cell.count },
+                            )}
+                          >
+                            {cell.count}
+                          </Badge>
+                        ) : null}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </FramePanel>
+    </Frame>
+  );
+}
+```
+
+## Observation chart
+
+A record's latest vital signs with the flag against each reference range and a sparkline of the recent readings. It loads its data on the server through the block's client; the [observations block](https://bettersupabase.com/blocks/observations) must be installed (`npx better-supabase add observations`). Page: https://bettersupabase.com/recipes/observation-chart.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty skeleton table @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/observations/components/observation-chart.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+const FLAG_VARIANT = {
+  normal: "success-light",
+  low: "warning-light",
+  high: "warning-light",
+  critical_low: "destructive",
+  critical_high: "destructive",
+} as const satisfies Record<ObservationFlag, string>;
+
+const WIDTH = 120;
+const HEIGHT = 32;
+
+/** The values as an SVG polyline, scaled to the box. */
+function Sparkline({
+  values,
+  label,
+}: {
+  readonly values: readonly number[];
+  readonly label: string;
+}) {
+  if (values.length < 2) {
+    return null;
+  }
+
+  const low = Math.min(...values);
+  const span = Math.max(...values) - low || 1;
+  const step = WIDTH / (values.length - 1);
+
+  const points = values
+    .map(
+      (value, index) =>
+        `${(index * step).toFixed(1)},${(HEIGHT - 2 - ((value - low) / span) * (HEIGHT - 4)).toFixed(1)}`,
+    )
+    .join(" ");
+
+  return (
+    <>
+      <span className="sr-only">{label}</span>
+      <svg
+        aria-hidden="true"
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        className="h-8 w-30 text-primary"
+      >
+        <polyline
+          points={points}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
+    </>
+  );
+}
+
+/**
+ * Render inside `<Suspense>`: a record's latest vital signs, each with its flag
+ * against the reference range and a sparkline of its recent values.
+ */
+export async function ObservationChart({
+  clientId,
+}: { clientId?: string } = {}) {
+  const [state, t, format] = await Promise.all([
+    getVitals(clientId),
+    getExtracted("observations"),
+    getFormatter(),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="observation-chart">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The vital signs didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const { customer, rows } = state.data;
+
+  const flagLabel = (flag: ObservationFlag): string => {
+    switch (flag) {
+      case "normal": {
+        return t("Normal");
+      }
+
+      case "low": {
+        return t("Low");
+      }
+
+      case "high": {
+        return t("High");
+      }
+
+      case "critical_low": {
+        return t("Critically low");
+      }
+
+      case "critical_high": {
+        return t("Critically high");
+      }
+
+      default: {
+        const unknown: never = flag;
+
+        return unknown;
+      }
+    }
+  };
+
+  return (
+    <Frame spacing="sm" data-recipe="observation-chart">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>{t("Vital signs")}</FrameTitle>
+        <FrameDescription>
+          {customer === null
+            ? t("The latest readings of a customer, against their ranges.")
+            : t("The latest readings for {name}, against their ranges.", {
+                name: customer.name,
+              })}
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel>
+        {rows.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <HeartPulseIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No readings yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  "Recorded vital signs appear here with their flag and recent trend.",
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <a
+                className="text-sm underline underline-offset-4"
+                href="https://bettersupabase.com/docs/blocks/observations#record"
+              >
+                {t("Read how to record an observation")}
+              </a>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <Table aria-label={t("Latest vital signs")}>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("Measurement")}</TableHead>
+                <TableHead>{t("Latest")}</TableHead>
+                <TableHead>{t("Flag")}</TableHead>
+                <TableHead>{t("Trend")}</TableHead>
+                <TableHead>{t("Observed")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.key}>
+                  <TableCell className="font-medium">{row.title}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {row.unit === null ? row.value : `${row.value} ${row.unit}`}
+                  </TableCell>
+                  <TableCell>
+                    {row.flag === null ? null : (
+                      <Badge variant={FLAG_VARIANT[row.flag]}>
+                        {flagLabel(row.flag)}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Sparkline
+                      values={row.series}
+                      label={t("{title}: the last {count, number} readings", {
+                        title: row.title,
+                        count: row.series.length,
+                      })}
+                    />
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {format.dateTime(new Date(row.observedAt), {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </FramePanel>
+    </Frame>
+  );
+}
+```
+
+## Case board
+
+The open cases in stage columns, reported to verifying; dragging a card moves the case to that stage of its kind's pipeline. It loads its data on the server through the block's client; the [cases block](https://bettersupabase.com/blocks/cases) must be installed (`npx better-supabase add cases`). Page: https://bettersupabase.com/recipes/case-board.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add badge card @reui/kanban
+```
+
+```tsx title="apps/examples/nextjs/src/features/cases/components/case-board.tsx"
+/**
+ * The organization's open cases in a column for their stage. Dragging a card to
+ * another column moves the case there; a failed move puts it back. The parent
+ * keys it by the cards' stages, so a refresh starts it from the saved board.
+ */
+export function CaseBoard({
+  data,
+  canMove,
+}: {
+  data: CaseBoardData;
+  canMove: boolean;
+}) {
+  const errorMessage = useErrorMessage();
+  const label = useStageLabel();
+  const [columns, setColumns] = useState(() => columnsOf(data.cards));
+  const move = useAction(moveCase);
+  const byId = new Map(data.cards.map((card) => [card.id, card]));
+
+  return (
+    <div data-recipe="case-board">
+      <Kanban
+        value={columns}
+        onValueChange={setColumns}
+        getItemValue={(card) => card.id}
+        onValueCommit={(_value, meta) => {
+          if (meta.kind !== "item") {
+            return;
+          }
+
+          const from = v.parse(StageSchema, meta.activeContainer);
+          const to = v.parse(StageSchema, meta.overContainer);
+          const card = byId.get(String(meta.event.active.id));
+
+          const stageId =
+            card === undefined ? undefined : data.stages[card.pipelineId]?.[to];
+
+          if (from === to || card === undefined || stageId === undefined) {
+            setColumns(meta.previousValue);
+
+            return;
+          }
+
+          void move.run({ caseId: card.id, stageId }).then((result) => {
+            if (!result.ok) {
+              setColumns(meta.previousValue);
+              toast.error(errorMessage(result.error));
+            }
+
+            return result;
+          });
+        }}
+      >
+        <KanbanBoard className="flex overflow-x-auto">
+          {OPEN_STAGES.map((stage) => {
+            const column = columns[stage] ?? [];
+
+            return (
+              <KanbanColumn
+                key={stage}
+                value={stage}
+                className="w-72 shrink-0 gap-3 rounded-lg bg-muted/50 p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">{label(stage)}</span>
+                  <Badge variant="outline">{column.length}</Badge>
+                </div>
+                <KanbanColumnContent value={stage} className="min-h-16">
+                  {column.map((card) => (
+                    <KanbanItem
+                      key={card.id}
+                      value={card.id}
+                      disabled={!canMove || move.pending}
+                    >
+                      <KanbanItemHandle cursor={canMove}>
+                        <CaseItem card={card} />
+                      </KanbanItemHandle>
+                    </KanbanItem>
+                  ))}
+                </KanbanColumnContent>
+              </KanbanColumn>
+            );
+          })}
+        </KanbanBoard>
+        <KanbanOverlay>
+          {({ value, variant }) => {
+            const card =
+              variant === "item" ? byId.get(String(value)) : undefined;
+
+            return card ? <CaseItem card={card} /> : null;
+          }}
+        </KanbanOverlay>
+      </Kanban>
+    </div>
+  );
+}
+```
+
+## Case detail
+
+One case with its severity, root cause, what still blocks closing it and its actions, and a Close button once nothing blocks it. It loads its data on the server through the block's client; the [cases block](https://bettersupabase.com/blocks/cases) must be installed (`npx better-supabase add cases`). Page: https://bettersupabase.com/recipes/case-detail.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/cases/components/case-detail.tsx"
+/**
+ * One case with what still stops it from closing and its actions. Close is
+ * enabled once nothing blocks it; the database checks again when it runs.
+ */
+export function CaseDetail({
+  detail,
+  canClose,
+}: {
+  detail: CaseDetailView;
+  canClose: boolean;
+}) {
+  const t = useExtracted("cases");
+  const format = useFormatter();
+  const errorMessage = useErrorMessage();
+  const blocker = useBlockerLabel();
+  const actionType = useActionTypeLabel();
+  const severity = useSeverityLabel();
+
+  const close = useAction(closeCase, {
+    onSuccess: ({ number }) => {
+      toast.success(t("Closed {number}", { number }));
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error));
+    },
+  });
+
+  const open = detail.status === "open";
+
+  return (
+    <Frame spacing="sm" data-recipe="case-detail">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>
+          {t("{number}: {title}", {
+            number: detail.number,
+            title: detail.title,
+          })}
+        </FrameTitle>
+        <FrameDescription>
+          {detail.stage === null
+            ? detail.kind
+            : t("{kind} in {stage}", {
+                kind: detail.kind,
+                stage: detail.stage,
+              })}
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {detail.severity === null ? null : (
+            <Badge variant={severityVariant(detail.severity)}>
+              {severity(detail.severity)}
+            </Badge>
+          )}
+          {detail.effectivenessDueOn === null ? null : (
+            <Badge variant="info-light">
+              {t("Effectiveness check due {date}", {
+                date: format.dateTime(new Date(detail.effectivenessDueOn), {
+                  dateStyle: "medium",
+                  timeZone: "UTC",
+                }),
+              })}
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm">
+          {detail.rootCause ?? (
+            <span className="text-muted-foreground">
+              {t("No root cause recorded yet.")}
+            </span>
+          )}
+        </p>
+        {open && detail.blockers.length > 0 ? (
+          <Alert variant="warning">
+            <CircleDotIcon />
+            <AlertTitle>{t("Before this case can close")}</AlertTitle>
+            <AlertDescription>
+              <ul className="flex list-disc flex-col gap-1 pl-4">
+                {detail.blockers.map((code) => (
+                  <li key={code}>{blocker(code)}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        ) : open ? (
+          <Alert variant="success">
+            <CircleCheckIcon />
+            <AlertTitle>{t("Nothing blocks closing this case")}</AlertTitle>
+          </Alert>
+        ) : null}
+        {detail.actions.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <ListChecksIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No actions yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  "Containment and corrective actions are tasks; add them from the case's work items.",
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {detail.actions.map((action) => (
+              <li
+                key={action.id}
+                className="flex items-center justify-between gap-2 text-sm"
+              >
+                <span className="flex items-center gap-2">
+                  <Badge variant="outline">{actionType(action.type)}</Badge>
+                  {action.title}
+                </span>
+                {action.done ? (
+                  <Badge variant="success-light">{t("Done")}</Badge>
+                ) : (
+                  <Badge variant="secondary">
+                    {action.required ? t("Open, required") : t("Open")}
+                  </Badge>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </FramePanel>
+      {open && canClose ? (
+        <FrameFooter>
+          <Button
+            type="button"
+            size="sm"
+            disabled={detail.blockers.length > 0 || close.pending}
+            onClick={() => {
+              void close.run({ caseId: detail.id });
+            }}
+          >
+            {t("Close case")}
+          </Button>
+        </FrameFooter>
+      ) : null}
+    </Frame>
+  );
+}
+```
+
+## Inspection programme calendar
+
+The audit programme in a data grid: each inspection in the month it is planned, with its number, kind, programme and status. It loads its data on the server through the block's client; the [inspections block](https://bettersupabase.com/blocks/inspections) must be installed (`npx better-supabase add inspections`). Page: https://bettersupabase.com/recipes/inspection-program-calendar.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty skeleton @reui/data-grid @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/inspections/components/inspection-program-calendar.tsx"
+"use client";
+
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
+
+import { useTable } from "@tanstack/react-table";
+import { ClipboardCheckIcon, TriangleAlertIcon } from "lucide-react";
+import { useExtracted, useFormatter } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+
+import type { ReadOnlyGridFeatures } from "@/components/reui/data-grid/data-grid";
+
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/reui/alert";
+import {
+  DataGrid,
+  DataGridContainer,
+} from "@/components/reui/data-grid/data-grid";
+import { readOnlyGridFeatures } from "@/components/reui/data-grid/data-grid-features-read-only";
+import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
+import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
+import {
+  Frame,
+  FrameDescription,
+  FrameHeader,
+  FramePanel,
+  FrameTitle,
+} from "@/components/reui/frame";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Link } from "@/i18n/navigation";
+
+import type { InspectionRow, Loaded } from "../inspections-queries";
+
+import { InspectionStatusBadge, useKindLabel } from "./inspection-labels";
+
+type InspectionCell = CellContext<ReadOnlyGridFeatures, InspectionRow>;
+
+function PlannedCell({ row }: InspectionCell) {
+  const t = useExtracted("inspections");
+  const format = useFormatter();
+  const { plannedStart } = row.original;
+
+  return plannedStart === null ? (
+    <span className="text-muted-foreground">{t("Not planned")}</span>
+  ) : (
+    <span className="tabular-nums">
+      {format.dateTime(new Date(plannedStart), {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      })}
+    </span>
+  );
+}
+
+function NumberCell({ row }: InspectionCell) {
+  return (
+    <span className="font-mono text-xs text-muted-foreground">
+      {row.original.number}
+    </span>
+  );
+}
+
+function TitleCell({ row }: InspectionCell) {
+  return (
+    <Link
+      href={`/inspections?inspection=${row.original.id}`}
+      className="font-medium underline-offset-4 transition-colors hover:underline"
+    >
+      {row.original.title}
+    </Link>
+  );
+}
+
+function KindCell({ row }: InspectionCell) {
+  const kind = useKindLabel();
+
+  return <span>{kind(row.original.kind)}</span>;
+}
+
+function ProgramCell({ row }: InspectionCell) {
+  return (
+    <span className="text-muted-foreground">{row.original.program ?? "–"}</span>
+  );
+}
+
+function StatusCell({ row }: InspectionCell) {
+  return <InspectionStatusBadge status={row.original.status} />;
+}
+
+function CalendarGrid({
+  inspections,
+}: {
+  inspections: readonly InspectionRow[];
+}) {
+  const t = useExtracted("inspections");
+
+  const columns: ColumnDef<ReadOnlyGridFeatures, InspectionRow>[] = [
+    {
+      accessorKey: "plannedStart",
+      header: t("Planned"),
+      cell: PlannedCell,
+      size: 150,
+    },
+    { accessorKey: "number", header: t("Number"), cell: NumberCell, size: 130 },
+    {
+      accessorKey: "title",
+      header: t("Inspection"),
+      cell: TitleCell,
+      size: 260,
+    },
+    { accessorKey: "kind", header: t("Kind"), cell: KindCell, size: 160 },
+    {
+      accessorKey: "program",
+      header: t("Programme"),
+      cell: ProgramCell,
+      size: 180,
+    },
+    { accessorKey: "status", header: t("Status"), cell: StatusCell, size: 120 },
+  ];
+
+  const table = useTable({
+    features: readOnlyGridFeatures,
+    columns,
+    data: [...inspections],
+    getRowId: (row) => row.id,
+  });
+
+  return (
+    <DataGrid
+      table={table}
+      recordCount={inspections.length}
+      tableLayout={{ dense: true }}
+    >
+      <DataGridContainer>
+        <DataGridScrollArea>
+          <DataGridTable />
+        </DataGridScrollArea>
+      </DataGridContainer>
+    </DataGrid>
+  );
+}
+
+/**
+ * The organization's audit programme as a calendar: each inspection in the
+ * month it is planned, with its kind, programme and status.
+ */
+export function InspectionProgramCalendar({
+  state,
+}: {
+  state: Loaded<readonly InspectionRow[]>;
+}) {
+  const t = useExtracted("inspections");
+  const router = useRouter();
+  const [retrying, startRetry] = useTransition();
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  return (
+    <Frame spacing="sm" data-recipe="inspection-program-calendar">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>{t("Audit programme")}</FrameTitle>
+        <FrameDescription>
+          {t(
+            "Every audit and inspection in the month it is planned. Open one to work its findings.",
+          )}
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel>
+        {state.kind === "error" ? (
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("The audit programme didn't load")}</AlertTitle>
+            <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+            <AlertAction>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                disabled={retrying}
+                onClick={() => {
+                  startRetry(() => {
+                    router.refresh();
+                  });
+                }}
+              >
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : state.data.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <ClipboardCheckIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No inspections planned")}</EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  "Approve an audit programme for the year, then schedule its audits with a lead and a checklist.",
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <a
+                className="text-sm underline underline-offset-4"
+                href="https://bettersupabase.com/docs/blocks/inspections"
+              >
+                {t("Read the inspections guide")}
+              </a>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <CalendarGrid inspections={state.data} />
+        )}
+      </FramePanel>
+    </Frame>
+  );
+}
+```
+
+## Inspection run
+
+One inspection with its status, checklist and team, its findings with a Raise case button for each nonconformity, and a Close button once every one has its case. It loads its data on the server through the block's client; the [inspections block](https://bettersupabase.com/blocks/inspections) must be installed (`npx better-supabase add inspections`). Page: https://bettersupabase.com/recipes/inspection-run.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/inspections/components/inspection-run.tsx"
+/**
+ * One inspection with its team, checklist and findings. A finding that needs a
+ * case gets a Raise case button, and Close is enabled once each one has its
+ * case; the database checks again when it runs.
+ */
+export function InspectionRun({
+  state,
+  canWork,
+}: {
+  state: Loaded<InspectionRunView>;
+  canWork: boolean;
+}) {
+  const t = useExtracted("inspections");
+  const router = useRouter();
+  const [retrying, startRetry] = useTransition();
+  const errorMessage = useErrorMessage();
+  const kind = useKindLabel();
+  const findingType = useFindingTypeLabel();
+  const role = useRoleLabel();
+
+  const raise = useAction(raiseFindingCase, {
+    onSuccess: () => {
+      toast.success(t("Case raised"));
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error));
+    },
+  });
+
+  const close = useAction(closeInspection, {
+    onSuccess: ({ number }) => {
+      toast.success(t("Closed {number}", { number }));
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error));
+    },
+  });
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Frame spacing="sm">
+        <FramePanel>
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("The inspection didn't load")}</AlertTitle>
+            <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+            <AlertAction>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                disabled={retrying}
+                onClick={() => {
+                  startRetry(() => {
+                    router.refresh();
+                  });
+                }}
+              >
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        </FramePanel>
+      </Frame>
+    );
+  }
+
+  const run = state.data;
+
+  const waiting = run.findings.filter(
+    (finding) => finding.needsCase && finding.caseId === null,
+  ).length;
+
+  const working = run.status === "in_progress" || run.status === "reporting";
+
+  return (
+    <Frame spacing="sm" data-recipe="inspection-run">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>
+          {t("{number}: {title}", { number: run.number, title: run.title })}
+        </FrameTitle>
+        <FrameDescription>{kind(run.kind)}</FrameDescription>
+      </FrameHeader>
+      <FramePanel className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <InspectionStatusBadge status={run.status} />
+          {run.checklist === null ? null : run.checklist === "submitted" ? (
+            <Badge variant="success-light">{t("Checklist submitted")}</Badge>
+          ) : (
+            <Badge variant="warning-light">{t("Checklist in draft")}</Badge>
+          )}
+          <span className="text-xs text-muted-foreground">
+            {t(
+              "{count, plural, =0 {No team yet} one {# team member} other {# team members}}",
+              { count: run.team.length },
+            )}
+            {run.team.length === 0
+              ? ""
+              : ` (${run.team.map((member) => role(member.role)).join(", ")})`}
+          </span>
+        </div>
+        {working && waiting > 0 ? (
+          <Alert variant="warning">
+            <CircleDotIcon />
+            <AlertTitle>
+              {t(
+                "{count, plural, one {# finding needs a case} other {# findings need a case}} before this inspection can close",
+                { count: waiting },
+              )}
+            </AlertTitle>
+          </Alert>
+        ) : run.status === "reporting" ? (
+          <Alert variant="success">
+            <CircleCheckIcon />
+            <AlertTitle>{t("Every nonconformity has its case")}</AlertTitle>
+          </Alert>
+        ) : null}
+        {run.findings.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <SearchCheckIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No findings yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  "The lead and auditors record findings while the inspection is in progress.",
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {run.findings.map((finding) => (
+              <li
+                key={finding.id}
+                className="flex items-center justify-between gap-2 text-sm"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                    {finding.number}
+                  </span>
+                  <Badge
+                    variant={
+                      finding.needsCase ? "destructive-light" : "outline"
+                    }
+                  >
+                    {findingType(finding.type)}
+                  </Badge>
+                  {finding.title}
+                  {finding.clause === null ? null : (
+                    <span className="text-xs text-muted-foreground">
+                      {finding.clause}
+                    </span>
+                  )}
+                </span>
+                {finding.caseId === null ? (
+                  finding.needsCase && working && canWork ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={raise.pending}
+                      onClick={() => {
+                        void raise.run({ findingId: finding.id });
+                      }}
+                    >
+                      {t("Raise case")}
+                    </Button>
+                  ) : null
+                ) : (
+                  <Link
+                    href={`/cases?case=${finding.caseId}`}
+                    className="text-sm underline-offset-4 transition-colors hover:underline"
+                  >
+                    {t("Open case")}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </FramePanel>
+      {run.status === "reporting" && canWork ? (
+        <FrameFooter>
+          <Button
+            type="button"
+            size="sm"
+            disabled={waiting > 0 || close.pending}
+            onClick={() => {
+              void close.run({ inspectionId: run.id });
+            }}
+          >
+            {t("Close inspection")}
+          </Button>
+        </FrameFooter>
+      ) : null}
+    </Frame>
+  );
+}
+```
+
+## Meeting agenda
+
+The organization's meetings in a data grid with their kind, place and status, the most recent first, each linking to its minutes. It loads its data on the server through the block's client; the [meetings block](https://bettersupabase.com/blocks/meetings) must be installed (`npx better-supabase add meetings`). Page: https://bettersupabase.com/recipes/meeting-agenda.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty skeleton @reui/data-grid @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/meetings/components/meeting-agenda.tsx"
+"use client";
+
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
+
+import { useTable } from "@tanstack/react-table";
+import { GavelIcon, TriangleAlertIcon } from "lucide-react";
+import { useExtracted, useFormatter } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+
+import type { ReadOnlyGridFeatures } from "@/components/reui/data-grid/data-grid";
+
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/reui/alert";
+import {
+  DataGrid,
+  DataGridContainer,
+} from "@/components/reui/data-grid/data-grid";
+import { readOnlyGridFeatures } from "@/components/reui/data-grid/data-grid-features-read-only";
+import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
+import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
+import {
+  Frame,
+  FrameDescription,
+  FrameHeader,
+  FramePanel,
+  FrameTitle,
+} from "@/components/reui/frame";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Link } from "@/i18n/navigation";
+
+import type { Loaded, MeetingRow } from "../meetings-queries";
+
+import { MeetingStatusBadge, useKindLabel } from "./meeting-labels";
+
+type MeetingCell = CellContext<ReadOnlyGridFeatures, MeetingRow>;
+
+function StartsCell({ row }: MeetingCell) {
+  const format = useFormatter();
+
+  return (
+    <span className="tabular-nums">
+      {format.dateTime(new Date(row.original.startsAt), {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })}
+    </span>
+  );
+}
+
+function TitleCell({ row }: MeetingCell) {
+  return (
+    <Link
+      href={`/meetings?meeting=${row.original.id}`}
+      className="font-medium underline-offset-4 transition-colors hover:underline"
+    >
+      {row.original.title}
+    </Link>
+  );
+}
+
+function KindCell({ row }: MeetingCell) {
+  const kind = useKindLabel();
+
+  return <span>{kind(row.original.kind)}</span>;
+}
+
+function LocationCell({ row }: MeetingCell) {
+  return (
+    <span className="text-muted-foreground">
+      {row.original.location ?? "–"}
+    </span>
+  );
+}
+
+function StatusCell({ row }: MeetingCell) {
+  return <MeetingStatusBadge status={row.original.status} />;
+}
+
+function AgendaGrid({ meetings }: { meetings: readonly MeetingRow[] }) {
+  const t = useExtracted("meetings");
+
+  const columns: ColumnDef<ReadOnlyGridFeatures, MeetingRow>[] = [
+    {
+      accessorKey: "startsAt",
+      header: t("Starts"),
+      cell: StartsCell,
+      size: 180,
+    },
+    { accessorKey: "title", header: t("Meeting"), cell: TitleCell, size: 260 },
+    { accessorKey: "kind", header: t("Kind"), cell: KindCell, size: 160 },
+    {
+      accessorKey: "location",
+      header: t("Location"),
+      cell: LocationCell,
+      size: 160,
+    },
+    { accessorKey: "status", header: t("Status"), cell: StatusCell, size: 120 },
+  ];
+
+  const table = useTable({
+    features: readOnlyGridFeatures,
+    columns,
+    data: [...meetings],
+    getRowId: (row) => row.id,
+  });
+
+  return (
+    <DataGrid
+      table={table}
+      recordCount={meetings.length}
+      tableLayout={{ dense: true }}
+    >
+      <DataGridContainer>
+        <DataGridScrollArea>
+          <DataGridTable />
+        </DataGridScrollArea>
+      </DataGridContainer>
+    </DataGrid>
+  );
+}
+
+/**
+ * The organization's meetings in a data grid, the most recent first, each with
+ * its kind, place and status. Open one to see its agenda and decisions.
+ */
+export function MeetingAgenda({
+  state,
+}: {
+  state: Loaded<readonly MeetingRow[]>;
+}) {
+  const t = useExtracted("meetings");
+  const router = useRouter();
+  const [retrying, startRetry] = useTransition();
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  return (
+    <Frame spacing="sm" data-recipe="meeting-agenda">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>{t("Meetings")}</FrameTitle>
+        <FrameDescription>
+          {t("Every meeting, the most recent first. Open one for its minutes.")}
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel>
+        {state.kind === "error" ? (
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("The meetings didn't load")}</AlertTitle>
+            <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+            <AlertAction>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                disabled={retrying}
+                onClick={() => {
+                  startRetry(() => {
+                    router.refresh();
+                  });
+                }}
+              >
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : state.data.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <GavelIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No meetings yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  "Plan a meeting with its attendees and agenda, then record the minutes and decisions while it runs.",
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <a
+                className="text-sm underline underline-offset-4"
+                href="https://bettersupabase.com/docs/blocks/meetings"
+              >
+                {t("Read the meetings guide")}
+              </a>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <AgendaGrid meetings={state.data} />
+        )}
+      </FramePanel>
+    </Frame>
+  );
+}
+```
+
+## Meeting minutes
+
+One meeting with the minutes of each agenda item, its decisions with the votes so far and a Settle button, the tasks it opened, and Start and Hold buttons for the people who run it. It loads its data on the server through the block's client; the [meetings block](https://bettersupabase.com/blocks/meetings) must be installed (`npx better-supabase add meetings`). Page: https://bettersupabase.com/recipes/meeting-minutes.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button empty @reui/frame
+```
+
+```tsx title="apps/examples/nextjs/src/features/meetings/components/meeting-minutes.tsx"
+/**
+ * One meeting with the minutes of each agenda item, its decisions with the
+ * votes so far, and the tasks it opened. The chair starts and holds the meeting
+ * and settles a decision from the votes; the database checks the caller's role
+ * again when it runs.
+ */
+export function MeetingMinutes({
+  state,
+  canRun,
+}: {
+  state: Loaded<MeetingMinutesView>;
+  canRun: boolean;
+}) {
+  const t = useExtracted("meetings");
+  const router = useRouter();
+  const [retrying, startRetry] = useTransition();
+  const errorMessage = useErrorMessage();
+
+  const start = useAction(startMeeting, {
+    onSuccess: () => {
+      toast.success(t("Meeting started"));
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error));
+    },
+  });
+
+  const hold = useAction(holdMeeting, {
+    onSuccess: () => {
+      toast.success(t("Meeting held"));
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error));
+    },
+  });
+
+  const settle = useAction(settleDecision, {
+    onSuccess: () => {
+      toast.success(t("Decision settled"));
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error));
+    },
+  });
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Frame spacing="sm">
+        <FramePanel>
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("The meeting didn't load")}</AlertTitle>
+            <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+            <AlertAction>
+              <Button
+                size="sm"
+                variant="outline"
+                type="button"
+                disabled={retrying}
+                onClick={() => {
+                  startRetry(() => {
+                    router.refresh();
+                  });
+                }}
+              >
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        </FramePanel>
+      </Frame>
+    );
+  }
+
+  const meeting = state.data;
+
+  return (
+    <Frame spacing="sm" data-recipe="meeting-minutes">
+      <FrameHeader className="gap-0.5">
+        <FrameTitle>{meeting.title}</FrameTitle>
+        <FrameDescription>
+          {t(
+            "{count, plural, =0 {No attendees yet} one {# attendee} other {# attendees}}",
+            { count: meeting.attendees.length },
+          )}
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <MeetingStatusBadge status={meeting.status} />
+        </div>
+        {meeting.agenda.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <ListChecksIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No agenda yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t("The chair adds the agenda items before the meeting.")}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <ol className="flex flex-col gap-3">
+            {meeting.agenda.map((item) => (
+              <li key={item.id} className="flex flex-col gap-1 text-sm">
+                <span className="flex items-center gap-2 font-medium">
+                  <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                    {item.ordinal}
+                  </span>
+                  {item.title}
+                </span>
+                {item.minutes === null ? null : (
+                  <p className="text-muted-foreground">{item.minutes}</p>
+                )}
+                {item.outcome === null ? null : (
+                  <Badge variant="outline">{item.outcome}</Badge>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+        {meeting.decisions.length === 0 ? null : (
+          <ul className="flex flex-col gap-2">
+            {meeting.decisions.map((decision) => (
+              <li
+                key={decision.id}
+                className="flex items-center justify-between gap-2 text-sm"
+              >
+                <span className="flex items-center gap-2">
+                  <DecisionStatusBadge status={decision.status} />
+                  {decision.title}
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {t("{up} for, {down} against", {
+                      up: String(decision.up),
+                      down: String(decision.down),
+                    })}
+                  </span>
+                </span>
+                {decision.status === "proposed" && canRun ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={settle.pending}
+                    onClick={() => {
+                      void settle.run({ decisionId: decision.id });
+                    }}
+                  >
+                    {t("Settle from votes")}
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+        {meeting.actionItems.length === 0 ? null : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {meeting.actionItems.map((item) => (
+              <li key={item.workItemId} className="flex items-center gap-2">
+                <Badge variant="secondary">{item.state}</Badge>
+                {item.title}
+              </li>
+            ))}
+          </ul>
+        )}
+      </FramePanel>
+      {canRun &&
+      (meeting.status === "planned" || meeting.status === "in_progress") ? (
+        <FrameFooter>
+          {meeting.status === "planned" ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={start.pending}
+              onClick={() => {
+                void start.run({ meetingId: meeting.id });
+              }}
+            >
+              {t("Start meeting")}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              disabled={hold.pending}
+              onClick={() => {
+                void hold.run({ meetingId: meeting.id });
+              }}
+            >
+              {t("Hold meeting")}
+            </Button>
+          )}
+        </FrameFooter>
+      ) : null}
+    </Frame>
   );
 }
 ```

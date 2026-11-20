@@ -3,7 +3,7 @@
 Four blocks carry a repository extension next to their SQL. With the block
 in `better-supabase.config.ts`, `gen` marks every table that has the columns
 and installs the extension in the generated schema, so
-`defineSupabase(schema)` applies it with no `.use()` call:
+`createSupabase(schema)` applies it with no `.use()` call:
 
 ```ts
 blocks: {

@@ -75,6 +75,41 @@ pnpm better-supabase add agents connectors ai-schedules
   `runJob()` on the `ai_task_run` queue when the `queue` module is
   installed); without jobs, call `drain()` from a cron route.
 
+## AI SDK 7 modules
+
+All from `better-supabase/ai-sdk` or its subpaths; the blocks never import the SDK.
+
+- Messages: `toUIMessage`, `fromUIMessage` and `validUIMessages` convert between
+  the ai-chat rows and AI SDK 7 `UIMessage`s (parts are stored as they are).
+  `fromModelMessages` stores a model's response messages, with approvals and sources.
+- Chat route: `createAssistant({ chats, model, ... })` from `ai-sdk/chat` builds
+  the POST, stop and resume handlers. `useAssistant` from `ai-sdk/react` calls
+  the server's stop endpoint before it stops the local stream.
+  `createCompletionRoute` and `createObjectRoute` settle `onFinish` when the
+  request aborts.
+- Durable chats: `durableChat`, `durableTurn` and `durableSteps` from
+  `ai-sdk/workflow` run a turn in a Workflow SDK run with approvals as hooks.
+  `durableTransport` and `useDurableAssistant` (`ai-sdk/workflow-react`) take
+  `transportOptions` (the `WorkflowChatTransport` options except `api`).
+  `createWorkflowAgentRuntime` builds a `WorkflowAgent` from an agent row;
+  `toolApprovalSecret: { environmentVariable }` signs approvals.
+- Telemetry: `meterTelemetry({ meters })` is an AI SDK 7 `Telemetry` integration
+  that meters per tenant, keyed on the response id. A per-call `integrations`
+  list replaces the registered ones. `createAgentRuntime` exposes the tenant
+  with `includeRuntimeContext`; a `generateText` call you make needs the same.
+- Agents: `createAgentRuntime` takes `settings` (other `ToolLoopAgent`
+  settings), `prepareCall`, `prepareStep`, `compact` (`pruneMessages` options),
+  `telemetry` and `toolApprovalSecret`. `connectTools` takes `maxRetries` and
+  `askUnlessReadOnly`.
+- Knowledge: an `Embedder` with `apiVersion: 2` returns `{ embeddings, usage }`
+  (`embedWith` does); version 1 still works. `createKnowledge` takes `dimensions`
+  and `priorityOrder`, and hits carry `chunkId` and `organizationId`.
+  `searchTool` is `strict` and takes `modelOutput: { maxCharacters }`.
+- Guardrails: `guardrailsMiddleware(guardrails, { agent })` is a
+  `LanguageModelMiddleware` for `wrapLanguageModel`: it refuses or redacts the
+  last user message, then checks the answer and holds a streamed text block
+  until `text-end`. The block's text helper is `guardText`.
+
 ## Files, cache and batches
 
 - `aiFileDownload(files)` as `experimental_download` in `streamText` reads
@@ -119,6 +154,16 @@ a cron. Mirror platform messages into the inbox with
 `handler.mirror(thread, message)`. Platform adapters such as
 `@chat-adapter/slack` are the app's own dependencies.
 
+`webhook({ sink })` stores the raw request in a durable sink such as the
+queue block's `createWebhookInbox()`; a worker replays it with
+`handler.process(chatEventOf(message))`. `inboxStore(inbox)` is the default
+`ChatInboundStore`, so `inboundHandler`, `deliver` and `maintain` also take
+your own store. `capabilitiesOf(adapterName)` reads an adapter's features and
+needs the optional peer `@chat-adapter/catalog`. `inboxAdapter` handles
+actions, reactions, stop actions, file upload and `ai_generated` metadata.
+The `chat-sdk-state` module is version 2 (`bigint` TTLs): re-run
+`better-supabase add chat-sdk-state` and apply the migration to upgrade.
+
 Inbox thread ids are `inbox:<inboxId>:<conversationId>`; build and read them
 with `inboxThreadId` and `decodeInboxThreadId`, never by string slicing. Pass
 `waitUntil` (Next.js `after`) in the options of `bot.webhooks.inbox(request,
@@ -126,6 +171,17 @@ options)` so the drain returns before the bot answers. Adapter
 calls throw `ChatError` (a `RateLimitError` for `rate_limited`) with the
 `DbError` as `cause`, and `deliver` retries a platform `RATE_LIMITED` reply
 after its `retryAfterMs`.
+
+Embeddings and files: `embeddingCacheMiddleware` caches embeddings, `rerankHits`
+reranks, `uploadToProvider` and `providerFileParts` reuse provider file
+references, and `renderAutoEmbedding` (from `better-supabase/sql`) with
+`embeddingWorker` keeps a table's vector column current through pgmq, pg_net and
+pg_cron. `syncSkill` uploads agent skills once per content hash.
+`better-supabase/json-render` stores a streamed UI spec as one part
+(`assistant({ parts: { compact: collapseSpecParts } })`). `postgresMcpEventStore`
+keeps MCP event subscriptions in Vault, `aiTranscriber` feeds the activities
+block, `realtimeTokenRoute` guards realtime tokens and `toolSearchFrom` ranks
+deferred tools from a catalog.
 
 Docs: https://bettersupabase.com/docs/ai-sdk.md (and `agents`, `mcp`,
 `embeddings`, `memory`, `files`, `batches` under `/docs/ai-sdk/`),

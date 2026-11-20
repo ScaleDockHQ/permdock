@@ -1,15 +1,15 @@
 # Prisma 8 — Queries (Postgres)
 
-> Load this guide when `db.ts` imports from `@internal/postgres/runtime`.
+> Load this guide when `db.ts` imports from `@prisma/orm-postgres/runtime`.
 
 Shared concepts (result consumption, script teardown, cross-target pitfalls, capability gaps) live in [`queries.md`](./queries.md).
 
 ## Key Concepts
 
-**Postgres** (`postgres({ contract, ... })` from `@internal/postgres/runtime`):
+**Postgres** (`postgres({ contract, ... })` from `@prisma/orm-postgres/runtime`):
 
 - **`db.orm.<ns>.<Model>`** — ORM, PascalCase model name (`db.orm.public.User`). Fluent `.where(...).select(...).orderBy(...).all()`, fully typed against `Contract`. Default lane for CRUD with relations.
-- **`db.sql.<ns>.<table>`** — SQL builder, lowercase storage name (`db.sql.public.user`). Produces a *plan*. A plan that returns rows (`select`, or a write with `.returning(...)`) runs through `db.query(plan)`; a write with no `RETURNING` runs through `db.execute(plan)`, which resolves `{ affectedRows }`. Use when the ORM is too high-level — explicit `JOIN`, computed projections, set operations, window functions.
+- **`db.sql.<ns>.<table>`** — SQL builder, lowercase storage name (`db.sql.public.user`). Produces a *plan*. A plan that returns rows (`select`, or a write with `.returning(...)`) runs through `db.query(plan)`; a write with no `RETURNING` runs through `db.execute(plan)`, which resolves `{ affectedRows }`. Use when the ORM is too high-level — explicit `JOIN`, computed projections, row locks on a plan. The SQL builder has no set operations (`UNION`, `INTERSECT`, `EXCEPT`), no window functions (`OVER (...)`) and no `WITH`; write those as raw SQL with ``db.raw.sql`…` `` (see *A raw-SQL lane* in [`queries.md`](./queries.md)).
 
 Reach for the ORM first; drop to `db.sql` when the ORM can't express the shape. Lane choice is local — one query function picks one lane, not the whole app.
 
@@ -22,8 +22,9 @@ Reach for the ORM first; drop to `db.sql` when the ORM can't express the shape. 
 | Aggregate (count, sum, avg) | **ORM `.aggregate(...)`** | Typed result; works with grouping (`.groupBy(...).aggregate(...)`). |
 | `INSERT ... RETURNING` / `UPDATE ... RETURNING` typed result | **ORM mutations** (returns updated rows) or **`db.sql.<ns>.<t>.insert(...).returning(...)`** | ORM returns inserted/updated rows; SQL builder exposes `.returning(...)` explicitly. |
 | Computed projection (e.g. `ST_DistanceSphere(location, point) AS meters`) alongside model fields | **SQL builder (`db.sql.<ns>.<t>`)** | The ORM projects model fields; arbitrary expression projection is the SQL builder's seam. |
-| Complex `JOIN`, set operation, window function | **SQL builder** | The ORM doesn't express arbitrary joins. |
-| Postgres-specific feature (`LATERAL`, `FILTER`, custom aggregates) | **SQL builder**, falling back to extension operators when the extension provides them | DSL first; extensions can contribute operators (`postgis`, `pgvector`). |
+| Complex `JOIN` | **SQL builder** | The ORM doesn't express arbitrary joins. |
+| Postgres-specific feature (`LATERAL` joins, `DISTINCT ON`, row locks, custom aggregates) | **SQL builder**, falling back to extension operators when the extension provides them | DSL first; extensions can contribute operators (`postgis`, `pgvector`). |
+| Set operation (`UNION`, `INTERSECT`, `EXCEPT`), window function (`ROW_NUMBER() OVER (...)`), `WITH`, aggregate `FILTER (WHERE ...)` | **Raw SQL (``db.raw.sql`…` ``)** | Neither the ORM nor the SQL builder expresses them. Declare the result columns with `.returnsRow({ ... })` so the rows stay typed. |
 
 ## Workflow — ORM reads
 
@@ -299,7 +300,7 @@ await db.orm.public.User.include('posts', (posts) =>
 
 A reducer's result type is the one the target declares for that aggregate — the same types *Workflow — Aggregates* tabulates below, including the `null` a field-taking reducer answers for a parent with no related rows. The reducer set is read from the contract, so an operation a target or extension contributes shows up as a reducer under its own name, with no client change.
 
-Nested `1:N → 1:N` includes (e.g. `User → posts → comments`) require the contract to advertise the `lateral` + `jsonAgg` capabilities for the active target. The Postgres adapter advertises both by default, so most apps get this for free; if the type system rejects a nested include with a *missing capability* error, route to `references/contract.md` to add the required capability declarations and use `references/queries.md` for query-shape guidance.
+Nested includes (e.g. `User → posts → comments`) need no setup. On Postgres, SQLite and MySQL the ORM loads a read and all its includes in one statement. On a database whose adapter does not report the `jsonAgg`, `outerReferencesInDerivedTables` and `jsonAggWithoutTruncation` capabilities (MariaDB), it runs one statement per relation instead; `limit`, `offset`, `distinct` and reducers still run in SQL per parent there, but a `.prepared` read with includes is refused with `ORM.CAPABILITY_MISSING`.
 
 ## Workflow — ORM writes
 
@@ -416,13 +417,13 @@ await deleteMatching(Post.byAuthor(userId)).toArray();
 
 A piece of a query used in several places is a function. Do not build a filter object and spread it into each query; write a function and pass it to `.where(...)`, `.orderBy(...)` or `.with(...)`. A **row fragment** is a function of the model accessor, and `.where(...)` and `.orderBy(...)` take it. A **query fragment** (a **fragment** for short) is a function from a collection to a collection, and `.with(...)` runs it. A **scope** is a fragment that only imposes conditions on the query, such as `createdSince` below, and is also run with `.with(...)`. When the condition is a function of one row and needs no declared fields, pass a row fragment to `.where(...)`. When the same condition should apply to every model that has some fields, write a scope: it declares the fields, checks them at run time, and returns the collection with the `Filtered` fact. `.with(...)` also runs what `.where(...)` cannot express, such as a shared `select` and `include`, an order, a limit or offset, or a variant.
 
-**The same filter on several models.** Define a scope with `db.orm.fragment(fields, body)`; the method is named `fragment` because it cannot know whether the body only filters. Declare each field the fragment needs with the same builder the schema uses, from the `field` that `@prisma/orm-postgres/contract-builder` exports, adding `.optional()` for a field that may be null. The body sees only those fields:
+**The same filter on several models.** Define a scope with `db.orm.fragment(fields, body)`; the method is named `fragment` because it cannot know whether the body only filters. Declare each field the fragment needs with the same builder the schema uses, from the `field` and `type` that `@prisma/orm-postgres/contract-builder` exports, adding `.optional()` for a field that may be null. The body sees only those fields:
 
 ```typescript
-import { field } from '@prisma/orm-postgres/contract-builder';
+import { field, type } from '@prisma/orm-postgres/contract-builder';
 
 const createdSince = (since: Temporal.Instant) =>
-  db.orm.fragment({ createdAt: field.temporal.timestamptz() }, (rows) =>
+  db.orm.fragment({ createdAt: field.column(type.TimestamptzTemporal()) }, (rows) =>
     rows.where((r) => r.createdAt.gte(since)),
   );
 
@@ -430,7 +431,7 @@ await db.orm.public.User.with(createdSince(since)).all();
 await db.orm.public.Post.with(createdSince(since)).deleteAll();
 ```
 
-Pick the builder whose codec matches the field's codec in `contract.d.ts`: a PSL `DateTime` is `field.temporal.timestamptz()` (`pg/timestamptz-temporal@1`), a `String` is `field.text()` (`pg/text@1`), a `Uuid` is `field.uuidNative()` (`pg/uuid@1`). `field.column(columnType)` is the explicit form. A package that offers a fragment and does not import the facade writes `{ codecId: 'pg/text@1', nullable: false }`, with a codec of the contract. For a list field such as `String[]`, add `.many()` to the builder or `many: { elementNullable: false }` to the object; for a `String?[]`, whose elements may be null, add `.many({ elementsNullable: true })` or `many: { elementNullable: true }`. Without it the declaration does not match a list field, and with it the element nullability must match too. A list of value objects such as `Address[]` is stored as one `jsonb` value and is still a list: `field.column(jsonbColumn).many()`. The body may call `where`, `orderBy`, `limit` and `offset`. The result keeps the collection's class and records the filter, so `update` and `delete` are allowed after a fragment that filters. `updateAll`, `deleteAll` and their `AndCount` forms change every matching row and throw `ORM.ARGUMENT_INVALID` when the chain has a `limit`, `offset`, `cursor`, `distinct` or `distinctOn`, so do not put a limit in a fragment that will be followed by one of them. `update` and `delete` change the one row `first()` returns, so the order, offset, cursor, `distinct` and `distinctOn` choose it, and after `limit(0)` they change nothing and return `null`; `update` with a relation callback throws on an order, a limit, an offset, a cursor, `distinct` or `distinctOn`, because it finds its row by the filter alone. A model without the field, or with the field under another codec or nullability, is a compile error, and a run-time `ORM.FIELD_UNKNOWN`. A custom collection class carries no namespace in its type, so at compile time it matches only a field that every model of that name has, with the same codec and nullability, and its real namespace is checked at run time. The codec, the nullability, whether the field is a list and the nullability of its elements are compared; the column type's parameters are not, so `field.uuidString()` (`char(36)`) also matches a `char(10)` field.
+Pick the builder whose codec matches the field's codec in `contract.d.ts`: a PSL `TimestamptzTemporal` is `field.column(type.TimestamptzTemporal())` (`pg/timestamptz-temporal@1`), a `String` is `field.column(type.String())` (`pg/text@1`), a `Uuid` is `field.column(type.Uuid())` (`pg/uuid@1`). `field.column(columnType)` is the explicit form. A package that offers a fragment and does not import the facade writes `{ codecId: 'pg/text@1', nullable: false }`, with a codec of the contract. For a list field such as `String[]`, add `.many()` to the builder or `many: { elementNullable: false }` to the object; for a `String?[]`, whose elements may be null, add `.many({ elementsNullable: true })` or `many: { elementNullable: true }`. Without it the declaration does not match a list field, and with it the element nullability must match too. A list of value objects such as `Address[]` is stored as one `jsonb` value and is still a list: `field.column(jsonbColumn).many()`. The body may call `where`, `orderBy`, `limit` and `offset`. The result keeps the collection's class and records the filter, so `update` and `delete` are allowed after a fragment that filters. `updateAll`, `deleteAll` and their `AndCount` forms change every matching row and throw `ORM.ARGUMENT_INVALID` when the chain has a `limit`, `offset`, `cursor`, `distinct` or `distinctOn`, so do not put a limit in a fragment that will be followed by one of them. `update` and `delete` change the one row `first()` returns, so the order, offset, cursor, `distinct` and `distinctOn` choose it, and after `limit(0)` they change nothing and return `null`; `update` with a relation callback throws on an order, a limit, an offset, a cursor, `distinct` or `distinctOn`, because it finds its row by the filter alone. A model without the field, or with the field under another codec or nullability, is a compile error, and a run-time `ORM.FIELD_UNKNOWN`. A custom collection class carries no namespace in its type, so at compile time it matches only a field that every model of that name has, with the same codec and nullability, and its real namespace is checked at run time. The codec, the nullability, whether the field is a list and the nullability of its elements are compared; the column type's parameters are not, so `field.column(type.Char(36))` (`char(36)`) also matches a `char(10)` field.
 
 For a filter used inside a larger `where`, a plain function of the row works too. Type the field with `CodecField<Contract, CodecId, Nullable>`, the type of any field with that codec:
 
@@ -504,17 +505,17 @@ const byKind = await db.orm.public.User
 | --- | --- | --- |
 | `count()` | `number` | `0` |
 | `countBigInt()` | `bigint` | `0n` |
-| `sum(field)` over `int2` / `int4` / `int8` / `BigIntNumber` | `number \| null` | `null` (SQL `SUM` over zero rows is `NULL`) |
+| `sum(field)` over `int2` / `int4` / `int8` / `BigInt(as: number)` | `number \| null` | `null` (SQL `SUM` over zero rows is `NULL`) |
 | `sumBigInt(field)` over any integer | `bigint \| null` | `null` |
 | `sum(field)` over `float4` / `float8` | `number \| null` | `null` |
 | `sum(field)` over `numeric` | decimal `string \| null` | `null` |
-| `sum(field)` over `UnboundedInt` | `bigint \| null` — that column's own family | `null` |
+| `sum(field)` over `BigInt(storage: numeric)` | `bigint \| null` — that column's own family | `null` |
 | `avg(field)` over any integer | `number \| null` | `null` |
 | `avgDecimal(field)` over any integer or `numeric` | decimal `string \| null` | `null` |
 | `avg(field)` over a float | `number \| null` | `null` |
 | `min(field)` / `max(field)` | the column's own type `\| null` — `text` where the column is `varchar` | `null` |
 
-**`count()`, and `sum` over an integer column, throw outside ±(2^53 − 1) — they never round.** Those two are the results a guarded integer codec produces. The rows above the guard does not reach: `sum` over `numeric`, `UnboundedInt`, or a float column, and every `avg`, which is a fraction already. The error is `RUNTIME.DECODE_FAILED` (`… value must be an integer within the safe integer range, got …`), and it fires on the include path too. That is the trade the defaults make: a `number` you can compare, serialise, and do arithmetic with, and a loud failure instead of a quietly wrong total. Switch that one call to `sumBigInt` / `countBigInt` where the magnitude is real.
+**`count()`, and `sum` over an integer column, throw outside ±(2^53 − 1) — they never round.** Those two are the results a guarded integer codec produces. The rows above the guard does not reach: `sum` over `numeric`, `BigInt(storage: numeric)`, or a float column, and every `avg`, which is a fraction already. The error is `RUNTIME.DECODE_FAILED` (`… value must be an integer within the safe integer range, got …`), and it fires on the include path too. That is the trade the defaults make: a `number` you can compare, serialise, and do arithmetic with, and a loud failure instead of a quietly wrong total. Switch that one call to `sumBigInt` / `countBigInt` where the magnitude is real.
 
 **Float and Decimal columns keep their own family.** `sum` over `numeric` is still a decimal string, and `sum` over `float8` still a `number` — the defaults policy is about integers, and a column whose author chose `numeric` already chose its representation.
 
@@ -600,10 +601,11 @@ const plan = db.sql.public.cafe
   .build();
 const rows = await db.query(plan);
 
-// Self-join with an alias.
+// Self-join: alias both sides, and read each side through its alias.
 db.sql.public.post
+  .as('p1')
   .innerJoin(db.sql.public.post.as('p2'), (f, fns) => fns.ne(f.p1.userId, f.p2.userId))
-  // ...
+  .select((f) => ({ first: f.p1.id, second: f.p2.id }))
   .build();
 ```
 
@@ -629,6 +631,20 @@ await db.transaction(async (tx) => {
 ```
 
 The callback's return value passes through `db.transaction(...)`. Capture inserted ids out of the callback and use them downstream after commit.
+
+`tx.transaction(async (inner) => ...)` runs work in a savepoint inside the transaction, to any depth; `inner` has the same members as `tx`. If its callback throws, only its work rolls back, the error is rethrown, and `tx` can go on: below, the user is committed and the post is not. Await it before using `tx` again: while it runs, `tx` rejects work with `RUNTIME.TRANSACTION_SUSPENDED`. It takes no options.
+
+```typescript
+await db.transaction(async (tx) => {
+  await tx.orm.public.User.create({ id, email });
+  await tx
+    .transaction(async (inner) => {
+      await inner.orm.public.Post.create({ userId: id, title: 'draft' });
+      throw new Error('discard the post');
+    })
+    .catch(() => {});
+});
+```
 
 To read a row and then write it without another transaction changing it in between, lock it when you read it. The lock lasts until the transaction ends; outside a transaction it is released when the statement ends.
 
@@ -677,7 +693,7 @@ Cross-namespace relations (e.g. `public.Profile` → `auth.User`) follow the sam
 2. **Using `.all()` when you wanted one row.** `.all()` issues no implicit limit. Use `.first()` or `.first({ pk })`.
 3. **Coalescing `count()` with `?? 0` "just in case".** `count()` is `number`, not `number | null` — SQL answers an empty set with `0`. The `?? 0` belongs on `sum` / `avg` / `min` / `max`, and its zero should match the aggregate's own type (`0` for an integer sum, `0n` for `sumBigInt`, `'0'` where the result is a decimal string).
 4. **Reaching for `.between(a, b)` on a field proxy.** It doesn't exist. Either chain `.where((m) => m.field.gte(a)).where((m) => m.field.lte(b))` or use `and(m.field.gte(a), m.field.lte(b))` inside one `.where()` clause.
-5. **Importing `and` / `or` / `not` from an internal package.** They are exported from `@prisma/orm-postgres/orm-client`; do not reach into `@internal/sql-orm-client`.
+5. **Importing `and` / `or` / `not` from an internal package.** They are exported from `@prisma/orm-postgres/orm-client`; do not import them from a platform package such as `@prisma/orm-family-sql`.
 6. **Trying to `db.sql.from(tables.user)`.** That surface does not exist. The builder is table-shaped: `db.sql.<ns>.<tableName>.select(...)`. There is no `db.schema.tables` either.
 7. **Reading rows with `execute`.** Plans run through the client: `db.query(plan)` for rows, `db.execute(plan)` for a non-returning write (`{ affectedRows }`). Inside a transaction, `tx.query(plan)` / `tx.execute(plan)`. `execute` never yields rows — a `select` or `.returning(...)` plan passed to it gives you statistics, not data.
 8. **Setting `capabilities: { lateral: true }` in `prisma.config.ts`.** The ORM config (`ormConfig({...})`) does not take `capabilities`. Capabilities are declared by the active adapter and become part of the emitted contract; the Postgres adapter advertises `lateral`, `jsonAgg`, and `returning` out of the box. Enable extension capabilities through `extensions: [...]` in the config (see `references/contract.md`).

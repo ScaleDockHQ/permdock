@@ -5,7 +5,7 @@ description: Query and write Supabase data with better-supabase's typed reposito
 
 # better-supabase
 
-The data layer is `betterSupabase = defineSupabase(schema)` in `src/lib/supabase/index.ts`.
+The data layer is `betterSupabase = createSupabase(schema)` in `src/lib/supabase/index.ts`.
 `schema` comes from the generated module (`config.output`, usually
 `src/lib/supabase/generated.ts`). Never edit generated files.
 
@@ -62,9 +62,12 @@ stay hidden.
 
 ## Workflow: after upgrading better-supabase
 
-1. Run `pnpm better-supabase codemod <version> --dry-run` for each minor
-   version you crossed (`codemod` without a name lists them), then without
-   `--dry-run`, and fix the lines it lists for review.
+1. This release upgrades from 0.53 only. An app on an older version
+   upgrades to 0.53 first with that release. Run
+   `pnpm better-supabase codemod <name> --dry-run` for each codemod the
+   release lists (`codemod` without a name lists them), then without
+   `--dry-run`, and fix the lines it lists for review. `codemod naming`
+   applies the renames in `api/naming.json`.
 2. Run `pnpm better-supabase upgrade`, so the SQL modules get the
    release's SQL and any forward steps land in a migration, then write a
    migration from the changed files (under the `migrations` workflow it
@@ -75,17 +78,13 @@ stay hidden.
    the config to keep an old relation name.
 4. Run `pnpm better-supabase skills install --check` and reinstall the skills
    when it reports them stale.
-5. Read the release's guide: https://bettersupabase.com/docs/migration/0.5-to-0.6
-   for 0.6 (kits are blocks, feature modules import from
-   `better-supabase/blocks/<name>`), and the other versions at
-   https://bettersupabase.com/docs/migration. Every breaking change is in
-   https://github.com/ScaleDockHQ/better-supabase/blob/main/CHANGELOG.md. For 0.3: time values are
-   `Temporal` (see below), `--db-url` is gone, `doctor --format json` is
-   `doctor --json`, `BetterResultShape` is `BetterResultValue`, and an
-   exhaustive `switch` over the `invalid` auth reason needs an `'actor'` case.
-   For 0.15, follow the upgrade order at the end of
-   https://bettersupabase.com/docs/migration/0.14-to-0.15 and fix each
-   BS418 finding `doctor` reports.
+5. Run `pnpm better-supabase doctor`. BS607 means `node_modules`, the
+   lockfile and the block SQL name different releases: run the install
+   command it prints, then `upgrade --check`.
+6. Read the release's guide at https://bettersupabase.com/docs/migration.
+   Every breaking change is in
+   https://github.com/ScaleDockHQ/better-supabase/blob/main/packages/better-supabase/CHANGELOG.md.
+   Time values are `Temporal` (see below).
 
 Done when `gen --check`, `doctor` and the typecheck pass.
 
@@ -102,8 +101,14 @@ Name the definition `betterSupabase` (in `lib/supabase/index.ts`) and every runt
 - Express: `res.locals.db`; Fastify: `request.locals.db`; Koa: `ctx.state.db`; NestJS: `@Ctx("db")`
 - SvelteKit: `event.locals.db`; H3, Nitro and Nuxt: `event.context.db`; TanStack Start: the middleware `context.db`
 - Astro: `bsb.locals(Astro).db`; SolidStart: `(await bsb.require()).db`
+- A supabase-js client on the server (Storage, Realtime, a call no repository covers): `bsb.contextClient(ctx.auth)` sends the caller's token to PostgREST, Storage and Realtime, so RLS applies. `bsb.admin().$client` is the shared secret-key client, for work no user owns
 - Browser: `bsb.db`, or the hooks from `createHooks<typeof bsb>()`
+- Expo Router loaders: `bsb.loader(fn)` from `createExpo`, with `bsb.bootstrap(request, { rpc })` for the session, the live authorization version and the page data in one call. iOS and Android with PowerSync: `syncWithAuth` plus the native `SessionProvider`; the `better-supabase-auth` skill's `references/native.md` has both
 - Vue, Solid and Svelte, TanStack DB collections and a local SQLite database: [references/frontend.md](references/frontend.md)
+- Which block or preset fits a feature, and the block catalog (`BLOCK_CATALOG`): [references/blocks-and-presets.md](references/blocks-and-presets.md)
+- Writing a port adapter (route optimizer, bank feed, tax report format, prescription gateway) and its conformance kit: [references/ports-and-adapters.md](references/ports-and-adapters.md)
+- Apps on Vercel: guard the sign-up, OTP and magic-link routes with `botIdGuard` and `firewallRateLimit` from `better-supabase/vercel-security`, verify a Passport caller with `verifyPassport` from `better-supabase/vercel-passport`, and pass the SDK module in for the domains block (`vercelDomainProvider`), signing keys (`vercelKmsKeyProvider` as `keys`) and attachments or drive files (`vercelBlobStore` as `files`). Postgres keeps deciding who may upload. See https://bettersupabase.com/docs/vercel
+- E-invoicing (Peppol), tax reports and SAF-T audit files: [references/e-invoicing-and-audit-files.md](references/e-invoicing-and-audit-files.md)
 - UI for a block (notification bell, notification list, command search, onboarding checklist): build it from the app's shadcn or React Native components and the block's hook, following [references/ui-recipes.md](references/ui-recipes.md). There is no better-supabase UI package; install glue with `npx shadcn add @better-supabase/<item>`.
 
 For who the caller is (sessions, claims, OAuth clients, agents, scopes), use
@@ -124,6 +129,16 @@ the `better-supabase-auth` skill.
   `lib/supabase/providers.ts` and spread them:
   `defineBlocks(blockConfig, { ...blocks, ...providers })`. Doctor fails on a
   missing env key (BS504) or an unwired required provider (BS505).
+- Write a block's tables through its client, never with
+  `.from("<block table>").insert()` or another supabase-js write: that skips
+  the block's events, hooks and checks, and doctor warns BS351. Your own
+  columns on a block table go in the method's `fields` (add them with
+  `alter table ... add column` in your own schema file, or list the columns of
+  a table you create in its comment as `@bsb fields a, b`); they are written in the same
+  insert or update, so a `not null` column or a check across columns holds.
+- A column of yours named like a secret (`access_token`, `client_secret`)
+  next to `field-encryption` or `credentials` is BS352: set `encrypted: true`
+  under `tables.<name>.columns`, or move the secret to Vault.
 - A preset can write instances too (`preset: { blocks, instances }`); your
   own `blocks` entry for the same key wins.
 - Keep your own tables in your own files in `supabase/schemas`. A block
@@ -137,7 +152,7 @@ the `better-supabase-auth` skill.
   column with a `not valid` not-null check: new rows need an owner, old rows
   stay reachable only by the service role. Fill them with
   `pnpm better-supabase db backfill <table>.<column> --from <table.column> via <column>`
-  (or `--value`), then run `pnpm better-supabase doctor --fix` to validate
+  (or `--value`), then run `pnpm better-supabase doctor --yes` to validate
   the check. Doctor reports the rows as BS238. See
   https://bettersupabase.com/docs/blocks/own-schemas.
 - A block's React hooks are registry items: `npx shadcn add
@@ -189,6 +204,7 @@ const customers = result.data;
 - Page lists with a cursor: `page({ after: null, size: 25, orderBy })`, then pass `nextCursor` back as `after` with the same `orderBy` and `where`. Use page numbers only when users jump to a page and need a total, and `page({ offset, limit, count: 'exact' })` when the caller already has an offset; both return the rows and the total in one request.
 - Handlers may return a `Result` directly. Adapters turn errors into RFC 9457 Problem Details with the right status.
 - Jobs and webhooks run as a user so RLS applies: `bsb.forContext(job.context)` for a job enqueued with `{ context: db.$context }`, `bsb.actingAs(userId, { tenant_id })` for a webhook or script. `bsb.admin()` bypasses RLS: use it only for work no user owns, never for a user's request.
+- The queue and the scheduler are separate: `createQueue({ sql })` is Supabase Queues with Supabase Cron. Pass `scheduler: vercelScheduler(Schedules, { bridge })` and serve `vercelScheduleBridgeRoute` on the bridge topic for Vercel Schedules, or `sqlScheduler(sql, { mode: "drain" })` with `blocks.queue.options.httpTick` for Supabase Cron on Vercel Queues. Call the drain from `schedules` in `vercel.json`, not `crons`.
 - PostgREST has no multi-request transactions. Put multi-step writes in a database function (`db.$rpc()`) or use `postgres.transaction()` on the server.
 - `$rpc` types each `returns table` column and scalar result `| null`, because Postgres can't declare them not null. Don't cast them: add `@notNull(a, b)` to the function's comment (or `gen.functions.<name>.notNull` in the config), type the column with a `not null` domain, or return `setof` a table. `gen` prints a notice for each function still nullable. Arguments accept `null` too; that only widens the input.
 
@@ -196,16 +212,16 @@ const customers = result.data;
 
 - With `codecs: { timestamptz: 'instant' }` in the config, `timestamptz` columns decode to `Temporal.Instant` and `timestamp` columns to `Temporal.PlainDateTime`, with microseconds. Without the codec they stay ISO strings.
 - `now` options, job and webhook timestamps and `bucket.sweep({ olderThan })` take `Temporal` values. Auth's `now` stays in epoch milliseconds.
-- On Node 24, Safari, Hermes and other runtimes without `Temporal`, add `temporal-polyfill` and pass its namespace: `defineSupabase(schema, { temporal: Temporal })` (block creators take the same `temporal` option). `import "temporal-polyfill/global"` once at startup also works. Without either, calls that need `Temporal` return an `unexpected` `DbError` that names both.
+- On Node 24, Safari, Hermes and other runtimes without `Temporal`, add `temporal-polyfill` and pass its namespace: `createSupabase(schema, { temporal: Temporal })` (block creators take the same `temporal` option). `import "temporal-polyfill/global"` once at startup also works. Without either, calls that need `Temporal` return an `unexpected` `DbError` that names both.
 - Use TypeScript 6 or 7; 5.9 has no Temporal lib.
 
 ## CLI in scripts and CI
 
 - No command takes a connection string as an argument. Set `$DATABASE_URL`, `$SUPABASE_DB_URL` or `database.source.dbUrl`, or pipe it in with `--db-url-stdin`.
-- `--json` prints one envelope on stdout: `status`, the result under `data`, Problem Details with a `code` under `error`, and the commands to run under `next`. `--yes` and `CI` turn prompts off.
-- Exit codes: 0 success, 1 a failure or finding (`--check` drift, doctor errors), 2 a usage, config or environment problem, 3 when the user has to act. Each error code is listed at https://bettersupabase.com/docs/cli/errors.
-- When the CLI detects an agent it prints JSON and never prompts. Exit code 3 with `input_required` lists `missing` flags and their `choices`; run the `next` command with the value filled in. `consent_required` means the user must agree first (`--force` over their files, `db seed --apply` on a remote database): ask them, then run the `next` command with its `--confirm` token. Never pass `--confirm` without asking. See https://bettersupabase.com/docs/cli/agent-mode.
-- `better-supabase mcp` serves the same commands as MCP tools on stdio, read-only unless started with `--allow-writes`. A write tool first returns `consent_required` with a `token`; ask the user, then call it again with the same arguments and `confirm` set to the token. See https://bettersupabase.com/docs/cli/mcp.
+- `--json` follows CLI result v2 (https://unpkg.com/better-supabase/schemas/cli-result-v2.json). A run that succeeds, or reports findings, prints one document on stdout with `status` (`success`, or `error` for a report), `data`, `warnings` and `next`. A run that fails prints one error document line on stderr and nothing on stdout, with `reason`, `message`, `type`, `next`, `data`, `userActionRequired` and `retryable`. `--yes` and `CI` turn prompts off.
+- Exit codes: 0 success, 1 a failure or finding (`--check` drift, doctor errors), 2 a usage, config or environment problem, or an input the user has to give, 65 when `gen --metadata` rejects its document, 130 when the run is interrupted or a prompt is cancelled, 143 on SIGTERM. Each error `reason` is listed at https://bettersupabase.com/docs/cli/errors.
+- When the CLI detects an agent it prints JSON and never prompts. Failures print one error document line on stderr (`reason`, `message`, `next`, `data`, `userActionRequired`, `retryable`). Exit code 2 with `input_required` lists `data.missing` flags and their `data.choices`; run the `next` command with the value filled in. `confirmation_required` means the user must agree first (`--force` over their files, `db seed --yes` on a remote database): ask them, then run the `next` command with `--yes --effects-digest <digest>`. Never pass `--effects-digest` without asking. See https://bettersupabase.com/docs/cli/agent-mode.
+- `better-supabase mcp` serves the same commands as MCP tools on stdio, read-only unless started with `--allow-writes`. A write tool first returns `confirmation_required` with a `data.digest`; ask the user, then call it again with the same arguments and `effectsDigest` set to the digest. See https://bettersupabase.com/docs/cli/mcp.
 
 ## Don't
 

@@ -3,13 +3,13 @@
 Each adapter wraps the same `betterSupabase` from `src/lib/supabase/index.ts`:
 
 ```ts title="src/lib/supabase/index.ts"
-import { defineSupabase } from "better-supabase";
+import { createSupabase } from "better-supabase";
 
 import { schema } from "./generated";
 
 export type { Functions, Models } from "./generated";
 
-export const betterSupabase = defineSupabase(schema);
+export const betterSupabase = createSupabase(schema);
 ```
 
 ## Next.js

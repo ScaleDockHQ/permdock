@@ -122,3 +122,13 @@ a nonzero exit. `--json` puts the report, with each finding's code, under `data`
 `tests.authenticate_as(user, claims)`, `tests.clear_authentication()` and
 `tests.rls_enabled('public')` for `supabase test db`. Put
 `select tests.rls_enabled('public');` in a test so tables without RLS fail CI.
+`tests.import_run_fixture(source, entities, state)` creates a run in `pending`,
+`running`, `stale` or `canceled`. `tests.age_import_run(run, interval)` moves
+its lease and heartbeat into the past. `tests.bulk_touch_subjects(entity, n)`
+moves the stored import stamp of n records into the past.
+`tests.assert_override_dispatches_all(signature)` fails when the function is
+missing a `when` arm for an entity `import_entities()` returns.
+`testImportTarget({ entity, fixture })` from `better-supabase/testing` builds
+the pgTAP shape for a target: the first import inserts, the second is
+unchanged, a changed hash updates, a user edit conflicts, a dry run leaves no
+subject rows, import mode suppresses events, and the target returns updatedAt.

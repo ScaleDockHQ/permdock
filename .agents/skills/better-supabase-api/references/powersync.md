@@ -44,6 +44,7 @@ Never throw for a kind that can't succeed: it blocks the upload queue.
 
 - `tables: { customers: server.db.customers }` takes a repository; every generated repository fits `UploadRepository<Insert, Key>` without a cast.
 - `uploadRoute(server.db.attachments, { put: "create" })` for write-once tables: a `PUT` calls `create` and a `conflict` counts as applied (the row is already on the server); a `PATCH` is discarded as `unsupported`.
+- Every replayed write passes `{ override: true }`, so the timestamps, actor and trash columns the device stamped offline are kept, not refused. A function route that writes through a repository passes it itself; a column the server must own needs its trigger.
 - `onError: (error, { phase }) => ...` logs a failed `getSession` (`phase: "credentials"`, kind `unauthorized` or `network`; `fetchCredentials` returns `null`) and uploads that stay queued for a retry (`phase: "upload"`).
 
 ## Offline blocks

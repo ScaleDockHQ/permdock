@@ -20,7 +20,7 @@ Record any exception in an ADR.
 | LLM calls, embeddings, images             | AI SDK through Vercel AI Gateway                                                                                                                                                |
 | Durable jobs                              | Workflow SDK 5 (`workflow`)                                                                                                                                                     |
 | Long-running agents                       | `WorkflowAgent` from `@ai-sdk/workflow`, on the Workflow SDK                                                                                                                    |
-| Schedules                                 | Vercel Cron Jobs to `apps/api` routes, verified with a `CRON_SECRET` of at least 32 characters                                                                                  |
+| Schedules                                 | Vercel Schedules (beta) to private `apps/api` function targets with no public URL and no bearer secret                                                                          |
 | Fan-out, event streaming                  | Vercel Queues                                                                                                                                                                   |
 | Generated JS or TS against app operations | Run SDK (`run`): QuickJS with narrow `hostFunctions` that authorize every call                                                                                                  |
 | Untrusted code that needs an OS           | Vercel Sandbox                                                                                                                                                                  |
@@ -54,9 +54,9 @@ Record any exception in an ADR.
 
 One project with Services.
 
-- **Each service** has a `root`, an `installCommand` that installs the whole workspace from the repo root (`cd ../.. && pnpm install --frozen-lockfile`), a `buildCommand`, and an `ignoreCommand` of `npx -y turbo@<pin> query affected --packages <name> --exit-code`.
-  - Never `--filter '{.}...'` per service: the filtered installs failed with an ENOENT on the shared store in SignalDock.
-  - `turbo query affected --exit-code` replaces `turbo-ignore`, matching [`ci.md`](ci.md).
+- **Each service** has a `root`, an `installCommand` that installs the whole workspace from the repo root (`cd ../.. && pnpm install --frozen-lockfile`), and a `buildCommand`. No service sets an `ignoreCommand`: under Services a deployment always ships every service, so a per-service command never runs (CentraKit measured 344 develop deployments that all built every service).
+  - Avoid `--filter '{.}...'` per service: the filtered installs failed with an ENOENT on the shared store in SignalDock. Lienlink and PermDock install with the filter without trouble, so check a new repo with a cold deploy before adopting it.
+  - Skip builds with one project-wide `ignoreCommand` (`bash scripts/vercel-ignore-build.sh`); a top-level `ignoreCommand` next to `services` is rejected, so set it on the service that carries the root. The script exits 1 (build) when there is no `VERCEL_GIT_PREVIOUS_SHA`, when that commit is missing from the clone after `git fetch --deepen=200`, or when `vercel.json`, `.vercelignore` or the script changed. Otherwise it runs `turbo query affected --tasks build --packages <deployed packages> --base $VERCEL_GIT_PREVIOUS_SHA --exit-code`, with the turbo version read from the catalog in `pnpm-workspace.yaml` (from `mktemp -d`, because npm rejects the repo's pnpm `devEngines`). `--tasks build` honors task inputs, so tests and markdown do not trigger deploys. A library repo whose sites depend on the library also builds when a `"version"` line changed in `packages/*/package.json` (a release), so library-only commits skip the deploy. Keep `.git` out of `.vercelignore`: the script diffs against it.
   - pnpm comes from `devEngines` with `onFail: "download"` ([`toolchain.md`](toolchain.md)), not Corepack.
 - **Rewrites:**
   - `/api`.
@@ -65,7 +65,7 @@ One project with Services.
   - `/app` and `/app/(.*)`. A universal Expo app is a Node service whose `server.mts` serves the `expo export --platform web` output and `expo-server` SSR; never add a catch-all rewrite to it. A native-only `apps/mobile` has no service.
 - **Images under Services.** A Next app served under another service's host through a rewrite (docs under `/docs`, with `assetPrefix`) can get a 404 from `/_next/image`, because the request reaches the host app instead. Give that app its own domain, or set `images.unoptimized` on it with a comment. Record the choice and the reason in `docs/agents/nextjs.md`. The report's manual steps include a `curl -I` of a production image after deploy.
 - **`git.deploymentEnabled`:** deny `*`, `**` and `changeset-release/**`. Allow `main`, and `develop` once it exists.
-- **`crons`** for `apps/api`.
+- **Schedules (beta):** a `schedules` block, and `experimentalTriggers: [{ type: "schedule/v1beta" }]` under the api service's `functions`. A dev-only `GET` serves the local drain. Revisit when Schedules reaches general availability or the trigger name changes; until then, a repo that cannot use a beta feature keeps Vercel Cron Jobs with a `CRON_SECRET` of at least 32 characters, recorded in an ADR.
 - **Config file:** `vercel.ts`, typed with `VercelConfig` from `@vercel/config/v1`. Write rewrites with the `routes` helpers, and Services under `experimentalServices` (`type`, `root`, `entrypoint`). That key is marked private, so when a deploy rejects it, fall back to `vercel.json` with `$schema` and record a `gap` row. The public `services` key (`root`, `framework` or `entrypoint`, `ignoreCommand`, `bindings`, routed with `destination: { service }`) in `vercel.json` deploys today (SignalDock), so `vercel.json` with `services` is an accepted form, not a gap. Switch to `vercel.ts` once the installed `@vercel/config` types every key the repo uses.
 - **Service-to-service calls** use a service binding (`{ "type": "service", "service": "<name>", "format": "url", "env": "<NAME>_INTERNAL_URL" }`), never a public URL, and a service without a rewrite stays internal. While `@vercel/config` has no `bindings`, record a `gap` row instead of hard-coding URLs.
 
@@ -94,8 +94,9 @@ Check the keys against the installed docs:
   },
   "envMode": "strict",
   "remoteCache": { "enabled": true, "signature": true },
-  "globalEnv": ["CI", "NODE_ENV"],
   "globalPassThroughEnv": [
+    "CI",
+    "NODE_ENV",
     "SUPABASE_*",
     "VERCEL_*",
     "PORTLESS*",
@@ -110,9 +111,19 @@ Check the keys against the installed docs:
     "pnpm-workspace.yaml",
   ],
   "tasks": {
-    "transit": { "dependsOn": ["^transit"] },
+    "transit": {
+      "dependsOn": ["^transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.md",
+        "!**/*.mdx",
+        "!**/*.test.*",
+        "!tests/**",
+      ],
+    },
     "build": {
       "dependsOn": ["^build"],
+      "env": ["NODE_ENV"],
       "outputs": [
         ".next/**",
         "!.next/cache/**",
@@ -123,21 +134,38 @@ Check the keys against the installed docs:
     },
     "lint": { "dependsOn": ["transit"] },
     "//#lint:root": {},
-    "typecheck": { "dependsOn": ["transit"] },
-    "test": { "dependsOn": ["transit"] },
+    "typecheck": {
+      "dependsOn": ["transit"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md", "!**/*.mdx"],
+    },
+    "test": {
+      "dependsOn": ["transit"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md", "!**/*.mdx"],
+    },
     "dev": { "cache": false, "persistent": true },
     "dev:portless": { "cache": false, "persistent": true },
   },
 }
 ```
 
-- **Top-level keys, no `global` block.** Keep `globalEnv`, `globalPassThroughEnv`, `globalDependencies`, `envMode` and `remoteCache` at the top level, and leave the `globalConfiguration` future flag and its `global` block off. `turbo/no-undeclared-env-vars` (`eslint-plugin-turbo`, run through oxlint) reads only the top-level keys, so the `global` block reports every declared variable as undeclared (CentraKit, better-supabase, Lienlink). Revisit when the plugin reads `global`.
+- **Task logs and cache bounds.** `outputLogs: "errors-only"` on `lint`, `typecheck` and `format:check`, and `"new-only"` on test tasks, so passing tasks print nothing and agents spend no context on them. Set `cacheMaxAge` (for example `14d`) and `cacheMaxSize` (for example `10GB`), and `noUpdateNotifier`.
+- **Root checks are cached `//#tasks`.** `//#format:check`, `//#knip`, `//#boundaries`, `//#openapi:check`, `//#docs:drift`, `//#i18n:check` and `//#lint:root` each list narrow `inputs` and a one-line `description`, and `verify` is one `turbo run` over them. `audit:high` stays `cache: false`.
+- **`generate` task.** A per-package `generate` writes git-ignored generated sources (Fumadocs `.source`, Uniwind types) once; `lint`, `typecheck`, `knip` and `boundaries` depend on it, so they stop racing as concurrent writers.
+- **Unset an inherited cache dir.** Sandboxed agent shells can set `TURBO_CACHE_DIR`, which splits their cache from the repo's. Root scripts and hooks run turbo as `env -u TURBO_CACHE_DIR turbo ...`.
+- **Vercel CI is never required.** A Vercel CI trial (`tags: ["ci"]`, a `ci` block in `vercel.json`) may run, but no Vercel check is required: native Supabase binaries are not available to its tasks, and two required systems double the failure surface (CentraKit ADR 0043).
+- **Top-level keys, no `global` block.** Keep `globalEnv`, `globalPassThroughEnv`, `globalDependencies`, `envMode` and `remoteCache` at the top level, and leave the `globalConfiguration` future flag and its `global` block off. `turbo/no-undeclared-env-vars` (`eslint-plugin-turbo`, run through oxlint) reads only the top-level keys, so the `global` block reports every declared variable as undeclared (CentraKit, better-supabase, Lienlink). Revisit when the plugin reads `global`. A repo that uses the block anyway (PermDock, with `global.inputs` narrowed and a workaround in `oxlint.config.ts`) records a deviation ADR.
 - **Marketplace env.** A Marketplace integration adds variables to every Vercel environment. For each one, either list it (or its prefix) in `globalPassThroughEnv` or a task's `env` with the code that reads it, or delete it from the project. Never leave a variable that nothing declares.
 - **Signed Remote Cache** (`"signature": true`) only once `TURBO_REMOTE_CACHE_SIGNATURE_KEY` exists in CI and on Vercel. Create the key first, then turn on signing in the same PR that uses it.
-- **`transit`** is a no-op script (`"transit": "true"`) in every package. Tasks that read source from dependencies depend on it, so they rerun when a dependency changes without waiting for its build.
+- **`CI` and `NODE_ENV` pass through.** Keep them in `globalPassThroughEnv`, not `globalEnv`, so they do not split every task hash between CI and local runs. `NODE_ENV` is hashed only where it changes the output, in `build.env`.
+- **`transit`** is a task with no script. Turbo keeps scriptless nodes in the graph, so packages need no `"transit": "true"` script. Tasks that read source from dependencies depend on it, so they rerun when a dependency changes without waiting for its build.
+  - A repo whose packages all export source can depend `build` on `transit` instead of `^build`, and keep `globalDependencies` to `pnpm-workspace.yaml` (Lienlink).
   - When a package's `exports` point at `dist/`, its consumers read the build, not the source: their tasks depend on `^build` instead of `transit` (PermDock ADR 0021).
-  - A task that reads generated code (Supabase types, the OpenAPI document, typed routes) depends on the task that generates it.
+  - A task that reads generated code (Supabase types, the OpenAPI document, typed routes) depends on the task that generates it. Name that edge explicitly, such as `@workspace/api-client#generate`, instead of a blanket `^generate` that runs the task in every dependency.
 - **Workspace `turbo.json` files** extend `//` with `"extends": ["//"]`, add their `tags`, and list per-task `env` keys and `inputs` exclusions. Expo apps exclude `ios/**`, `android/**` and `assets/**` from `lint`, `typecheck` and `test` inputs, and add `test:components`.
+  - Start an overridden `dependsOn` or `inputs` list with `"$TURBO_EXTENDS$"`. It appends to the inherited list; without it the workspace list replaces the root one.
+- **Narrow inputs.** `transit`, `typecheck` and the test tasks leave out docs (`!**/*.md`, `!**/*.mdx`), and `transit` also leaves out tests. A test task that reads files outside its package, such as `supabase/` schemas and seeds, lists those folders with `$TURBO_ROOT$/...` instead of widening to the repo. After changing inputs, run `turbo run <task> --dry=json` and count the inputs; a SaaS `test:unit` dropped from 15,695 to 4,021 (CentraKit).
+- **Local cache across worktrees.** Linked git worktrees share the main worktree's local cache when `turbo.json` sets no `cacheDir`. Do not set `cacheDir` or `TURBO_CACHE_DIR`.
+- **Stale lint results.** A cached lint result can hide new errors after a dependency bump. Run the lint gate once with `--force` after an oxlint or Ultracite bump.
 - **Boundaries:** every workspace has `boundaries` tags.
 - **Generated inputs:** a task that reads files another task generates (the `supabase:types` output, Uniwind artifacts) excludes them from its static `inputs` and adds `{ "mode": "jit", "globs": [...] }`, so the hash reflects the generated content.
 - **Scoped runs:** with `affectedUsingTaskInputs` and `filterUsingTasks`, `--affected` and `--filter` both select by task `inputs` and combine. CI and agents pass `--json` or `--log-file` where the installed version supports them, and read the structured output instead of scraping logs.

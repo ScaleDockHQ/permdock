@@ -1,6 +1,6 @@
 ---
 name: vercel-functions
-description: Vercel Functions expert guidance — Node.js/Bun/Python runtimes, Fluid Compute, long-duration (30 min) functions, large functions (5 GB bundles), Docker/OCI container images, plan limits, streaming, WebSockets, and Cron Jobs. Use when configuring, debugging, or optimizing server-side code running on Vercel.
+description: Vercel Functions expert guidance — Node.js/Bun/Python runtimes, Fluid Compute, long-duration (30 min) functions, large functions (5 GB bundles), Docker/OCI container images, plan limits, streaming, WebSockets, and legacy Cron Jobs (new scheduled work belongs to vercel-schedules). Use when configuring, debugging, or optimizing server-side code running on Vercel.
 summary: "Vercel Functions run on Fluid Compute with Node.js as the default runtime — strongly prefer it over `runtime = 'edge'` (Vercel recommends migrating off Edge, and Next.js 16.3+ no longer supports it). Duration: 300s default on every plan including Hobby, 800s max on Pro/Enterprise, 1800s (30 min) per-function in the extended beta; beyond that use Vercel Workflow. Bundles: 250 MB standard (500 MB Python), 5 GB via the large functions beta (`VERCEL_SUPPORT_LARGE_FUNCTIONS=1`). Request/response bodies cap at 4.5 MB. Memory is dashboard-only (Standard 2 GB/1 vCPU, Performance 4 GB/2 vCPU; Hobby fixed). Docker works: add `Dockerfile.vercel` to run an OCI image as an autoscaling, stateless, scale-to-zero Function."
 metadata:
   priority: 8
@@ -304,7 +304,7 @@ There is no rollback story to plan for: Node.js is a superset of what the functi
 ### Node.js (the default)
 - Full Node.js runtime, all npm packages available
 - Default for Next.js route handlers, Server Actions, Server Components, and any file in `/api`
-- **Node.js 24 LTS is GA** for builds and functions (V8 13.6, global `URLPattern`, Undici v7, npm v11). **Node.js 20 is deprecated on October 1, 2026** — move off `nodejs20.x`
+- **Node.js 26 LTS is GA and the default for new projects** for builds and functions (V8 14.6, Temporal API, HTTP/2 by default for built-in `fetch`; set `VERCEL_FETCH_DISABLE_H2=1` to keep HTTP/1.1). Existing projects move to 26 on their next deployment only if `engines.node` allows it (e.g. `>=20`). Available versions: 26.x, 24.x, 22.x. **Node.js 20 was deprecated on October 1, 2026**: new deployments that target `nodejs20.x` fail (already-deployed functions keep running), so move off it. Prebuilt deploys of Node.js 26 functions need Vercel CLI 65.8.0+
 - Duration: 300s default on every plan; 800s max on Pro/Enterprise; 1800s with the extended-duration beta
 
 ### Bun
@@ -480,9 +480,9 @@ To change the project-wide default: Settings → Functions → **Function Max Du
 Pro and Enterprise teams can run individual functions for up to **1800s**. Requirements, all of which are load-bearing:
 
 - **Per-function configuration only.** Durations above 800s must be set in code or in `vercel.json` for that function. **Project-level defaults above 800s are not supported** during the beta — raising the dashboard default will not get you to 1800s.
-- **Supported runtimes only**: `nodejs22.x`, `nodejs24.x`, Bun `1.x` and `1.4.x`, `python3.12`, `python3.13`, `python3.14`.
+- **Supported runtimes only**: `nodejs22.x`, `nodejs24.x`, `nodejs26.x`, Bun `1.x` and `1.4.x`, `python3.12`, `python3.13`, `python3.14`.
 - **Fluid Compute must be enabled** (default for new projects).
-- **Secure Compute and Static IPs do not support durations above 800s** during the beta. If the project uses either, you are capped at 800s.
+- **Secure Compute and Static IPs support durations above 800s**; BYOC does not during the beta. If the project uses BYOC, you are capped at 800s.
 
 ```ts
 // app/api/long-task/route.ts
@@ -549,7 +549,7 @@ vercel env add VERCEL_SUPPORT_LARGE_FUNCTIONS   # value: 1  (use 0 to disable)
 The environment variable always takes precedence over the project default, in both directions.
 
 - **Only functions that exceed the standard limit use the large-function path** — everything under 250 MB keeps the normal, faster path, so enabling it is not a global performance trade.
-- **Not supported with Secure Compute or Static IPs.**
+- **Supported with Secure Compute and Static IPs; not yet supported with BYOC.**
 
 ### Shrinking a bundle first
 
@@ -617,7 +617,7 @@ Deploy with `vercel deploy` or a Git push. During the build, the image is built 
 - **`SIGTERM` with a 30-second grace period** on scale-down (regular functions get 500 ms). Use it to drain.
 - **Logs are not per-request.** `stdout`/`stderr` are broadcast to all inflight requests of the instance, so correlate with your own request IDs.
 - **Same Function limits and Active CPU pricing** apply for size, memory, and duration.
-- **Secure Compute and Static IPs are not supported** with custom container images. If you need either, deploy that part without a container.
+- **Secure Compute and Static IPs are supported** with custom container images; BYOC is not yet. If you need BYOC, deploy that part without a container.
 - **Local dev**: `vercel dev` runs the image and requires the `docker` CLI plus a running daemon.
 
 ### Multiple services in one project
@@ -654,7 +654,7 @@ Registry limits: 2 GB per compressed layer, 15 GB total image size, 4 MB manifes
 
 Good fits: Go, Rust, Ruby, PHP, or other backends; apps needing system libraries like FFmpeg or Chromium; frameworks outside Vercel's auto-detection; guaranteed build/runtime parity across environments.
 
-Poor fits: anything that must hold state in-process, keep a daemon alive between requests, or run background work independent of a request. Reach for Workflow, Queues, or Cron for those, or for an always-on worker loop, Vercel Daemons (`⤳ skill: daemons`).
+Poor fits: anything that must hold state in-process, keep a daemon alive between requests, or run background work independent of a request. Reach for Workflow, Queues, or Schedules (`⤳ skill: vercel-schedules`) for those, or for an always-on worker loop, Vercel Daemons (`⤳ skill: daemons`).
 
 If your framework is already auto-detected and you have no system-library needs, the standard build is simpler and faster — a Dockerfile is not an upgrade by default.
 
@@ -806,9 +806,11 @@ function connect() {
 connect()
 ```
 
-## Cron Jobs
+## Scheduled work: Schedules and legacy Cron Jobs
 
-Schedule function invocations via `vercel.json`:
+For new scheduled work, use [Vercel Schedules](https://vercel.com/docs/schedules) (public beta on all plans; `⤳ skill: vercel-schedules`). Schedules replace Cron Jobs and add timezones, private targets, one-time runs, execution history, and enabling, disabling, or running a schedule without redeploying. A static schedule goes under `schedules` in `vercel.json` or `vercel.ts`. Target a private function with a `schedule/v1beta` trigger by default, or a queue topic when failed runs must be retried.
+
+[Cron Jobs](https://vercel.com/docs/schedules/cron-jobs) are a legacy feature that will be migrated to Schedules. Existing `crons` entries keep working. To move them, follow [Migrating from Cron Jobs](https://vercel.com/docs/schedules/migrate-from-cron-jobs) (`⤳ skill: vercel-schedules`). A legacy Cron Jobs config looks like this:
 
 ```json filename="vercel.json"
 {
@@ -838,6 +840,28 @@ export async function GET(req: Request) {
 }
 ```
 
+## Instrument with Custom Metrics
+
+When you write or change a function that does meaningful work (business events, AI or external API calls, database calls, webhooks, scheduled or queue jobs), add `metric()` from `@vercel/functions` for its outcome and latency in the same change, without waiting to be asked. Skip trivial handlers such as health checks. `metric()` needs `@vercel/functions` 3.9.0+, is synchronous, and is a no-op when the runtime does not support Custom Metrics. Custom Metrics are available on Pro and Enterprise with Observability Plus, and each call is billed as one Observability event. Load the `custom-metrics` skill for naming, attribute, and query guidance.
+
+```ts
+import { metric } from '@vercel/functions'
+
+export async function POST(req: Request) {
+  const startedAt = performance.now()
+  let outcome = 'success'
+  try {
+    return Response.json(await createOrder(await req.json()))
+  } catch (error) {
+    outcome = 'error'
+    throw error
+  } finally {
+    metric('orders.created', 1, { outcome })
+    metric('orders.duration_ms', performance.now() - startedAt, { outcome })
+  }
+}
+```
+
 ## Configuration
 
 `vercel.ts` is the recommended way to configure a project — full TypeScript types, dynamic logic, and env access via `@vercel/config`. `vercel.json` remains fully supported. Legacy `now.json` support ended **March 31, 2026**; rename it to `vercel.json` (no content changes required).
@@ -850,8 +874,12 @@ export const config: VercelConfig = {
   functions: {
     'app/api/heavy/**': { maxDuration: 800 },
     'app/api/report/**': { maxDuration: 1800 }, // Pro/Ent extended-duration beta
+    'api/cleanup.ts': { experimentalTriggers: [{ type: 'schedule/v1beta' }] }, // private, scheduler-only
   },
-  crons: [{ path: '/api/cleanup', schedule: '0 0 * * *' }],
+  // Vercel Schedules (beta); typed in @vercel/config 0.13+. Legacy `crons` is still accepted.
+  schedules: {
+    cleanup: { schedule: '0 0 * * *', function: 'api/cleanup' },
+  },
 }
 ```
 
@@ -897,8 +925,8 @@ What you **cannot** put here:
 │  ├─ 300–800s → Pro/Enterprise: set `maxDuration` in code or vercel.json
 │  ├─ 800–1800s → Pro/Enterprise extended-duration beta (30 min)
 │  │   ├─ Must be set PER FUNCTION — project defaults above 800s are ignored
-│  │   ├─ Runtimes: nodejs22/24.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
-│  │   └─ Blocked if the project uses Secure Compute or Static IPs
+│  │   ├─ Runtimes: nodejs22/24/26.x, Bun 1.x/1.4.x, python3.12/3.13/3.14
+│  │   └─ Blocked if the project uses BYOC (Secure Compute and Static IPs are fine)
 │  └─ > 30 min, or must survive crashes/deploys → Vercel Workflow
 ├─ On Hobby? → 300s is both default AND max; no extension exists, upgrade to Pro
 ├─ Client disconnected before the function finished?
@@ -968,7 +996,8 @@ Cold start latency > 1s?
 - [Services](https://vercel.com/docs/services) — multiple backends/frontends in one project
 - [Streaming](https://vercel.com/docs/functions/streaming-functions)
 - [WebSockets](https://vercel.com/docs/functions/websockets)
-- [Cron Jobs](https://vercel.com/docs/cron-jobs)
+- [Schedules](https://vercel.com/docs/schedules) — recurring and one-time scheduled work (beta; replaces Cron Jobs)
+- [Cron Jobs](https://vercel.com/docs/schedules/cron-jobs) — legacy; [migrate to Schedules](https://vercel.com/docs/schedules/migrate-from-cron-jobs)
 - [Vercel Workflow](https://vercel.com/docs/workflows) — for anything beyond 30 minutes
 - [Edge Runtime](https://vercel.com/docs/functions/runtimes/edge) — legacy; Vercel recommends migrating to Node.js
 - [GitHub: Vercel](https://github.com/vercel/vercel)

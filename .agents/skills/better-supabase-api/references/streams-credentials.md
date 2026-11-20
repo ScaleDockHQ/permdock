@@ -39,6 +39,11 @@ For Redis, `redisStreamStore({ url: process.env.REDIS_URL })` from
 `persisted` alive with `after` or `waitUntil`, or the stored copy stops
 when the response ends.
 
+Chunks are `bytea`: `append` takes strings or `Uint8Array`, and the Postgres
+store's `readBytes` returns them as written (Redis keeps text only). For the AI
+SDK resume route use `resumableStreamContext(streams, { waitUntil })` from
+`better-supabase/streams`, which answers the `resumable-stream` context API.
+
 ## Credentials
 
 Third-party tokens never go in a column. A row holds a `credential_ref`
