@@ -28,7 +28,7 @@ pnpm install
 pnpm run verify
 ```
 
-`pnpm install` runs `lefthook install` via the `prepare` script so Git hooks are set up locally. Pre-commit formats staged files, then runs `lint:root`, `lint` and `typecheck` for the workspaces your branch changed (`pnpm check:affected`); pre-push runs the same check. Tests run in CI.
+`pnpm install` runs `lefthook install` via the `prepare` script so Git hooks are set up locally. Pre-commit formats staged files, then runs `lint:root`, `lint` and `typecheck` for the workspaces your branch changed (`pnpm check:affected`); pre-push runs the same check. A pull request runs the tests its diff reaches; `main` and the nightly run run everything.
 
 Useful scripts:
 
@@ -42,6 +42,7 @@ Useful scripts:
 | `pnpm run dev:portless`  | Marketing and docs at `https://permdock.localhost` |
 | `pnpm run build`         | `turbo run build`                                  |
 | `pnpm run test`          | `turbo run test`                                   |
+| `pnpm run test:changed`  | The unit test files your diff reaches              |
 | `pnpm run typecheck`     | `turbo run typecheck`                              |
 | `pnpm changeset`         | Add a changeset for a user-visible change          |
 

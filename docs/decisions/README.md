@@ -75,3 +75,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0069](./0069-staged-lint-on-commit.md)                           | Staged lint on commit, the affected gate on push                                                       |
 | [0070](./0070-turbo-2-11-11-release-age.md)                       | turbo 2.11.11 skips the release age                                                                    |
 | [0071](./0071-better-supabase-0-63-2-floor-and-release-age.md)    | better-supabase 0.63.2 is the peer floor and catalog pin, and skips the release age                    |
+| [0072](./0072-selected-tests-on-pull-requests.md)                 | Pull requests run selected tests; main runs everything                                                 |
