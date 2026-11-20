@@ -59,7 +59,12 @@ function respond(
 ): EveResponseContext {
   // SAFETY: roles is unknown so tests can pass malformed values; eve's type is widened here.
   return {
-    request: { callId, requestId: `r-${callId}`, ...request },
+    request: {
+      callId,
+      interactionId: `i-${callId}`,
+      principal: principal(initiator),
+      ...request,
+    },
     response: {
       decision: "approve",
       principal: {
@@ -70,7 +75,11 @@ function respond(
             : { roles: responder.roles as string | readonly string[] },
       },
     },
-    session: { id: "s1", initiator: principal(initiator) },
+    session: {
+      id: "s1",
+      initiator: principal(initiator),
+      turn: { id: "t1", sequence: 1 },
+    },
   };
 }
 
@@ -220,6 +229,30 @@ describe("permdock/eve", () => {
     expect(
       await third.approval.request(call("delete_post", { id: "p1" })),
     ).toBe("not-applicable");
+  });
+
+  it("recomputes the token on another instance for a call made by a different caller", async () => {
+    const store = memoryApprovalStore();
+    const options = { operations: tools(), delegation: () => delegated, store };
+    const caller = principal({ id: "agent-7", roles: [] });
+    const asked = {
+      session: {
+        id: "s1",
+        auth: { initiator: principal(memberUser), current: caller },
+      },
+      callId: "c1",
+      ...deleteOwn,
+    };
+    expect(await createPermDock(policy, options).approval.request(asked)).toBe(
+      "user-approval",
+    );
+    const answer = respond({ principalId: "u2", roles: ["admin"] }, deleteOwn);
+    expect(
+      await createPermDock(policy, options).approval.response({
+        ...answer,
+        request: { ...answer.request, principal: caller },
+      }),
+    ).toStrictEqual({ status: "allowed" });
   });
 
   it("rejects a response for a call that never asked", async () => {

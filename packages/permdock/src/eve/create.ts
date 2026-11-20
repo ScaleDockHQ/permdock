@@ -264,7 +264,7 @@ export function createPermDock<
       return kernel.tokenFor(binding, ctx.request.toolInput, {
         session: {
           id: ctx.session.id,
-          auth: { initiator, current: initiator },
+          auth: { initiator, current: ctx.request.principal },
         },
         callId: ctx.request.callId,
       });
