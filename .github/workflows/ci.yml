@@ -105,10 +105,13 @@ jobs:
           turbo-team: ${{ vars.TURBO_TEAM }}
           trust-lockfile: "true"
 
+      - name: Build affected
+        if: github.event_name == 'pull_request'
+        run: pnpm exec turbo run build --affected
+
       - name: Build
-        env:
-          AFFECTED: ${{ github.event_name == 'pull_request' && '--affected' || '' }}
-        run: pnpm exec turbo run build $AFFECTED
+        if: github.event_name != 'pull_request'
+        run: pnpm exec turbo run build
 
   # `instant()` needs a production build compiled with the testing API, so the specs
   # build and start the example themselves (apps/examples/next/playwright.config.ts).
