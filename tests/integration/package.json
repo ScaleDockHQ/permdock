@@ -7,6 +7,7 @@
     "gen:check": "permdock collect --check --cwd fixtures/posts",
     "lint": "oxlint --disable-nested-config --type-aware",
     "rls-bench": "vitest run --project plan-gate",
+    "test": "vitest run --project servers",
     "test:integration": "prisma generate && vitest run --project integration --project rls-bench",
     "typecheck": "tsc --noEmit",
     "typegen": "prisma generate"

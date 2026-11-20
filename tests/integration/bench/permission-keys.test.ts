@@ -5,11 +5,11 @@ import { fileURLToPath } from "node:url";
 import { listPermissions } from "permdock";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import type { Postgres } from "./support/postgres.ts";
+import type { Postgres } from "../src/support/postgres.ts";
 
 import { permissions } from "../fixtures/permission-keys-bench/policy.ts";
-import { run } from "./support/cli-run.ts";
-import { startPostgres } from "./support/postgres.ts";
+import { run } from "../src/support/cli-run.ts";
+import { startPostgres } from "../src/support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/permission-keys-bench");

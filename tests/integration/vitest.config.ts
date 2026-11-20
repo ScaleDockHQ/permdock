@@ -2,6 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 
+import DurationSequencer from "./shard-sequencer.ts";
+
+// Files that start servers in process and need no database: they run in the unit job.
+const NO_DATABASE = [
+  "src/http/**/*.test.ts",
+  "src/supabase-pipeline.test.ts",
+  "src/supabase-claim-fixtures.test.ts",
+];
+
 const library = path.resolve(import.meta.dirname, "../../packages/permdock");
 
 // `scripts/select-tests.ts` lists changed tests through the module graph. The tests import the
@@ -56,13 +65,19 @@ export default defineConfig({
         : [],
   },
   test: {
+    sequence: { sequencer: DurationSequencer },
     testTimeout: 120_000,
     hookTimeout: 120_000,
     projects: [
       {
         extends: true,
-        test: { name: "integration", include: ["src/**/*.test.ts"] },
+        test: {
+          name: "integration",
+          include: ["src/**/*.test.ts"],
+          exclude: NO_DATABASE,
+        },
       },
+      { extends: true, test: { name: "servers", include: NO_DATABASE } },
       {
         extends: true,
         test: { name: "rls-bench", include: ["bench/**/*.test.ts"] },
