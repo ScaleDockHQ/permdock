@@ -86,6 +86,7 @@ jobs:
       - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
+          trust-lockfile: "true"
 
       # Full runs measure coverage (the 90% floor in packages/permdock/vitest.config.ts).
       - name: Full suite
