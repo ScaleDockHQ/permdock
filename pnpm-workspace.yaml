@@ -70,6 +70,7 @@ catalog:
   cn: 0.5.1
   babel-preset-expo: 58.0.25
   deno: 2.9.6
+  effect: 3.22.4
   elysia: 1.4.30
   esbuild: 0.28.2
   drizzle-orm: 1.0.0-rc.5
@@ -355,6 +356,8 @@ overrides:
   kysely: "catalog:"
   # GHSA-587h-7wmj-h5pm: launch-editor <=2.14.1, through @changesets/cli.
   launch-editor: "catalog:"
+  # GHSA-7589-6fvf-x4pw: effect <=3.22.0, through @prisma/config under prisma.
+  effect: "catalog:"
   # GHSA-3f7j-7jwc-fxfj: systeminformation <5.33.16, through @dotenvx/dotenvx under shadcn.
   systeminformation: "catalog:"
   # GHSA-mrwp-f3q8-3g9p: follow-redirects <=1.16.1, through axios under the Slack adapter in the chat-sdk example.
