@@ -100,4 +100,5 @@ jobs:
         if: ${{ !inputs.full }}
         run: |
           pnpm exec turbo run test --affected --filter='!permdock'
+          pnpm run authzen:vectors
           node scripts/select-tests.ts unit
