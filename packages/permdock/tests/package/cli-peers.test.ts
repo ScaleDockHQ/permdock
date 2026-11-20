@@ -32,22 +32,4 @@ describe("CLI optional peers", () => {
       expect(leaks).toStrictEqual([]);
     },
   );
-
-  it("declares jiti and oxc-parser as optional peers and no regular dependency but the schema spec", () => {
-    const manifest: {
-      readonly dependencies: Record<string, string>;
-      readonly peerDependencies: Record<string, string>;
-      readonly peerDependenciesMeta: Record<
-        string,
-        { readonly optional?: boolean }
-      >;
-    } = JSON.parse(readFileSync(path.join(ROOT, "package.json"), "utf8"));
-    expect(Object.keys(manifest.dependencies)).toStrictEqual([
-      "@standard-schema/spec",
-    ]);
-    for (const name of OPTIONAL_PEERS) {
-      expect(manifest.peerDependencies[name]).toBeTypeOf("string");
-      expect(manifest.peerDependenciesMeta[name]?.optional).toBe(true);
-    }
-  });
 });

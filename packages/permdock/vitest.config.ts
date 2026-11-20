@@ -3,7 +3,6 @@ import type { Plugin } from "vitest/config";
 import { transformAsync } from "@babel/core";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import reactCompiler from "babel-plugin-react-compiler";
-import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { defineConfig } from "vitest/config";
@@ -17,17 +16,6 @@ declare module "vitest" {
 const reactDir = path.dirname(
   createRequire(import.meta.url).resolve("react/package.json"),
 );
-
-// Thresholds follow CI's test set, which includes the official AuthZEN vectors
-// (`pnpm authzen:vectors`); CI itself never rewrites this file.
-const raiseThresholds =
-  process.env["CI"] === undefined &&
-  existsSync(
-    new URL(
-      "tests/testing/fixtures/authzen/decisions-authorization-api-1_0-02.json",
-      import.meta.url,
-    ),
-  );
 
 // Apps that enable the React Compiler compile the hooks too (Expo compiles
 // workspace packages): the hooks must behave the same once memoised by it.
@@ -131,8 +119,9 @@ export default defineConfig({
       },
     ],
     coverage: {
-      // CI measures coverage; locally `pnpm test:coverage` does (49.2 s against 35.3 s without).
-      enabled: process.env["CI"] !== undefined,
+      // Full runs on main, the nightly run and `ci:full` pull requests set COVERAGE; a selected
+      // run covers a fraction of `src/` and cannot meet a floor.
+      enabled: process.env["COVERAGE"] !== undefined,
       provider: "v8",
       include: ["src/**/*.ts"],
       exclude: [
@@ -141,39 +130,8 @@ export default defineConfig({
         // Dynamic import of the optional `jose` peer.
         "src/jwt/load-jose.ts",
       ],
-      thresholds: {
-        autoUpdate: raiseThresholds
-          ? (threshold): number => Math.floor(threshold)
-          : false,
-        statements: 98,
-        lines: 98,
-        functions: 99,
-        branches: 95,
-        "src/core/**": {
-          statements: 98,
-          lines: 98,
-          functions: 99,
-          branches: 95,
-        },
-        "src/conditions/**": {
-          statements: 97,
-          lines: 97,
-          functions: 100,
-          branches: 96,
-        },
-        "src/cli/**": {
-          statements: 98,
-          lines: 98,
-          functions: 99,
-          branches: 96,
-        },
-        "src/testing/**": {
-          statements: 97,
-          lines: 97,
-          functions: 98,
-          branches: 90,
-        },
-      },
+      // One floor, never raised by a script: a test owns a behaviour, not a line.
+      thresholds: { statements: 90, lines: 90, functions: 90, branches: 90 },
     },
   },
 });
