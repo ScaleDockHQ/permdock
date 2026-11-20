@@ -58,7 +58,9 @@ pnpm build                 # turbo run build (tsdown)
 pnpm check                 # format:check, lint, typecheck: the fast gate (16 to 24 s cold, 1 s warm)
 pnpm check:affected        # the pre-push gate against origin/main, cached
 pnpm verify                # every CI gate: root steps, then cached turbo runs
-pnpm test                  # vitest unit + type tests; CI also measures coverage
+pnpm test                  # vitest unit + type tests; coverage only with COVERAGE=1
+pnpm test:changed          # the unit test files your diff reaches (pull request CI)
+pnpm test:changed:integration # the integration files your diff reaches (Docker)
 pnpm --filter permdock exec vitest run <path>   # one file: 1 s; tests/core: 6 s; whole package: 35 s
 pnpm test:integration      # testcontainers Postgres (Docker)
 pnpm test:runtimes         # Bun, Deno, workerd; CI requires all three

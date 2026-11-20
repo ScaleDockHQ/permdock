@@ -18,6 +18,10 @@ alwaysApply: true
 
 Dependabot and the Changesets `chore: version packages` pull request are the only other pull requests.
 
+## What CI runs
+
+A pull request runs the test files its diff reaches and no coverage. The full suite and the 90% coverage floor run on every push to `main` and nightly; label a pull request `ci:full` to run them before merge. `CI` is the one required check. A selection miss shows as a red `main` run: fix it before other work, because `release.yml` publishes only after a green `main` run.
+
 ## Formats
 
 - Commit types: `feat`, `fix`, `docs`, `chore`, `ci`, `refactor`, `test`, `perf`, `style`, `build`, `revert`. Subject lower case: `fix(rls): filter nested-scope memberships by kind`.

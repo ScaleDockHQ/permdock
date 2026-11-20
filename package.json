@@ -45,6 +45,8 @@
     "standards:fixtures": "node scripts/fetch-standards-fixtures.ts && oxfmt packages/permdock/tests/fixtures/standards",
     "supabase:prune": "node scripts/supabase-prune.ts",
     "test": "env -u TURBO_CACHE_DIR turbo run test",
+    "test:changed": "node scripts/select-tests.ts unit",
+    "test:changed:integration": "node scripts/select-tests.ts integration",
     "test:e2e": "env -u TURBO_CACHE_DIR turbo run test:e2e --concurrency=1",
     "test:integration": "pnpm --filter @permdock/integration test:integration",
     "test:runtimes": "pnpm --filter @permdock/runtimes test:runtimes",

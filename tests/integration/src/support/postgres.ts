@@ -91,7 +91,19 @@ async function startServer(): Promise<{
     const native = await startPostgres17();
     return { uri: native.url, stop: native.stop };
   }
-  const container = await new PostgreSqlContainer("postgres:16-alpine").start();
+  // Throwaway data: nothing waits on a flush, and the data directory lives in memory.
+  const container = await new PostgreSqlContainer("postgres:16-alpine")
+    .withCommand([
+      "postgres",
+      "-c",
+      "fsync=off",
+      "-c",
+      "synchronous_commit=off",
+      "-c",
+      "full_page_writes=off",
+    ])
+    .withTmpFs({ "/var/lib/postgresql/data": "rw" })
+    .start();
   return {
     uri: container.getConnectionUri(),
     stop: async () => {

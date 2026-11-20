@@ -5,54 +5,41 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # `labeled` re-runs a pull request when `ci:full` is added.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  schedule:
+    - cron: "17 3 * * *"
 
 permissions: {}
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CI: true
-  # Runners are ephemeral: read and write only the Remote Cache.
-  TURBO_CACHE: local:,remote:rw
+  # Runners are ephemeral: read and write only the Remote Cache. Dependabot cannot read the
+  # signature key that turbo.json requires for the Remote Cache, so its runs use a local cache.
+  TURBO_CACHE: ${{ github.actor == 'dependabot[bot]' && 'local:rw' || 'local:,remote:rw' }}
   TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
 
 jobs:
-  pr-title:
-    name: PR title
-    if: github.event_name == 'pull_request'
+  # `full` is true on a push to main, the nightly run and a pull request labelled `ci:full`: every
+  # suite runs whole, with coverage. Otherwise a pull request runs the tests its diff reaches
+  # (scripts/select-tests.ts). Exit 0 from `turbo query affected` means unaffected; exit 1
+  # (affected) and exit 2 (error) both run the suite.
+  changes:
+    name: Changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - uses: $/.github/actions/setup
-        with:
-          remote-cache: "false"
-
-      # The title becomes the squash commit.
-      - name: Conventional commit header
-        env:
-          TITLE: ${{ github.event.pull_request.title }}
-        run: printf '%s\n' "$TITLE" | pnpm exec commitlint
-
-  # Exit 0 from `turbo query affected` means unaffected. Exit 1 (affected) and
-  # exit 2 (error) both run the suite. A push to main runs every suite.
-  changes:
-    name: Changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
     outputs:
+      full: ${{ steps.affected.outputs.full }}
       integration: ${{ steps.affected.outputs.integration }}
       runtimes: ${{ steps.affected.outputs.runtimes }}
       instant: ${{ steps.affected.outputs.instant }}
+      perf: ${{ steps.affected.outputs.perf }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -63,6 +50,7 @@ jobs:
 
       - uses: $/.github/actions/setup
         with:
+          cache: "false"
           install: "false"
           remote-cache: "false"
 
@@ -70,46 +58,60 @@ jobs:
         id: affected
         env:
           EVENT: ${{ github.event_name }}
+          FULL_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full') }}
         run: |
           version="$(sed -n 's/^  turbo: //p' pnpm-workspace.yaml)"
           if [ -z "$version" ]; then
             echo "pnpm-workspace.yaml has no turbo catalog pin"
             exit 1
           fi
-          affected() {
-            [ "$EVENT" != "pull_request" ] || ! pnpm dlx "turbo@$version" query affected --packages "$1" --exit-code >/dev/null
-          }
-          for suite in integration runtimes; do
-            if affected "@permdock/$suite"; then
-              echo "$suite=true" | tee -a "$GITHUB_OUTPUT"
-            else
-              echo "$suite=false" | tee -a "$GITHUB_OUTPUT"
-            fi
-          done
-          if affected "@permdock/example-next"; then
-            echo "instant=true" | tee -a "$GITHUB_OUTPUT"
-          else
-            echo "instant=false" | tee -a "$GITHUB_OUTPUT"
+          full=false
+          if [ "$EVENT" != "pull_request" ] || [ "$FULL_LABEL" = "true" ]; then
+            full=true
           fi
+          echo "full=$full" | tee -a "$GITHUB_OUTPUT"
+          affected() {
+            [ "$full" = "true" ] && return 0
+            for package in "$@"; do
+              pnpm dlx "turbo@$version" query affected --packages "$package" --exit-code >/dev/null || return 0
+            done
+            return 1
+          }
+          report() {
+            if "$@"; then echo "true"; else echo "false"; fi
+          }
+          echo "integration=$(report affected permdock @permdock/integration)" | tee -a "$GITHUB_OUTPUT"
+          echo "perf=$(report affected permdock @permdock/integration)" | tee -a "$GITHUB_OUTPUT"
+          echo "runtimes=$(report affected permdock @permdock/runtimes)" | tee -a "$GITHUB_OUTPUT"
+          echo "instant=$(report affected permdock @permdock/example-next)" | tee -a "$GITHUB_OUTPUT"
 
   build:
     name: Production builds
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 8
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
+          # `--affected` diffs against the merge base.
+          fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
+          trust-lockfile: "true"
+
+      - name: Build affected
+        if: github.event_name == 'pull_request'
+        run: pnpm exec turbo run build --affected
 
       - name: Build
-        run: pnpm run build
+        if: github.event_name != 'pull_request'
+        run: pnpm exec turbo run build
 
   # `instant()` needs a production build compiled with the testing API, so the specs
   # build and start the example themselves (apps/examples/next/playwright.config.ts).
@@ -118,7 +120,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.instant == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 12
     permissions:
       contents: read
       id-token: write
@@ -130,130 +132,108 @@ jobs:
       - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
-
-      - name: Build
-        run: pnpm exec turbo run build --filter=permdock
+          trust-lockfile: "true"
 
       - name: Browser
         run: pnpm exec playwright install --with-deps chromium
         working-directory: apps/examples/next
 
       - name: Instant specs
-        run: pnpm run test:e2e
-        working-directory: apps/examples/next
+        run: pnpm exec turbo run test:e2e --filter=@permdock/example-next
 
   verify:
     name: Verify
+    needs: changes
     permissions:
       contents: read
       id-token: write
     uses: $/.github/workflows/verify.yml
     with:
       affected: ${{ github.event_name == 'pull_request' }}
+      full: ${{ needs.changes.outputs.full == 'true' }}
     secrets:
       TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
 
+  # Timing gates, alone on their machine, one task at a time: the ceilings flake when
+  # tasks share the CPU (decision 0063).
+  perf:
+    name: Perf
+    needs: changes
+    if: needs.changes.outputs.perf == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+        with:
+          turbo-team: ${{ vars.TURBO_TEAM }}
+          trust-lockfile: "true"
+
+      - name: Timing gates
+        run: pnpm exec turbo run typecheck:perf generate:perf runtime:perf rls-bench cli:startup --concurrency=1
+
+      # After the timing gates, so it does not share their CPU. The whole bench takes about
+      # 5 minutes, so a pull request runs it only with `ci:full`.
+      - name: RLS bench
+        if: needs.changes.outputs.full == 'true'
+        run: pnpm --filter @permdock/integration exec vitest run --project rls-bench
+
   integration:
-    name: Integration (Postgres ${{ matrix.shard }}/3)
+    name: Integration (Postgres ${{ matrix.shard }})
     needs: changes
     if: needs.changes.outputs.integration == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     permissions:
       contents: read
       id-token: write
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        # A pull request runs one job over the selected files; a full run uses three shards.
+        shard: ${{ fromJSON(needs.changes.outputs.full == 'true' && '[1, 2, 3]' || '[1]') }}
     steps:
       - uses: actions/checkout@v7
         with:
+          # The selection diffs against the merge base.
+          fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
+          trust-lockfile: "true"
 
       - name: Build
         run: pnpm exec turbo run build --filter=permdock
 
-      # `rls-bench` (bench/) runs in the perf job. Two workers on those files
-      # made shard 1 slower (240s against 163s on one worker).
       - name: Integration
-        run: >-
-          pnpm --filter @permdock/integration exec prisma generate &&
-          pnpm --filter @permdock/integration exec vitest run
-          --project integration --maxWorkers=2 --shard=${{ matrix.shard }}/3
-
-  # The peer floor and the catalog pin (both 0.63.2); the range has no upper bound
-  # (tests/package/better-supabase-peer-range.test.ts).
-  better-supabase:
-    name: better-supabase ${{ matrix.better-supabase }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        better-supabase: ["0.63.2"]
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      # The unit suite and the integration shards already run the catalog pin.
-      - name: Catalog pin
-        id: pin
         env:
-          VERSION: ${{ matrix.better-supabase }}
+          FULL: ${{ needs.changes.outputs.full }}
+          SHARD: ${{ matrix.shard }}
         run: |
-          pin="$(sed -n 's/^  better-supabase: \([0-9.]*\)$/\1/p' pnpm-workspace.yaml)"
-          if [ "$VERSION" = "$pin" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "better-supabase $VERSION is the catalog pin; the other suites already run it"
+          pnpm --filter @permdock/integration exec prisma generate
+          if [ "$FULL" = "true" ]; then
+            pnpm --filter @permdock/integration exec vitest run --project integration --maxWorkers=2 --shard="$SHARD/3"
           else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            node scripts/select-tests.ts integration
           fi
-
-      - uses: $/.github/actions/setup
-        if: steps.pin.outputs.skip != 'true'
-        with:
-          turbo-team: ${{ vars.TURBO_TEAM }}
-          # This step rewrites the catalog pin, so its store must not be saved.
-          save-cache: "false"
-
-      - name: Install better-supabase ${{ matrix.better-supabase }}
-        if: steps.pin.outputs.skip != 'true'
-        env:
-          VERSION: ${{ matrix.better-supabase }}
-        run: |
-          sed -i -E "s/^  better-supabase: [0-9.]+$/  better-supabase: $VERSION/" pnpm-workspace.yaml
-          pnpm install --no-frozen-lockfile
-          node -p "require('./packages/permdock/node_modules/better-supabase/package.json').version" | grep -qx "$VERSION"
-
-      - name: Build
-        if: steps.pin.outputs.skip != 'true'
-        run: pnpm exec turbo run build --filter=permdock
-
-      - name: Provider tests
-        if: steps.pin.outputs.skip != 'true'
-        run: pnpm exec vitest run --coverage.enabled=false tests/better-supabase
-        working-directory: packages/permdock
-
-      - name: Provider integration
-        if: steps.pin.outputs.skip != 'true'
-        run: pnpm exec vitest run --project integration src/better-supabase-
-        working-directory: tests/integration
 
   runtimes:
     name: Runtimes (Bun, Deno, workerd)
     needs: changes
     if: needs.changes.outputs.runtimes == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 8
     permissions:
       contents: read
       id-token: write
@@ -265,36 +245,32 @@ jobs:
       - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
+          trust-lockfile: "true"
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      - name: Build
-        run: pnpm exec turbo run build --filter=permdock
-
       - name: Runtimes
-        run: pnpm run test:runtimes
+        run: pnpm exec turbo run test:runtimes --filter=@permdock/runtimes
 
-  # A skipped matrix never creates "Integration (Postgres 1/3)", so branch
-  # protection cannot require those names. This job always reports.
-  heavy-suites:
-    name: Heavy suites
-    needs: [changes, integration, runtimes]
-    if: always() && needs.changes.result == 'success'
+  # The one required check. A skipped suite counts as passed; a skipped matrix never creates
+  # job names that branch protection could require.
+  gate:
+    name: CI
+    needs: [changes, build, instant, verify, perf, integration, runtimes]
+    if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
+    timeout-minutes: 3
+    permissions: {}
     steps:
-      - name: Shards and runtimes
+      - name: Every job passed or was skipped
         env:
-          INTEGRATION: ${{ needs.integration.result }}
-          RUNTIMES: ${{ needs.runtimes.result }}
+          RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          for result in "$INTEGRATION" "$RUNTIMES"; do
+          for result in $RESULTS; do
             case "$result" in
               success|skipped) ;;
               *)
-                echo "a heavy suite finished $result"
+                echo "a job finished $result"
                 exit 1
                 ;;
             esac

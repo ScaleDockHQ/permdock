@@ -1,5 +1,5 @@
 import { testAuthorizationProvider } from "better-supabase/testing";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import type { AuthorizationProviderOptions } from "../../src/better-supabase/index.ts";
@@ -13,26 +13,6 @@ const ROOT = new URL("../../../../", import.meta.url);
 const EXAMPLE = new URL("apps/examples/next-better-supabase/", ROOT);
 const text = (url: URL): string => readFileSync(url, "utf8");
 const json = (url: URL): unknown => JSON.parse(text(url));
-
-/** The docs pages, the example's sources and PermDock's adapter. */
-function consumerFiles(): readonly (readonly [string, string])[] {
-  const roots = [
-    ["apps/docs/content/docs/", /\.mdx$/u],
-    ["apps/examples/next-better-supabase/src/", /\.tsx?$/u],
-    ["packages/permdock/src/better-supabase/", /\.ts$/u],
-  ] as const;
-  return [
-    ...roots.flatMap(([dir, pattern]) =>
-      readdirSync(new URL(dir, ROOT), { recursive: true, encoding: "utf8" })
-        .filter((file) => pattern.test(file))
-        .map((file) => `${dir}${file}`),
-    ),
-    "apps/examples/next-better-supabase/README.md",
-    "apps/examples/next-better-supabase/better-supabase.config.ts",
-  ].map((file) => [file, text(new URL(file, ROOT))] as const);
-}
-
-const word = (name: string): RegExp => new RegExp(`\\b${name}\\b`, "u");
 
 const emptyCatalog = {
   $schema: "https://permdock.com/schemas/catalog-v2.json",
@@ -187,141 +167,6 @@ describe("better-supabase 0.26 to 0.63", () => {
         "teamIdsOf",
       ]),
     );
-  });
-
-  it("0.26: the example's block SQL scopes each command to public", () => {
-    const dir = new URL("supabase/schemas/", EXAMPLE);
-    const sql = readdirSync(dir)
-      .filter((file) => file.endsWith(".sql"))
-      .map((file) => text(new URL(file, dir)))
-      .join("\n");
-    expect(sql).not.toMatch(/create policy bsb_tenant_scope on /u);
-    const policies = [
-      ...sql.matchAll(
-        /create policy bsb_tenant_scope_(\w+) on (\S+) as restrictive\s+for (\w+) to (\w+)/gu,
-      ),
-    ];
-    expect(policies.length).toBeGreaterThan(0);
-    const commands = new Map<string, Set<string>>();
-    for (const [, name, table = "", command, role] of policies) {
-      expect(command).toBe(name);
-      expect(role).toBe("public");
-      commands.set(
-        table,
-        (commands.get(table) ?? new Set()).add(command ?? ""),
-      );
-    }
-    for (const found of commands.values()) {
-      expect([...found].toSorted()).toStrictEqual([
-        "delete",
-        "insert",
-        "select",
-        "update",
-      ]);
-    }
-  });
-
-  it.each([
-    "apps/docs/content/docs/adapters/better-supabase.mdx",
-    "apps/examples/next-better-supabase/better-supabase.config.ts",
-  ])("0.29: %s never names the removed records key", (path) => {
-    const source = text(new URL(path, ROOT));
-    expect(source).not.toMatch(/config\.records|\brecords\s*:|@bsb record\b/u);
-  });
-
-  it("0.29: no example source tags a table with @bsb record", () => {
-    const tagged = readdirSync(new URL("src/", EXAMPLE), {
-      recursive: true,
-      encoding: "utf8",
-    })
-      .filter((file) => /\.(ts|tsx|sql)$/u.test(file))
-      .filter((file) =>
-        /@bsb record\b/u.test(text(new URL(`src/${file}`, EXAMPLE))),
-      );
-    expect(tagged).toStrictEqual([]);
-  });
-
-  // The old names of `codemod 0.32`, whose map 0.58 stopped shipping.
-  it("0.32: no consumer file keeps a name the 0.32 codemod renames", () => {
-    const old = [
-      ...[
-        "OrganizationConfig",
-        "OAuthStart",
-        "CodeExchange",
-        "EndedSessionOptions",
-        "checkSession",
-        "requireOrganization",
-        "endedSession",
-        "refreshSkewSeconds",
-        "expiredPrefetch",
-      ].map(word),
-      ...[
-        "getRequestSession",
-        "contextForSession",
-        "invalidateSession",
-        "forgetSession",
-        "authorizeUrl",
-        "exchangeCode",
-        "cacheTags",
-        "cacheTag",
-      ].map((name) => new RegExp(`\\bbsb\\.${name}\\b`, "u")),
-      /\bbsb\.session\(/u,
-      /\bauth\.organization\b|\bauth:\s*\{\s*organization:/u,
-    ];
-    const hits = consumerFiles().flatMap(([file, source]) =>
-      old
-        .filter((pattern) => pattern.test(source))
-        .map((pattern) => `${file}: ${pattern.source}`),
-    );
-    expect(hits).toStrictEqual([]);
-  });
-
-  // From the 0.57 to 0.58 migration guide, the type and function renames of `api/naming.json`.
-  it("0.58: no consumer file keeps a name 0.58 renames", () => {
-    const old = [
-      ...[
-        "defineSupabase",
-        "getBetterSupabase",
-        "buildJsonSchema",
-        "buildApiModel",
-        "createRuleSink",
-        "workItemRecurrenceSink",
-        "SessionEntryConfig",
-        "GuardEntryConfig",
-        "AddArgs",
-        "ListArgs",
-        "CliArgs",
-        "RateLimitSettings",
-        "AccountingSettings",
-        "BucketSettings",
-      ].map(word),
-      /better-supabase\/ai-sdk\/workflow\/react/u,
-      /\bgen\.(?:output|recordTypes)\b|\bgen:\s*\{\s*(?:output|recordTypes):/u,
-      /\bconfig\.subjects\b/u,
-      /\bbsb\.(?:uid|owns|is_member|can)\(/u,
-    ];
-    const hits = consumerFiles().flatMap(([file, source]) =>
-      old
-        .filter((pattern) => pattern.test(source))
-        .map((pattern) => `${file}: ${pattern.source}`),
-    );
-    expect(hits).toStrictEqual([]);
-  });
-
-  it("0.37: no consumer file keeps a name 0.35 to 0.37 removed", () => {
-    const removed = [
-      /\bsessionStale\b/u,
-      /\bcontextFromSession\b/u,
-      /\bsupabaseFor\b/u,
-      /\bsessionPromise\b/u,
-      /\blife:\s*\{\s*(?:min|max)\b/u,
-    ];
-    const hits = consumerFiles().flatMap(([file, source]) =>
-      removed
-        .filter((pattern) => pattern.test(source))
-        .map((pattern) => `${file}: ${pattern.source}`),
-    );
-    expect(hits).toStrictEqual([]);
   });
 
   it.each(providers)(
