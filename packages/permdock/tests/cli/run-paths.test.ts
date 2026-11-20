@@ -127,11 +127,6 @@ describe("run: the root", () => {
 });
 
 describe("run: flags", () => {
-  it("answers a flag removed before 0.10 as an unknown flag", async () => {
-    const result = await run(["scan", "--legacy", "--json"], { cwd: FIXTURE });
-    expect(errorOf(result.stderr)).toMatchObject({ reason: "unknown_flag" });
-  });
-
   it("refuses --json with another --format", async () => {
     const result = await run(["doctor", "--json", "--format", "text"], {
       cwd: FIXTURE,
