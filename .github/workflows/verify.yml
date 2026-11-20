@@ -7,6 +7,10 @@ on:
         description: Run Turborepo tasks only for workspaces changed against the base branch.
         type: boolean
         default: false
+      full:
+        description: Run the whole unit suite with coverage; otherwise run the test files the diff reaches.
+        type: boolean
+        default: true
     secrets:
       TURBO_REMOTE_CACHE_SIGNATURE_KEY:
         required: false
@@ -15,8 +19,9 @@ permissions: {}
 
 env:
   CI: true
-  # Runners are ephemeral: read and write only the Remote Cache.
-  TURBO_CACHE: local:,remote:rw
+  # Runners are ephemeral: read and write only the Remote Cache. Dependabot cannot read the
+  # signature key that turbo.json requires for the Remote Cache, so its runs use a local cache.
+  TURBO_CACHE: ${{ github.actor == 'dependabot[bot]' && 'local:rw' || 'local:,remote:rw' }}
   TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
   AFFECTED: ${{ inputs.affected && '--affected' || '' }}
 
@@ -25,7 +30,7 @@ jobs:
   static:
     name: static
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 8
     permissions:
       contents: read
       id-token: write
@@ -43,6 +48,13 @@ jobs:
           # The only writer. Every other job restores this entry.
           save-cache: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
+      # The title becomes the squash commit.
+      - name: PR title
+        if: github.event_name == 'pull_request'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$TITLE" | pnpm exec commitlint
+
       - parallel:
           # Includes the public types under TypeScript 5.9, 6 (typecheck:compat) and 7 (tests/types).
           - name: Workspace tasks
@@ -56,23 +68,14 @@ jobs:
           - name: Boundaries
             run: pnpm run boundaries
 
-  heavy:
-    name: ${{ matrix.name }}
+  # Includes the Nest adapter against Nest 11, the lowest peer version (tests/nest-11).
+  test:
+    name: test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 12
     permissions:
       contents: read
       id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Includes the Nest adapter against Nest 11, the lowest peer version (tests/nest-11).
-          - name: test
-            run: pnpm exec turbo run test $AFFECTED
-          # Alone on its machine, one task at a time: the timing ceilings flake when tasks share the CPU.
-          - name: perf
-            run: pnpm exec turbo run typecheck:perf generate:perf runtime:perf rls-bench cli:startup --concurrency=1
     steps:
       - uses: actions/checkout@v7
         with:
@@ -84,11 +87,16 @@ jobs:
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
-      - name: ${{ matrix.name }}
-        run: ${{ matrix.run }}
+      # Full runs measure coverage (the 90% floor in packages/permdock/vitest.config.ts).
+      - name: Full suite
+        if: inputs.full
+        env:
+          COVERAGE: "true"
+        run: pnpm exec turbo run test
 
-      # After the timing gates, so it does not share their CPU. The integration
-      # shards exclude this project: custom-roles-4m alone held a shard.
-      - name: RLS bench
-        if: matrix.name == 'perf'
-        run: pnpm --filter @permdock/integration exec vitest run --project rls-bench
+      # The library's own tests are selected from the diff; other workspaces use Turbo's affected set.
+      - name: Selected tests
+        if: ${{ !inputs.full }}
+        run: |
+          pnpm exec turbo run test --affected --filter='!permdock'
+          node scripts/select-tests.ts unit

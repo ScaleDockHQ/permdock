@@ -13,6 +13,8 @@ export default defineConfig({
   // Store reads wait DEMO_LATENCY_MS (3 s by default); a cold page chains a few.
   timeout: 90_000,
   expect: { timeout: 20_000 },
+  // The specs only read; the desktop and mobile projects run side by side.
+  workers: "100%",
   reporter: "list",
   use: { baseURL, browserName: "chromium" },
   projects: [

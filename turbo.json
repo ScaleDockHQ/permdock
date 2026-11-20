@@ -155,7 +155,13 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$"]
+      "inputs": ["$TURBO_DEFAULT$"],
+      "env": ["COVERAGE"]
+    },
+    "test:runtimes": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
     },
     "//#authzen:vectors": {
       "inputs": ["scripts/fetch-authzen-vectors.ts"],
@@ -163,7 +169,8 @@
     },
     "test:e2e": {
       "dependsOn": ["^build"],
-      "cache": false,
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": [],
       "env": ["DEMO_LATENCY_MS"],
       "passThroughEnv": ["DOCKER_HOST", "TESTCONTAINERS_*"]
     },
