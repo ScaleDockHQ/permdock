@@ -3049,6 +3049,9 @@ importers:
       elysia:
         specifier: 'catalog:'
         version: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.2.0(supports-color@11.0.0))(openapi-types@12.1.3)(typescript@7.0.2)
+      eve:
+        specifier: 'catalog:'
+        version: 0.91.0(4c7581dec9bc3062d533f6c9d24c9eb9)
       express:
         specifier: 'catalog:'
         version: 5.3.0(supports-color@11.0.0)
@@ -24422,7 +24425,6 @@ snapshots:
       svelte: 5.57.3(@typescript-eslint/types@8.71.0)
       vite: 8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
       vue: 3.5.44(typescript@7.0.2)
-    optional: true
 
   eve@0.91.0(6c111f2fb82eed458da21155cbf6585d):
     dependencies:

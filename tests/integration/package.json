@@ -42,6 +42,7 @@
     "better-supabase": "catalog:",
     "drizzle-orm": "catalog:",
     "elysia": "catalog:",
+    "eve": "catalog:",
     "express": "catalog:",
     "fastify": "catalog:",
     "hono": "catalog:",
