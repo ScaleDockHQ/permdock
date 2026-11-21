@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.30.0 (2026-11-21)
+
+- BREAKING: `permdock/eve` needs eve 1.2.0 or later, the `ai` and `chat` peers need 7.0.177 and 4.45.0, and `permdock/better-supabase` needs better-supabase 0.81.0 or later. `EveResponseContext` takes `request.interactionId` and `request.principal` in place of `request.requestId`, the decision is `"approve" | "deny"` with no `cancel`, and the session reads `id` and `initiator`. A response on another instance now recomputes the approval token with `request.principal` as the caller. `approvalFor` from `permdock/eve` combines with better-supabase's `strictestApproval`; see [Eve with better-supabase](/docs/adapters/eve#use-with-better-supabase).
+
 ## 0.29.0 (2026-11-19)
 
 - `authorizationProvider({ ..., roleIn: true })` fills better-supabase's `functions.roleIn` with `permdock_role_in`, so with `blocks.memberships.options.roles.many` its `membership_roles` trigger refuses another organization's custom role (SQLSTATE `23514`, `MEMBERSHIP_ROLE_SCOPE`). The option needs better-supabase 0.77.0, since older releases refuse the key, and is off by default; `problems` reports it when the manifest lists no `permdock_role_in`.
