@@ -47,21 +47,21 @@ export type EveApprovalContext = {
 export type EveResponseContext = {
   readonly request: {
     readonly callId: string;
-    readonly requestId?: string;
+    readonly interactionId: string;
+    /** The caller of the turn that made the call; `null` when unauthenticated. */
+    readonly principal: EvePrincipal | null;
     readonly toolName: string;
     readonly toolInput?: unknown;
   };
-  /**
-   * Who answered and how; eve settles the request only on `allowed`. Eve 0.91
-   * sends `deny`. Earlier releases sent `cancel` for the same refusal.
-   */
+  /** Who answered and how; eve settles the request only on `allowed`. */
   readonly response: {
-    readonly decision: "approve" | "deny" | "cancel";
+    readonly decision: "approve" | "deny";
     readonly principal: EvePrincipal;
   };
+  /** Only the fields the adapter reads; eve passes the rest. */
   readonly session: {
     readonly id: string;
-    readonly initiator: EvePrincipal | null;
+    readonly initiator?: EvePrincipal | null;
   };
 };
 
@@ -254,11 +254,11 @@ export function createPermDock<
       if (binding === undefined) {
         return Promise.resolve(undefined);
       }
-      const initiator = ctx.session.initiator;
+      const initiator = ctx.session.initiator ?? null;
       return kernel.tokenFor(binding, ctx.request.toolInput, {
         session: {
           id: ctx.session.id,
-          auth: { initiator, current: initiator },
+          auth: { initiator, current: ctx.request.principal },
         },
         callId: ctx.request.callId,
       });

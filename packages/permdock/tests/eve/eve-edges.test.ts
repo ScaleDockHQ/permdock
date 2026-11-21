@@ -52,7 +52,13 @@ function respond(
   callId = "c1",
 ): EveResponseContext {
   return {
-    request: { callId, requestId: `r-${callId}`, toolName, toolInput: {} },
+    request: {
+      callId,
+      interactionId: `i-${callId}`,
+      principal: principal(memberUser.id, memberUser.roles),
+      toolName,
+      toolInput: {},
+    },
     response: {
       decision: "approve",
       principal: { principalId: responderId, attributes: { roles: ["admin"] } },

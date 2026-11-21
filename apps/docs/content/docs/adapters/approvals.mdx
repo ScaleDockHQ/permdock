@@ -283,7 +283,7 @@ const permdock = await getPermDock(policy, user, {
 
 1. An adapter calls `decide`; the outcome is `approval-required` with a deterministic `token`.
 2. The adapter builds an `ApprovalRequest` and calls `store.create`. An `approval` event with `phase: 'requested'` fires on `on('decision')`.
-3. The runtime surfaces the ask (AI SDK `user-approval`, Eve `input.requested`, OpenAI `interruptions`, a `403` with the token, a terminal prompt, or `useApproval(decision).request()` from a UI built with `permdock/react` ([UI](/docs/concepts/ui))).
+3. The runtime surfaces the ask (AI SDK `user-approval`, Eve `interaction.opened`, OpenAI `interruptions`, a `403` with the token, a terminal prompt, or `useApproval(decision).request()` from a UI built with `permdock/react` ([UI](/docs/concepts/ui))).
 4. A person answers through the runtime's own UI, through `approvalsHandler`, or through the PermDock Cloud inbox. `store.resolve` records the verdict and approver; once the grant's `quorum` is met (one approver unless the grant says otherwise), an `approval` event with `phase: 'resolved'` fires.
 5. The original call is retried. The adapter looks up the token, requires `status: 'approved'` and `expiresAt` in the future, re-runs `decide`, recomputes the token and compares. Only then does the tool or route execute; the resumed decision fires as a normal `decision` event carrying the same `token`.
 

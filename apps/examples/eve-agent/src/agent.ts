@@ -57,7 +57,13 @@ export async function approve(
   toolName: string,
 ) {
   const result = await approval.response({
-    request: { callId, toolName, toolInput: { id: ownPost.id } },
+    request: {
+      callId,
+      interactionId: `interaction-${callId}`,
+      principal: initiator,
+      toolName,
+      toolInput: { id: ownPost.id },
+    },
     response: { decision: "approve", principal: reviewer },
     session: { id: sessionId, initiator },
   });
