@@ -109,6 +109,49 @@ The `subject` and `actor` options override these defaults when an application en
 - A rejected responder gets `{ status: "rejected", reason: "approver is the actor of this request" }` (or the `approvers` reason); the request stays pending, matching Eve's semantics.
 - Expired or mismatched approvals on resume are denials with `detail` `approval-expired` or `approval-mismatch`.
 
+## Use with better-supabase
+
+better-supabase 0.81.0 or later exports `strictestApproval`, `approvalPolicy`, `tenantToolApproval`, `supabaseTool` and `eveContext` from `better-supabase/eve`. `strictestApproval` combines approvals for one tool: the strictest `request` answer wins (`denied`, then `user-approval`, then `approved`, then `not-applicable`) and every `response` must allow the answer. `approvalFor` returns an approval of that shape, so PermDock's decision, the approvals block and the tenant's tool policies all apply to one call.
+
+```ts
+import { defineTool } from "eve/tools";
+import {
+  approvalPolicy,
+  strictestApproval,
+  supabaseTool,
+  tenantToolApproval,
+} from "better-supabase/eve";
+
+const { approvalFor } = createPermDock(policy, { operations });
+
+export default defineTool(
+  supabaseTool({
+    agent: "support",
+    server,
+    description: "Refund a charge.",
+    inputSchema: RefundInput,
+    permission: permissions.charge.refund.key,
+    approval: strictestApproval(
+      approvalFor(permissions.charge.refund, (input) =>
+        loadCharge(RefundInput.parse(input).chargeId),
+      ),
+      approvalPolicy({
+        agent: "support",
+        server,
+        permission: permissions.charge.refund.key,
+      }),
+      tenantToolApproval(policies),
+    ),
+    execute: (input, { db }) => refund(db, input),
+  }),
+);
+```
+
+- `permissions.charge.refund.key` is the permission's `key`. Pass the same permission to `approvalFor` and to `permission`: `supabaseTool` adds the key to the agent's `scopes`, and `eveContext` derives the `scope` claim from them.
+- `approvalFor` runs the PermDock decision. `approvalPolicy` files the request in the approvals block, and `tenantToolApproval` applies the tenant's `deny`, `ask` and `auto` policies.
+- The pair type-checks against `strictestApproval` in `tests/better-supabase/eve.test-d.ts`. `permdock/eve` reads only `session.id` and `session.initiator` from the response context, so better-supabase's narrower `EveApprovalResponseContext` is accepted.
+- Needs `better-supabase` 0.81.0 or later and `eve` 1.3.0 or later.
+
 ## Example app
 
 `apps/examples/eve-agent`: HTTP harness on `127.0.0.1:3474` with `GET /health`, driving the pair with Eve's session shapes. `GET /list_posts` returns `not-applicable`. `GET /delete_post?call=…` returns `user-approval`; `POST /approve?call=…` answers as an admin reviewer; the next `GET /delete_post` for that call is the re-check and returns `not-applicable` once, and a further one is denied. No model API key. `tests/integration` also drives the pair with eve 1.2.0's `ApprovalContext` and `ApprovalResponseContext` (gate, responder check, re-check) against a Postgres `ApprovalStore`; eve exports no function that evaluates an approval outside a running session, so the test follows its three steps. This example is also the deploy template for the PermDock Cloud listing on the Vercel Marketplace. `src/cloud.ts` uses `cloud()` when `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are set and `memoryApprovalStore()` otherwise: `store` is `cloud().approvals`, `sink` is `cloud().sink`, `POST /webhooks/permdock` is a `cloudApprovalWaiter` endpoint, `/approvals/*` mounts `approvalsHandler`, `GET /delete_post` links the inbox, and `policies` is `hostedPolicies(cloud().policies)`, refreshed at start and every minute, for hosted grants on the `hostable` `post.publish` ([Cloud adapter](/docs/adapters/cloud)).

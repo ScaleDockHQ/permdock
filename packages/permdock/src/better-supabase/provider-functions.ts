@@ -40,6 +40,7 @@ type Template = Exclude<
   | "approverFor"
   | "managedUsers"
   | "canIn"
+  | "roleIn"
   | RowTemplate
 >;
 
@@ -480,8 +481,7 @@ export function providerFunctions(
           "postgres",
           argTypes(roleInHelper.args),
         );
-  // shortcut: better-supabase 0.77 types roleIn; drop the intersection once the floor reaches it.
-  const functions: AuthorizationFunctions & { readonly roleIn?: string } = {
+  const functions: AuthorizationFunctions = {
     ...rowTemplates,
     ...optional,
     idsWith: `${schema}.${TEMPLATES.idsWith.sql}`,

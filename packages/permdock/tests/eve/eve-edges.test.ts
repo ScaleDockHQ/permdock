@@ -66,7 +66,6 @@ function respond(
     session: {
       id: "s1",
       initiator: principal(memberUser.id, memberUser.roles),
-      turn: { id: "t1", sequence: 1 },
     },
   };
 }

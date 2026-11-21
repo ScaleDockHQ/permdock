@@ -58,16 +58,10 @@ export type EveResponseContext = {
     readonly decision: "approve" | "deny";
     readonly principal: EvePrincipal;
   };
+  /** Only the fields the adapter reads; eve passes the rest. */
   readonly session: {
     readonly id: string;
-    readonly initiator: EvePrincipal | null;
-    readonly parent?: {
-      readonly callId: string;
-      readonly rootSessionId: string;
-      readonly sessionId: string;
-      readonly turn: { readonly id: string; readonly sequence: number };
-    };
-    readonly turn: { readonly id: string; readonly sequence: number };
+    readonly initiator?: EvePrincipal | null;
   };
 };
 
@@ -260,7 +254,7 @@ export function createPermDock<
       if (binding === undefined) {
         return Promise.resolve(undefined);
       }
-      const initiator = ctx.session.initiator;
+      const initiator = ctx.session.initiator ?? null;
       return kernel.tokenFor(binding, ctx.request.toolInput, {
         session: {
           id: ctx.session.id,

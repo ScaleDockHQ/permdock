@@ -75,11 +75,7 @@ function respond(
             : { roles: responder.roles as string | readonly string[] },
       },
     },
-    session: {
-      id: "s1",
-      initiator: principal(initiator),
-      turn: { id: "t1", sequence: 1 },
-    },
+    session: { id: "s1", initiator: principal(initiator) },
   };
 }
 

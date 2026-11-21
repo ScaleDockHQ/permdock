@@ -39,7 +39,7 @@ describe("permdock/eve against eve", () => {
 });
 
 describe("permdock/eve context shapes against eve", () => {
-  it("keeps the request, response and session keys of eve's response context", () => {
+  it("keeps the request and response keys of eve's response context", () => {
     // The adapter never reads `auth`, so the structural type leaves it out.
     expectTypeOf<keyof EveResponseContext>().toEqualTypeOf<
       Exclude<keyof ApprovalResponseContext, "auth">
@@ -50,7 +50,7 @@ describe("permdock/eve context shapes against eve", () => {
     expectTypeOf<keyof EveResponseContext["response"]>().toEqualTypeOf<
       keyof ApprovalResponseContext["response"]
     >();
-    expectTypeOf<keyof EveResponseContext["session"]>().toEqualTypeOf<
+    expectTypeOf<keyof EveResponseContext["session"]>().toExtend<
       keyof ApprovalResponseContext["session"]
     >();
     expectTypeOf<EveResponseContext["response"]["decision"]>().toEqualTypeOf<

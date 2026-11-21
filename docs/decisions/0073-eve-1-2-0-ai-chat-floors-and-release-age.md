@@ -1,6 +1,6 @@
 # 0073. eve 1.2.0, ai 7.0.177 and chat 4.45.0 are peer floors; eve 1.2.0 skips the release age; workflow stays at 5.4.0
 
-- Status: accepted
+- Status: accepted, amended by 0074
 - Date: 2026-11-20
 - Amends: 0045 (the open-floor rule stays; these are new floors)
 
@@ -15,7 +15,7 @@ eve 1.2.0 reached npm at 15:54 UTC on 2026-11-20 and needs Node.js 24 or later; 
 - The `peers` catalog floors are `eve >=1.2.0`, `ai >=7.0.177` and `chat >=4.45.0`. Every range stays an open floor with no upper bound. `workflow` stays `>=5`.
 - The catalog pins eve 1.2.0, ai 7.0.177, `@ai-sdk/react` 4.0.181, `@ai-sdk/otel` 1.0.177, chat 4.45.0 and `@vercel/detect-agent` 1.2.7. `workflow` stays 5.4.0.
 - `minimumReleaseAgeExclude` lists `eve@1.2.0`, that version only. `minimumReleaseAge` stays at 1440 and `trustPolicy` is unchanged. No `trustPolicyExclude` entry is added for `workflow`.
-- better-supabase 0.63.2 peers on `eve >=0.71 <1`, so `peerDependencyRules.allowedVersions` lets `better-supabase>eve` resolve to 1.
+- Superseded by 0074: better-supabase 0.81.0 peers on `eve >=1.3.0 <2`, so no `better-supabase>eve` rule remains.
 
 ## Consequences
 

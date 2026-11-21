@@ -65,7 +65,7 @@ export async function approve(
       toolInput: { id: ownPost.id },
     },
     response: { decision: "approve", principal: reviewer },
-    session: { id: sessionId, initiator, turn: { id: "turn-1", sequence: 1 } },
+    session: { id: sessionId, initiator },
   });
   return result;
 }
