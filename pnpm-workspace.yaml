@@ -159,7 +159,7 @@ catalog:
   "@ai-sdk/otel": 1.0.179
   dotenv-cli: 11.1.0
   portless: 0.17.0
-  better-supabase: 0.84.0
+  better-supabase: file:.better-supabase/better-supabase.tgz
   better-result: 3.0.1
   "@supabase/postgrest-typegen": 0.8.1
   supabase: 3.2.0
@@ -270,7 +270,6 @@ minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   # Adopted the day they shipped; drop each entry after its date (decisions 0070 and 0071).
   # Drop after 2026-11-24 16:57 UTC (decision 0075).
-  - better-supabase@0.84.0
   # Drop after 2026-11-12 18:38 UTC.
   - turbo@2.11.11
   - eslint-plugin-turbo@2.11.11
@@ -300,6 +299,9 @@ trustPolicyExclude:
 trustPolicyExcludePrune: true
 
 peerDependencyRules:
+  # A `file:` tarball has no version to match; scripts/publish.ts refuses to publish while the catalog points at one (decision 0076).
+  allowAny:
+    - better-supabase
   allowedVersions:
     # expo-router's optional peer resolves to 4.6.0 until 4.7.1 (0.86 - 0.88) clears minimumReleaseAge; the example runs web only.
     "react-native-reanimated>react-native": "0.88"
