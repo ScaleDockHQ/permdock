@@ -1,6 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import installed from "better-supabase/package.json" with { type: "json" };
-import { moduleBody, sameTenantLayout } from "better-supabase/sql";
+import { moduleBody } from "better-supabase/sql";
 import { afterEach, describe, expect, it } from "vitest";
 
 /**
@@ -17,6 +17,38 @@ create table public.organization_memberships (
   primary key (organization_id, user_id)
 );
 `;
+
+/**
+ * What better-supabase derives from `SCHEMA`; its SQL readers are no longer
+ * public.
+ */
+const LAYOUT = {
+  foreignKeys: [
+    {
+      table: "public.organization_memberships",
+      columns: ["role_id"],
+      references: "public.roles",
+      referencedColumns: ["id"],
+    },
+  ],
+  appTriggerColumns: {},
+  declaredColumns: {
+    "public.roles": ["id", "organization_id", "key"],
+    "public.organization_memberships": [
+      "organization_id",
+      "user_id",
+      "role_id",
+    ],
+  },
+  notNullColumns: {
+    "public.roles": ["id", "key"],
+    "public.organization_memberships": [
+      "organization_id",
+      "user_id",
+      "role_id",
+    ],
+  },
+};
 
 const ID = (n: number): string =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -39,7 +71,7 @@ const { version } = installed;
 function sameTenantSql(sameTenant: unknown): string {
   const body = moduleBody("memberships", {
     modules: { memberships: { options: { sameTenant } } },
-    ...sameTenantLayout([{ text: SCHEMA }], ["public"]),
+    ...LAYOUT,
   });
   if (body === undefined) {
     throw new Error(

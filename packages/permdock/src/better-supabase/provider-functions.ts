@@ -41,6 +41,7 @@ type Template = Exclude<
   | "managedUsers"
   | "canIn"
   | "roleIn"
+  | "roleOn"
   | RowTemplate
 >;
 
