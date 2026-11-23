@@ -160,6 +160,19 @@ export function renderLlmsIndex(
   return `${tidy(lines).join("\n")}\n`;
 }
 
+/**
+ * YAML frontmatter for a page's `.md` twin. A JSON string is a valid YAML
+ * double-quoted scalar, so values need no other escaping.
+ */
+export function markdownFrontmatter(
+  fields: Readonly<Record<string, string>>,
+): string {
+  const lines = Object.entries(fields)
+    .filter(([, value]) => value !== "")
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
+  return `---\n${lines.join("\n")}\n---\n\n`;
+}
+
 const fence = /^\s*(`{3,}|~{3,})/u;
 const delimiterRow = /^\s*\|?(\s*:?-+:?\s*\|)+\s*:?-*:?\s*$/u;
 const cellPadding = / *(?<!\\)\| */gu;

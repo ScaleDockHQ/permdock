@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest";
 
 import type { LlmsPage } from "../lib/llms";
 
-import { compactMarkdownTables, renderLlmsIndex } from "../lib/llms";
+import {
+  compactMarkdownTables,
+  markdownFrontmatter,
+  renderLlmsIndex,
+} from "../lib/llms";
 
 const siteUrl = "https://docs.test";
 
@@ -189,5 +193,19 @@ describe(compactMarkdownTables, () => {
   it("leaves prose with pipes alone", () => {
     const prose = "Use `a | b` here,   with spacing.";
     expect(compactMarkdownTables(prose)).toBe(prose);
+  });
+});
+
+describe(markdownFrontmatter, () => {
+  it("quotes each value and drops empty ones", () => {
+    expect(
+      markdownFrontmatter({
+        title: "Server: kernel",
+        description: "",
+        source: "https://docs.test/docs/server",
+      }),
+    ).toBe(
+      '---\ntitle: "Server: kernel"\nsource: "https://docs.test/docs/server"\n---\n\n',
+    );
   });
 });

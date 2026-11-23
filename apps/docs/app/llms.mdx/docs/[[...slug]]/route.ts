@@ -2,7 +2,12 @@ import { cacheLife } from "next/cache";
 import { notFound } from "next/navigation";
 
 import { markdownHeaders } from "@/lib/shared";
-import { docsLlms, getPageMarkdownUrl, source } from "@/lib/source";
+import {
+  docsLlms,
+  getPageFrontmatter,
+  getPageMarkdownUrl,
+  source,
+} from "@/lib/source";
 
 type MarkdownRouteContext = { params: Promise<{ slug?: string[] }> };
 
@@ -12,7 +17,9 @@ async function pageMarkdown(
   "use cache";
   cacheLife("max");
   const page = source.getPage(slugs === undefined ? undefined : [...slugs]);
-  return page ? docsLlms.page(page) : null;
+  return page
+    ? `${getPageFrontmatter(page)}${await docsLlms.page(page)}`
+    : null;
 }
 
 export async function GET(
