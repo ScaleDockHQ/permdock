@@ -189,7 +189,7 @@ Applications that need approvals to survive a restart implement the interface ov
 | Automations (`permdock/workflow`)                                     | `awaitApproval`, or `openApproval` and `resumeApproval` as two steps, parks the run on an `ApprovalWaiter` until the request is decided; `workflowSdkWaiter` parks on a Workflow SDK hook ([automations](/docs/concepts/automations))                 |
 | Other frameworks (LangGraph.js, Mastra, Inngest AgentKit, Google ADK) | Recipes, not adapters: `decide` in the framework's before-tool hook; `approval-required` parks as an `interrupt`, `suspend` or waiting step                                                                                                           | The durable step resumes with the token; the same store and token check apply ([agent frameworks](/docs/research/ecosystem-index))                                                    |
 
-The AI SDK adapter fails closed: `denied` maps to `'denied'`, `approval-required` maps to `'user-approval'`, and `'not-applicable'` is never returned, in contrast to `@ai-sdk/policy-opa`, which executes tools on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)).
+The AI SDK adapter fails closed: `denied` maps to `'denied'`, `approval-required` maps to `'user-approval'`, and `'not-applicable'` is never returned, in contrast to `@ai-sdk/policy-opa`, which executes a tool no rule matches.
 
 ## Resume flow
 
@@ -241,7 +241,7 @@ In an AI SDK tool loop, `stepUp` on `permdock/ai-sdk` pauses a call that a fresh
 
 - [AI SDK 7 tool approvals](https://ai-sdk.dev/docs/agents/tool-approvals): `toolApproval` outcomes and `WorkflowAgent` `needsApproval`.
 - [AI SDK `needsApproval` deprecation commit](https://github.com/vercel/ai/commit/04585590ff9e93f6823ad550d59a69dc4039cdbf).
-- [AI SDK policy-based tool approvals](https://ai-sdk.dev/docs/agents/policy-tool-approvals) and the [fail-open issue](https://github.com/vercel/ai/issues/19978).
+- [AI SDK policy-based tool approvals](https://ai-sdk.dev/docs/agents/policy-tool-approvals) and the [fail-open issue](https://github.com/vercel/ai/issues/19978), fixed in [vercel/ai#19981](https://github.com/vercel/ai/pull/19981).
 - [MCP 2026-07-28 release](https://blog.modelcontextprotocol.io/posts/2026-07-28/): stateless elicitation via multi-round-trip requests.
 - [Eve human-in-the-loop](https://eve.dev/docs/human-in-the-loop): `approval` request and response policies, `session.auth.initiator` and `current`.
 - [OpenAI Agents SDK human-in-the-loop](https://openai.github.io/openai-agents-js/guides/human-in-the-loop/): `needsApproval`, `interruptions`, `RunState` serialisation.

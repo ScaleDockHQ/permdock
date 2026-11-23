@@ -40,7 +40,7 @@ flowchart LR
 
 ## Invariants
 
-1. **Fail closed.** No matching grant, an unknown role, a validation failure, a thrown condition, a rejected sub-policy, a network error to a PDP: all are `denied`. `can` never throws and never returns `true` by accident. `@ai-sdk/policy-opa` fails open on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)); PermDock's adapters never emit `not-applicable`.
+1. **Fail closed.** No matching grant, an unknown role, a validation failure, a thrown condition, a rejected sub-policy, a network error to a PDP: all are `denied`. `can` never throws and never returns `true` by accident. `@ai-sdk/policy-opa` returns `not-applicable` for a call no rule matches, and AI SDK 7 then runs the tool; PermDock's adapters never emit `not-applicable`.
 2. **Deny overrides allow.** A `deny` grant in any applicable role wins over every `allow`. Allows OR together; denies AND against them.
 3. **Unknown reference is a type error.** Permissions are typed references; a grant for a permission outside `permissions`, or a check with the wrong arity, does not compile. At runtime, a key that `findPermission` cannot resolve is denied.
 4. **Prototype-safe paths.** Condition field paths and `subject.*` references are resolved with own-property lookups; `__proto__`, `constructor` and `prototype` segments are rejected at definition time and never traversed.

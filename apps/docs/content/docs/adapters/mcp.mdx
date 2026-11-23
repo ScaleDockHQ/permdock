@@ -177,7 +177,7 @@ guarded.registerResource(
 
 ## Hosting
 
-`protectServer` wraps an SDK v2 `McpServer` wherever it is created, so the hosting layer needs no PermDock code. The common host for Fetch frameworks is [`mcp-handler`](https://github.com/vercel/mcp-handler) 2.x, which turns an `McpServer` definition into a `(Request) => Promise<Response>` handler for Next.js route handlers, Nuxt and Nitro, SvelteKit, Hono and any Fetch-compatible framework, serves the 2026-07-28 stateless protocol natively and falls back to 2025-era Streamable HTTP for older clients.
+`protectServer` wraps an SDK v2 `McpServer` wherever it is created, so the hosting layer needs no PermDock code. The common host for Fetch frameworks is [`mcp-handler`](https://github.com/vercel-labs/mcp-handler) 2.x, which turns an `McpServer` definition into a `(Request) => Promise<Response>` handler for Next.js route handlers, Nuxt and Nitro, SvelteKit, Hono and any Fetch-compatible framework, serves the 2026-07-28 stateless protocol natively and falls back to 2025-era Streamable HTTP for older clients.
 
 ```ts
 // app/api/mcp/route.ts (Next.js), or the equivalent route in Nuxt, SvelteKit or Hono
