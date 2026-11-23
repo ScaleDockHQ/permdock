@@ -39,8 +39,6 @@
     "@next/playwright": "catalog:",
     "@permdock/typescript-config": "workspace:*",
     "@playwright/test": "catalog:",
-    "@supabase/pg-delta": "catalog:",
-    "@supabase/pg-topo": "catalog:",
     "@supabase/postgrest-typegen": "catalog:",
     "@testcontainers/postgresql": "catalog:",
     "@types/node": "catalog:",

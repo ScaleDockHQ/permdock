@@ -78,3 +78,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0072](./0072-selected-tests-on-pull-requests.md)                 | Pull requests run selected tests; main runs everything                                                         |
 | [0073](./0073-eve-1-2-0-ai-chat-floors-and-release-age.md)        | eve 1.2.0, ai and chat 4.45.0 are peer floors; eve 1.2.0 skips the release age; workflow stays 5.4.0           |
 | [0074](./0074-better-supabase-0-81-0-floor-and-release-age.md)    | better-supabase 0.81.0 is the peer floor and catalog pin; it and the packages it peers on skip the release age |
+| [0075](./0075-better-supabase-0-84-0-pin-and-release-age.md)      | better-supabase 0.84.0 is the catalog pin and skips the release age; the peer floor stays 0.81.0               |

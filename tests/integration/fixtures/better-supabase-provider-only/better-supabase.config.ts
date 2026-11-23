@@ -40,10 +40,10 @@ export default defineConfig({
       ...Object.fromEntries(internal.map((table) => [table, []])),
     },
   },
-  blocks: {
-    permissions: { model: "provider", activeTenant: "claim" },
-    pgtap: {},
-  },
+  blocks: [
+    { block: "permissions", model: "provider", activeTenant: "claim" },
+    "pgtap",
+  ],
   tooling: {
     doctor: {
       // BS303: the fixture has no app code, so it keeps no generated client.
