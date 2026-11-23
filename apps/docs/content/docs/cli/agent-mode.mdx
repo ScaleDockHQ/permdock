@@ -17,7 +17,7 @@ permdock codemod 0.5 --yes --effects-digest 6f3a9c0e41b27d58   # run again after
 
 ## Detection
 
-`--agent auto|yes|no` decides, then `PERMDOCK_AGENT` (`1`, `yes`, `true`, `0`, `no`, `false`, `auto`), then detection. Detection reads the same variables as [`@vercel/detect-agent`](https://www.npmjs.com/package/@vercel/detect-agent) 1.2.5, in its order, and a test asserts both agree:
+`--agent auto|yes|no` decides, then `PERMDOCK_AGENT` (`1`, `yes`, `true`, `0`, `no`, `false`, `auto`), then detection. Detection reads the same variables as [`@vercel/detect-agent`](https://www.npmjs.com/package/@vercel/detect-agent) 1.2.7, in its order, and a test asserts both agree:
 
 | Variable                                                     | Agent             |
 | ------------------------------------------------------------ | ----------------- |
@@ -28,7 +28,7 @@ permdock codemod 0.5 --yes --effects-digest 6f3a9c0e41b27d58   # run again after
 | `CODEX_SANDBOX`, `CODEX_CI`, `CODEX_THREAD_ID`               | Codex             |
 | `ANTIGRAVITY_AGENT`                                          | Antigravity       |
 | `AUGMENT_AGENT`                                              | Augment           |
-| `OPENCODE_CLIENT`                                            | opencode          |
+| `OPENCODE=1`, `OPENCODE_CLIENT`                              | opencode          |
 | `CLAUDECODE`, `CLAUDE_CODE`                                  | Claude Code       |
 | `REPL_ID`                                                    | Replit            |
 | `COPILOT_MODEL`, `COPILOT_ALLOW_ALL`, `COPILOT_GITHUB_TOKEN` | GitHub Copilot    |

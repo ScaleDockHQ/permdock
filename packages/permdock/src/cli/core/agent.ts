@@ -54,7 +54,7 @@ export function detectAgent(env: Env, probe: AgentProbe): DetectedAgent {
   if (set(env, "AUGMENT_AGENT")) {
     return { isAgent: true, name: "augment-cli" };
   }
-  if (set(env, "OPENCODE_CLIENT")) {
+  if (env["OPENCODE"] === "1" || set(env, "OPENCODE_CLIENT")) {
     return { isAgent: true, name: "opencode" };
   }
   if (set(env, "CLAUDECODE") || set(env, "CLAUDE_CODE")) {
