@@ -85,18 +85,46 @@ describe("eve session helpers", () => {
     ]).toStrictEqual([["a"], [], []]);
   });
 
-  it("names the current principal as actor when it differs from the initiator", () => {
+  it("names the eve app as actor whoever sends the turn", () => {
     expect(
       actorFromEve({
         session: {
           id: "s1",
           auth: {
             initiator: principal("u1", []),
-            current: principal("agent-7", []),
+            current: principal("u7", []),
           },
         },
       }),
-    ).toStrictEqual({ id: "agent-7", kind: "eve" });
+    ).toStrictEqual({ id: "eve:app", kind: "eve" });
+  });
+});
+
+describe("permdock/eve shared sessions", () => {
+  it("decides a follow-up turn with the grants of the caller who sent it", async () => {
+    const { approval } = createPermDock(policy, {
+      store: memoryApprovalStore(),
+      operations: tools,
+      delegation: () => delegated,
+    });
+    const turn = (current: ReturnType<typeof principal>, callId: string) =>
+      approval.request({
+        ...ask(callId),
+        session: {
+          id: "s1",
+          auth: {
+            initiator: principal(memberUser.id, memberUser.roles),
+            current,
+          },
+        },
+      });
+    expect([
+      await turn(principal(memberUser.id, memberUser.roles), "c1"),
+      await turn(principal("u7", ["member"]), "c2"),
+    ]).toStrictEqual([
+      "user-approval",
+      expect.objectContaining({ type: "denied" }),
+    ]);
   });
 });
 

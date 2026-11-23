@@ -230,11 +230,14 @@ describe("permdock/eve", () => {
   it("recomputes the token on another instance for a call made by a different caller", async () => {
     const store = memoryApprovalStore();
     const options = { operations: tools(), delegation: () => delegated, store };
-    const caller = principal({ id: "agent-7", roles: [] });
+    const caller = principal(memberUser);
     const asked = {
       session: {
         id: "s1",
-        auth: { initiator: principal(memberUser), current: caller },
+        auth: {
+          initiator: principal({ id: "u7", roles: [] }),
+          current: caller,
+        },
       },
       callId: "c1",
       ...deleteOwn,
