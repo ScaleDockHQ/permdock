@@ -1,6 +1,6 @@
 -- better-supabase module: prelude
 -- @bsb-block prelude@1 managed
--- @bsb-hash sha256:57ed8fd006b23354c3d6221a7607c6730011061afa2d6fea67b43f443eceec82
+-- @bsb-hash sha256:167b4ad90a166f273e2fde107e2c381746705f989417697b821452bae57e05c0
 -- The schema, the blocks table and the helper functions every block calls, each defined once.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -19,6 +19,34 @@ create table better_supabase.blocks (
 alter table better_supabase.blocks enable row level security;
 revoke all on better_supabase.blocks from public, anon, authenticated;
 grant select on better_supabase.blocks to service_role;
+
+create table better_supabase.declared_defaults (
+  kind text not null,
+  subject text not null,
+  key text not null,
+  position integer not null default 0,
+  value jsonb not null,
+  primary key (kind, subject, key)
+);
+alter table better_supabase.declared_defaults enable row level security;
+revoke all on better_supabase.declared_defaults from public, anon, authenticated;
+grant select on better_supabase.declared_defaults to service_role;
+
+-- The declared rows of one kind and subject, ordered by position and then key,
+-- as a jsonb list; null when the app declared none.
+create or replace function better_supabase.declared_defaults_of(kind text, subject text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_agg(d.value order by d.position, d.key)
+  from better_supabase.declared_defaults d
+  where d.kind = declared_defaults_of.kind and d.subject = declared_defaults_of.subject
+$$;
+revoke execute on function better_supabase.declared_defaults_of(text, text) from public;
+grant execute on function better_supabase.declared_defaults_of(text, text) to authenticated, service_role;
 
 -- The user a service caller acts for, from the x-bsb-actor header. Null for
 -- every other caller, so the header cannot be spoofed with a user's token.

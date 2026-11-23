@@ -162,7 +162,6 @@ const TEAM_IDS_OF = "member_{scope}_ids_of";
 /** The scope names better-supabase reads as its teams (doctor BS417). */
 const TEAM_SCOPE = /^teams?$/u;
 const ACTOR_MAY_WRITE = "permdock_actor_may_write";
-const APPROVER_FOR = "permdock_approver_for_ids";
 const MANAGED_USERS = "permdock_managed_user_ids";
 /**
  * Whether a role is the tenant's, for better-supabase's `membership_roles`
@@ -458,7 +457,9 @@ export function providerFunctions(
       ? undefined
       : call(name, sql, "authenticated", argTypes(helper.args));
   };
-  const approverFor = setTemplate(APPROVER_FOR);
+  // `approverFor` stays unset: better-supabase reads it as the users who may
+  // decide request `{id}`, but `permdock_approver_for_ids()` is the users the
+  // caller decides for, which always holds the caller.
   // better-supabase passes `{tenant}`; a manager table without a tenant column writes no `p_tenant`.
   const managedUsers = /\bp_tenant\b/u.test(
     helpers.get(MANAGED_USERS)?.args ?? "",
@@ -495,7 +496,6 @@ export function providerFunctions(
     ...(subject === undefined ? {} : { subject }),
     ...(subjectForTenant === undefined ? {} : { subjectForTenant }),
     ...(bootstrapPermissions === undefined ? {} : { bootstrapPermissions }),
-    ...(approverFor === undefined ? {} : { approverFor }),
     ...(managedUsers === undefined ? {} : { managedUsers }),
     ...(roleIn === undefined ? {} : { roleIn }),
   };

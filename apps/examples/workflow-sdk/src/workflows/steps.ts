@@ -22,6 +22,13 @@ export async function openSend(
   return decision.outcome === "approval-required" ? decision.token : null;
 }
 
+export async function approvalPending(token: string): Promise<boolean> {
+  "use step";
+  const { approvals } = await runs();
+  const request = await approvals.get(token);
+  return request?.status === "pending";
+}
+
 export async function send(
   ticket: string,
   token: string | null,

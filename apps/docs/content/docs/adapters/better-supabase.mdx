@@ -1156,7 +1156,7 @@ Each `permdock` release fills the provider fields its better-supabase peer floor
 | `functions.subjectForTenant`      | 0.26.0     | 0.58.0          | Names `permdock_subject(p_tenant)`, which answers `null` for a tenant the caller is no member of; `subject: false` leaves it out.                        |
 | `functions.bootstrapPermissions`  | 0.26.0     | 0.58.0          | Names `permdock_bootstrap_permissions(p_tenant)`, the compact `BootstrapPermissionsWire`.                                                                |
 | `functions.canIn`                 | 0.26.0     | 0.58.0          | The set form over `permitted_<scope>_ids_by_permission`, so an access policy makes no per-row call.                                                      |
-| `functions.approverFor`           | 0.26.0     | 0.58.0          | Names `permdock_approver_for_ids()` when the manifest lists it.                                                                                          |
+| `functions.approverFor`           | 0.26.0     | 0.58.0          | Never set from 0.31.0: better-supabase reads it as the users who may decide a request, and `permdock_approver_for_ids()` always holds the caller.        |
 | `functions.managedUsers`          | 0.26.0     | 0.58.0          | Names `permdock_managed_user_ids({tenant})` when the manifest lists it; better-supabase fills `{tenant}`.                                                |
 | `permissions[].levels`            | 0.26.0     | 0.58.0          | Filled from the catalog's `levels`.                                                                                                                      |
 | `tokenHook.teamIdsTruncatedClaim` | 0.26.0     | 0.58.0          | Set when the hook writes `team_ids`.                                                                                                                     |
@@ -1177,7 +1177,7 @@ Each `permdock` release fills the provider fields its better-supabase peer floor
 
 ## Example app
 
-`apps/examples/next-better-supabase`: better-supabase on Next.js 16.4 with Cache Components. It runs on better-supabase 0.81.0.
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.4 with Cache Components. It runs on better-supabase 0.84.0.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
 - `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version, intent })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, `version` is `authzVersion({ query })`, and `intent` makes a `read`, `list` or `view` permission `read` and every other check `write`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.

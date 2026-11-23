@@ -20,6 +20,11 @@ import { freezeDeep } from "../core/freeze.ts";
 export type WorkflowSdkHook = {
   readonly then: PromiseLike<unknown>["then"];
   dispose: () => void;
+  /**
+   * Suspends the run until the hook is registered. `createHook` alone registers
+   * nothing, so a `resumeHook` before this finds no hook.
+   */
+  getConflict?: () => PromiseLike<unknown>;
 };
 
 /** `createHook` from `workflow`; valid only inside a `"use workflow"` function. */
@@ -50,6 +55,13 @@ export type WorkflowSdkWaiterOptions = {
    * wake ends it.
    */
   readonly sleep?: WorkflowSdkSleep;
+  /**
+   * Whether the request for `token` is still pending, read after the hook is
+   * registered. A `"use step"` function over the approval store: without it, a
+   * request decided before the hook registered leaves the run parked until a
+   * second wake or the expiry.
+   */
+  readonly pending?: (token: string) => Promise<boolean>;
 };
 
 const HOOK_PREFIX = "permdock:approval:";
@@ -68,11 +80,15 @@ export function approvalHookToken(token: string): string {
 export function workflowSdkWaiter(
   options: WorkflowSdkWaiterOptions,
 ): ApprovalWaiter {
-  const { createHook, resumeHook, sleep } = options;
+  const { createHook, resumeHook, sleep, pending } = options;
   return Object.freeze({
     async wait(token: string, waitOptions: ApprovalWaitOptions = {}) {
       const hook = createHook({ token: approvalHookToken(token) });
       try {
+        await hook.getConflict?.();
+        if (pending !== undefined && !(await pending(token))) {
+          return;
+        }
         const expiresAt = waitOptions.expiresAt?.epochMilliseconds;
         if (sleep === undefined || expiresAt === undefined) {
           await hook;

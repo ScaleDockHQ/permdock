@@ -71,9 +71,13 @@ Eve exposes two authenticated principals on `ctx.session.auth`: `initiator`, who
 
 | PermDock subject part | Eve source                                                                      | Notes                                                                                                                                                       |
 | --------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `principal`           | `session.auth.initiator`                                                        | The human the session acts for; roles come from `policy.subject` or `attributes` you declare as server-set                                                  |
-| `actor`               | `session.auth.current` when it is not the initiator, else the Eve app principal | `kind: 'eve'`; a schedule-dispatched turn (`authenticator: 'app'`, `principalId: 'eve:app'`) is an actor with no human `current`                            |
+| `principal`           | `session.auth.current`, or `session.auth.initiator` when the turn has no caller | The caller of this turn; roles come from `policy.subject` or `attributes` you declare as server-set                                                         |
+| `actor`               | The Eve app, `{ id: 'eve:app', kind: 'eve' }`                                   | Every turn, whoever sent it                                                                                                                                 |
 | `delegation`          | The `delegation` option, resolved from the same context                         | No default. Every eve turn has an actor, so without `delegation` every tool is denied with reason `no-delegation` ([delegation](/docs/security/delegation)) |
+
+In a shared session, eve replaces `current` when another person sends a follow-up, so each turn is decided with the grants of the person who sent it, never with the initiator's. A schedule-dispatched turn has the app as its caller (`authenticator: 'app'`, `principalId: 'eve:app'`), which holds no role, so its tools deny until `subject` maps it to a principal.
+
+Up to 0.30.0, the principal was always the initiator and a different `current` became the actor. An app whose policy names `actor.id` of an eve turn reads the caller from `principal` now.
 
 The `subject` and `actor` options override these defaults when an application encodes identity differently. Model output, `toolInput` and `attributes` that Eve marks as user-supplied never build a subject ([authentication](/docs/concepts/authentication)).
 
@@ -90,7 +94,7 @@ The `subject` and `actor` options override these defaults when an application en
 | `denied`                                      | `{ type: "denied", reason }` | Tool does not run; the model receives `reason` built from denials and alternatives                                                          |
 | unmapped tool, invalid input, thrown resolver | `{ type: "denied", reason }` | Fail closed                                                                                                                                 |
 
-4. A person presses Approve or Cancel on a channel. Eve calls `approval.response` with `response.decision` (`approve` or `deny`) and the authenticated `response.principal` (the responder). The adapter finds the record for the call (from this instance's bounded session cache, or by recomputing the token from the session initiator and `request.principal`, the caller of the turn that made the call, so any replica can answer), refuses a responder whose `principalId` is the request's actor, applies `approvers`, maps the responder through the same `subject` as an initiator so `grant.approval.by` sees their roles, memberships and tenant, and calls `resolveApproval` (`approved` for `approve`, `rejected` for `deny`, so the re-check denies), returning `{ status: "allowed" }`. Otherwise it returns `{ status: "rejected", reason }` and Eve keeps the request pending for another responder. The initiator cannot approve their own request unless the grant sets `approval: { mode: "confirm" }`.
+4. A person presses Approve or Cancel on a channel. Eve calls `approval.response` with `response.decision` (`approve` or `deny`) and the authenticated `response.principal` (the responder). The adapter finds the record for the call (from this instance's bounded session cache, or by recomputing the token from `request.principal`, the caller of the turn that made the call, so any replica can answer), refuses a responder whose `principalId` is the request's actor, applies `approvers`, maps the responder through the same `subject` as a caller so `grant.approval.by` sees their roles, memberships and tenant, and calls `resolveApproval` (`approved` for `approve`, `rejected` for `deny`, so the re-check denies), returning `{ status: "allowed" }`. Otherwise it returns `{ status: "rejected", reason }` and Eve keeps the request pending for another responder. The caller who made the call cannot approve their own request unless the grant sets `approval: { mode: "confirm" }`.
 5. Eve re-runs `approval.request` for the same call before `execute` (the AI SDK re-check) and runs the tool unless the answer is a denial. The adapter recomputes the token: an approved record is consumed and the answer is `"not-applicable"`, so the tool runs once; a record still pending means nobody approved and the answer is a denial with `approval-pending`; a consumed, rejected or expired record is a denial too.
 6. Every step emits `on('decision')`; the ask, the answer and the resumed decision share `token`.
 
@@ -108,6 +112,52 @@ The `subject` and `actor` options override these defaults when an application en
 - `{ type: "denied", reason }` with `reason` built from the Decision: the failing roles, the reason kind and the `alternatives` list, phrased for the model ("charge.refund denied: member (condition). Alternatives: charge.read.").
 - A rejected responder gets `{ status: "rejected", reason: "approver is the actor of this request" }` (or the `approvers` reason); the request stays pending, matching Eve's semantics.
 - Expired or mismatched approvals on resume are denials with `detail` `approval-expired` or `approval-mismatch`.
+
+## Connections, agent-wide gates, subagents and schedules
+
+**Connection tools.** A connection's `approval` takes the same `{ request, response }` pair as a tool. Eve names each connection tool `<connection>__<tool>`, so key `operations` by that name and put the pair on the connection:
+
+```ts title="agent/connections/linear.ts"
+import { defineMcpClientConnection } from "eve/connections";
+
+const { approval } = createPermDock(policy, {
+  operations: defineOperations(permissions, {
+    linear__create_issue: { permission: permissions.issue.create },
+    linear__delete_comment: { permission: permissions.comment.delete },
+  }),
+  delegation,
+});
+
+export default defineMcpClientConnection({
+  url: "https://mcp.linear.app/mcp",
+  description: "Linear workspace.",
+  approval,
+});
+```
+
+A tool the map does not name is denied; `unmapped: 'allow'` lets the connection's read tools through. Approval never changes who the call runs as: the connection token stays the requester's.
+
+**Agent-wide policy.** `approval` in `agent.ts` runs on every call, including connection tools and subagents, and eve keeps the stricter of it and the tool's own answer. An agent-wide rule can add a gate on top of a PermDock decision but never turn a PermDock denial into a run. Keep PermDock's pair on the tools and connections, where its `response` policy checks the approver; when only the agent-wide policy asks, eve has no tool-level `response` to apply.
+
+**Subagents.** Eve runs each message to a subagent with the sender's auth, so the principal is the same person, and local subagents run under the root agent's policy. `session.parent` (`sessionId`, `rootSessionId`, `callId`) marks a subagent's session. Give it its own actor id and a narrower delegation, so audit tells the agents apart and a research child cannot delete:
+
+```ts
+createPermDock(policy, {
+  operations,
+  actor: (ctx) =>
+    ctx.session?.parent === undefined
+      ? { id: "eve:app", kind: "eve" }
+      : { id: `eve:session:${ctx.session.id ?? ""}`, kind: "eve" },
+  delegation: (ctx) =>
+    ctx.session?.parent === undefined
+      ? { scopes: [permissions.post.list.scope, permissions.post.delete.scope] }
+      : { scopes: [permissions.post.list.scope] },
+});
+```
+
+Approvals from a child appear on the parent session, and the child's `response` policy decides who may answer. [Parallel agents](/docs/security/delegation#parallel-agents) covers the pattern outside eve.
+
+**Schedules.** A `defineSchedule` handler sends with `appAuth` (`principalId: 'eve:app'`), which holds no role, so its tools deny until `subject` maps it; pass a user's auth instead when the work needs that user's grants. Eve's experimental dynamic schedules call their `auth` callback on each occurrence to turn the stored creator into current access; look the creator up there and return `null` for a removed member, and that occurrence fails without running. For a recurring job that PermDock decides at fire time, see [Automations](/docs/concepts/automations).
 
 ## Use with better-supabase
 

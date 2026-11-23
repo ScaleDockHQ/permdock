@@ -8,7 +8,7 @@ import { cache } from "react";
 
 import type { PermissionCheck, PermissionState } from "../core/checks.ts";
 import type { Decision } from "../core/decision.ts";
-import type { DecisionSink, Intent } from "../core/interfaces.ts";
+import type { Intent } from "../core/interfaces.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
@@ -30,6 +30,7 @@ import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { permissionStates } from "../core/checks.ts";
 import { compact } from "../core/compact.ts";
 import { NO_GRANT } from "../core/decision.ts";
+import { deferredSink } from "../core/deferred-sink.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
 import { wrapPermDock } from "../core/wrap.ts";
 import { evaluationsHandler } from "../server/evaluations.ts";
@@ -154,34 +155,6 @@ function withContextAllowed(
   }
   return { ...snapshot, subject: { ...snapshot.subject, context: kept } };
 }
-
-function ignore(): undefined {
-  return undefined;
-}
-
-/**
- * Keeps the function alive until the sink has written and flushed: every
- * pending write and one `flush()` per render run in `after()`, so serverless
- * runtimes do not freeze with events still buffered.
- */
-function afterResponse(sink: DecisionSink): DecisionSink {
-  const flush = sink.flush?.bind(sink);
-  const scheduleFlush = cache((): boolean =>
-    flush === undefined ? false : defer(flush),
-  );
-  return {
-    write(events) {
-      const written = sink.write(events);
-      if (written !== undefined) {
-        defer(Promise.resolve(written).then(ignore, ignore));
-      }
-      scheduleFlush();
-      return written;
-    },
-    ...(flush === undefined ? {} : { flush }),
-  };
-}
-
 function wrapInstance<V extends PolicyVocabulary>(
   permdock: PermDock<V>,
   onDenied: NextPermDockOptions["onDenied"],
@@ -223,7 +196,9 @@ export function createPermDock<
   keepOnServer("PermDock options", options);
 
   const sink =
-    options.sink === undefined ? undefined : afterResponse(options.sink);
+    options.sink === undefined
+      ? undefined
+      : deferredSink(options.sink, defer, cache);
 
   const resolveSubject = cache((): Promise<TUser | Subject | null> =>
     resolveOrNull(() => options.subject(), unstable_rethrow),

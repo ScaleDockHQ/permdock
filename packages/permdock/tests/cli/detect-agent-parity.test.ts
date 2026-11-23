@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { detectAgent } from "../../src/cli/core/agent.ts";
 
-/** Every variable `@vercel/detect-agent` 1.2.5 reads. */
+/** Every variable `@vercel/detect-agent` 1.2.7 reads. */
 const SIGNALS = [
   "AI_AGENT",
   "CURSOR_TRACE_ID",
@@ -16,6 +16,7 @@ const SIGNALS = [
   "CODEX_THREAD_ID",
   "ANTIGRAVITY_AGENT",
   "AUGMENT_AGENT",
+  "OPENCODE",
   "OPENCODE_CLIENT",
   "CLAUDECODE",
   "CLAUDE_CODE",
@@ -42,6 +43,7 @@ const CASES: readonly Readonly<Record<string, string>>[] = [
   { CODEX_THREAD_ID: "t" },
   { ANTIGRAVITY_AGENT: "1" },
   { AUGMENT_AGENT: "1" },
+  { OPENCODE: "1" },
   { OPENCODE_CLIENT: "cli" },
   { CLAUDECODE: "1" },
   { CLAUDE_CODE: "1", CLAUDE_CODE_IS_COWORK: "1" },

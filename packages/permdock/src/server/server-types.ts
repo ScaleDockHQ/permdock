@@ -70,6 +70,13 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
    */
   readonly intent?: (request: Request) => Intent | undefined;
   /**
+   * Keeps the function alive for the `sink`: every pending write and one
+   * `flush()` per tick go to it. Pass `waitUntil` from `@vercel/functions` or
+   * `cloudflare:workers`. Without it, a runtime that freezes after the response
+   * may drop buffered events.
+   */
+  readonly waitUntil?: (task: Promise<unknown>) => void;
+  /**
    * The `adapter` label on decision events, revocations and approvals. Defaults
    * to `server`.
    */

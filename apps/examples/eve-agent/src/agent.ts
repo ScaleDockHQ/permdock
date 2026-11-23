@@ -23,7 +23,8 @@ export const reviewer: EvePrincipal = {
 export const app = backend(env.cloud);
 
 export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
-  subject: ({ session }) => userById(session?.auth?.initiator?.principalId),
+  subject: ({ session }) =>
+    userById((session?.auth?.current ?? session?.auth?.initiator)?.principalId),
   store: app.store,
   ...(app.sink === null ? {} : { sink: app.sink }),
   ...(app.policies === null ? {} : { policies: hostedPolicies(app.policies) }),

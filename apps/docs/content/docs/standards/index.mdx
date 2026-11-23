@@ -60,7 +60,7 @@ The standards above meet in one place: a `Decision` from `decide`. Each adapter 
 | `denied`            | 403 `.../denied` with `denials`, `alternatives` | `isError: true` with reasons and `alternatives` | `'denied'`        | `decision: false`, `context.permdock.outcome: 'denied'`            |
 | `approval-required` | 403 `.../approval-required` with `token`        | Elicitation carrying `token`                    | `'user-approval'` | `decision: false`, `context.permdock.outcome: 'approval-required'` |
 
-No adapter ever emits an outcome outside these three; in particular the AI SDK adapter never returns `'not-applicable'`, the value that lets `@ai-sdk/policy-opa` fail open.
+No adapter ever emits an outcome outside these three; in particular the AI SDK adapter never returns `'not-applicable'`, the outcome on which AI SDK 7 runs a tool without approval and which `@ai-sdk/policy-opa` returns when no rule matches.
 
 ## How to read a standards page
 

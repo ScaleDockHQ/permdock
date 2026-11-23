@@ -79,6 +79,11 @@ export type ServerAdapterServices = {
    * a grant.
    */
   readonly deniedResponse?: DeniedResponse;
+  /**
+   * `waitUntil` from `@vercel/functions` or `cloudflare:workers`, for the
+   * `sink`.
+   */
+  readonly waitUntil?: (task: Promise<unknown>) => void;
 };
 
 export type Attached<V extends PolicyVocabulary = PolicyVocabulary> =
@@ -191,6 +196,7 @@ export function adapterKernel<
       adapter,
       wrap: composeWraps(options.otel, options.wrap),
       deniedResponse: options.deniedResponse,
+      waitUntil: options.waitUntil,
     }),
   );
 }

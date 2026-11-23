@@ -5,7 +5,11 @@ import { defineDocs } from "fumadocs-mdx/macro";
 
 import { env } from "@/env";
 
-import { compactMarkdownTables, renderLlmsIndex } from "./llms";
+import {
+  compactMarkdownTables,
+  markdownFrontmatter,
+  renderLlmsIndex,
+} from "./llms";
 import {
   docsContentRoute,
   docsImageRoute,
@@ -67,6 +71,15 @@ export async function getLLMText(page: (typeof source)["$inferPage"]) {
 Source: ${env.NEXT_PUBLIC_SITE_URL}${page.url}${description}
 
 ${compactMarkdownTables(processed.trimStart())}`;
+}
+
+/** Only the `.md` twin carries it; `llms-full.txt` concatenates pages. */
+export function getPageFrontmatter(page: (typeof source)["$inferPage"]) {
+  return markdownFrontmatter({
+    title: page.data.title,
+    description: page.data.description ?? "",
+    source: `${env.NEXT_PUBLIC_SITE_URL}${page.url}`,
+  });
 }
 
 /**

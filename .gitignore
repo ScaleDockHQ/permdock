@@ -89,4 +89,5 @@ playwright-report/
 .preset-check/
 apps/marketing/public/r/
 apps/marketing/public/schemas/
+apps/marketing/public/.well-known/agent-skills/
 tests/bundle/tmp/

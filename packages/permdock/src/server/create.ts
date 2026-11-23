@@ -1,5 +1,5 @@
 import type { TenantOption, TenantScope } from "../core/adapter-context.ts";
-import type { Intent } from "../core/interfaces.ts";
+import type { DecisionSink, Intent } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
@@ -35,6 +35,7 @@ import type { RouteGuardDeps } from "./route-guard.ts";
 
 import { withApp } from "../core/app.ts";
 import { compact } from "../core/compact.ts";
+import { deferredSink } from "../core/deferred-sink.ts";
 import {
   buildReportingInstance,
   requestContext,
@@ -57,6 +58,27 @@ async function resolveActor(
 }
 
 const NO_TENANT = "\u0000";
+
+/** The `sink` wrapped so `waitUntil` covers its writes and flushes. */
+function keptAlive(options: {
+  readonly sink?: DecisionSink;
+  readonly waitUntil?: (task: Promise<unknown>) => void;
+}): DecisionSink | undefined {
+  const { sink, waitUntil } = options;
+  if (sink === undefined || waitUntil === undefined) {
+    return undefined;
+  }
+  return deferredSink(sink, (task) => {
+    try {
+      waitUntil(
+        typeof task === "function" ? Promise.resolve().then(task) : task,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
 const READ_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
@@ -75,6 +97,7 @@ export function createPermDock<
 ): ServerPermDock<V> {
   const options = withApp(policy, given);
   const adapter = options.adapter ?? "server";
+  const sink = keptAlive(options);
   const subjects = new WeakMap<Request, Promise<Resolved<TUser>>>();
   const instances = new WeakMap<Request, Map<string, Promise<Built<V>>>>();
 
@@ -120,7 +143,13 @@ export function createPermDock<
       policy,
       user,
       sources: options,
-      scope: { tenant, actor, context, intent },
+      scope: {
+        tenant,
+        actor,
+        context,
+        intent,
+        ...(sink === undefined ? {} : { sink }),
+      },
       errors,
       wrap: (created: PermDock<V>): PermDock<V> =>
         options.wrap === undefined ? created : options.wrap(created),

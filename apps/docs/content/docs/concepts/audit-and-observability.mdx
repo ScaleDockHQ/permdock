@@ -53,7 +53,7 @@ A handler is enough for one process. When events must leave the process, the ada
 ```ts
 interface DecisionSink {
   write: (events: readonly DecisionEvent[]) => Promise<void> | void; // batched; never awaited by decide
-  flush?: () => Promise<void>; // called at request end when the runtime has waitUntil
+  flush?: () => Promise<void>; // see "Keep the function alive" below
 }
 
 import { memoryDecisionSink } from "permdock";
@@ -76,6 +76,16 @@ A sink receives `decision` events and the `approval` events that the store emits
 **Every event is written by default.** A sink receives all `granted`, `denied` and `approval-required` events. Sampling is opt-in per sink (`sample: { granted: 0.1 }` keeps one routine grant in ten and always writes the other two outcomes) and is meant for a metrics or debugging sink, never for the sink that serves as evidence: an access review asks what a principal or an agent was _allowed_ to do, so a log that drops grants cannot answer it. Cost is controlled by retention, not by omission.
 
 **Signed batch export.** A sink that hands events to a party who must be able to prove where they came from (a SIEM in another trust domain, an auditor, a compliance tool reading an export file) can sign each batch. The batch becomes one compact JWS with `typ: vnd.permdock.evidence+jwt`, registered claims `iss`, `iat`, `exp`, `jti`, and the CloudEvents-enveloped events under the `events` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)); the consumer verifies it with any JOSE library against the signer's JWK Set. In this package it is a `TokenSigner` handed to a sink, not a new sink: `memoryDecisionSink({ signer, audience })` signs each `write`, `signDecisionBatch(events, signer)` is the same helper for your own sink, and `permdock/cloud`'s export endpoint serves signed batches. The recipe is `signer.sign({ events }, { typ: 'vnd.permdock.evidence+jwt' })` before `write` posts the batch. Events inside the JWS are the same objects a plain sink receives, so a consumer verifies, unwraps and applies the OCSF projection below unchanged. Signing is evidence for the reader; nothing in PermDock reads a batch back.
+
+### Keep the function alive
+
+`decide` never awaits a sink, so on a serverless runtime the function may freeze before a buffered write leaves. `permdock/next` hands every pending write and one `flush()` per render to `after()`. The [server kernel](/docs/adapters/server-kernel) and the adapters built on it do the same when you pass `waitUntil`; without it, nothing calls `flush()`.
+
+```ts
+import { waitUntil } from "@vercel/functions"; // or: import { waitUntil } from "cloudflare:workers";
+
+createPermDock(policy, { subject, sink, waitUntil });
+```
 
 ### Sink recipes and the OCSF projection
 
@@ -159,13 +169,30 @@ const permdock = withOtel(await getPermDock(policy, user), { tracer, meter });
 
 `permdock/otel` is an optional entry that subscribes to `on('decision')` and emits:
 
-| Signal               | Name                      | Attributes                                                                                                                                                                                                        |
-| -------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Span (one per check) | `permdock.check`          | `permdock.permission`, `permdock.outcome`, `permdock.resource.type`, `permdock.subject.id`, `permdock.actor.id`, `permdock.actor.kind`, `permdock.adapter`, `permdock.denials` (comma-joined reasons on `denied`) |
-| Counter              | `permdock.checks`         | `permdock.permission`, `permdock.outcome`, `permdock.adapter`                                                                                                                                                     |
-| Histogram            | `permdock.check.duration` | same as the counter                                                                                                                                                                                               |
+| Signal                  | Name                       | Attributes                                                                                                                                                                                                                                                                               |
+| ----------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Span (one per decision) | `permdock.decide`          | `permdock.permission`, `permdock.outcome`, `permdock.resource.type`, `permdock.subject.id`, `permdock.actor.id`, `permdock.actor.kind`, `permdock.adapter`, `permdock.denials.count`; the reasons are on the `permdock.denied` span event ([OpenTelemetry adapter](/docs/adapters/otel)) |
+| Counter                 | `permdock.decisions`       | `permdock.permission`, `permdock.outcome`, `permdock.adapter`                                                                                                                                                                                                                            |
+| Histogram               | `permdock.decide.duration` | same as the counter                                                                                                                                                                                                                                                                      |
 
 `@opentelemetry/api` is an optional peer of `permdock/otel`, never of core: `@zap-studio/permit` made it a required peer, which forces the dependency on every consumer; PermDock keeps core at zero runtime dependencies. The meter and tracer are resolved when `withOtel` is called so that module initialisation order relative to the SDK does not matter. The span is a child of whatever is active, so a check inside a Hono handler nests under the HTTP server span and a check inside an MCP tool nests under the tool call.
+
+On Vercel, `registerOTel` from `@vercel/otel` registers the global tracer provider, so a `tracer` from `trace.getTracer("permdock")` sends `withOtel` spans to Vercel's [tracing](https://vercel.com/docs/tracing). For a denial-rate chart in Vercel Observability without a metrics exporter, send denials to `metric()` from `@vercel/functions`:
+
+```ts
+import { metric } from "@vercel/functions";
+
+permdock.on("decision", (event) => {
+  if (event.outcome !== "granted") {
+    metric("permdock.denied", 1, {
+      permission: event.permission,
+      outcome: event.outcome,
+    });
+  }
+});
+```
+
+`metric()` keeps 100 data points per function invocation and attribute values under 64 bytes, so record denials rather than every check, and never a subject id as an attribute.
 
 ## Problem Details
 
@@ -190,6 +217,6 @@ Model-readable text: the `detail` strings are written for an LLM as much as for 
 | What could this person do in this tenant during the review window, and did they? | The access-review query above over your sink or the Cloud export; signed batch or CSV for the compliance platform                     |
 | Who approved that deletion, and when?                                            | The `approval` events sharing the decision's `token`, with `resolvedBy` on the request record                                         |
 | Who gave this person the editor role?                                            | The `membership` event whose `roles.added` includes `editor`, filtered by `tenant`, joined on `via` when the change came from a group |
-| How often is `post.delete` denied per adapter?                                   | The `permdock.checks` counter                                                                                                         |
-| Why is this page slow?                                                           | `permdock.check` spans nested in the request trace; a `pending` status on the client points at closure grants hitting the endpoint    |
+| How often is `post.delete` denied per adapter?                                   | The `permdock.decisions` counter                                                                                                      |
+| Why is this page slow?                                                           | `permdock.decide` spans nested in the request trace; a `pending` status on the client points at closure grants hitting the endpoint   |
 | What changed in who can do what?                                                 | `permdock usage` and the policy matrix snapshot in `permdock/testing`, in review                                                      |

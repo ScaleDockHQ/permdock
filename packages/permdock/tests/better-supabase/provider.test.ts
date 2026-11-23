@@ -878,9 +878,9 @@ describe(authorizationProvider, () => {
     expect(
       resolvePersonas(provider).map((persona) => persona.name),
     ).toStrictEqual(["owner", "platform"]);
-    expect(provider.functions.approverFor).toBe(
-      "permdock.permdock_approver_for_ids()",
-    );
+    // permdock_approver_for_ids() holds the caller, so as better-supabase's
+    // "who may decide this request" set it would let anyone decide.
+    expect(provider.functions.approverFor).toBeUndefined();
     expect(provider.functions.managedUsers).toBe(
       "permdock.permdock_managed_user_ids({tenant})",
     );

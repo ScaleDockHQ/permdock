@@ -124,7 +124,7 @@ A PDP outside PermDock core, such as the PermDock Cloud AuthZEN endpoint, calls 
 | `permdock/ai-sdk`                                                        | `actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' })`                                                    | The `delegation` option, resolved per call by the application; none by default, so an agent without it is denied                                                                         |
 | `permdock/claude-agent`                                                  | The Claude Agent SDK session, `kind: 'claude-agent'`                                                                                 | The `delegation` option, resolved per session; none by default. The `operations` map separately bounds what the agent can even ask for                                                   |
 | `permdock/openai`                                                        | The `actor` option, from the run context                                                                                             | The `delegation` option, from the run context; none by default                                                                                                                           |
-| `permdock/eve`                                                           | `actorFromEve`: the current principal when it differs from the initiator, otherwise `eve:app`, `kind: 'eve'`                         | The `delegation` option, from the session; none by default                                                                                                                               |
+| `permdock/eve`                                                           | `actorFromEve`: `eve:app`, `kind: 'eve'`, on every turn; `subjectFromEve` takes the principal from the turn's caller                 | The `delegation` option, from the session; none by default                                                                                                                               |
 | `permdock/a2a`                                                           | The calling agent's identity from its card or token, `kind: 'a2a'`                                                                   | Caller's token scopes and `authorization_details`                                                                                                                                        |
 | `permdock/supabase`                                                      | `act` by its `kind` (`oauth-client`, `support` with `sessionId` and `readOnly`, `impersonation`), else `client_id` as `oauth-client` | For `oauth-client` only: the `scope` claim without the OpenID Connect identity scopes, and the `act` chain. Support and impersonation get none, so only a policy delegation reaches them |
 | `permdock/workflow`                                                      | The automation, `{ id, kind: 'automation' }`, from the verified run ticket                                                           | The permissions of the automation's operations, from the ticket's `scope`; a policy delegation to `actor('automation')` narrows further ([automations](/docs/concepts/automations))      |
@@ -138,6 +138,34 @@ The AI SDK case deserves a note: the SDK gives PermDock the agent's identity but
 One OAuth access token can reach an application through several adapters: an MCP tool that calls the app's own API with the caller's token is decided by `permdock/mcp` and then by `permdock/supabase` (or `permdock/jwt`). Those adapters name the client `oauth-client`, and `permdock/mcp` names it `mcp-client` unless `actorKind` says otherwise. Set `actorKind: 'oauth-client'` on the MCP adapter and on `subjectFromMcp` so the token is one actor kind everywhere and one policy delegation or `actor('oauth-client')` grant covers it; keep `'mcp-client'` when MCP clients should get rules of their own.
 
 The same token can also reach Postgres directly, through PostgREST or a backend that forwards it. [`rls.tokenScopes`](/docs/cli/rls#token-scopes) holds it there to the permissions its `scope` claim reaches, through the map better-supabase reads. A policy delegation does not compile into SQL, so a client whose rights come only from one holds nothing on the Data API with that option on.
+
+## Parallel agents
+
+An orchestrator that fans work out to several sub-agents at once keeps one principal, the person it acts for, and gives each sub-agent its own `actor.id` and a `delegation` no wider than the task:
+
+```ts
+const { toolApproval } = createPermDock(policy, {
+  operations,
+  subject: ({ runtimeContext }) => runtimeContext.user,
+  actor: ({ runtimeContext }) => ({
+    id: `${runtimeContext.runId}/${runtimeContext.agent}`,
+    kind: "ai-sdk",
+  }),
+  delegation: ({ runtimeContext }) => ({
+    scopes: runtimeContext.task.scopes.filter((scope) =>
+      runtimeContext.parentScopes.includes(scope),
+    ),
+    chain: [runtimeContext.runId, runtimeContext.agent],
+  }),
+});
+```
+
+- **One actor id per sub-agent.** The approval token includes `actor`, so an approval one sub-agent asked for cannot be consumed by another, and decision events, limits and audit rows keep the agents apart. A shared id such as `eve:app` merges them.
+- **Delegation per call, intersected with the parent's.** Filter the task's scopes by the orchestrator's own (attenuation invariant 2); PermDock evaluates only the final `scopes`, so the filter is the application's job. `chain` is carried for audit and never evaluated.
+- **Principal from the run, never from the sub-agent.** The orchestrator's `runtimeContext.user` comes from the verified session. A sub-agent's output or tool arguments never name the principal or the actor.
+- **No self-approval across siblings.** The actor rule refuses an approver whose id is the request's actor; with one id per sub-agent, a sibling agent is not that actor, so `approvers` should name people (`{ roles }`) rather than accept any authenticated principal.
+
+In eve, `session.parent` marks a subagent's session; [Eve](/docs/adapters/eve#connections-agent-wide-gates-subagents-and-schedules) shows the same pattern with its `actor` and `delegation` options.
 
 ## RAR `authorization_details`
 

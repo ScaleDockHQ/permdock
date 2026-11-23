@@ -116,7 +116,7 @@ Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `p
 
 ## What it validates
 
-- Responses are validated against the AuthZEN response schema before mapping; any deviation is `denied` (fail closed). This is the explicit contrast with fail-open adapters such as `@ai-sdk/policy-opa` on unrecognised decisions ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)).
+- Responses are validated against the AuthZEN response schema before mapping; any deviation is `denied` (fail closed). `@ai-sdk/policy-opa` denied unrecognised decisions only from [vercel/ai#19981](https://github.com/vercel/ai/pull/19981); before that fix they ran the tool.
 - `resource.properties` sent to the PDP are validated against the resource schema when they crossed a boundary (`validate: 'boundary'`), so untrusted data is never forwarded unchecked.
 - Discovery documents are validated; a PDP that advertises no `evaluation` endpoint is a configuration error at startup. The provider relies on discovery and does not check the remote PDP's AuthZEN certification.
 - Delegation invariant: an agent can never exceed its user even when the remote PDP grants, because local delegation intersection runs before and after the remote call.

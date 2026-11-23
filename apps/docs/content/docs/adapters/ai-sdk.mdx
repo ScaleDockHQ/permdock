@@ -3,11 +3,11 @@ title: AI SDK
 description: permdock/ai-sdk turns PermDock decisions into Vercel AI SDK 7 tool approvals, capability middleware and WorkflowAgent suspensions, fail-closed by construction.
 ---
 
-`permdock/ai-sdk` connects the [Decision](/docs/concepts/decisions) model to the approval vocabulary of the Vercel AI SDK 7: `toolApproval` on `generateText`, `streamText` and `ToolLoopAgent`, a language-model middleware that narrows the tool list before the model sees it, and `needsApproval` for `WorkflowAgent`, the one place where that option is not deprecated.
+`permdock/ai-sdk` connects the [Decision](/docs/concepts/decisions) model to the approval vocabulary of the Vercel AI SDK 7: `toolApproval` on `generateText`, `streamText`, `ToolLoopAgent` and `WorkflowAgent`, a language-model middleware that narrows the tool list before the model sees it, and `needsApproval` for a tool that carries its own predicate.
 
 ## Purpose
 
-AI SDK 7 moved tool approval out of individual tools and into a single `toolApproval` callback that returns `approved`, `denied`, `user-approval` or `not-applicable` ([Tool Approvals](https://ai-sdk.dev/docs/agents/tool-approvals), [deprecation commit](https://github.com/vercel/ai/commit/04585590ff9e93f6823ad550d59a69dc4039cdbf)). Vercel's reference policy adapter, `@ai-sdk/policy-opa` ([Policy-Based Tool Approvals](https://ai-sdk.dev/docs/agents/policy-tool-approvals)), evaluates Rego and includes `opaCapabilityMiddleware` to trim the tool list; it also fails open when a decision is unrecognised ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)). `permdock/ai-sdk` offers the same three integration points with typed permission references and a fail-closed mapping: every path ends in `approved`, `denied` or `user-approval`, never `not-applicable`.
+AI SDK 7 moved tool approval out of individual tools and into a single `toolApproval` callback that returns `approved`, `denied`, `user-approval` or `not-applicable` ([Tool Approvals](https://ai-sdk.dev/docs/agents/tool-approvals), [deprecation commit](https://github.com/vercel/ai/commit/04585590ff9e93f6823ad550d59a69dc4039cdbf)). Vercel's reference policy adapter, `@ai-sdk/policy-opa` ([Policy-Based Tool Approvals](https://ai-sdk.dev/docs/agents/policy-tool-approvals)), evaluates Rego and includes `opaCapabilityMiddleware` to trim the tool list; since [vercel/ai#19981](https://github.com/vercel/ai/pull/19981) an unrecognised decision denies, but a call no rule matches returns `not-applicable` and the tool runs. `permdock/ai-sdk` offers the same three integration points with typed permission references and a fail-closed mapping: every path ends in `approved`, `denied` or `user-approval`, never `not-applicable`.
 
 ## API
 
@@ -35,13 +35,14 @@ wrapLanguageModel({ model, middleware: capabilityMiddleware({ user, agentId }) }
 // narrows `tools` to what this subject may call before the model sees them
 
 tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
-// WorkflowAgent: durable suspend until a human answers
+// a tool's own predicate; in a WorkflowAgent, `true` suspends the run until a human answers
 ```
 
 - `operations` maps AI SDK tool names to a permission reference and, for instance-level actions, a `data` resolver that loads the resource from the tool arguments. Build it with `defineOperations` ([operations](/docs/concepts/operations)); the same map serves the other agent adapters.
 - `subject` and `actor` read from `runtimeContext` (or any per-call context the caller provides), so one configuration serves many tenants when returned from `prepareCall`.
 - `delegation` is what the user handed the agent: `scopes`, `authorizationDetails` or `access`. It has no default. With an `actor` and no `delegation`, every tool is denied with reason `no-delegation`, and `capabilityMiddleware` offers the model no tools. A resolver that throws counts as no delegation.
-- `toolApproval` is a plain function compatible with the AI SDK signature; `capabilityMiddleware(context)` returns a `LanguageModelMiddleware` (specification `v4`) for that caller, because the middleware sees only the model parameters and no per-call context; `needsApproval(permission)` returns the predicate `WorkflowAgent` expects. A boolean cannot say "denied", so the predicate returns `false` only when granted, `true` for approval-required, and throws `PermDockDeniedError` for a denial or an unmapped call (the AI SDK rejects the run). On the re-check after an approval, it throws `PermDockApprovalRequiredError` unless the approval is recorded.
+- `toolApproval` is a plain function compatible with the AI SDK signature; `capabilityMiddleware(context)` returns a `LanguageModelMiddleware` (specification `v4`) for that caller, because the middleware sees only the model parameters and no per-call context; `needsApproval(permission)` returns a tool's `needsApproval` predicate. A boolean cannot say "denied", so the predicate returns `false` only when granted, `true` for approval-required, and throws `PermDockDeniedError` for a denial or an unmapped call (the AI SDK rejects the run). On the re-check after an approval, it throws `PermDockApprovalRequiredError` unless the approval is recorded.
+- `WorkflowAgent` from `@ai-sdk/workflow` 2.x takes `toolApproval` on the agent or per `stream()` call, and it takes precedence over a tool's `needsApproval`. Its approval functions run in workflow context, outside steps, so a `data` resolver that reads a database must call a `"use step"` function.
 - `unmapped` decides what happens to a tool `operations` does not bind to a permission: `'deny'` (the default) hides it in `capabilityMiddleware` and denies it in `toolApproval`; `'allow'` keeps it in both, for an app that registers tools of its own that need no permission. `composeToolApproval(app)` returns a tool approval function that runs PermDock's `toolApproval` first and asks `app`, the application's own approval function, only for a call PermDock grants (or an unmapped tool under `'allow'`), returning its answer as is. `undefined` stays `undefined`, which the AI SDK reads as not applicable, so the tool's own `needsApproval` (or the SDK default) decides; return `'approved'` to approve explicitly. An answer that is not a tool approval result denies, so a broken app function never approves. PermDock's `denied` and `user-approval` are never passed to `app`, so a registry confirmation composes with PermDock without a wrapper:
 
 ```ts
@@ -118,7 +119,7 @@ await toolApproval(call);
 
 - `denied` results include a `reason` string built from the Decision: the failing role reasons and the `alternatives` list (permitted permissions on the same resource), so a model can choose a permitted action instead of retrying the denied one.
 - `user-approval` results carry `Decision.token` and a human-readable summary for the approval UI.
-- Nothing ever maps to `not-applicable`. If the adapter cannot decide (unknown tool, thrown resolver, malformed context) it returns `denied` and logs the cause. This is the intentional contrast with `@ai-sdk/policy-opa`, where unrecognised decisions execute the tool ([vercel/ai#19978](https://github.com/vercel/ai/issues/19978)).
+- Nothing ever maps to `not-applicable`. If the adapter cannot decide (unknown tool, thrown resolver, malformed context) it returns `denied` and logs the cause. This is the intentional contrast with `@ai-sdk/policy-opa`, where a call no rule matches executes the tool.
 - `capabilityMiddleware` denials are silent by design: the tool is absent from the request. Set `onDecision` on the instance to log them. The middleware only removes tools; it never rewrites tool descriptions.
 - The AI SDK result type is a string, so the Decision is rendered into `reason`; the structured Decision stays available to audit through `on('decision')`. A plan pre-flight is `permdock.simulate()` called by the application before the loop; the adapter adds no hook for it.
 

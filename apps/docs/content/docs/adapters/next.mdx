@@ -316,7 +316,7 @@ Rules: `operationId` is the join key, and `--check` fails on a handler without o
 
 ## MCP route
 
-A Next.js app exposes an MCP server as a route handler through [`mcp-handler`](https://github.com/vercel/mcp-handler); `permdock/mcp` guards it with the same policy and the same subject resolver the rest of the app uses ([MCP adapter](/docs/adapters/mcp), Hosting). This is the route the PermDock Cloud template on the Vercel Marketplace exposes ([Cloud adapter](/docs/adapters/cloud)).
+A Next.js app exposes an MCP server as a route handler through [`mcp-handler`](https://github.com/vercel-labs/mcp-handler); `permdock/mcp` guards it with the same policy and the same subject resolver the rest of the app uses ([MCP adapter](/docs/adapters/mcp), Hosting). This is the route the PermDock Cloud template on the Vercel Marketplace exposes ([Cloud adapter](/docs/adapters/cloud)).
 
 ```ts
 // app/api/mcp/route.ts

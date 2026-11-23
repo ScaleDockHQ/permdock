@@ -249,6 +249,20 @@ export const SECTIONS: readonly Section[] = [
           load: async () => (await import("../commands/diff.ts")).diff,
         },
       ),
+      leaf(
+        "explain",
+        "Show which grants decide an action for each fixture subject",
+        {
+          examples: [
+            "permdock explain post.update",
+            "permdock explain invoice.send --fixtures ./fixtures.ts --json",
+          ],
+          docs: "explain",
+          effects: [],
+          config: true,
+          load: async () => (await import("../commands/explain.ts")).explain,
+        },
+      ),
       group(
         "snapshot",
         "Measure the snapshot a role sends to the client",

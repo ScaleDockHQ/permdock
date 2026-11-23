@@ -37,6 +37,12 @@ export type EveApprovalContext = {
       readonly initiator?: EvePrincipal | null;
       readonly current?: EvePrincipal | null;
     };
+    /** Set on a subagent's session: the session and call that opened it. */
+    readonly parent?: {
+      readonly sessionId: string;
+      readonly rootSessionId: string;
+      readonly callId: string;
+    };
   };
   readonly callId?: string;
   readonly toolName: string;
@@ -77,8 +83,8 @@ export type EvePermDockOptions<TUser = unknown> = Omit<
   "subject"
 > & {
   /**
-   * Defaults to `subjectFromEve`: the session initiator's id and `roles`
-   * attribute.
+   * Defaults to `subjectFromEve`: the id and `roles` attribute of the turn's
+   * caller, `auth.current`, or the initiator when the turn has none.
    */
   readonly subject?: (context: EveContext) => TUser | Promise<TUser>;
   readonly approvers?: EveApprovers;
@@ -122,27 +128,20 @@ export function rolesOf(principal: EvePrincipal | null | undefined): string[] {
   return roles.filter((role): role is string => typeof role === "string");
 }
 
+/**
+ * The caller of the turn: eve replaces `auth.current` when another caller sends
+ * a follow-up, while `auth.initiator` stays the session's first caller.
+ */
 export function subjectFromEve(context: EveContext): unknown {
-  const initiator = context.session?.auth?.initiator;
-  if (initiator === undefined || initiator === null) {
+  const auth = context.session?.auth;
+  const caller = auth?.current ?? auth?.initiator;
+  if (caller === undefined || caller === null) {
     return null;
   }
-  return { id: initiator.principalId, roles: rolesOf(initiator) };
+  return { id: caller.principalId, roles: rolesOf(caller) };
 }
 
-export function actorFromEve(context: EveContext): unknown {
-  const auth = context.session?.auth;
-  const initiator = auth?.initiator;
-  const current = auth?.current;
-  if (
-    current !== undefined &&
-    current !== null &&
-    initiator !== undefined &&
-    initiator !== null &&
-    current.principalId !== initiator.principalId
-  ) {
-    return { id: current.principalId, kind: "eve" };
-  }
+export function actorFromEve(_context: EveContext): unknown {
   return { id: "eve:app", kind: "eve" };
 }
 

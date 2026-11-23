@@ -126,10 +126,10 @@ describe("a better-supabase app that takes every authorization slot from the pro
     ]);
     expect(Object.keys(config.auth ?? {})).toStrictEqual(["authorization"]);
     expect(config.auth?.authorization).toStrictEqual(provider);
-    expect(config.blocks?.permissions).toStrictEqual({
-      model: "provider",
-      activeTenant: "claim",
-    });
+    expect(config.blocks).toStrictEqual([
+      { block: "permissions", model: "provider", activeTenant: "claim" },
+      "pgtap",
+    ]);
   });
 
   it("fills memberships, suspension, platform roles, the subject, personas and the approval sets", () => {
@@ -166,7 +166,6 @@ describe("a better-supabase app that takes every authorization slot from the pro
       subjectForTenant: "permdock.permdock_subject(({tenant})::text)",
       bootstrapPermissions:
         "permdock.permdock_bootstrap_permissions(({tenant})::text)",
-      approverFor: "permdock.permdock_approver_for_ids()",
       managedUsers: "permdock.permdock_managed_user_ids({tenant})",
       canAssign: "permdock.permdock_can_assign({role}, {tenant}::text)",
     });
