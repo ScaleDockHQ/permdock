@@ -17,7 +17,7 @@ catalog:
   "@nestjs/platform-express": 12.6.0
   "@nestjs/platform-fastify": 12.3.2
   "@fastify/multipart": 10.1.6
-  "@hono/node-server": 2.1.5
+  "@hono/node-server": 2.1.6
   "@expo/log-box": 58.0.15
   "@expo/metro-runtime": 58.0.17
   "@react-native/metro-config": 0.88.1
