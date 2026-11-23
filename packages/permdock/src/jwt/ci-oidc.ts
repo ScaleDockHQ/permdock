@@ -16,7 +16,7 @@ import { decodeHeader } from "./header.ts";
 import { validateCustomClaims } from "./map-claims.ts";
 import { joseTokenVerifier } from "./verifier.ts";
 
-export type CiOidcProvider = "github" | "gitlab" | "buildkite";
+export type CiOidcProvider = "github" | "gitlab" | "buildkite" | "vercel";
 
 const PROVIDERS: Readonly<
   Record<CiOidcProvider, { readonly issuer: string; readonly jwks: string }>
@@ -33,6 +33,10 @@ const PROVIDERS: Readonly<
     issuer: "https://agent.buildkite.com",
     jwks: "https://agent.buildkite.com/.well-known/jwks",
   },
+  vercel: {
+    issuer: "https://oidc.vercel.com",
+    jwks: "https://oidc.vercel.com/.well-known/jwks",
+  },
 };
 
 export type CiOidcSubjectOptions = Omit<
@@ -43,8 +47,9 @@ export type CiOidcSubjectOptions = Omit<
   /** The audience the job requested the token for; required. */
   readonly audience: string | readonly string[];
   /**
-   * A self-managed GitLab or GitHub Enterprise Server issuer. Its keys come
-   * from OpenID discovery unless `jwks` is set.
+   * A self-managed GitLab or GitHub Enterprise Server issuer, or a Vercel team
+   * issuer (`https://oidc.vercel.com/<team>`). Its keys come from OpenID
+   * discovery unless `jwks` is set.
    */
   readonly issuer?: string;
   /**
@@ -58,8 +63,9 @@ export type CiOidcSubjectOptions = Omit<
 };
 
 /**
- * A CI job: never a user. `ref` is a full ref (`refs/heads/main`,
- * `refs/tags/v1`).
+ * A CI job or a Vercel deployment: never a user. `ref` is a full ref
+ * (`refs/heads/main`, `refs/tags/v1`). `owner` and `project` are the Vercel
+ * team and project ids, which survive a rename.
  */
 export type CiOidcPrincipal = Principal & {
   readonly kind: "workload";
@@ -68,6 +74,8 @@ export type CiOidcPrincipal = Principal & {
   readonly repository?: string;
   readonly ref?: string;
   readonly environment?: string;
+  readonly owner?: string;
+  readonly project?: string;
 };
 
 function text(claims: JwtClaims, key: string): string | undefined {
@@ -91,7 +99,10 @@ function fullRef(
 function jobClaims(
   provider: CiOidcProvider,
   claims: JwtClaims,
-): Pick<CiOidcPrincipal, "repository" | "ref" | "environment"> {
+): Pick<
+  CiOidcPrincipal,
+  "repository" | "ref" | "environment" | "owner" | "project"
+> {
   switch (provider) {
     case "github":
       return compact({
@@ -123,6 +134,12 @@ function jobClaims(
             : fullRef(tag, "tag"),
       });
     }
+    case "vercel":
+      return compact({
+        owner: text(claims, "owner_id"),
+        project: text(claims, "project_id"),
+        environment: text(claims, "environment"),
+      });
     default: {
       const exhaustive: never = provider;
       return exhaustive;
@@ -131,10 +148,10 @@ function jobClaims(
 }
 
 /**
- * Resolves a CI provider's OIDC token (GitHub Actions, GitLab CI, Buildkite)
- * into a `workload` principal whose id is `sub`. Every failure (signature,
- * issuer, audience, expiry, a missing `sub`, the `schema`) is the anonymous
- * subject, never a throw and never a user.
+ * Resolves a CI provider's OIDC token (GitHub Actions, GitLab CI, Buildkite,
+ * Vercel) into a `workload` principal whose id is `sub`. Every failure
+ * (signature, issuer, audience, expiry, a missing `sub`, the `schema`) is the
+ * anonymous subject, never a throw and never a user.
  */
 export async function subjectFromCiOidc(
   token: string | undefined | null,

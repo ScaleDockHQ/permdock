@@ -68,6 +68,60 @@ describe(subjectFromCiOidc, () => {
     });
   });
 
+  it("maps a Vercel OIDC token to a workload with the team and project ids", async () => {
+    const token = await ciToken(
+      "https://oidc.vercel.com",
+      {
+        sub: "owner:acme:project:api:environment:preview",
+        owner: "acme",
+        owner_id: "team_7Gw5ZMzpQA8h90F832KGp7nwbuh3",
+        project: "api",
+        project_id: "prj_7Gw5ZMBpQA8h9GF832KGp7nwbuh3",
+        environment: "preview",
+        user_id: "u_should_not_appear",
+      },
+      "https://vercel.com/acme",
+    );
+    const subject = await subjectFromCiOidc(token, {
+      provider: "vercel",
+      audience: "https://vercel.com/acme",
+      jwks: JWKS,
+    });
+    expect(subject.principal).toStrictEqual({
+      id: "owner:acme:project:api:environment:preview",
+      kind: "workload",
+      issuer: "https://oidc.vercel.com",
+      provider: "vercel",
+      owner: "team_7Gw5ZMzpQA8h90F832KGp7nwbuh3",
+      project: "prj_7Gw5ZMBpQA8h9GF832KGp7nwbuh3",
+      environment: "preview",
+    });
+  });
+
+  it("accepts a Vercel team issuer only when it is configured", async () => {
+    const token = await ciToken(
+      "https://oidc.vercel.com/acme",
+      { sub: "owner:acme:project:api:environment:production" },
+      "https://vercel.com/acme",
+    );
+    const global = await subjectFromCiOidc(token, {
+      provider: "vercel",
+      audience: "https://vercel.com/acme",
+      jwks: JWKS,
+    });
+    expect(global.principal).toBeNull();
+    const team = await subjectFromCiOidc(token, {
+      provider: "vercel",
+      issuer: "https://oidc.vercel.com/acme",
+      audience: "https://vercel.com/acme",
+      jwks: JWKS,
+    });
+    expect(team.principal).toMatchObject({
+      kind: "workload",
+      issuer: "https://oidc.vercel.com/acme",
+    });
+  });
+
   it("normalises GitLab and Buildkite refs", async () => {
     const gitlab = await subjectFromCiOidc(
       await ciToken("https://gitlab.com", {
