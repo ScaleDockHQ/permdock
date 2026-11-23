@@ -153,6 +153,44 @@ describe(workflowSdkWaiter, () => {
     expect(hooks.parked.size).toBe(0);
   });
 
+  it("ends a wait whose request was decided before its hook registered", async () => {
+    const hooks = fakeHooks();
+    const steps: string[] = [];
+    const waiter = workflowSdkWaiter({
+      ...hooks,
+      createHook: (options) => {
+        const hook = hooks.createHook(options);
+        return {
+          // oxlint-disable-next-line unicorn/no-thenable -- a Workflow SDK Hook is a bare thenable
+          then: (onFulfilled, onRejected) => hook.then(onFulfilled, onRejected),
+          dispose: () => {
+            hook.dispose();
+          },
+          getConflict: () => {
+            steps.push("registered");
+            return Promise.resolve(null);
+          },
+        };
+      },
+      pending: () => {
+        steps.push("read store");
+        return Promise.resolve(false);
+      },
+    });
+    await waiter.wake("tok_3");
+    const ended = await Promise.race([
+      waiter.wait("tok_3").then(() => true),
+      new Promise<false>((resolve) => {
+        setTimeout(() => {
+          resolve(false);
+        }, 50);
+      }),
+    ]);
+    expect(ended).toBe(true);
+    expect(steps).toStrictEqual(["registered", "read store"]);
+    expect(hooks.disposed).toStrictEqual([approvalHookToken("tok_3")]);
+  });
+
   it("treats waking a run that is not parked as done", async () => {
     await expect(
       workflowSdkWaiter(fakeHooks()).wake("nobody"),

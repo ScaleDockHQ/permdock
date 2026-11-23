@@ -4,9 +4,14 @@ import { resumeHook } from "workflow/api";
 
 import type { SendResult } from "./steps.ts";
 
-import { openSend, send } from "./steps.ts";
+import { approvalPending, openSend, send } from "./steps.ts";
 
-const waiter = workflowSdkWaiter({ createHook, resumeHook, sleep });
+const waiter = workflowSdkWaiter({
+  createHook,
+  resumeHook,
+  sleep,
+  pending: approvalPending,
+});
 
 /**
  * Sends one overdue invoice as the automation's publisher, parking on the

@@ -33,7 +33,13 @@ import { createHook, sleep } from "workflow";
 import { resumeHook } from "workflow/api";
 import { workflowSdkWaiter } from "permdock/workflow-sdk";
 
-const waiter = workflowSdkWaiter({ createHook, resumeHook, sleep });
+const waiter = workflowSdkWaiter({ createHook, resumeHook, sleep, pending });
+
+async function pending(token: string) {
+  "use step";
+  const request = await approvals.get(token);
+  return request?.status === "pending";
+}
 
 async function open(ticket: string, invoiceId: string) {
   "use step";
@@ -73,7 +79,11 @@ export async function sendOverdue(ticket: string, invoiceId: string) {
 }
 ```
 
-The approver handler calls `waiter.wake(token)` after `resolveApproval`. Waking a run that already ended, or never parked, does nothing. With `sleep` and an `expiresAt`, `wait` also ends when the request expires. Without them, only a wake ends the wait.
+The approver handler calls `waiter.wake(token)` after `resolveApproval`. Waking a run that already ended, or never parked, does nothing.
+
+`createHook` registers nothing until the run suspends, so a wake that arrives between `open` and `wait` finds no hook. `wait` therefore awaits `hook.getConflict()` to register the hook, then calls `pending(token)`, a step over the approval store, and returns at once when the request is already decided. Without `pending`, a request decided in that window keeps the run parked until a second wake or the expiry.
+
+With `sleep` and an `expiresAt`, `wait` also ends when the request expires. Without them, only a wake ends the wait.
 
 ## Resume a hook for a caller
 
