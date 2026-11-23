@@ -322,6 +322,7 @@ export function createPermDock<
         adapter: "supabase-middleware",
         wrap: composeWraps(options.otel, options.wrap),
         deniedResponse: options.deniedResponse,
+        waitUntil: options.waitUntil,
       }),
     );
 
