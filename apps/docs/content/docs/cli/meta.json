@@ -12,6 +12,7 @@
     "collect",
     "catalog",
     "diff",
+    "explain",
     "usage",
     "snapshot",
     "roles",

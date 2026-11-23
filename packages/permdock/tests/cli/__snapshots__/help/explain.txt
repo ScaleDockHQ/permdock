@@ -1,0 +1,20 @@
+permdock explain: Show which grants decide an action for each fixture subject
+
+Usage  permdock explain <action> [flags]
+
+Arguments
+  action  The permission key to explain, such as post.update
+
+Flags
+  --policy <module>  Module exporting the policy (default policy in the config)
+  --fixtures <file>  Fixtures file (default rls.fixtures in the config, else rls.fixtures.json)
+
+Global flags
+  --cwd --config --json --format --yes --effects-digest --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock explain post.update
+  permdock explain invoice.send --fixtures ./fixtures.ts --json
+
+Side effects  none: reads only
+Docs  https://permdock.com/docs/cli/explain
