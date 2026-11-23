@@ -69,6 +69,7 @@ import {
 import { pd095, pd096, pd101 } from "./schema-checks.ts";
 import { pd097 } from "./seed-data.ts";
 import { pd054 } from "./seeds.ts";
+import { pd116 } from "./server-actions.ts";
 import {
   pd001,
   pd007,
@@ -516,6 +517,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd113(project.sources()),
   },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
+  {
+    code: "PD116",
+    groups: ["next", "actions"],
+    run: (project) => pd116(project.sources()),
+  },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
 ];
 

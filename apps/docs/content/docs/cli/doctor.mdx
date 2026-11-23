@@ -167,6 +167,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD113` | Source reads the legacy shared JWT secret (`SUPABASE_JWT_SECRET`, `JWT_SECRET`) or lists `HS256` as the only verification algorithm                                                                                                                                                                                                  | warning         |
 | `PD114` | `rls.authorize: "jwt"` with a token hook: the helpers read only the memberships the budget keeps; an error when a sample user's token is truncated                                                                                                                                                                                   | warning         |
 | `PD115` | The newest migration with the generated helpers carries a different `sha-256:` digest from the schema file `rls generate` writes                                                                                                                                                                                                     | warning         |
+| `PD116` | A module with a file-level `'use server'` exports a Server Action that calls no `protectAction`, `requirePermission`, `getPermission` or `assert`                                                                                                                                                                                    |
 
 ### PD001: server-only imports in client entries
 
@@ -769,6 +770,10 @@ With `rls.authorize: "jwt"` the helpers read the `memberships` claim and nothing
 ### PD115: a migration behind the schema file
 
 `permdock generate --only rls` writes `-- permdock helpers (…) sha-256:<digest>` as the first line of the helpers, where the digest covers every line after it. The digest depends on the helper text only, so a release that writes the same helpers writes the same line. PD115 compares the newest migration in the migration folders that holds that line with the schema file (`supabase/schemas` or `rls.out`). A different digest means a policy change reached the schema file and no migration applies it. The check is silent when either side has no stamp, which is the case for a migration that `supabase db diff` wrote, since a diff carries no comments. `--only drift` runs PD115.
+
+### PD116: unguarded Server Actions
+
+Every export of a module that starts with `'use server'` is a Server Action, which Next.js serves as a POST endpoint to anyone who can load a page that references it. PD116 reads each such module under `doctor.srcPath` and warns for an exported function whose body calls none of `protectAction`, `requirePermission`, `getPermission` or `.assert`. Wrap the handler with `protectAction(permission, { input })` ([Server Actions](/docs/adapters/next#server-actions)) or call `requirePermission` before the write. The check reads text: an action that checks through a helper of your own warns until the module calls one of the four names, and a `'use server'` directive inside a function body is not read. `--only actions` runs PD116.
 
 ## Side effects
 
