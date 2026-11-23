@@ -37,6 +37,12 @@ export type EveApprovalContext = {
       readonly initiator?: EvePrincipal | null;
       readonly current?: EvePrincipal | null;
     };
+    /** Set on a subagent's session: the session and call that opened it. */
+    readonly parent?: {
+      readonly sessionId: string;
+      readonly rootSessionId: string;
+      readonly callId: string;
+    };
   };
   readonly callId?: string;
   readonly toolName: string;

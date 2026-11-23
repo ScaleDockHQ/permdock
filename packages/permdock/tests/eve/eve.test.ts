@@ -298,4 +298,40 @@ describe("permdock/eve", () => {
     });
     expect(noInitiator).toMatchObject({ type: "denied" });
   });
+
+  it("gives a subagent session its own actor and a narrower delegation", async () => {
+    const { approval, getPermDock } = createPermDock(policy, {
+      store: memoryApprovalStore(),
+      operations: tools(),
+      actor: (ctx) =>
+        ctx.session?.parent === undefined
+          ? { id: "eve:app", kind: "eve" }
+          : { id: `eve:session:${ctx.session.id ?? ""}`, kind: "eve" },
+      delegation: (ctx) =>
+        ctx.session?.parent === undefined
+          ? delegated
+          : { scopes: [permissions.post.list.scope] },
+    });
+    const child = (toolName: string): EveApprovalContext => ({
+      session: {
+        ...sessionFor(memberUser),
+        id: "s2",
+        parent: { sessionId: "s1", rootSessionId: "s1", callId: "c0" },
+      },
+      callId: "c2",
+      toolName,
+      toolInput: { id: "p1" },
+    });
+
+    expect(await approval.request(child("list_posts"))).toBe("not-applicable");
+    expect(await approval.request(child("delete_post"))).toMatchObject({
+      type: "denied",
+    });
+    expect((await getPermDock(child("list_posts"))).subject.actor?.id).toBe(
+      "eve:session:s2",
+    );
+    expect(await approval.request(call("delete_post", { id: "p1" }))).toBe(
+      "user-approval",
+    );
+  });
 });

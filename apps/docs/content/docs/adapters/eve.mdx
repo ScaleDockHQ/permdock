@@ -113,6 +113,52 @@ The `subject` and `actor` options override these defaults when an application en
 - A rejected responder gets `{ status: "rejected", reason: "approver is the actor of this request" }` (or the `approvers` reason); the request stays pending, matching Eve's semantics.
 - Expired or mismatched approvals on resume are denials with `detail` `approval-expired` or `approval-mismatch`.
 
+## Connections, agent-wide gates, subagents and schedules
+
+**Connection tools.** A connection's `approval` takes the same `{ request, response }` pair as a tool. Eve names each connection tool `<connection>__<tool>`, so key `operations` by that name and put the pair on the connection:
+
+```ts title="agent/connections/linear.ts"
+import { defineMcpClientConnection } from "eve/connections";
+
+const { approval } = createPermDock(policy, {
+  operations: defineOperations(permissions, {
+    linear__create_issue: { permission: permissions.issue.create },
+    linear__delete_comment: { permission: permissions.comment.delete },
+  }),
+  delegation,
+});
+
+export default defineMcpClientConnection({
+  url: "https://mcp.linear.app/mcp",
+  description: "Linear workspace.",
+  approval,
+});
+```
+
+A tool the map does not name is denied; `unmapped: 'allow'` lets the connection's read tools through. Approval never changes who the call runs as: the connection token stays the requester's.
+
+**Agent-wide policy.** `approval` in `agent.ts` runs on every call, including connection tools and subagents, and eve keeps the stricter of it and the tool's own answer. An agent-wide rule can add a gate on top of a PermDock decision but never turn a PermDock denial into a run. Keep PermDock's pair on the tools and connections, where its `response` policy checks the approver; when only the agent-wide policy asks, eve has no tool-level `response` to apply.
+
+**Subagents.** Eve runs each message to a subagent with the sender's auth, so the principal is the same person, and local subagents run under the root agent's policy. `session.parent` (`sessionId`, `rootSessionId`, `callId`) marks a subagent's session. Give it its own actor id and a narrower delegation, so audit tells the agents apart and a research child cannot delete:
+
+```ts
+createPermDock(policy, {
+  operations,
+  actor: (ctx) =>
+    ctx.session?.parent === undefined
+      ? { id: "eve:app", kind: "eve" }
+      : { id: `eve:session:${ctx.session.id ?? ""}`, kind: "eve" },
+  delegation: (ctx) =>
+    ctx.session?.parent === undefined
+      ? { scopes: [permissions.post.list.scope, permissions.post.delete.scope] }
+      : { scopes: [permissions.post.list.scope] },
+});
+```
+
+Approvals from a child appear on the parent session, and the child's `response` policy decides who may answer. [Parallel agents](/docs/security/delegation#parallel-agents) covers the pattern outside eve.
+
+**Schedules.** A `defineSchedule` handler sends with `appAuth` (`principalId: 'eve:app'`), which holds no role, so its tools deny until `subject` maps it; pass a user's auth instead when the work needs that user's grants. Eve's experimental dynamic schedules call their `auth` callback on each occurrence to turn the stored creator into current access; look the creator up there and return `null` for a removed member, and that occurrence fails without running. For a recurring job that PermDock decides at fire time, see [Automations](/docs/concepts/automations).
+
 ## Use with better-supabase
 
 better-supabase 0.81.0 or later exports `strictestApproval`, `approvalPolicy`, `tenantToolApproval`, `supabaseTool` and `eveContext` from `better-supabase/eve`. `strictestApproval` combines approvals for one tool: the strictest `request` answer wins (`denied`, then `user-approval`, then `approved`, then `not-applicable`) and every `response` must allow the answer. `approvalFor` returns an approval of that shape, so PermDock's decision, the approvals block and the tenant's tool policies all apply to one call.
