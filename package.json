@@ -94,12 +94,12 @@
     },
     "runtime": {
       "name": "node",
-      "version": "24.x",
+      "version": "26.x",
       "onFail": "download"
     }
   },
   "engines": {
-    "node": "24.x",
+    "node": "26.x",
     "pnpm": "12.18.0"
   },
   "packageManager": "pnpm@12.18.0"

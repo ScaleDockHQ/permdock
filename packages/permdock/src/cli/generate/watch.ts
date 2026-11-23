@@ -118,9 +118,6 @@ function runWorker(
           ? {}
           : { concurrency: options.concurrency }),
       },
-      execArgv: url.pathname.endsWith(".ts")
-        ? ["--experimental-strip-types"]
-        : [],
     });
     let settled = false;
     const finish = (reply: WatchReply): void => {

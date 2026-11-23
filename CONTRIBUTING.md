@@ -4,11 +4,11 @@ Thanks for contributing to PermDock. This repository is a pnpm 12 + Turborepo mo
 
 ## Requirements
 
-- Node.js 24 or later (24 LTS is what CI runs)
+- Node.js 26 or later (what CI runs)
 - pnpm 12.18.0: `devEngines` in the root `package.json` fails any other version
 - TypeScript 7 comes from the workspace catalog; nothing to install globally
 
-npm and Yarn are not supported. On Node.js 24, enable pnpm with Corepack:
+npm and Yarn are not supported. On Node.js 26, enable pnpm with Corepack:
 
 ```bash
 corepack enable

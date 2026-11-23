@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/permdock?label=permdock)](https://www.npmjs.com/package/permdock)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ScaleDockHQ/PermDock/blob/main/LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/ScaleDockHQ/PermDock/ci.yml?label=CI)](https://github.com/ScaleDockHQ/PermDock/actions)
-![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-5fa04e.svg)
+![Node.js 26+](https://img.shields.io/badge/Node.js-26%2B-5fa04e.svg)
 ![TypeScript 7](https://img.shields.io/badge/TypeScript-7-3178c6.svg)
 
 Define permissions once as typed references over the Zod, Valibot or ArkType schemas you already have. Grant them to roles with portable conditions. Check them in React, Next.js, Hono, tRPC, MCP servers and agent runtimes, and compile the same conditions to SQL `where` clauses and Postgres Row Level Security.
@@ -16,7 +16,7 @@ Define permissions once as typed references over the Zod, Valibot or ArkType sch
 pnpm add permdock
 ```
 
-One package: core, every adapter as a subpath export, the `permdock` CLI and `permdock/testing`. ESM only, Node.js 24 or later, built with TypeScript 7 and type-checked under 5.9 and 6. Runtime entries depend on `@standard-schema/spec` only; framework SDKs are optional peers.
+One package: core, every adapter as a subpath export, the `permdock` CLI and `permdock/testing`. ESM only, Node.js 26 or later, built with TypeScript 7 and type-checked under 5.9 and 6. Runtime entries depend on `@standard-schema/spec` only; framework SDKs are optional peers.
 
 ## One definition, one decision
 

@@ -23,7 +23,7 @@ describe("import graph", () => {
     `;
     const result = spawnSync(
       process.execPath,
-      ["--experimental-strip-types", "--input-type=module", "-e", script],
+      ["--input-type=module", "-e", script],
       { cwd: ROOT, encoding: "utf8" },
     );
     expect(result.stderr).toBe("");

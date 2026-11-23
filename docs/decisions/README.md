@@ -9,7 +9,7 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0001](./0001-skills-in-agents-folder.md)                         | Withdrawn: the standard now commits lock-tracked skills                                                        |
 | [0002](./0002-no-typescript-catalog-override.md)                  | No global `typescript` override                                                                                |
 | [0003](./0003-schema-libraries.md)                                | Zod, ArkType and agent SDKs where PermDock supports them                                                       |
-| [0004](./0004-node-engines.md)                                    | `permdock` keeps `engines.node: ">=24"`                                                                        |
+| [0004](./0004-node-engines.md)                                    | `permdock` keeps `engines.node: ">=26"`                                                                        |
 | [0005](./0005-extra-workspaces-and-scripts.md)                    | Extra workspace globs and root scripts                                                                         |
 | [0006](./0006-vendored-ui-tsconfig.md)                            | Relaxed tsconfig for vendored UI code                                                                          |
 | [0007](./0007-permdock-tests-not-type-checked.md)                 | Withdrawn: the tests are type-checked                                                                          |

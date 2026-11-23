@@ -1,4 +1,4 @@
-# 0004. `permdock` keeps `engines.node: ">=24"`
+# 0004. `permdock` keeps `engines.node: ">=26"`
 
 - Status: accepted
 - Date: 2026-09-30
@@ -9,11 +9,11 @@ The standard pins the repository to one Node.js version through `devEngines`. Th
 
 ## Decision
 
-The root `devEngines` pins the toolchain. `packages/permdock` publishes `engines.node: ">=24"`, the oldest Node.js its runtime entries and CLI are tested on.
+The root `devEngines` pins the toolchain. `packages/permdock` publishes `engines.node: ">=26"`, the oldest Node.js its runtime entries and CLI are tested on.
 
 ## Consequences
 
-Consumers on Node.js 25 or later are not warned. CI runs Node.js 24, so a break on a newer major shows up only in the runtime tests or a user report.
+Consumers on Node.js 25 or later are not warned. CI runs Node.js 26, so a break on a newer major shows up only in the runtime tests or a user report.
 
 ## Alternatives considered
 
