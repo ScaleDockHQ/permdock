@@ -139,6 +139,41 @@ interface TokenSigner {
 
 `sign` writes `alg`, `kid` and `typ` into the protected header and nothing else; it sets `iss` from its configuration and `aud`, `iat`, `exp` and `jti` from the options, and drops those claims from the payload, so the caller supplies only the format's private claims. It refuses to sign without an audience. The built-in implementation is `joseTokenSigner({ key, alg, kid, issuer, audience? })`, which throws without `issuer`; a KMS-backed signer implements the same two methods. Signing is optional everywhere: `permdock.snapshot()` without a `signer` returns the plain snapshot JSON ([wire formats](/docs/concepts/wire-formats)).
 
+#### Vercel KMS as a signer
+
+[Vercel KMS](https://vercel.com/docs/kms) keeps the private key on Vercel and signs through `signJWT` from `@vercel/kms`, authorised by the deployment's OIDC token:
+
+```ts
+import type { TokenSigner } from "permdock";
+
+import { signJWT } from "@vercel/kms";
+
+const issuerId = "f47ac10b-58cc-4372-a567-0e02b2c3d479"; // the KMS issuer ID
+
+export const kmsSigner: TokenSigner = {
+  name: "vercel-kms",
+  async sign(payload, { typ, audience, expiresAt, jti }) {
+    if (audience === undefined) throw new Error("kmsSigner needs an audience");
+    const { iss, aud, iat, nbf, exp, jti: _jti, ...claims } = payload;
+    const now = Math.floor(Date.now() / 1000);
+    const { token } = await signJWT({
+      issuerId,
+      claims: { ...claims, aud: audience, jti: jti ?? crypto.randomUUID() },
+      headers: { typ },
+      ttl: (expiresAt ?? now + 3600) - now,
+    });
+    return token;
+  },
+};
+```
+
+- **Algorithm.** KMS defaults to `RS512`, which PermDock verifiers do not accept. Create the issuer's signing key as `ES256`, `PS256` or `RS256`.
+- **Issuer.** KMS sets `iss` to `https://kms.vercel.com/<issuerId>` and publishes the keys at `https://kms.vercel.com/<issuerId>/jwks.json`; configure verifiers with both.
+- **Times.** KMS sets `iat`, `nbf` and `exp` itself, so `issuedAt` is ignored and `iat` is the signing time, not the artefact's own time.
+- **Request context.** `signJWT` reads the OIDC token at call time, so sign inside a request handler, not at module scope. One issuer per project and environment keeps each JWKS to one trust boundary.
+
+PermDock's tests do not run against KMS. Decode one issued token and check its `typ` header before relying on it, because every PermDock verifier checks `typ`.
+
 ### Typed provider principals
 
 Each provider entry exports a base principal type and accepts a `schema` option, any Standard Schema, for the claims or fields it cannot know in advance:
@@ -483,6 +518,8 @@ interface LimitStore {
 `remaining` must be synchronous. A Promise from either method is denied, never awaited. A store counts per `subjectId` and `tenant` (the active tenant, absent without one). `per` is a duration such as `'hour'`, `'15 min'` or `'1 d'`, validated when the grant is defined; `memoryLimitStore()` forgets ended windows. Pass `limits: limits(memoryLimitStore())` to `createPermDock`; omitting it fails closed on every quota grant. `limits()` is a feature: the counting code ships only with an app that imports it.
 
 The rules follow from synchronous evaluation. `can`, `filter`, `simulate` and an `approval-required` outcome only peek `remaining`, because UI paths call `can` on every render and consuming there would spend quota on a hover; `decide` and `assert` consume, since mutations call them. A Promise is truthy, so reading an async `consume` as a remaining count would fail open; the store is never awaited and a thenable is `limit-unavailable`. An async store (Redis, a database) sits behind a synchronous cache or implements only a synchronous `remaining` for UI peeks. Exhausted (`limit`) and store-down (`limit-unavailable`) are separate reasons so operators can tell them apart. If the first matching allow is over quota, the next matching allow is tried, as allows OR together. `limits` is never filled in automatically: a forgotten production store would otherwise count silently in process memory, and falling back to unlimited on a store failure would fail open.
+
+A platform rate limiter cannot back a `LimitStore`. Vercel's `checkRateLimit` from `@vercel/firewall` is asynchronous, answers only `rateLimited` with no remaining count, takes its limit and window from a dashboard rule instead of the grant's `count` and `per`, and counts per region. Use it in front of the route for abuse control, and keep plan quotas in a store that counts.
 
 ### PolicySource
 

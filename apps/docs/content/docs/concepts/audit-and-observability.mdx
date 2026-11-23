@@ -177,6 +177,23 @@ const permdock = withOtel(await getPermDock(policy, user), { tracer, meter });
 
 `@opentelemetry/api` is an optional peer of `permdock/otel`, never of core: `@zap-studio/permit` made it a required peer, which forces the dependency on every consumer; PermDock keeps core at zero runtime dependencies. The meter and tracer are resolved when `withOtel` is called so that module initialisation order relative to the SDK does not matter. The span is a child of whatever is active, so a check inside a Hono handler nests under the HTTP server span and a check inside an MCP tool nests under the tool call.
 
+On Vercel, `registerOTel` from `@vercel/otel` registers the global tracer provider, so a `tracer` from `trace.getTracer("permdock")` sends `withOtel` spans to Vercel's [tracing](https://vercel.com/docs/tracing). For a denial-rate chart in Vercel Observability without a metrics exporter, send denials to `metric()` from `@vercel/functions`:
+
+```ts
+import { metric } from "@vercel/functions";
+
+permdock.on("decision", (event) => {
+  if (event.outcome !== "granted") {
+    metric("permdock.denied", 1, {
+      permission: event.permission,
+      outcome: event.outcome,
+    });
+  }
+});
+```
+
+`metric()` keeps 100 data points per function invocation and attribute values under 64 bytes, so record denials rather than every check, and never a subject id as an attribute.
+
 ## Problem Details
 
 HTTP adapters answer a denied `assert` with the status `protect` sends for the same decision (403, or 401, 404, 429 or 503) as `application/problem+json` per [RFC 9457](/docs/standards/problem-details), generated from the `Decision`. The `denied`, `approval-required` and `validation` bodies are on [wire formats](/docs/concepts/wire-formats#problem-details).

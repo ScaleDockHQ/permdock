@@ -93,6 +93,8 @@ Each adapter wires the transport so an app does not repeat the plumbing:
 
 Close code `1008` is the RFC 6455 policy-violation code. The close frame and the SSE `permdock` event carry the reason so a client can tell a revocation from a network drop and does not reconnect in a loop. The SSE frame reuses the existing Problem Details body; there is no new wire format.
 
+On Vercel Functions, a WebSocket closes when the function reaches its maximum duration, and the reconnect may land on another instance or, after a deploy, on the new deployment. Each reconnect runs `connection()` again, so it is decided on the current policy; reconnect on any close except `1008`. An open socket stays on the deployment that accepted it, so a policy change shipped in a new deployment reaches it only through revalidation or the revocation feed, and that feed must be shared across instances rather than in memory.
+
 ## Rejected designs
 
 - **Re-running `protect` per message with the upgrade request.** Correct for inbound checks, but it resolves the subject and memberships on every frame, and nothing closes the connection on revocation.

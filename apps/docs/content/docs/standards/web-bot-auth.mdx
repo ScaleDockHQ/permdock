@@ -76,6 +76,8 @@ const member = role("member", [
 
 `actor(kind)` is a grantee, not a condition: it matches when the subject's `actor.kind` equals the kind, so a deny with `to: actor('web-bot-auth')` blocks signed agent traffic whatever principal it carries. A verified actor never becomes a principal; an agent acting on its own behalf authenticates as a principal with `kind: 'service'` and its own roles ([OAuth for agent delegation](/docs/standards/oauth-agent-delegation)).
 
+A platform's bot classification is a different signal. Vercel's [bot management](https://vercel.com/docs/bot-management) forwards `x-vercel-bot-status` (`verified`, `identified`, `impersonation`, `unknown`), `x-vercel-bot-category` and `x-vercel-bot-name` to Priority projects. Put them in `context`, where a condition can deny writes from `impersonation` traffic, and never in `actor`: they classify the request and do not authenticate a key. Vercel's docs do not say whether it strips client-sent copies of these headers, so a condition should only tighten, never grant.
+
 ## Mapping table
 
 | Web Bot Auth / RFC 9421 concept                                  | PermDock concept                                                                                |

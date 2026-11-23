@@ -39,6 +39,34 @@ An operation's `results` permission decides each row the operation returns. `fil
 
 `gatewayOptions(ctx)` returns `providerOptions.gateway` for the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway): the principal id as `user`, and `tenant:<id>` and `actor:<kind>` as `tags`. Spend and usage reports then group by the person the agent acted for. It carries identifiers only, never a decision.
 
+Three Gateway features change what reaches the provider after PermDock decided:
+
+- **Virtual models** (`vmc/<slug>`) replace the request's `tags` with their own observability tags, so `tenant:` and `actor:` tags are lost; `user` still applies. Name the virtual model in `models` like any other id.
+- **Routing rules** rewrite a model id team-wide before the request is served, so `decideModel` gates the id the agent asked for, not the model that answers. Gate the destination as well, or use a Gateway deny rule for a model no plan may reach.
+- **User budgets** cap a Vercel team member's spend across their attributed API keys and tokens, not the `user` value an app sends. Per-customer spend limits stay a PermDock usage limit (`LimitStore`, [extension interfaces](/docs/concepts/extension-interfaces#operational-interfaces)).
+
+## Third-party tokens
+
+A tool that calls Slack, GitHub or Linear needs the user's token for that service. Token brokers such as [Vercel Connect](https://vercel.com/docs/connect) authenticate the calling project, then return a token for whatever `subject.id` the code passes: any code in the project can ask for any user's token. Decide before the request, and take the id from the verified subject:
+
+```ts
+import { getToken } from "@vercel/connect";
+
+export async function linearToken(permdock: PermDock) {
+  permdock.assert(permissions.integration.use, { id: "linear" });
+  const id = permdock.subject.principal?.id;
+  if (id === undefined) throw new Error("no principal");
+  return getToken("mcp.linear.app/linear", {
+    subject: { type: "user", id },
+    scopes: ["read"],
+  });
+}
+```
+
+- `permdock` is the request's instance, built from the verified subject with the agent's delegation, so the delegation applies and an agent without `integration.use` in its scopes is denied.
+- The id never comes from tool arguments or model output. A `subject: { type: 'app' }` token acts with the app's own authority, so gate it on a permission only service subjects hold.
+- better-supabase apps get the same check from [`credentialGuard`](/docs/adapters/better-supabase#credentials), which wraps its `CredentialProvider`.
+
 <auto-type-table
   cwd
   path="../../packages/permdock/src/agent/create.ts"

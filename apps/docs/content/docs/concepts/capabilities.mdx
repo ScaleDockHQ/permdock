@@ -134,6 +134,8 @@ The subject is:
 
 `delegation` appears only when the capability lists `permissions`; a check outside them is denied with `not-delegated`. The membership's `via: 'link'` tells audit and UI that the access came from a link. A link principal never satisfies another link's `redeemer`.
 
+A file share link over private object storage, such as a Vercel Blob store with `access: 'private'`, is a route that opens the link, loads the file record, checks `permissions.file.read` against it and only then fetches the blob with the server's credentials and streams it back. Load the record by the id in the link, never by a pathname from the request, and never return the store URL: on a private store it only works with the server's token, and on a public store anyone who has it can read the file.
+
 The resolver refuses, in this order: a token that fails verification (`typ`, `iss`, `aud`, signature, `exp`), a `capability` claim that is not a valid v1 object, a missing `sub` or `exp`, a malformed `cnf`, a `holder` other than `link`, an expiry in the past, a key-bound link without a DPoP proof from its key (`dpop-proof-invalid`), a `redeemer` the `viewer` does not satisfy (`redeemer-mismatch`), a revoked id (`capability-revoked`) and a one-time token whose `jti` was already claimed (`capability-replayed`). A one-time capability without a `replay` store is refused, and a `revoked` callback or store that throws denies with reason `source-threw`. A link its scope's link policy refuses is `link-policy` (below). The one-time claim runs last, so a request refused for another reason does not burn the link ([JWT adapter](/docs/adapters/jwt)).
 
 ### Key-bound links
