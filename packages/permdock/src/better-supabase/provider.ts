@@ -98,6 +98,19 @@ export type AuthorizationProviderOptions<P = undefined> = {
    */
   readonly roleIn?: boolean;
   /**
+   * Fill better-supabase's `portalSubjects` from the `<scope>.<action>` grants
+   * of a portal scope. Off by default: better-supabase reads it for every
+   * record-attached comment, note and attachment, so a contact's `<scope>.read`
+   * would read internal notes on their own record unless the `inbox` block
+   * hides them.
+   */
+  readonly portalSubjects?: boolean;
+  /**
+   * Fill better-supabase's `portalParties` from a portal scope. Default on;
+   * `false` leaves it out.
+   */
+  readonly portalParties?: boolean;
+  /**
    * Users better-supabase's access matrix signs in as, one pgTAP file each
    * (`providerPersonaTests`). `setup` creates the memberships and roles with
    * `{user}` and `{tenant}`; `permissions` are the keys the persona holds in

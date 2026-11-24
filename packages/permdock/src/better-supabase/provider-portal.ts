@@ -13,6 +13,8 @@ import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 export type PortalInput = {
   readonly manifest: SupabaseManifest;
   readonly tenantScope: string;
+  readonly subjects: boolean;
+  readonly parties: boolean;
   readonly requires: AuthorizationRequirement[];
   readonly problems: string[];
 };
@@ -71,6 +73,8 @@ function tenantOf(
  */
 export function portalFunctionsOf(input: PortalInput): Portal {
   const { manifest, tenantScope, requires, problems } = input;
+  const wantSubjects = input.subjects;
+  const wantParties = input.parties;
   const schema = sqlIdent(manifest.rls.schema);
   const helpers = new Set(manifest.rls.helpers.map((helper) => helper.name));
   const children = childScopes(manifest, tenantScope).filter((scope) =>
@@ -100,9 +104,12 @@ export function portalFunctionsOf(input: PortalInput): Portal {
 
   const parties: string[] = [];
   const subjects: string[] = [];
+  let permittedMissing = false;
   for (const scope of children) {
     if (!scope.sources.every((source) => source.via !== undefined)) continue;
+    if (!wantParties && !wantSubjects) continue;
     const permitted = helpers.has(`permitted_${scope.name}_ids`);
+    if (wantSubjects && !permitted) permittedMissing = true;
     for (const source of scope.sources) {
       const tenant = tenantOf(source, tenantScope);
       if (tenant === undefined) {
@@ -113,8 +120,8 @@ export function portalFunctionsOf(input: PortalInput): Portal {
       }
       const id = `m.${sqlIdent(source.id.column)}`;
       const select = `select ${tenant}, ${quoteSqlLiteral(scope.name)}, ${id}::text from ${source.table} m where ${id} in (select ${memberIds(scope.name)})`;
-      parties.push(select);
-      if (permitted) {
+      if (wantParties) parties.push(select);
+      if (wantSubjects && permitted) {
         const fn = `${schema}.${sqlIdent(`permitted_${scope.name}_ids_by_permission`)}`;
         if (!requires.some((entry) => entry.function === fn)) {
           requires.push({ function: fn, args: "text", role: "authenticated" });
@@ -124,6 +131,11 @@ export function portalFunctionsOf(input: PortalInput): Portal {
         );
       }
     }
+  }
+  if (permittedMissing && subjects.length === 0) {
+    problems.push(
+      "portalSubjects: the manifest names no permitted_<scope>_ids helper for a portal scope. Run permdock generate.",
+    );
   }
   const portalParties = union(parties);
   const portalSubjects = union(subjects);

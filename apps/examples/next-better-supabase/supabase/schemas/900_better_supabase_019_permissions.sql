@@ -1,6 +1,6 @@
 -- better-supabase module: permissions
 -- @bsb-block permissions@1 managed
--- @bsb-hash sha256:eed77c2f6ab20b3ba1abf51e8eed8031b4569bdcb58d1c9ecc318c5f9406661a
+-- @bsb-hash sha256:bb8831e342904b547b6851979df01310f5f35496454a8d3913a00e6c528130d6
 -- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.permissions.model).
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -398,7 +398,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select g.tenant::text, g.subject_type::text, g.subject_id::text from (select m.organization_id::text, 'customer', m.customer_id::text from public.contacts m where m.customer_id in (select permdock.member_customer_ids()) and m.customer_id in (select permdock.permitted_customer_ids_by_permission('customer.' || portal_subjects.action))) as g(tenant, subject_type, subject_id)
+  select null::text, null::text, null::text where false
 $$;
 revoke execute on function better_supabase.portal_subjects(text) from public, anon;
 grant execute on function better_supabase.portal_subjects(text) to authenticated, service_role;
