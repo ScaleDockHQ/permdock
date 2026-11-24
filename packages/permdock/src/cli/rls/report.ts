@@ -142,7 +142,10 @@ function policyKey(schema: string, table: string, name: string): string {
  * The files `rls report` reads, in the order a later definition replaces an
  * earlier one: migrations, then the declarative schemas, then `rls.out`.
  */
-function reportFiles(cwd: string, config: PermDockConfig): readonly string[] {
+export function reportFiles(
+  cwd: string,
+  config: PermDockConfig,
+): readonly string[] {
   return [
     ...new Set(
       sqlFiles(cwd, [
@@ -154,7 +157,7 @@ function reportFiles(cwd: string, config: PermDockConfig): readonly string[] {
   ];
 }
 
-function droppedPolicy(
+export function droppedPolicy(
   node: Readonly<Record<string, unknown>>,
 ):
   | { readonly schema: string; readonly table: string; readonly name: string }

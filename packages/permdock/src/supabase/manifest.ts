@@ -334,6 +334,12 @@ export type SupabaseManifestRls = {
    * claim through `permdock_token_scope_allows`.
    */
   readonly tokenScopes?: boolean;
+  /**
+   * Whether every holder of a table's select permissions in a tenant reads the
+   * same rows, read from the select policies the schema files, migrations and
+   * `rls.out` leave defined. Absent from a manifest written before 0.32.
+   */
+  readonly tableReads?: readonly SupabaseManifestTableRead[];
   readonly apiKeys?: {
     readonly claim: string;
     readonly scopes: string;
@@ -341,6 +347,33 @@ export type SupabaseManifestRls = {
     readonly roles: string;
     readonly serviceRoles: readonly string[];
   };
+};
+
+/** One entry of `rls.tableReads`. */
+export type SupabaseManifestTableRead = {
+  /** `schema.table`. */
+  readonly table: string;
+  /**
+   * `tenant` when every permissive select policy filters by tenant through
+   * `permitted_<root>_ids_by_permission` alone; `row` otherwise.
+   */
+  readonly share: "tenant" | "row";
+  /** The tenant column, for a `tenant` table. */
+  readonly column?: string;
+  /** The keys the select policies pass to `permitted_<root>_ids_by_permission`. */
+  readonly permissions?: readonly string[];
+  /** Why the table is `row`. */
+  readonly rules?: readonly (
+    | "follows"
+    | "via"
+    | "walk"
+    | "owner"
+    | "condition"
+    | "restrictive"
+    | "fields"
+    | "form"
+    | "unknown"
+  )[];
 };
 
 /**

@@ -27,6 +27,7 @@ import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import { requirePolicy } from "../project/load.ts";
 import { hookUri } from "../rls/rbac.ts";
+import { withTableReads } from "../rls/table-reads.ts";
 import { declarativeSql } from "../sql/declarative.ts";
 import { HOOK_MARKER, hookMarkerFields } from "../sql/markers.ts";
 import { supabaseConfig } from "../supabase-config.ts";
@@ -284,11 +285,15 @@ export async function runSupabase(input: {
   if (area === "inspect" && action === undefined) {
     const policy = await loadHookPolicy(input.cwd, input.config);
     if (hooklessDatabase(input.config)) {
-      const bare = supabaseDatabaseManifest(
-        scopeList(policy.scopes),
+      const bare = await withTableReads(
+        input.cwd,
         input.config,
-        overrides,
-        policy,
+        supabaseDatabaseManifest(
+          scopeList(policy.scopes),
+          input.config,
+          overrides,
+          policy,
+        ),
       );
       if (input.out !== undefined || input.check) {
         return manifestFile(
@@ -306,15 +311,19 @@ export async function runSupabase(input: {
             : databaseInspectText(bare),
       };
     }
-    const manifest = supabaseHookManifest(
-      scopeList(policy.scopes),
+    const manifest = await withTableReads(
+      input.cwd,
       input.config,
-      {
-        ...overrides,
-        out: hookOut(input.cwd, input.config, input.schema, flag),
-        schemas: schemas.mode,
-      },
-      policy,
+      supabaseHookManifest(
+        scopeList(policy.scopes),
+        input.config,
+        {
+          ...overrides,
+          out: hookOut(input.cwd, input.config, input.schema, flag),
+          schemas: schemas.mode,
+        },
+        policy,
+      ),
     );
     const api = managementApi(input.cwd, manifest);
     if (input.out !== undefined || input.check) {

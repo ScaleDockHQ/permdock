@@ -22,6 +22,26 @@ The hook adds three cases: a token marked truncated (`memberships_truncated`, `t
 
 `authorizationProvider({ manifest, catalog, tables: true })` fills better-supabase's `tables`. For each resource the manifest maps to a table it lists the keys of the `read`, `list` and `get` permissions and marks the table `tenant` only when every one of them is held at the tenant scope alone, carries no row condition and has a grant. A resource with a restriction, a field mask or a grant at another scope is `row`. Without `tables: true` the provider sets none, and every entry stays per user. Doctor BS428 checks each entry against the generated select policies.
 
+When `permdock.manifest.json` has `rls.tableReads`, the provider answers from it instead, keyed by the qualified table (`public.orders`). `permdock supabase inspect` writes `rls.tableReads` from the select policies the schema files, migrations and `rls.out` leave defined, so hand-written policies count too. A table is `tenant` only when:
+
+- row level security is on and the table has no field view;
+- every permissive select policy for `authenticated` is `<column> in (select <schema>.permitted_<root>_ids_by_permission('<key>'))` on one column, written by hand or rendered from an `@bsb access` tag;
+- every restrictive select policy reads no column of the row, such as one that checks the session.
+
+Every other table is `row`, with the rules it breaks:
+
+| Rule                     | The table has                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `form`                   | a policy on the plain `permitted_<root>_ids(key)`; `permdock codemod bsb-access-tags` moves it to a tag |
+| `follows`, `via`, `walk` | a policy that calls a `follows`, `via` or walk helper                                                   |
+| `owner`                  | a policy that compares a column with `auth.uid()` or `permdock_user_id()`                               |
+| `condition`              | another select expression, or tenant policies on two columns                                            |
+| `restrictive`            | a restrictive select policy that reads a column                                                         |
+| `fields`                 | a field view                                                                                            |
+| `unknown`                | row level security off, or no permissive select policy                                                  |
+
+Tables in the helpers' schema, `better_supabase` and the platform schemas are left out. The manifest is read from the files on disk, so run `permdock supabase inspect --out` after `permdock generate` changes a select policy. [Doctor PD128](/docs/cli/doctor#pd128-a-tenant-table-that-reads-by-row) fails when the committed manifest marks a table `tenant` that the files now make `row`.
+
 A table shares per tenant only when its select policy filters by permission and not by row. Prove it per entry with `expectTenantShare` from `better-supabase/testing`: two callers with the same grant get the same key and read the same rows, and a member without the grant gets no key.
 
 ## Writes that RLS checks again

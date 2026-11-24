@@ -14,7 +14,10 @@ import {
   definePermissions,
   resource as permissionResource,
 } from "../../src/index.ts";
-import { junctionMembershipSource } from "../../src/supabase/index.ts";
+import {
+  junctionMembershipSource,
+  parseSupabaseManifest,
+} from "../../src/supabase/index.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 import { defined } from "../support/defined.ts";
 
@@ -2090,8 +2093,10 @@ describe("authorizationProvider tables", () => {
   });
 
   it("shares a table per tenant only when every select key is held at the tenant scope", () => {
+    const manifest = parseSupabaseManifest(exampleManifest);
+    const { tableReads: _reads, ...rls } = manifest.rls;
     const provider = authorizationProvider({
-      manifest: exampleManifest,
+      manifest: { ...manifest, rls },
       catalog: exampleCatalog,
       tables: true,
     });
@@ -2099,6 +2104,19 @@ describe("authorizationProvider tables", () => {
       quotes: { share: "row", permissions: ["quotes.list", "quotes.read"] },
       staff: { share: "tenant", permissions: ["staff.list", "staff.read"] },
     });
+  });
+
+  it("answers from rls.tableReads when the manifest has it", () => {
+    const provider = authorizationProvider({
+      manifest: exampleManifest,
+      catalog: exampleCatalog,
+      tables: true,
+    });
+    expect(provider.tables?.["public.staff"]).toStrictEqual({
+      share: "row",
+      permissions: [],
+    });
+    expect(provider.tables?.["staff"]).toBeUndefined();
   });
 
   it("reports a missing catalog", () => {

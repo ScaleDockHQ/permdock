@@ -113,6 +113,7 @@ import {
 import { pd098, pd099 } from "./supabase-checklist.ts";
 import { pd113 } from "./supabase-jwt.ts";
 import { pd061 } from "./suspension.ts";
+import { pd128 } from "./table-reads.ts";
 
 export type { DoctorFinding, DoctorSeverity } from "../shared/doctor-types.ts";
 
@@ -562,6 +563,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd130(project.sources()),
   },
   { code: "PD131", groups: ["rls", "supabase", "performance"], run: pd131 },
+  { code: "PD128", groups: ["rls", "supabase"], run: pd128 },
   { code: "PD125", groups: ["supabase", "sql"], run: pd125 },
   { code: "PD124", groups: ["supabase", "rls"], run: pd124 },
   {
