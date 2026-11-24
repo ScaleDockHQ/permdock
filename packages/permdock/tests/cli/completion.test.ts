@@ -129,6 +129,7 @@ describe("completion candidates", () => {
     expect(await candidates(["codemod", ""])).toStrictEqual([
       "0.17",
       "0.26",
+      "0.32",
       "config",
       "manager-chain",
       "bsb-access-tags",
@@ -136,6 +137,7 @@ describe("completion candidates", () => {
     expect(await candidates(["codemod", "--dry-run", ""])).toStrictEqual([
       "0.17",
       "0.26",
+      "0.32",
       "config",
       "manager-chain",
       "bsb-access-tags",
@@ -144,6 +146,7 @@ describe("completion candidates", () => {
     expect(await candidates(["codemod", "--cwd", "app", ""])).toStrictEqual([
       "0.17",
       "0.26",
+      "0.32",
       "config",
       "manager-chain",
       "bsb-access-tags",
