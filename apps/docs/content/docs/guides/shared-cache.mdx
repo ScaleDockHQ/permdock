@@ -69,9 +69,11 @@ Each cell is the mean, with the p95 in brackets. Version reads and helpers ran 2
 
 The cold instance is above the 3 ms threshold of a compiled policy index: on the fixture's 273 keys and 1,790 grants, `definePolicy` takes 14.9 ms, the first `getPermDock` 1.0 ms and the first `can` 1.4 ms. Importing the policy in `register()` moves `definePolicy` out of the first request, which then pays 2.4 ms.
 
+At 17.30 ms the fixture is over the 3 ms at which a compiled `policy-index` kind would ship, and the example, at 6.44 ms, is too. PermDock 0.32 does not ship it: the profile puts most of `definePolicy` in the SHA-256 digest of the canonical policy string, and a check of the grant count and key order cannot tell a stale digest from a current one. Import the policy in `register()` instead.
+
 `grantFingerprint` made no source call on a built instance, and the hook read no membership. Without a version cache, `permdockFor` read `version` once per hook call; with `versions: memoryVersionCache()` it read it once in 10,201 calls.
 
-Variant B stores `permdock_token_current()` once per transaction and cuts the helpers' mean by 4.5% and 3.3%, under the fifth a variant needs to ship. Buffers are shared hits per statement.
+Variant B stores `permdock_token_current()` once per transaction and cuts the helpers' mean by 4.5% (0.403 to 0.385 ms) and 3.3% (0.430 to 0.416 ms), under the fifth a variant needs to ship, so the generated helpers stay as they are. Buffers are shared hits per statement.
 
 Not measured:
 
