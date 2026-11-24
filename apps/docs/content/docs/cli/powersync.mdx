@@ -135,6 +135,14 @@ The custom-role tables and PermDock's global `user_roles` live in the `permdock`
 alter publication powersync add table permdock.custom_role_includes, permdock.custom_role_permissions, permdock.user_roles;
 ```
 
+Under the pg-delta workflow, when a file in the schema directory (`supabase/schemas` by default) creates the `powersync` publication, `generate` writes the statement to `<schemaDir>/permdock/powersync_publication.sql` instead, and the YAML header leaves it out. pg-delta diffs publication membership, so `supabase db schema declarative sync` adds the tables in a migration, and `generate --check` reports the file when the synced tables change. The publication stays yours:
+
+```sql title="supabase/schemas/public/powersync.sql"
+create publication powersync for tables in schema public;
+```
+
+The statement stays in the header when no schema file creates the publication, because the shadow load would fail on an `alter` of a publication it never created. It also stays there for a `for all tables` publication, which already holds every table and rejects `add table`, and under `supabase.schemas: 'migra'` or `'migrations'`.
+
 `permdock.user_roles` shares its name with `public.user_roles`, so it syncs as the device table `permdock_user_roles`.
 
 ## Per-member level
@@ -184,7 +192,7 @@ The hook's `permdock_authz_version` table stays in the database. `generate` does
 
 A `sync-config.yaml` generated before this keeps filtering the junction on the caller's own user id, which PD102 reports. `membership_roles` is the exception to the user filter. The stream is every membership role in an organisation the caller belongs to, and the id is `organization_id || ':' || user_id || ':' || role` for every `through.on` pair.
 
-A table outside `public` is read as `"<schema>"."<table>" AS <name>`, since Sync Streams need the schema in double quotes. The device table is `<name>`: the table's own name, or `<schema>_<table>` when another synced table has the same name. Every synced table outside `public` must be in the `powersync` publication; `generate` prints the `alter publication` statement and writes it as a comment at the top of the file.
+A table outside `public` is read as `"<schema>"."<table>" AS <name>`, since Sync Streams need the schema in double quotes. The device table is `<name>`: the table's own name, or `<schema>_<table>` when another synced table has the same name. Every synced table outside `public` must be in the `powersync` publication; `generate` prints the `alter publication` statement and writes it as a comment at the top of the file, or as a schema file under pg-delta (see above).
 
 With `powersync.manifest` set, `generate` writes `localSnapshotManifest(policy)` as JSON to that path, with a `rows` section naming those device tables and their columns ([wire formats](/docs/concepts/wire-formats#local-snapshot-manifest)), so the app bundles the manifest without importing the policy. `powerSyncSource(db, { manifest, user })` in `permdock/react-native` builds the snapshot from those tables ([PowerSync source](/docs/adapters/react-native#powersync-source)).
 
