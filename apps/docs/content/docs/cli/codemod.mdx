@@ -46,7 +46,7 @@ With `--json`, `data` is `{ file, check, removed, kept, unreachable }`. `unreach
 
 `permdock codemod bsb-access-tags [dir]` rewrites plain tenant policies into a better-supabase `@bsb access` tag. A policy qualifies when its parsed expression is `<column> in (select <schema>.permitted_<scope>_ids('<key>'))`, optionally followed by `and <schema>.permdock_actor_may_write()`. The codemod swaps a key only when `permitted_<scope>_ids_by_permission(key)` returns the same rows: every grant of the key is an allow of that key itself, with no condition and no deny. It then sets the tag on the table comment, renders the tag's block with better-supabase's `renderTagBlock`, and deletes the old policies. Every other policy stays and is listed with its reason. With `--json`, `data` is `{ moved, kept, files }`. The codemod needs `better-supabase` installed.
 
-`rls verify --introspect` reads the policies each `@bsb access` tag renders from better-supabase's `accessPolicies`, so it does not report them as `policy-extra`.
+`rls verify --introspect`, `rls verify --shadow`, `rls explain`, `rls report` and doctor read the policies each `@bsb access` tag renders from better-supabase's `accessPolicies` and treat them as generated: `verify` does not report them as `policy-extra`, and PD090, PD103, PD104 and PD108 do not count them as hand-written. A policy is never recognised by its `bsb_access_` name prefix.
 
 ## What it renames
 

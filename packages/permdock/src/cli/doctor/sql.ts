@@ -20,6 +20,7 @@ import {
   readPolicy,
   sqlCalls,
 } from "../sql/ast.ts";
+import { taggedPolicyId, taggedPolicyIds } from "../sql/bsb-access.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
 import { supautilsRejections } from "../sql/supautils.ts";
@@ -890,7 +891,12 @@ export async function pd090(
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
 ): Promise<readonly DoctorFinding[]> {
-  const policies = await filePolicies(files, cwd, guardFiles(cwd, config));
+  const tagged = await taggedPolicyIds(cwd);
+  const policies = (
+    await filePolicies(files, cwd, guardFiles(cwd, config))
+  ).filter(
+    (policy) => !tagged.has(taggedPolicyId(policyTable(policy), policy.name)),
+  );
   const generated = new Set(
     policies
       .filter((policy) => policy.name.endsWith("_read_only_actors"))

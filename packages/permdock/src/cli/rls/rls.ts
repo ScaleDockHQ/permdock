@@ -217,7 +217,20 @@ async function explain(input: RlsRunInput): Promise<CommandResult> {
   if (generated.explain === undefined) {
     return { code: generated.code, output: generated.output };
   }
-  let report = generated.explain;
+  const tagged = await taggedAccessPolicies(input.cwd);
+  let report =
+    tagged.length === 0
+      ? generated.explain
+      : {
+          ...generated.explain,
+          tagged: tagged.map((policy) => ({
+            table: `${policy.schema}.${policy.table}`,
+            operation: policy.operation,
+            name: policy.name,
+            key: policy.key,
+            tenantColumn: policy.tenantColumn,
+          })),
+        };
   if (input.db !== undefined) {
     try {
       const facts = await readTableIndexFacts(
@@ -429,10 +442,16 @@ async function shadow(
     db: input.db,
     shadow: input.shadow,
     schema: generated.schema ?? PERMDOCK_SCHEMA,
-    policies: generated.policies.map((policy) => ({
-      table: normalizeTableName(policy.table),
-      name: policy.name,
-    })),
+    policies: [
+      ...generated.policies.map((policy) => ({
+        table: normalizeTableName(policy.table),
+        name: policy.name,
+      })),
+      ...(await taggedAccessPolicies(input.cwd)).map((policy) => ({
+        table: `${policy.schema}.${policy.table}`,
+        name: policy.name,
+      })),
+    ],
     ignore,
   });
 }
