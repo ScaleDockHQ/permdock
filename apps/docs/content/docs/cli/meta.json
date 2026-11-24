@@ -17,6 +17,7 @@
     "snapshot",
     "bundle",
     "roles",
+    "keys",
     "policy",
     "claims",
     "generate",

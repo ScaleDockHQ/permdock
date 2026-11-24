@@ -320,6 +320,22 @@ export const SECTIONS: readonly Section[] = [
           },
         ),
       ]),
+      group("keys", "Change permission keys", "keys", [
+        leaf(
+          "rename",
+          "Retire a permission key: the tree maps it to its successor, and stored custom-role grants move",
+          {
+            examples: [
+              "permdock keys rename fileNode.read file.read",
+              "permdock keys rename fileNode.comment file.comment --dry-run",
+            ],
+            docs: "keys",
+            effects: ["rewrite", "files"],
+            config: true,
+            load: async () => (await import("../commands/keys.ts")).keysRename,
+          },
+        ),
+      ]),
       group(
         "policy",
         "Write the static grants of a policy as a content-addressed bundle",

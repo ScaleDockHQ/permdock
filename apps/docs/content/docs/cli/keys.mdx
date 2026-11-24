@@ -1,0 +1,69 @@
+---
+title: keys
+description: Retire a permission key, map it to its successor in the tree and move stored custom-role grants to the new key.
+---
+
+`permdock keys rename <from> <to>` retires the permission key `from`. It edits the permissions module so `definePermissions(..., { renamed })` maps `from` to `to`, and, with custom roles stored in the database, writes a data migration that moves the stored grants to `to`.
+
+## Usage
+
+```bash
+permdock keys rename fileNode.read file.read
+permdock keys rename fileNode.comment file.comment --dry-run
+permdock keys rename fileNode.update file.update --migration supabase/migrations/20261124000000_merge_file.sql
+```
+
+| Flag                 | Meaning                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `--migration <file>` | Data migration to write; default `<dir>/<yyyymmddhhmmss>_permdock_keys_rename.sql`                      |
+| `--dry-run`          | Print the files it would write; write nothing                                                           |
+| `--force`            | Rewrite the permissions module with uncommitted changes too                                             |
+| `--json`             | Print `{ from, to, merged, permissions, migration, notes }`; `migration` is `null` when none is written |
+
+`<dir>` is the first of `supabase/migrations`, `migrations` and `db/migrations` that exists, else `supabase/migrations`. The timestamp is the run's UTC time.
+
+## What it edits
+
+The `permissions` module from `permdock.config.ts`:
+
+- **The action** leaves `from`'s resource. When `to` is a new key, the action joins `to`'s resource in the same list, `actions` or `collection`, with its meta. When `to` already exists, the two merge and `merged` is `true`. A resource left with no action is removed, and a note asks to move its relations, `parent` and `restricted` onto the survivor.
+- **`renamed`** gains `"from": "to"`, and every entry that mapped to `from` now maps to `to`, because a renamed target must be a current key. Without a second argument, `definePermissions` gets `{ renamed: { … } }`.
+- **References** such as `permissions.fileNode.read` elsewhere are left alone; the type checker lists each one.
+
+The command reads the tree statically. A resource, list or `renamed` map that is not an object, array or `resource(...)` literal, or a top-level `const` holding one, stops the run with a usage error naming what to edit by hand. It refuses a `from` that is not a current key, and a `to` that is already a former key.
+
+## Data migration
+
+With `rls.customRoles` and `authorize: 'database'`, custom roles live in `<rls.schema>.custom_role_permissions`. Their `renamed` entries keep resolving, so the migration is not needed for correctness. It moves the rows to the current keys, so a later removal of the `renamed` entry, which `permdock diff` reports as `alias-removed`, strands no grant:
+
+```sql
+delete from "permdock"."custom_role_permissions" d
+where d.permission in ('fileNode.read')
+  and exists (
+    select 1
+    from "permdock"."custom_role_permissions" k
+    where (to_jsonb(k) - 'permission') = (to_jsonb(d) - 'permission')
+      and (case k.permission when 'fileNode.read' then 'file.read' else k.permission end)
+        = (case d.permission when 'fileNode.read' then 'file.read' else d.permission end)
+      and (k.permission not in ('fileNode.read') or k.ctid < d.ctid)
+  );
+
+update "permdock"."custom_role_permissions" r
+set permission = (case r.permission when 'fileNode.read' then 'file.read' else r.permission end)
+where r.permission in ('fileNode.read');
+```
+
+The `delete` drops a row whose current-key twin, with the same tenant, scope, instance, role, effect and level, already exists or comes from another former key, so the unique index holds. The table's statement triggers recompile `custom_role_compiled` and bump `custom_role_version`. The migration covers every entry of `renamed`, not only the new one. Grants in a legacy table that `rls.customRoles.from` names stay as they are; the sync reads them through `renamed`.
+
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command                | Side effects       |
+| ---------------------- | ------------------ |
+| `permdock keys rename` | `rewrite`, `files` |
+
+## Why
+
+- **One command per key.** Each rename is a decision per verb ([merge resources](/docs/guides/merge-resources#decide-each-verb)), so the command takes one pair and the guide lists the pairs.
+- **The migration is data, not schema.** It rewrites rows, so it is a timestamped migration and never part of `rls generate`'s declarative output.

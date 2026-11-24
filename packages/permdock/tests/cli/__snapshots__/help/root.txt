@@ -19,6 +19,7 @@ Permissions
   snapshot  Measure the snapshot a role sends to the client
   bundle    Measure the client bundle the generated bundle module ships
   roles     List what each role holds
+  keys      Change permission keys
   policy    Write the static grants of a policy as a content-addressed bundle
   claims    Measure the memberships claim of an access token
   config    Check permdock.config.ts for unknown keys, or print the effective config

@@ -535,7 +535,7 @@ A role declared with `for: ['employee']` can only be held through a membership w
 
 ### PD075: two resources on one table
 
-Two resources that `rls.tables` maps to the same table give the same rows two sets of permission keys (`file.read` and `fileNode.read`), two row helpers and two catalog entries, and a check of the wrong key denies or grants a different set of rows. One resource can carry both the organisation-wide role grant (a `memberOf` relation) and the per-row relation grants, so the check names both resources and the table and points to [merging resources](/docs/guides/merge-resources). A `via` entry counts through its `table`. When two resources share a table on purpose, declare the second one with `tableOf`; the owner resource writes the table's policies and the check skips the declared resource:
+Two resources that `rls.tables` maps to the same table give the same rows two sets of permission keys (`file.read` and `fileNode.read`), two row helpers and two catalog entries, and a check of the wrong key denies or grants a different set of rows. One resource can carry both the organisation-wide role grant (a `memberOf` relation) and the per-row relation grants, so the check names both resources and the table and points to [merging resources](/docs/guides/merge-resources), where `permdock keys rename <from> <to>` retires each key ([keys](/docs/cli/keys)). A `via` entry counts through its `table`. When two resources share a table on purpose, declare the second one with `tableOf`; the owner resource writes the table's policies and the check skips the declared resource:
 
 ```ts title="permdock.config.ts"
 export default defineConfig({

@@ -791,7 +791,7 @@ export async function pd075(
           code: "PD075",
           severity: "error" as const,
           message: `rls.tables maps ${names.join(" and ")} to ${table}, so the same rows carry two sets of keys and helpers`,
-          fix: `merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes ${table} policies`,
+          fix: `merge them into one resource, retiring each key with permdock keys rename <from> <to> (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes ${table} policies`,
         };
       }),
   ];
