@@ -131,7 +131,17 @@ authorizer({ policy, memberships, versions });
 
 `testVersionStore` from `permdock/testing` checks a store against that shape.
 
-## Timings
+## Warm the first request
+
+`authorizationHooks(...).warm()`, `authorizer(...).warm()` and `warm(policy)` from `permdock/next` build one anonymous instance and run one `can`. They never reject: a failure answers `{ ok: false, ms }`. Call one in `instrumentation.ts` after the policy import, so the first request does not pay for the instance.
+
+```ts title="instrumentation.ts"
+export async function register() {
+  const { warm } = await import("permdock/next");
+  const { policy } = await import("./src/policy");
+  await warm(policy);
+}
+```
 
 `node scripts/authz-latency.ts` measures these against the local Supabase stack of `apps/examples/next-better-supabase` and writes `scripts/authz-latency.json`. The numbers below are from 24 November 2026 on an Apple M5 Max (18 cores, 64 GB), Darwin 25.6.0 arm64, Node.js 26.13.1, Postgres 17.11 and `permdock` 0.30.0. The database holds the example's seed data: 4 users and 2 organisations.
 
@@ -163,10 +173,31 @@ At 17.30 ms the fixture is over the 3 ms at which a compiled `policy-index` kind
 
 Variant B stores `permdock_token_current()` once per transaction and cuts the helpers' mean by 4.5% (0.403 to 0.385 ms) and 3.3% (0.430 to 0.416 ms), under the fifth a variant needs to ship, so the generated helpers stay as they are. Buffers are shared hits per statement.
 
+## CentraKit fixture timings
+
+`node scripts/centrakit-latency.ts` measures the 0.31 request costs on `tests/integration/fixtures/centrakit` and writes `scripts/centrakit-latency.json`. It starts no database. A version read waits for 1.331 ms, the PostgREST round trip of `versionRead.postgrestRpcFloor` in `scripts/authz-latency.json`, so the call counts are exact and the milliseconds are that wait times the calls plus the work in process. Same machine and versions as above; cold instances ran 30 times in a fresh process each, the Server Action 200 times after the first, and `shareKey` 10,000 times.
+
+| Measurement                                                        | Before                          | After                             | Source                                       |
+| ------------------------------------------------------------------ | ------------------------------- | --------------------------------- | -------------------------------------------- |
+| Server Action (`quotes.read`, `quotes.update` twice): first run    | 3 version reads, 8.73 ms        | 1 version read, 1.66 ms           | `serverAction.before/after.firstActionMs`    |
+| Server Action: every later run within the window                   | 2 version reads, 2.76 ms (2.84) | 0 version reads, 0.063 ms (0.089) | `serverAction.before/after.laterActions`     |
+| Shared `bsb.kept` entry, two members with equal grants             | 2 fills                         | 1 fill                            | `sharedEntry.fillsForTwoMembers*`            |
+| `shareKey` for one page of 3 keys                                  | -                               | 0.024 ms (0.033)                  | `sharedEntry.shareKeyOnePage`                |
+| First request of a process, `runtimeCacheVersionStore` filled      | 1 version read, 1.43 ms         | 0 version reads, 0.012 ms         | `runtimeCacheVersionStore`                   |
+| Cold instance, CentraKit fixture: policy module (with `zod`)       | -                               | 35.73 ms (37.11)                  | `coldInstance.policyModule`                  |
+| Cold instance, CentraKit fixture: first `getPermDock`              | -                               | 0.88 ms (1.03)                    | `coldInstance.getPermDock`                   |
+| Cold instance, CentraKit fixture: first `can`                      | -                               | 1.11 ms (1.36)                    | `coldInstance.firstCan`                      |
+| First request after the policy import: `getPermDock` and one `can` | 1.95 ms (2.06)                  | 1.17 ms (1.31), `warm()` 1.24 ms  | `firstRequest.withoutWarm/withWarm/warmCost` |
+
+The Server Action asks `database-write` for its update instead of `write`: RLS checks the row again on current data, so the cached version cannot grant the row change itself, and a role change shows within the 5 second window for reads and at once for a write that RLS does not check again (`definer` or no enforcement stays `write`).
+
+The two members share a `bsb.kept` entry only through the key. The fingerprint covers grants, not the tenant id: admins of two organisations get the same string, so a key for tenant data adds the tenant.
+
+The 8 keys and 6 roles of the fixture are CentraKit's target model, not its 0.28 policy; the policy module's 35.73 ms is the `zod` import plus `definePolicy`. `warm()` moves `getPermDock` and the first `can` out of the first request and costs the same 1.24 ms at boot.
+
 Not measured:
 
-- `authz_version_for` over PostgREST: the example sets no `supabase.hook.api`, so no `public` wrapper exposes the function. The one-row read above is the round trip a wrapper would add.
-- Variant C: the example's helpers join no suspension table, so the claims branch has no join to drop.
-- The Server Action and the shared `bsb.kept` entry: both need the example's Next.js app running with a signed-in session, and it was not running.
+- `permdock_authz_version_for` over PostgREST and variant C of the helper with its `pg_stat_statements` rank: both need CentraKit's database with its suspension table and a `supabase.hook.api` wrapper. Neither is in this repository; the fixture has no schema. The one-row PostgREST read above is the round trip the wrapper adds.
+- A signed-in Server Action in CentraKit's Next.js app: the app is a separate repository, so the Server Action row models the version reads of its checks.
 
 An earlier run on the same machine, with other processes busy, gave round trips up to 3.5 times higher. Compare numbers from one run.

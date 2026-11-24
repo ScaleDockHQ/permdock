@@ -1,0 +1,114 @@
+{
+  "machine": {
+    "date": "2026-11-24T20:41:36Z",
+    "node": "v26.13.1",
+    "os": "darwin 25.6.0 arm64",
+    "cpu": "Apple M5 Max (18 cores)",
+    "commit": "5497d1e56"
+  },
+  "stack": "tests/integration/fixtures/centrakit, no database",
+  "versionReadMs": 1.331,
+  "coldInstance": {
+    "policy": "tests/integration/fixtures/centrakit/policy.ts: 8 keys, 6 roles",
+    "policyModule": {
+      "runs": 30,
+      "meanMs": 35.729,
+      "p50Ms": 35.531,
+      "p95Ms": 37.105
+    },
+    "getPermDock": {
+      "runs": 30,
+      "meanMs": 0.879,
+      "p50Ms": 0.862,
+      "p95Ms": 1.025
+    },
+    "firstCan": {
+      "runs": 30,
+      "meanMs": 1.111,
+      "p50Ms": 1.07,
+      "p95Ms": 1.364
+    },
+    "policyToFirstCan": {
+      "runs": 30,
+      "meanMs": 37.719,
+      "p50Ms": 37.576,
+      "p95Ms": 39.07
+    }
+  },
+  "firstRequest": {
+    "wiring": "getPermDock for an admin plus one can, in a fresh process after the policy is imported; warmed runs authorizationHooks({ policy }).warm() first",
+    "withoutWarm": {
+      "runs": 30,
+      "meanMs": 1.949,
+      "p50Ms": 1.914,
+      "p95Ms": 2.063
+    },
+    "withWarm": {
+      "runs": 30,
+      "meanMs": 1.171,
+      "p50Ms": 1.154,
+      "p95Ms": 1.314
+    },
+    "warmCost": {
+      "runs": 30,
+      "meanMs": 1.242,
+      "p50Ms": 1.229,
+      "p95Ms": 1.327
+    }
+  },
+  "serverAction": {
+    "checks": "quotes.read, then quotes.update twice, through permdockFor",
+    "versionReadMs": 1.331,
+    "before": {
+      "versionReadsFirstAction": 3,
+      "versionReadsPerLaterAction": 2,
+      "firstActionMs": 8.726,
+      "laterActions": {
+        "runs": 200,
+        "meanMs": 2.759,
+        "p50Ms": 2.744,
+        "p95Ms": 2.841
+      }
+    },
+    "after": {
+      "versionReadsFirstAction": 1,
+      "versionReadsPerLaterAction": 0,
+      "firstActionMs": 1.661,
+      "laterActions": {
+        "runs": 200,
+        "meanMs": 0.063,
+        "p50Ms": 0.06,
+        "p95Ms": 0.089
+      }
+    }
+  },
+  "sharedEntry": {
+    "keys": 3,
+    "equalForEqualGrants": true,
+    "equalAcrossTenants": true,
+    "fillsForTwoMembersShared": 1,
+    "fillsForTwoMembersPerUser": 2,
+    "shareKeyOnePage": {
+      "runs": 10000,
+      "meanMs": 0.024,
+      "p50Ms": 0.023,
+      "p95Ms": 0.033
+    },
+    "note": "The fingerprint covers grants, not the tenant id: admins of two organisations share it, so a bsb.kept key adds the tenant when the data differs by tenant"
+  },
+  "runtimeCacheVersionStore": {
+    "versionReadMs": 1.331,
+    "withoutStore": {
+      "versionReads": 1,
+      "ms": 1.433
+    },
+    "storeEmpty": {
+      "versionReads": 1,
+      "ms": 1.431
+    },
+    "storeFilledByAnotherInstance": {
+      "versionReads": 0,
+      "ms": 0.012
+    }
+  }
+}

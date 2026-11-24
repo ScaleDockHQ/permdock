@@ -43,3 +43,22 @@ Docs. Describe `tenantHelpers` next to `sharedFunctions` and name PermDock's two
 ```
 
 Why only these two helpers: `docs/guides/shared-cache.mdx`, "Helpers that answer the same for equal grants".
+
+## An "authorization" warm step from `warm(bsb)`
+
+Needs: `permdock` 0.31 `authorizer(...).warm()` and `authorizationHooks(...).warm()`.
+
+```text
+`warm(bsb)` (the instrumentation.ts helper) warms the database, the version cache and the JWKS, but not the authorizer, so the first request builds PermDock's instance: 1.95 ms against 1.17 ms warmed on the CentraKit fixture (`scripts/centrakit-latency.json`, `firstRequest`).
+
+Add an "authorization" step to warm(bsb). The `authorizer` and `authorizationHooks` server options may carry `warm?(): Promise<{ ok: boolean; ms: number }>`; PermDock 0.31 provides it on both objects. The step:
+1. Calls `warm()` on the configured authorizer and on the hooks, in parallel, once per process.
+2. Treats a missing `warm` as a skipped step, and `ok: false` or a rejection as a failed step that is reported and never thrown, because the first request builds the instance itself.
+3. Reports `{ step: "authorization", ok, ms }` next to the other steps, and runs after the policy module is imported.
+
+Contract. Add `warm?` to the Authorizer and AuthorizationHooks types with the signature above; do not change `evaluate`, `evaluations` or any hook.
+
+Tests. A stub authorizer with `warm` is called once per `warm(bsb)`; one without `warm` is skipped; one whose `warm` rejects reports a failed step and `warm(bsb)` still resolves.
+
+Docs. Add the step to the warm(bsb) page with the instrumentation.ts line.
+```

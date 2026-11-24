@@ -414,6 +414,19 @@ export const bsb = createNext(betterSupabase, {
 
 `testAuthorizer` from `better-supabase/testing` checks the adapter against the contract; `tests/better-supabase/authorizer.test.ts` runs it on a fixture policy.
 
+## Warm the first request
+
+`authorizer(...)` and `authorizationHooks(...)` each have `warm(): Promise<{ ok: boolean; ms: number }>`. It builds one anonymous instance through the same resolver, runs one `can` and never rejects. Call it from `instrumentation.ts` after the policy import; a failure answers `ok: false` and the first request builds the instance itself. Without a server `permdock/next` use, this is the one line:
+
+```ts title="instrumentation.ts"
+export async function register() {
+  const { authorizer } = await import("./src/authorizer");
+  await authorizer.warm();
+}
+```
+
+On the CentraKit fixture it moves 1.24 ms out of the first request ([Shared cache](/docs/guides/shared-cache#centrakit-fixture-timings)). better-supabase does not call `warm` itself yet; the request is in `docs/agents/better-supabase-requests.md`.
+
 ## Version cache and session snapshots
 
 One [`memoryVersionCache`](/docs/adapters/supabase#freshness-and-the-version-cache) serves both libraries. Create it and the sources once at module scope, pass the cache to better-supabase as `versions`, and pass the membership source and version reader to `authorizer`:
