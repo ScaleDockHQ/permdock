@@ -185,7 +185,7 @@ function droppedPolicy(
  * the `@bsb access` tags render. A file libpg_query rejects throws
  * `SqlSyntaxError` with its line.
  */
-export async function policiesFromFiles(
+async function policiesFromFiles(
   cwd: string,
   config: PermDockConfig,
 ): Promise<readonly RawPolicy[]> {
@@ -475,7 +475,7 @@ function renderTable(table: ReportedTable): readonly string[] {
   return lines;
 }
 
-export function renderRlsReport(report: RlsReport): string {
+function renderRlsReport(report: RlsReport): string {
   const { totals } = report;
   return [
     ...report.tables.flatMap(renderTable),

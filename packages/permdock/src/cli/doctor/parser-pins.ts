@@ -7,7 +7,7 @@ import { isRecord } from "../../core/compact.ts";
 import { nodeFiles } from "../shared/doctor-files.ts";
 
 /** The parsers `permdock` pins exactly, because its findings depend on them. */
-export const PINNED_PARSERS = ["oxc-parser", "pgsql-parser"] as const;
+const PINNED_PARSERS = ["oxc-parser", "pgsql-parser"] as const;
 
 type Parser = (typeof PINNED_PARSERS)[number];
 

@@ -76,9 +76,7 @@ const CONFIG_FILES: readonly SupabaseConfigFile[] = [
  * The project's config file by the CLI's order of preference (`config.json`,
  * `config.jsonc`, `config.toml`), or `undefined` when it has none.
  */
-export function supabaseConfigFile(
-  cwd: string,
-): SupabaseConfigFile | undefined {
+function supabaseConfigFile(cwd: string): SupabaseConfigFile | undefined {
   return CONFIG_FILES.find(({ file }) => existsSync(join(cwd, file)));
 }
 
@@ -110,7 +108,7 @@ const ENV_VALUE = /^env\((?<name>[A-Za-z_][A-Za-z0-9_]*)\)$/u;
  * JSON with comments and trailing commas, as `supabase config convert` writes
  * `config.jsonc`, reduced to plain JSON outside string literals.
  */
-export function stripJsonc(text: string): string {
+function stripJsonc(text: string): string {
   let out = "";
   let index = 0;
   while (index < text.length) {
@@ -322,7 +320,7 @@ export function pd045(
 }
 
 /** The oldest Supabase CLI PermDock supports, as better-supabase's BS710. */
-export const SUPABASE_CLI_FLOOR = "3.2.0";
+const SUPABASE_CLI_FLOOR = "3.2.0";
 
 function belowFloor(version: string): boolean {
   const [major = 0, minor = 0, patch = 0] = version

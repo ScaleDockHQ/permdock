@@ -30,7 +30,7 @@ function supabaseBin(cwd: string): string {
 }
 
 /** The project's own `supabase` binary first, then the one on `PATH`. */
-export const runSupabase: SupabaseRunner = (args, cwd) =>
+const runSupabase: SupabaseRunner = (args, cwd) =>
   new Promise((resolve, reject) => {
     execFile(
       supabaseBin(cwd),
