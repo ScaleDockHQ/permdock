@@ -100,7 +100,7 @@ function approversOf(
  * becomes `required`. `ttl`, `escalation`, `staleOn` and `mode` have no
  * counterpart and are left out, which never lowers the floor.
  */
-export function approvalOf(
+function approvalOf(
   approval: CatalogApproval,
   tenantScope: string,
 ): AuthorizationApproval | undefined {
