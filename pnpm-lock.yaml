@@ -332,6 +332,9 @@ catalogs:
     '@supabase/pg-delta':
       specifier: 1.0.0-alpha.61
       version: 1.0.0-alpha.61
+    '@supabase/pg-parser':
+      specifier: 0.1.7
+      version: 0.1.7
     '@supabase/postgrest-typegen':
       specifier: 0.8.1
       version: 0.8.1
@@ -2662,6 +2665,9 @@ importers:
       '@supabase/middleware':
         specifier: 'catalog:'
         version: 1.0.0(typescript@7.0.2)
+      '@supabase/pg-parser':
+        specifier: 'catalog:'
+        version: 0.1.7
       '@supabase/supabase-js':
         specifier: 'catalog:'
         version: 2.119.2(@opentelemetry/api@1.9.1)

@@ -179,6 +179,7 @@ catalog:
   "@pgkit/client": 0.6.1
   "@pgkit/migra": 0.6.1
   "@supabase/pg-delta": 1.0.0-alpha.61
+  "@supabase/pg-parser": 0.1.7
   "@openfeature/server-sdk": 1.23.0
   "@supabase-labs/middleware-openfeature": 0.2.0
   "@next/playwright": 16.4.6
