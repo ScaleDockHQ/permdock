@@ -5,6 +5,8 @@ description: permdock/prisma compiles portable conditions to Prisma where inputs
 
 `permdock/prisma` turns `permdock.where(permission)` into a Prisma `WhereInput` for the matching model. When no grant applies it returns `{ OR: [] }`, the fail-closed shape CASL established, and it ships a client extension that keeps that shape effective across all query types. For RLS, `permdock rls generate --target prisma` emits Prisma 8 `policy_*` blocks so the same conditions are enforced in the database.
 
+Under RLS a `status` filter on an enum column never uses a composite `(<tenant column>, status, ...)` index, because enum comparison is not leakproof: see [Indexes under row-level security](/docs/adapters/rls#indexes-under-row-level-security).
+
 ## Purpose
 
 Prisma has no server-side row filter unless the database enforces one, so list queries must carry the permission filter in `where`. `@casl/prisma` showed the working pattern and its pitfalls: `accessibleBy` returns `{ OR: [] }` when nothing is allowed, but Prisma did not reliably treat an empty `OR` as always-false ([prisma#17367](https://github.com/prisma/prisma/issues/17367)), so `createCaslExtension` rewrites any `where` containing it into `{ ...where, OR: [], AND: [where] }` ([landscape](/docs/research/landscape)). PermDock adopts the same fail-closed behaviour and adds the Prisma 8 native RLS target ([changelog](https://www.prisma.io/changelog/2026-07-17)).

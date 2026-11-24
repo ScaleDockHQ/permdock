@@ -5,6 +5,8 @@ description: permdock/drizzle compiles portable conditions to Drizzle where clau
 
 `permdock/drizzle` takes the portable condition returned by `permdock.where(permission)` and turns it into a Drizzle SQL expression bound to a table. The same conditions feed `permdock rls generate --target drizzle`, which emits `pgPolicy(...)` entries next to the table definition so drizzle-kit owns the migration.
 
+Under RLS a `status` filter on an enum column never uses a composite `(<tenant column>, status, ...)` index, because enum comparison is not leakproof: see [Indexes under row-level security](/docs/adapters/rls#indexes-under-row-level-security).
+
 ## Purpose
 
 A condition such as `where: { authorId: principal.id }` is evaluated in memory by `can`, serialised into snapshots for the client, and must also filter a list query in the database, or the UI and the API disagree about which rows exist. CASL proved that one condition AST can drive an in-memory interpreter and a `where` builder, and that priority must be respected when flattening allows and denies ([landscape](/docs/research/landscape)). `permdock/drizzle` is the Drizzle interpreter for PermDock's [conditions](/docs/concepts/conditions), and Drizzle is the primary RLS compile target because `pgPolicy` and `drizzle-orm/supabase` already model policies as code ([Postgres RLS](/docs/standards/postgres-rls)).
