@@ -126,4 +126,20 @@ describe(splitUndiffed, () => {
       ].join("\n"),
     );
   });
+
+  it("moves a statement with a trailing or inner comment once", () => {
+    const sql = [
+      "create schema app;",
+      "grant usage on schema app to authenticated; -- the data api reads it",
+      "grant execute on function app.f(text) -- the helper",
+      "  to authenticated;",
+      "",
+    ].join("\n");
+    const { kept, moved } = splitUndiffed(sql);
+    expect(moved).toStrictEqual([
+      "grant usage on schema app to authenticated;",
+      "grant execute on function app.f(text) -- the helper\n  to authenticated;",
+    ]);
+    expect(kept).toBe("create schema app;\n");
+  });
 });

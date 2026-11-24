@@ -5,6 +5,7 @@ import { outFiles } from "../core/output-files.ts";
 import { rel, sqlFiles } from "../files.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { nodeFiles } from "../shared/doctor-files.ts";
+import { SqlSyntaxError, parseSqlFile, readPolicy } from "../sql/ast.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
 import { permdockSchema } from "./schema-checks.ts";
@@ -26,10 +27,6 @@ type Policy = Statement & {
 };
 
 const NAME = String.raw`((?:"[^"]+"|\w+)(?:\s*\.\s*(?:"[^"]+"|\w+))?)`;
-const CREATE_POLICY = new RegExp(
-  String.raw`^create\s+policy\s+("[^"]+"|\w+)\s+on\s+${NAME}([\s\S]*)$`,
-  "iu",
-);
 const CREATE_INDEX = new RegExp(
   String.raw`^create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?(?:(?:"[^"]+"|\w+)\s+)?on\s+(?:only\s+)?${NAME}\s*(?:using\s+\w+\s*)?\(([^)]*)\)`,
   "iu",
@@ -68,27 +65,35 @@ function statementsOf(
   });
 }
 
-function policiesOf(statements: readonly Statement[]): readonly Policy[] {
-  return statements.flatMap((statement): Policy[] => {
-    const match = CREATE_POLICY.exec(header(statement.text));
-    if (match === null) {
-      return [];
+async function policiesOf(
+  statements: readonly Statement[],
+): Promise<readonly Policy[]> {
+  const out: Policy[] = [];
+  for (const statement of statements) {
+    if (!/^create\s+policy\b/iu.test(statement.text)) {
+      continue;
     }
-    const rest = group(match, 3);
-    const command = /\bfor\s+(all|select|insert|update|delete)\b/iu
-      .exec(rest)?.[1]
-      ?.toLowerCase();
-    return [
-      {
+    let nodes: Awaited<ReturnType<typeof parseSqlFile>>;
+    try {
+      nodes = await parseSqlFile(statement.text);
+    } catch (error) {
+      if (error instanceof SqlSyntaxError) {
+        continue;
+      }
+      throw error;
+    }
+    const policy = nodes[0] === undefined ? undefined : readPolicy(nodes[0]);
+    if (policy !== undefined) {
+      out.push({
         ...statement,
-        name: unquote(group(match, 1)),
-        table: tableKey(group(match, 2).replaceAll(/\s/gu, "")),
-        commands:
-          command === undefined || command === "all" ? COMMANDS : [command],
-        restrictive: /\bas\s+restrictive\b/iu.test(rest),
-      },
-    ];
-  });
+        name: policy.name,
+        table: `${policy.schema}.${policy.table}`,
+        commands: policy.command === "all" ? COMMANDS : [policy.command],
+        restrictive: !policy.permissive,
+      });
+    }
+  }
+  return out;
 }
 
 function lineOf(statement: Statement, text: string, index: number): number {
@@ -239,14 +244,14 @@ function correlatedSetCall(text: string, table: string): string | undefined {
  * `security definer`, so the planner cannot inline them and a table scan makes
  * one call per row.
  */
-export function pd103(
+export async function pd103(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
-): readonly DoctorFinding[] {
+): Promise<readonly DoctorFinding[]> {
   const statements = statementsOf(cwd, config, files);
   const helpers = setHelperBodies(statements);
-  return policiesOf(statements).flatMap((policy): DoctorFinding[] => {
+  return (await policiesOf(statements)).flatMap((policy): DoctorFinding[] => {
     const text = header(policy.text);
     const setCall = callsSetPerRow(text, helpers);
     const correlated = correlatedSetCall(text, policy.table);
@@ -282,13 +287,13 @@ export function pd103(
  * one of them. Postgres evaluates every permissive policy and ORs the results,
  * so each added policy adds a predicate to every scan.
  */
-export function pd104(
+export async function pd104(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
-): readonly DoctorFinding[] {
+): Promise<readonly DoctorFinding[]> {
   const groups = new Map<string, Policy[]>();
-  for (const policy of policiesOf(statementsOf(cwd, config, files))) {
+  for (const policy of await policiesOf(statementsOf(cwd, config, files))) {
     if (policy.restrictive) {
       continue;
     }
@@ -513,12 +518,12 @@ const TENANT_LEAD =
  * generated policy reads the one-argument form only where no tenant can lead
  * it, so it is not reported.
  */
-export function pd108(
+export async function pd108(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
-): readonly DoctorFinding[] {
-  return policiesOf(statementsOf(cwd, config, files)).flatMap(
+): Promise<readonly DoctorFinding[]> {
+  return (await policiesOf(statementsOf(cwd, config, files))).flatMap(
     (policy): DoctorFinding[] => {
       if (policy.generated) {
         return [];

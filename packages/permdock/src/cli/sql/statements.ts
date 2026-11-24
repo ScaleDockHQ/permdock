@@ -105,15 +105,19 @@ function lex(sql: string): { readonly text: string; readonly cuts: number[] } {
   return { text: out.join(""), cuts };
 }
 
-/**
- * Split on `;` outside strings, quoted identifiers, comments and dollar-quoted
- * bodies.
- */
-export function sqlStatements(
-  sql: string,
-): readonly { readonly line: number; readonly text: string }[] {
+type StatementRange = {
+  readonly line: number;
+  /** Comments blanked, trimmed. */
+  readonly text: string;
+  /** Index of the statement's first character in the source. */
+  readonly start: number;
+  /** Index just past its `;`, or the end of the source. */
+  readonly end: number;
+};
+
+function statementRanges(sql: string): readonly StatementRange[] {
   const { text, cuts } = lex(sql);
-  const statements: { line: number; text: string }[] = [];
+  const statements: StatementRange[] = [];
   // Statements arrive in order, so count newlines once instead of rescanning the prefix.
   let counted = 0;
   let line = 1;
@@ -129,11 +133,26 @@ export function sqlStatements(
         }
       }
       counted = at;
-      statements.push({ line, text: trimmed });
+      statements.push({
+        line,
+        text: trimmed,
+        start: at,
+        end: Math.min(end + 1, sql.length),
+      });
     }
     start = end + 1;
   }
   return statements;
+}
+
+/**
+ * Split on `;` outside strings, quoted identifiers, comments and dollar-quoted
+ * bodies.
+ */
+export function sqlStatements(
+  sql: string,
+): readonly { readonly line: number; readonly text: string }[] {
+  return statementRanges(sql).map(({ line, text }) => ({ line, text }));
 }
 
 /** Capture group `index` of a match, or '' when an optional group took no part. */
@@ -151,19 +170,26 @@ const PRIVILEGE =
 const UNDIFFED_TARGET =
   /^(?:schema|function|procedure|routine|all\s+(?:functions|procedures|routines)\s+in\s+schema)\s/iu;
 
+/** Spaces, an optional line comment and the newline after a statement's `;`. */
+const TRAILING = /^[ \t]*(?:--[^\n]*)?(?:\r?\n|$)/u;
+
 function privilegeTable(target: string): string {
   return target.replace(/^table\s+/iu, "").trim();
 }
 
+/**
+ * The statements `supabase db diff` drops, moved out of `sql`. A moved
+ * statement keeps its inner comments; a comment after its `;` on the same line
+ * goes with it.
+ */
 export function splitUndiffed(sql: string): {
   readonly kept: string;
   readonly moved: readonly string[];
 } {
-  const statements = sqlStatements(sql);
   const views = new Set<string>();
   const moved: string[] = [];
-  let kept = sql;
-  for (const { text } of statements) {
+  const cuts: { readonly from: number; readonly to: number }[] = [];
+  for (const { text, start, end } of statementRanges(sql)) {
     const view = VIEW.exec(text)?.groups;
     if (view !== undefined) {
       views.add(view["name"] ?? "");
@@ -179,9 +205,14 @@ export function splitUndiffed(sql: string): {
       target !== undefined &&
       (UNDIFFED_TARGET.test(target) || views.has(privilegeTable(target)))
     ) {
-      moved.push(`${text};`);
-      kept = kept.replace(`${text};\n`, "");
+      moved.push(sql.slice(start, end));
+      const rest = TRAILING.exec(sql.slice(end))?.[0] ?? "";
+      cuts.push({ from: start, to: end + rest.length });
     }
+  }
+  let kept = sql;
+  for (const { from, to } of cuts.toReversed()) {
+    kept = kept.slice(0, from) + kept.slice(to);
   }
   return { kept, moved };
 }
