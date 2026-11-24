@@ -8,7 +8,6 @@ import type { VerifyIgnore } from "./verify-findings.ts";
 
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { describeError, exitCodeOfError, usageResult } from "../core/errors.ts";
-import { requirePeer } from "../core/peer.ts";
 import { pgConnector } from "../pg.ts";
 import { isSupabaseSchemas, schemasRefusal } from "../supabase-schemas.ts";
 import { runRlsAdvisors } from "./advisors.ts";
@@ -27,9 +26,6 @@ import { readOnlyActorKinds } from "./policies.ts";
 import { parseRbacAuthorize } from "./rbac.ts";
 import { verifyIgnores, verifyResult } from "./verify-findings.ts";
 import { runRlsVerify } from "./verify.ts";
-
-/** `rls migrate` and `rls import` read the pgsql-parser 18 AST. */
-const PGSQL_PARSER_MAJOR = 18;
 
 export const RLS_HELP = `permdock rls generate | import | verify | migrate | explain
 
@@ -270,15 +266,7 @@ async function migrate(input: RlsRunInput): Promise<CommandResult> {
   if (generated.code !== 0) {
     return { code: 2, output: generated.output };
   }
-  // Lazy: pgsql-parser is an optional peer that only migrate and import need.
-  await requirePeer(
-    () => import("pgsql-parser"),
-    "pgsql-parser",
-    "permdock rls migrate",
-    input.cwd,
-    PGSQL_PARSER_MAJOR,
-  );
-  // Lazy: the migrate code loads only after its peer check passes.
+  // Lazy: the migrate code and the WASM parser load only for this command.
   const { migrateTarget, runRlsMigrate } = await import("./migrate.ts");
   return runRlsMigrate({
     cwd: input.cwd,
@@ -430,15 +418,7 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
       });
     }
     case "import": {
-      // Lazy: pgsql-parser is an optional peer that only migrate and import need.
-      await requirePeer(
-        () => import("pgsql-parser"),
-        "pgsql-parser",
-        "permdock rls import",
-        input.cwd,
-        PGSQL_PARSER_MAJOR,
-      );
-      // Lazy: the import code loads only after its peer check passes.
+      // Lazy: the import code and the WASM parser load only for this command.
       const { runRlsImport } = await import("./import.ts");
       return runRlsImport({
         cwd: input.cwd,

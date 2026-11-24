@@ -382,7 +382,10 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
-    "@standard-schema/spec": "catalog:"
+    "@standard-schema/spec": "catalog:",
+    "libpg-query": "catalog:",
+    "oxc-parser": "catalog:",
+    "pgsql-parser": "catalog:"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
@@ -433,12 +436,10 @@
     "jose": "catalog:",
     "kysely": "catalog:",
     "next": "catalog:",
-    "oxc-parser": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "package-manager-detector": "catalog:",
     "pg": "catalog:",
-    "pgsql-parser": "catalog:",
     "publint": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -489,9 +490,7 @@
     "jose": "catalog:peers",
     "kysely": "catalog:peers",
     "next": "catalog:peers",
-    "oxc-parser": "catalog:peers",
     "pg": "catalog:peers",
-    "pgsql-parser": "catalog:peers",
     "react": "catalog:peers",
     "reflect-metadata": "catalog:peers",
     "resend": "catalog:peers",
@@ -591,13 +590,7 @@
     "next": {
       "optional": true
     },
-    "oxc-parser": {
-      "optional": true
-    },
     "pg": {
-      "optional": true
-    },
-    "pgsql-parser": {
       "optional": true
     },
     "react": {

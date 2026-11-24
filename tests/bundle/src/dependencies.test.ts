@@ -44,7 +44,7 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
     }
   });
 
-  it("declares only @standard-schema/spec, and jiti and oxc-parser as optional peers", () => {
+  it("declares @standard-schema/spec and the three CLI parsers as dependencies, and jiti as an optional peer", () => {
     // SAFETY: dist/../package.json is the built package's own manifest
     const manifest = JSON.parse(
       readFileSync(join(DIST, "..", "package.json"), "utf8"),
@@ -55,10 +55,13 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
         Record<string, { readonly optional?: boolean }>
       >;
     };
-    expect(Object.keys(manifest.dependencies)).toStrictEqual([
+    expect(Object.keys(manifest.dependencies).toSorted()).toStrictEqual([
       "@standard-schema/spec",
+      "libpg-query",
+      "oxc-parser",
+      "pgsql-parser",
     ]);
-    for (const name of ["jiti", "oxc-parser"]) {
+    for (const name of ["jiti"]) {
       expect(manifest.peerDependencies[name]).toBeTypeOf("string");
       expect(manifest.peerDependenciesMeta[name]?.optional).toBe(true);
     }

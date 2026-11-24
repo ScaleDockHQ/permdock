@@ -80,3 +80,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0074](./0074-better-supabase-0-81-0-floor-and-release-age.md)    | better-supabase 0.81.0 is the peer floor and catalog pin; it and the packages it peers on skip the release age |
 | [0075](./0075-better-supabase-0-84-0-pin-and-release-age.md)      | better-supabase 0.84.0 is the catalog pin and skips the release age; the peer floor stays 0.81.0               |
 | [0076](./0076-better-supabase-main-tarball.md)                    | better-supabase installs from a tarball of a pinned `main` commit until 0.85.0 is published                    |
+| [0077](./0077-cli-parsers-as-dependencies.md)                     | `oxc-parser`, `pgsql-parser` and `libpg-query` are exact-pinned dependencies of the CLI                        |

@@ -123,7 +123,7 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 9. **Boundary validation** of HTTP bodies, tool args, client `refresh` and model output against the resource schema.
 10. **Prototype-safe, no eval.**
 11. **Never emit `service_role`**, never trust a model-supplied subject or actor; approval tokens are bound and approvers are distinct.
-12. **Runtime entries depend on `@standard-schema/spec` only**; CLI and test code never reach them. The CLI may take regular dependencies; heavy or rare ones are optional peers.
+12. **Runtime entries depend on `@standard-schema/spec` only**; CLI and test code never reach them. The CLI may take regular dependencies; `oxc-parser`, `pgsql-parser` and `libpg-query` are exact-pinned (decision 0077) and other heavy or rare ones are optional peers.
 13. **Authentication is upstream.** Core never verifies a token; no subject, membership or tenant from flags, bodies, model args or unsigned headers.
 14. **Naming convention** (`naming.mdc`) is public API.
 15. **The Cloud is optional** and never on the decision path; every hosted capability is an interface with an in-process default.
