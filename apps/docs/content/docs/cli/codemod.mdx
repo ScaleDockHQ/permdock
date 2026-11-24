@@ -42,6 +42,12 @@ With `--json`, `data` is `{ file, check, removed, kept, unreachable }`. `unreach
 
 `permdock codemod manager-chain [dir]` replaces hand-written functions that walk the self-referencing `rls.approvals.managers` table with the generated helpers ([self-referencing manager tables](/docs/adapters/better-supabase#self-referencing-manager-tables)). It reads the SQL files in `dir` (default `supabase/schemas`), matches each function that walks the table with `with recursive` to a helper by its signature, rewrites every call site, in policies and in function bodies, and deletes the definition with its `grant`, `revoke` and `comment` statements. A function whose status filter differs from `active` stays. With `--json`, `data` is `{ replaced, kept, files }`.
 
+## Move tenant policies to access tags
+
+`permdock codemod bsb-access-tags [dir]` rewrites plain tenant policies into a better-supabase `@bsb access` tag. A policy qualifies when its parsed expression is `<column> in (select <schema>.permitted_<scope>_ids('<key>'))`, optionally followed by `and <schema>.permdock_actor_may_write()`. The codemod swaps a key only when `permitted_<scope>_ids_by_permission(key)` returns the same rows: every grant of the key is an allow of that key itself, with no condition and no deny. It then sets the tag on the table comment, renders the tag's block with better-supabase's `renderTagBlock`, and deletes the old policies. Every other policy stays and is listed with its reason. With `--json`, `data` is `{ moved, kept, files }`. The codemod needs `better-supabase` installed.
+
+`rls verify --introspect` reads the policies each `@bsb access` tag renders from better-supabase's `accessPolicies`, so it does not report them as `policy-extra`.
+
 ## What it renames
 
 The 0.5.0 names are history on the [Naming](/docs/getting-started/naming#renamed-in-050) page. `permdock codemod` no longer applies that table. A row renamed an identifier only where it was imported from one of the entries the row names, so a local `memorySink` of your own stayed as it was.

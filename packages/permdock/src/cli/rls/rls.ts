@@ -9,6 +9,7 @@ import type { VerifyIgnore } from "./verify-findings.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { describeError, exitCodeOfError, usageResult } from "../core/errors.ts";
 import { pgConnector } from "../pg.ts";
+import { taggedAccessPolicies } from "../sql/bsb-access.ts";
 import { isSupabaseSchemas, schemasRefusal } from "../supabase-schemas.ts";
 import { runRlsAdvisors } from "./advisors.ts";
 import { describeExplain } from "./explain.ts";
@@ -355,11 +356,13 @@ async function introspect(
   if (generated.code !== 0 || generated.policies === undefined) {
     return { code: 2, output: generated.output };
   }
-  const expected = expectedRls(
-    generated.policies,
-    generated.text,
-    generated.indexes,
-  );
+  const expected = {
+    ...expectedRls(generated.policies, generated.text, generated.indexes),
+    tagged: (await taggedAccessPolicies(input.cwd)).map((policy) => ({
+      table: `${policy.schema}.${policy.table}`,
+      name: policy.name,
+    })),
+  };
   if (generated.helpersOnly === true) {
     return introspectHelpersOnly(
       input.db,

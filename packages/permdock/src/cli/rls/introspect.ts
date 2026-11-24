@@ -55,6 +55,14 @@ export type ExpectedRls = {
    * is checked.
    */
   readonly indexes: readonly IndexTarget[];
+  /**
+   * The policies `@bsb access` tags render, as better-supabase lists them:
+   * generated, so `verify` does not report them as extra.
+   */
+  readonly tagged?: readonly {
+    readonly table: string;
+    readonly name: string;
+  }[];
 };
 
 /**
@@ -380,7 +388,9 @@ export function diffRls(
     }
   }
   const wanted = new Set(
-    expected.policies.map((item) => `${item.table}\u0000${item.name}`),
+    [...expected.policies, ...(expected.tagged ?? [])].map(
+      (item) => `${normalizeTableName(item.table)}\u0000${item.name}`,
+    ),
   );
   for (const have of actual.policies) {
     if (

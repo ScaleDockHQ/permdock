@@ -9,7 +9,7 @@ export const codemod: Leaf = defineLeaf({
     {
       name: "version",
       description:
-        "The release to migrate to (0.5), config with --prune, or manager-chain",
+        "The release to migrate to (0.5), config with --prune, manager-chain or bsb-access-tags",
       required: true,
       async complete() {
         // Lazy: oxc-parser and the rename maps load only when completion asks for them.
@@ -50,6 +50,16 @@ export const codemod: Leaf = defineLeaf({
       return (await import("../codemod/prune-config.ts")).runPruneConfig({
         cwd: ctx.cwd,
         check: flags.check,
+        dryRun: flags["dry-run"],
+        force: flags.force,
+        json: ctx.json,
+      });
+    }
+    if (args["version"] === "bsb-access-tags") {
+      // Lazy: the SQL parser and better-supabase/sql load only when the codemod runs.
+      return (await import("../codemod/bsb-access-tags.ts")).runAccessTags({
+        cwd: ctx.cwd,
+        ...(rest[0] === undefined ? {} : { schemas: rest[0] }),
         dryRun: flags["dry-run"],
         force: flags.force,
         json: ctx.json,

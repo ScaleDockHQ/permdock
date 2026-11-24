@@ -1,0 +1,135 @@
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+import { isRecord } from "../../core/compact.ts";
+
+export type BsbTag = {
+  readonly name: string;
+  readonly args: Readonly<Record<string, string | true>>;
+};
+
+/** The policy a `@bsb access` tag renders, as better-supabase lists it. */
+export type TaggedAccessPolicy = {
+  readonly schema: string;
+  readonly table: string;
+  readonly operation: string;
+  readonly name: string;
+  readonly key: string;
+  readonly tenantColumn: string;
+};
+
+/** The parts of `better-supabase/sql` PermDock reads. */
+export type BsbSql = {
+  readonly renderTagBlock: (
+    feature: "access",
+    schema: string,
+    table: string,
+    tag: BsbTag,
+    options?: { readonly canIn?: string; readonly actorMayWrite?: string },
+  ) => string;
+  readonly setTagBlock: (
+    sql: string,
+    feature: "access",
+    block: string,
+  ) => string;
+  readonly setBsbTag: (
+    comment: string | null,
+    name: string,
+    tag: BsbTag | undefined,
+  ) => string;
+  readonly commentOnTableSql: (table: string, comment: string) => string;
+  readonly tableTagComments: (
+    sql: string,
+  ) => readonly { schema: string; name: string; comment: string }[];
+  readonly parseBsbComment: (comment: string | null) => {
+    readonly tags: readonly BsbTag[];
+  };
+  readonly accessPolicies: (
+    schema: string,
+    table: string,
+    tag: BsbTag,
+  ) => readonly TaggedAccessPolicy[];
+};
+
+const FUNCTIONS = [
+  "renderTagBlock",
+  "setTagBlock",
+  "setBsbTag",
+  "commentOnTableSql",
+  "tableTagComments",
+  "parseBsbComment",
+  "accessPolicies",
+] as const;
+
+function isBsbSql(value: unknown): value is BsbSql {
+  return (
+    isRecord(value) &&
+    FUNCTIONS.every((name) => typeof value[name] === "function")
+  );
+}
+
+/**
+ * The project's `better-supabase/sql`, or `undefined` when it does not resolve
+ * or lacks a function PermDock reads.
+ */
+export async function loadBsbSql(cwd: string): Promise<BsbSql | undefined> {
+  let module: unknown;
+  try {
+    const file = createRequire(resolve(cwd, "package.json")).resolve(
+      "better-supabase/sql",
+    );
+    // Optional peer: only a project with better-supabase tags reaches it.
+    module = await import(pathToFileURL(file).href);
+  } catch {
+    return undefined;
+  }
+  return isBsbSql(module) ? module : undefined;
+}
+
+export function bsbSqlMissing(command: string): string {
+  return `${command} needs better-supabase with ${FUNCTIONS.join(", ")} in better-supabase/sql: install better-supabase`;
+}
+
+export function schemaSqlFiles(dir: string): readonly string[] {
+  let entries: readonly string[];
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return [];
+  }
+  return entries.toSorted().flatMap((entry) => {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) {
+      return entry === "permdock" ? [] : schemaSqlFiles(path);
+    }
+    return entry.endsWith(".sql") ? [path] : [];
+  });
+}
+
+/**
+ * The policies the `@bsb access` tags in `supabase/schemas` render, as
+ * better-supabase's `accessPolicies` lists them; empty without
+ * better-supabase.
+ */
+export async function taggedAccessPolicies(
+  cwd: string,
+  dir = "supabase/schemas",
+): Promise<readonly TaggedAccessPolicy[]> {
+  const bsb = await loadBsbSql(cwd);
+  if (bsb === undefined) {
+    return [];
+  }
+  const out: TaggedAccessPolicy[] = [];
+  for (const file of schemaSqlFiles(join(cwd, dir))) {
+    for (const entry of bsb.tableTagComments(readFileSync(file, "utf8"))) {
+      for (const tag of bsb.parseBsbComment(entry.comment).tags) {
+        if (tag.name === "access") {
+          out.push(...bsb.accessPolicies(entry.schema, entry.name, tag));
+        }
+      }
+    }
+  }
+  return out;
+}

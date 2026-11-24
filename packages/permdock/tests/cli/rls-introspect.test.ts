@@ -255,6 +255,40 @@ as $$ select true $$;`,
 });
 
 describe("diffRls details", () => {
+  it("leaves the policies an @bsb access tag renders out of policy-extra", () => {
+    const tagged = {
+      ...expectedRls([], SQL),
+      tables: ["public.post"],
+      tagged: [{ table: "public.post", name: "bsb_access_post_read" }],
+    };
+    const found = diffRls(tagged, {
+      policies: [
+        {
+          table: "public.post",
+          name: "bsb_access_post_read",
+          command: "select",
+          permissive: true,
+          roles: ["authenticated"],
+        },
+        {
+          table: "public.post",
+          name: "bsb_access_post_delete",
+          command: "delete",
+          permissive: true,
+          roles: ["authenticated"],
+        },
+      ],
+      leadingColumns: {},
+      rlsEnabled: { "public.post": true },
+      grants: {},
+      helpers: {},
+    });
+    expect(found).toContain(
+      "public.post: policy bsb_access_post_delete is not generated (permissive delete); a permissive one widens access",
+    );
+    expect(found.join("\n")).not.toContain("bsb_access_post_read");
+  });
+
   it("names restrictive, extra, disabled, over-granted and unsafe helpers", () => {
     const permissive = expectedRls(
       [
