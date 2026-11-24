@@ -77,6 +77,11 @@ export type RlsSqlContext = {
    */
   readonly subjectId?: string;
   /**
+   * The `_for` helpers name their user (`p_user`), so the delegated-token gate
+   * on global grants does not apply to them.
+   */
+  readonly namedUser?: boolean;
+  /**
    * `'all'` (`rls.tenants`): the helpers and `memberOf` checks admit every
    * tenant the subject holds a membership in, ignoring the tenant claim. Unset,
    * they narrow to the tenant claim when the token carries one.

@@ -103,7 +103,7 @@ describe("rls api keys", () => {
         'create or replace function "permdock".permdock_api_key_allows(p_grant text)\nreturns boolean\nlanguage plpgsql',
       );
       expect(sql).toContain(
-        `select "permdock".permdock_api_key_allows(p_grant) and nullif(((select auth.jwt()) -> 'api_key') ->> 'tenant', '') is null and coalesce((`,
+        `select "permdock".permdock_api_key_allows(p_grant) and (coalesce(((select auth.jwt()) ->> 'client_id'), '') = '' and (((select auth.jwt()) -> 'act') is null or ((select auth.jwt()) -> 'act') = 'null'::jsonb)) and nullif(((select auth.jwt()) -> 'api_key') ->> 'tenant', '') is null and coalesce((`,
       );
       expect(sql).toContain(
         `  ) ids(id)\n  where (select "permdock".permdock_api_key_allows(p_grant))`,
@@ -159,7 +159,7 @@ describe("rls api keys", () => {
         `    and (${named} is null or (m."tenant_id")::text = ${named})`,
       );
       expect(sql).toContain(
-        `select "permdock".permdock_api_key_allows(p_grant) and ${named} is null and coalesce((`,
+        `select "permdock".permdock_api_key_allows(p_grant) and (coalesce(((select auth.jwt()) ->> 'client_id'), '') = '' and (((select auth.jwt()) -> 'act') is null or ((select auth.jwt()) -> 'act') = 'null'::jsonb)) and ${named} is null and coalesce((`,
       );
     });
 

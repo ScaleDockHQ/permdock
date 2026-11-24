@@ -57,9 +57,11 @@ import {
   memberRolesFunction,
 } from "./helper-members.ts";
 import {
+  delegatedGlobalSql,
   interactiveAllowsCall,
   interactiveAllowsSql,
   interactiveSessionSql,
+  memoGlobalUserSql,
   memoUserSql,
 } from "./interactive-only.ts";
 import { memoGenerationSql } from "./memo-generation.ts";
@@ -605,7 +607,10 @@ function memoBody(
     memo: {
       type,
       scope,
-      user: memoUserSql(ctx, subjectIdSql(ctx)),
+      user:
+        scope === "global"
+          ? memoGlobalUserSql(ctx, subjectIdSql(ctx))
+          : memoUserSql(ctx, subjectIdSql(ctx)),
       ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
     },
   };
@@ -646,7 +651,14 @@ export function grantBodies(ctx: RlsSqlContext): {
   const allows = ceiling(set ? "ids.grant_key" : "p_grant", true);
   const keyTenant =
     keys === undefined ? "" : ` and ${keyTenantSql(ctx, undefined) ?? "true"}`;
-  const hasAllows = ceiling(set ? "g.grant_key" : "p_grant", false);
+  const delegated = delegatedGlobalSql(ctx);
+  const hasCeiling = ceiling(set ? "g.grant_key" : "p_grant", false);
+  const hasAllows =
+    hasCeiling === undefined
+      ? delegated
+      : delegated === undefined
+        ? hasCeiling
+        : `${hasCeiling} and ${delegated}`;
   return {
     has: memoBody(
       ctx,
@@ -699,5 +711,5 @@ export function forUserContext(ctx: RlsSqlContext): RlsSqlContext {
     claimsFirst: _claimsFirst,
     ...unkeyed
   } = ctx;
-  return { ...unkeyed, subjectId: "p_user", tenants: "all" };
+  return { ...unkeyed, subjectId: "p_user", tenants: "all", namedUser: true };
 }
