@@ -16,6 +16,7 @@ const MIGRATIONS = join(EXAMPLE, "supabase/migrations");
 const provider = authorizationProvider({
   manifest: readFileSync(join(EXAMPLE, "permdock.manifest.json"), "utf8"),
   catalog: readFileSync(join(EXAMPLE, "permissions.catalog.json"), "utf8"),
+  portalSubjects: true,
 });
 
 /**

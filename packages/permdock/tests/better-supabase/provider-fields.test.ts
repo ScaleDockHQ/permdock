@@ -54,6 +54,7 @@ describe("portal and team templates", () => {
   it("fills portalParties and portalSubjects from a child scope with via", async () => {
     const provider = authorizationProvider({
       manifest: betterSupabaseManifest,
+      portalSubjects: true,
     });
     const parties =
       "select m.organization_id::text, 'customer', m.customer_id::text from public.contacts m where m.customer_id in (select permdock.member_customer_ids())";
@@ -69,9 +70,36 @@ describe("portal and team templates", () => {
     await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
   });
 
+  it("leaves portalSubjects out unless asked, and portalParties out on false", () => {
+    const provider = authorizationProvider({
+      manifest: betterSupabaseManifest,
+    });
+    expect(provider.functions).not.toHaveProperty("portalSubjects");
+    expect(provider.functions).toHaveProperty("portalParties");
+    const off = authorizationProvider({
+      manifest: betterSupabaseManifest,
+      portalParties: false,
+    });
+    expect(off.functions).not.toHaveProperty("portalParties");
+  });
+
+  it("names the missing helper when portalSubjects has none to call", () => {
+    const provider = authorizationProvider({
+      manifest: withRls({
+        helpers: betterSupabaseManifest.rls.helpers.filter(
+          (entry) => entry.name !== "permitted_customer_ids",
+        ),
+      }),
+      portalSubjects: true,
+    });
+    expect(provider.functions).not.toHaveProperty("portalSubjects");
+    expect((provider.problems ?? []).join("\n")).toContain("portalSubjects:");
+  });
+
   it("reads the tenant id from a jsonb within column", () => {
     const [organization, contacts] = betterSupabaseManifest.rls.memberships;
     const provider = authorizationProvider({
+      portalSubjects: true,
       manifest: withRls({
         memberships: [
           ...(organization === undefined ? [] : [organization]),

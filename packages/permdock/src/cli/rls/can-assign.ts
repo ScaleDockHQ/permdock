@@ -25,7 +25,10 @@ import {
   sourcesKeep,
 } from "./helper-bodies.ts";
 import { globalRoleRows, membershipRows, roleRows } from "./helper-rows.ts";
-import { interactiveSessionSql } from "./interactive-only.ts";
+import {
+  delegatedGlobalSql,
+  interactiveSessionSql,
+} from "./interactive-only.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "./ownership-names.ts";
 import { pairsSql, sourceRowsSql } from "./ownership-sources.ts";
 
@@ -39,7 +42,7 @@ export function canAssignSql(
   forUser = false,
 ): string {
   const ctx: RlsSqlContext = forUser
-    ? { ...base, subjectId: "p_user", tenants: "all" }
+    ? { ...base, subjectId: "p_user", tenants: "all", namedUser: true }
     : base;
   const fn = qualified(
     ctx,
@@ -54,6 +57,8 @@ export function canAssignSql(
     return `v_user_${String(index)}`;
   };
   const global = own.assigns.filter((pair) => pair.scope === "global");
+  const delegated = delegatedGlobalSql(ctx);
+  const gate = delegated === undefined ? "" : ` and ${delegated}`;
   for (const [instance, pairs] of [
     ["p_scope_id is not null", global.filter((pair) => pair.at !== "global")],
     ["p_scope_id is null", global.filter((pair) => pair.at === "global")],
@@ -64,14 +69,14 @@ export function canAssignSql(
     if (ctx.authorize === "database") {
       const ur = globalRoleRows(ctx);
       const kind = globalKindFilterSql(ctx, ur.roleSql);
-      parts.push(`${instance} and exists (
+      parts.push(`${instance}${gate} and exists (
       select 1 from ${ur.from}
       where ${ur.userSql} = ${subjectIdSql(ctx)}
         and (${ur.roleSql}, p_role) in (${pairsSql(pairs)})${kind === undefined ? "" : `\n        and ${kind}`}
     )`);
     } else {
       const kind = globalKindFilterSql(ctx, "r.role");
-      parts.push(`${instance} and exists (
+      parts.push(`${instance}${gate} and exists (
       select 1 from ${roleRows(ctx)}
       where (r.role, p_role) in (${pairsSql(pairs)})${kind === undefined ? "" : `\n        and ${kind}`}
     )`);

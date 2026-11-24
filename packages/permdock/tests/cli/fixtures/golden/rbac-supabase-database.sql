@@ -27,7 +27,7 @@ create table if not exists "permdock"."user_roles" (
 alter table "permdock"."user_roles" enable row level security;
 revoke all on table "permdock"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (database: reads the membership and user_roles tables) sha-256:rbhQtfnMJdU7ywoUsDKGXdNRy4MZVDVXZ-AlPYg7Uh4
+-- permdock helpers (database: reads the membership and user_roles tables) sha-256:0kX2nTwL5dHYrh219myzWZQCByhhZ_wMdUuxFYKFm34
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "permdock";
@@ -110,6 +110,7 @@ cost 1000
 parallel safe
 set search_path = ''
 as $$
+  select ((((select auth.jwt()) -> 'api_key') is null or ((select auth.jwt()) -> 'api_key') = 'null'::jsonb) and coalesce(((select auth.jwt()) ->> 'client_id'), '') = '' and (((select auth.jwt()) -> 'act') is null or ((select auth.jwt()) -> 'act') = 'null'::jsonb)) and coalesce((
   select exists (
     select 1
     from "permdock".user_roles ur
@@ -117,6 +118,7 @@ as $$
     where ur.user_id = (select "permdock".permdock_user_id())
       and rp.grant_key = p_grant
   )
+  ), false)
 $$;
 revoke execute on function "permdock".permdock_has(text) from public, anon;
 grant execute on function "permdock".permdock_has(text) to authenticated;
@@ -419,10 +421,14 @@ as $$
     from pdk_m
   ),
   pdk_g as (
+  select g.grant_key
+  from (
   select rp.grant_key
   from "permdock".user_roles ur
   cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
+  ) g(grant_key)
+  where ((((select auth.jwt()) -> 'api_key') is null or ((select auth.jwt()) -> 'api_key') = 'null'::jsonb) and coalesce(((select auth.jwt()) ->> 'client_id'), '') = '' and (((select auth.jwt()) -> 'act') is null or ((select auth.jwt()) -> 'act') = 'null'::jsonb))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -470,10 +476,14 @@ as $$
     where pdk_m.key in (select k.key from pg_catalog.unnest(p_keys) k(key))
   ),
   pdk_g as (
+  select g.grant_key
+  from (
   select rp.grant_key
   from "permdock".user_roles ur
   cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
+  ) g(grant_key)
+  where ((((select auth.jwt()) -> 'api_key') is null or ((select auth.jwt()) -> 'api_key') = 'null'::jsonb) and coalesce(((select auth.jwt()) ->> 'client_id'), '') = '' and (((select auth.jwt()) -> 'act') is null or ((select auth.jwt()) -> 'act') = 'null'::jsonb))
   ),
   pdk_s as (
     select pdk_i.grant_key
