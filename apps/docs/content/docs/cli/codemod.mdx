@@ -31,6 +31,8 @@ The version is `0.17`, `0.26` or `0.32` (`0.17.0` and `v0.17` are read the same 
 
 `permdock codemod config --prune` removes each `permdock.config` key set to its default, the keys doctor `PD120` lists. Before it writes, it regenerates every plugin output and the `gen` modules in memory, with and without the keys. When a byte differs it tries each section, then each key of a section that differs, and keeps a key whose removal changes a file. The comment lines directly above a removed key go with it.
 
+Besides the fixed defaults, it removes a `rls.actions` verb set to `'none'` that compiles to no command without its entry, and a `rls.tables` or `rls.scopeTypes` entry equal to what the schema files resolve ([table bindings](/docs/cli/rls)). The same byte check decides each of them.
+
 ```bash
 permdock codemod config --prune --check   # exit 1 when a key would be removed, for CI
 permdock codemod config --prune           # remove them

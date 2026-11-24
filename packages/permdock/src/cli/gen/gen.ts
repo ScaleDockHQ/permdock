@@ -14,6 +14,7 @@ import { fileSummary, planFiles } from "../core/files.ts";
 import { STDOUT, driftOf, writeOutputFiles } from "../core/output-files.ts";
 import { pluginVersion } from "../generate/plugins/version.ts";
 import { requirePolicy } from "../project/load.ts";
+import { withSchemaDefaults } from "../sql/schema-tables.ts";
 import { FILE_NAMES, renderGen } from "./emit/render.ts";
 import { modelDigest } from "./header.ts";
 import { genModel } from "./model.ts";
@@ -152,7 +153,7 @@ export async function renderKinds(
   );
   const model = genModel({
     policy: input.policy,
-    config: input.config,
+    config: await withSchemaDefaults(input.cwd, input.config, input.policy),
     operations,
   });
   const fields = input.fields ?? input.config.gen?.fields === true;

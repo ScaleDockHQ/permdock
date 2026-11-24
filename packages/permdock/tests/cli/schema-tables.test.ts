@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { pd134, pd135 } from "../../src/cli/doctor/schema-tables.ts";
 import {
   pluralTableName,
+  restatedSchemaDefaults,
   schemaTables,
   withSchemaDefaults,
 } from "../../src/cli/sql/schema-tables.ts";
@@ -88,6 +89,36 @@ describe(withSchemaDefaults, () => {
       category: "public.categories",
     });
     expect(config.rls?.scopeTypes).toStrictEqual({ organization: "text" });
+  });
+
+  it("reads the nearest Supabase project above a package in the same checkout", async () => {
+    const root = project(SQL);
+    writeFileSync(join(root, "supabase/config.toml"), "");
+    mkdirSync(join(root, ".git"));
+    const app = join(root, "packages/identity");
+    mkdirSync(join(app, ".git"), { recursive: true });
+    expect((await schemaTables(app)).size).toBe(0);
+    rmSync(join(app, ".git"), { recursive: true });
+    expect((await schemaTables(app)).has("public.team_members")).toBe(true);
+  });
+
+  it("names the tables and id types the schema files resolve to the same value", async () => {
+    const tables = await schemaTables(project(SQL));
+    const config = {
+      rls: {
+        tables: {
+          category: "public.categories",
+          teamMember: "team_members",
+          doc: "documents",
+        },
+        scopeTypes: { organization: "text" as const },
+      },
+    };
+    expect(restatedSchemaDefaults(config, policy, tables)).toStrictEqual([
+      ["rls", "tables", "category"],
+      ["rls", "tables", "teamMember"],
+      ["rls", "scopeTypes", "organization"],
+    ]);
   });
 
   it("keeps the config without schema files", async () => {

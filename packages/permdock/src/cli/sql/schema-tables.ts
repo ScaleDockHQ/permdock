@@ -6,10 +6,8 @@ import type { PermDockConfig, RlsTable } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { scopeList } from "../../core/scopes.ts";
+import { supabaseDir } from "../supabase-config.ts";
 import { SqlSyntaxError, parseSqlFile } from "./ast.ts";
-
-/** The folders whose `create table` statements define the app's tables. */
-const SCHEMA_DIRS = ["supabase/schemas", "supabase/migrations"] as const;
 
 /** Each table the schema files create, as `schema.table`, with its column types. */
 export type SchemaTables = ReadonlyMap<string, ReadonlyMap<string, string>>;
@@ -62,13 +60,15 @@ function columnTypes(elements: unknown): Map<string, string> {
 
 /**
  * The tables `supabase/schemas` and `supabase/migrations` create, read from the
- * parsed `CreateStmt` nodes. A file the parser rejects is skipped; the
- * generated files under `permdock/` are not read.
+ * parsed `CreateStmt` nodes, in the nearest Supabase project at or above `cwd`.
+ * A file the parser rejects is skipped; the generated files under `permdock/`
+ * are not read.
  */
 export async function schemaTables(cwd: string): Promise<SchemaTables> {
   const tables = new Map<string, Map<string, string>>();
-  for (const dir of SCHEMA_DIRS) {
-    for (const file of sqlFiles(join(cwd, dir))) {
+  const supabase = supabaseDir(cwd);
+  for (const dir of ["schemas", "migrations"]) {
+    for (const file of sqlFiles(join(cwd, supabase, dir))) {
       let nodes: Awaited<ReturnType<typeof parseSqlFile>>;
       try {
         nodes = await parseSqlFile(readFileSync(file, "utf8"));
@@ -190,6 +190,47 @@ export function schemaDefaults(
     }
   }
   return { tables: mapped, scopeTypes, unknown };
+}
+
+/**
+ * The `rls.tables` and `rls.scopeTypes` entries the schema files would resolve
+ * to the same value without them, as config paths.
+ */
+export function restatedSchemaDefaults(
+  config: PermDockConfig,
+  policy: Policy,
+  tables: SchemaTables,
+): readonly (readonly string[])[] {
+  const rls = config.rls;
+  if (rls === undefined || tables.size === 0) {
+    return [];
+  }
+  const paths: (readonly string[])[] = [];
+  for (const [resource, entry] of Object.entries(rls.tables ?? {})) {
+    if (typeof entry !== "string") {
+      continue;
+    }
+    const others = Object.fromEntries(
+      Object.entries(rls.tables ?? {}).filter(([key]) => key !== resource),
+    );
+    const without = { ...config, rls: { ...rls, tables: others } };
+    const inferred =
+      schemaDefaults(without, policy, tables).tables[resource] ??
+      (tables.has(qualified(resource)) ? resource : undefined);
+    if (inferred !== undefined && qualified(inferred) === qualified(entry)) {
+      paths.push(["rls", "tables", resource]);
+    }
+  }
+  for (const [scope, type] of Object.entries(rls.scopeTypes ?? {})) {
+    const others = Object.fromEntries(
+      Object.entries(rls.scopeTypes ?? {}).filter(([key]) => key !== scope),
+    );
+    const without = { ...config, rls: { ...rls, scopeTypes: others } };
+    if (schemaDefaults(without, policy, tables).scopeTypes[scope] === type) {
+      paths.push(["rls", "scopeTypes", scope]);
+    }
+  }
+  return paths;
 }
 
 /** `config` with the `rls.tables` and `rls.scopeTypes` the schema files imply. */

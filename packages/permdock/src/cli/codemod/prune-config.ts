@@ -20,7 +20,9 @@ import { requirePolicy } from "../project/load.ts";
 import { restatedDefaults, withoutPath } from "../project/resolve-config.ts";
 import { configProperty, writtenPaths } from "../source/config-paths.ts";
 import { applyEditsStrict, removeProperty } from "../source/edits.ts";
+import { commandFor } from "../sql/compile.ts";
 import { restatedFacts } from "../sql/derive-memberships.ts";
+import { restatedSchemaDefaults, schemaTables } from "../sql/schema-tables.ts";
 
 /** What `permdock codemod config --prune --json` prints. */
 export type PruneReport = {
@@ -126,6 +128,40 @@ async function provenRemovals(
   return { accepted, refused };
 }
 
+/**
+ * The `rls.actions`, `rls.tables` and `rls.scopeTypes` entries that restate
+ * what the policy and the schema files resolve: a verb set to `'none'` that
+ * compiles to no command without its entry, a table or an id type equal to the
+ * one the schema files infer.
+ */
+async function restatedPolicyDefaults(
+  cwd: string,
+  config: PermDockConfig,
+): Promise<readonly (readonly string[])[]> {
+  const rls = config.rls;
+  if (rls === undefined || config.policy === undefined) {
+    return [];
+  }
+  const actions = rls.actions ?? {};
+  const verbs = Object.keys(actions)
+    .filter((verb) => {
+      const others = Object.fromEntries(
+        Object.entries(actions).filter(([key]) => key !== verb),
+      );
+      return actions[verb] === "none" && commandFor(verb, others) === undefined;
+    })
+    .map((verb) => ["rls", "actions", verb]);
+  const policy = await requirePolicy(
+    cwd,
+    config.policy,
+    "codemod config --prune needs the policy to regenerate",
+  );
+  return [
+    ...verbs,
+    ...restatedSchemaDefaults(config, policy, await schemaTables(cwd)),
+  ];
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -220,6 +256,9 @@ export async function pruneConfig(options: {
       path,
       value: undefined,
     })),
+    ...(await restatedPolicyDefaults(options.cwd, parsed.config)).map(
+      (path) => ({ section: "rls" as const, path, value: undefined }),
+    ),
   ];
   const written = new Set(
     writtenPaths(

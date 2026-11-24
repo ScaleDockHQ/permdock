@@ -102,6 +102,20 @@ describe("codemod config --prune", () => {
     );
   });
 
+  it("removes a verb set to 'none' that compiles to no command without it", async () => {
+    const cwd = project(
+      '"x\\n"',
+      'actions: { archive: "none", read: "none" },',
+    );
+    const result = await run(
+      ["codemod", "config", "--prune", "--check", "--json"],
+      { cwd },
+    );
+    expect(JSON.parse(result.stdout).data).toMatchObject({
+      removed: ["rls.actions.archive"],
+    });
+  });
+
   it("refuses codemod config without --prune", async () => {
     const result = await run(["codemod", "config"], {
       cwd: project('"x\\n"', ""),
