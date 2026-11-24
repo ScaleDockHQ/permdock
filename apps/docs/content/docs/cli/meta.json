@@ -15,6 +15,7 @@
     "explain",
     "usage",
     "snapshot",
+    "bundle",
     "roles",
     "policy",
     "claims",

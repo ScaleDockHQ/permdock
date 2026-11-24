@@ -30,17 +30,7 @@ export type SnapshotSizeReport = {
   readonly perMembership: number | null;
 };
 
-const PARTS = [
-  "grants",
-  "static",
-  "conditions",
-  "vocabulary",
-  "tenants",
-  "assignable",
-  "subject",
-] as const;
-
-function measure(part: string, value: unknown): SnapshotPart {
+export function measurePart(part: string, value: unknown): SnapshotPart {
   const text = JSON.stringify(value);
   return { part, bytes: Buffer.byteLength(text), gzip: gzipSync(text).length };
 }
@@ -99,10 +89,9 @@ export function snapshotSize(input: {
     ...(input.omitStatic === true ? { omitStatic: true } : {}),
     ...(built.scope === null ? {} : { tenants: "all" as const }),
   });
-  const record: Readonly<Record<string, unknown>> = { ...snapshot };
-  const parts = PARTS.filter((name) => record[name] !== undefined).map((name) =>
-    measure(name, record[name]),
-  );
+  const parts = Object.entries(snapshot)
+    .filter(([name, value]) => name !== "v" && value !== undefined)
+    .map(([name, value]) => measurePart(name, value));
   let largest: SnapshotPart = { part: "none", bytes: -1, gzip: 0 };
   for (const item of parts) {
     if (item.bytes > largest.bytes) {
@@ -118,7 +107,7 @@ export function snapshotSize(input: {
     tenants: built.scope === null ? 0 : input.tenants,
     grants: snapshot.grants.length,
     parts,
-    total: measure("total", snapshot),
+    total: measurePart("total", snapshot),
     largest: largest.part,
     perMembership:
       built.scope === null || input.tenants === 0

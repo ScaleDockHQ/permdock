@@ -17,6 +17,7 @@ Permissions
   diff      Compare two policies or catalogs; exit 1 on a breaking change
   explain   Show which grants decide an action for each fixture subject
   snapshot  Measure the snapshot a role sends to the client
+  bundle    Measure the client bundle the generated bundle module ships
   roles     List what each role holds
   policy    Write the static grants of a policy as a content-addressed bundle
   claims    Measure the memberships claim of an access token

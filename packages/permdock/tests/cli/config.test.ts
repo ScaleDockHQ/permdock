@@ -220,6 +220,7 @@ export default { permissions };
       >();
       expect(Object.keys(CONFIG_SHAPE).toSorted()).toStrictEqual([
         "betterSupabase",
+        "budgets",
         "catalog",
         "collect",
         "doctor",

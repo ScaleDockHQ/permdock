@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { gzipSync } from "node:zlib";
 
 import type { ClientBundle } from "../../core/snapshot-types.ts";
 
@@ -11,13 +12,15 @@ export function bundleDigest(bundle: ClientBundle): string {
 
 /**
  * The `"use client"` module a snapshot written with `omitStatic` resolves
- * against. A client module reaches the browser as a reference, so a server
+ * against. The line under the header records the bundle's size, so a diff shows
+ * growth. A client module reaches the browser as a reference, so a server
  * component can pass it as the `bundle` prop without serialising it into the
  * page.
  */
 export function bundleModule(bundle: ClientBundle, header: string): string {
+  const json = JSON.stringify(bundle);
   return `${[
-    header,
+    `${header}\n// clientBundle: ${String(Buffer.byteLength(json))} bytes of JSON, ${String(gzipSync(json).length)} gzip`,
     `"use client";`,
     `import type { ClientBundle } from "permdock";`,
     `export const clientBundle: ClientBundle = ${JSON.stringify(bundle, null, 2)};`,

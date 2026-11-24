@@ -32,6 +32,7 @@ import { pd039 } from "../supabase-setup.ts";
 import { pd064 } from "./assignments.ts";
 import { applyDoctorIgnores, reported } from "./baseline.ts";
 import { pd078, pd079, pd082, pd087, pd094, pd100 } from "./better-supabase.ts";
+import { pd132, pd133 } from "./budgets.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
@@ -533,6 +534,17 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     groups: ["next", "snapshot", "performance"],
     when: (config) => config.policy !== undefined,
     run: pd112,
+  },
+  {
+    code: "PD132",
+    groups: ["snapshot", "performance"],
+    when: (config) => config.budgets !== undefined,
+    run: pd132,
+  },
+  {
+    code: "PD133",
+    groups: ["next", "snapshot", "performance"],
+    run: (project) => pd133(project.sources()),
   },
   {
     code: "PD113",

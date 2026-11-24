@@ -184,6 +184,8 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD126` | The app lists `oxc-parser` or `pgsql-parser` and installs another version than `permdock` pins                                                                                                                                                                                                                                       | info            |
 | `PD127` | `rls` is configured and `[db] driver` is `sqlite` or `sqlite-postgres` (Supabase Lite), where generated policies and helpers do not exist                                                                                                                                                                                            | warning         |
 | `PD131` | A table has more than `doctor.policies.max` (default 4) policies for one command and `authenticated`                                                                                                                                                                                                                                 | warning         |
+| `PD132` | The policy is over a byte budget in `budgets`; the message names the size, the budget and the largest part                                                                                                                                                                                                                           | error           |
+| `PD133` | A server module passes `clientBundle(policy)` to a provider's `bundle` prop, which serialises the bundle into every document                                                                                                                                                                                                         | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -773,7 +775,7 @@ A list that takes no limit returns every row the policies allow, and Lienlink's 
 
 #### PD112: snapshot size
 
-`permdock snapshot size` measures the compact snapshot of one role. PD112 measures the role with the most grants, held in three tenants, and is a warning above 65,536 bytes of JSON. A Next.js page serialises that snapshot into the Flight stream for each `PermDockProvider`. The message names the largest part, usually `grants` or `assignable`; `omitAssignable` drops the second on a page with no role editor, and `omitStatic` replaces the first with references into the generated bundle. `--only snapshot` runs PD112.
+`permdock snapshot size` measures the compact snapshot of one role. PD112 measures the role with the most grants, held in three tenants, and is a warning above 65,536 bytes of JSON. A Next.js page serialises that snapshot into the Flight stream for each `PermDockProvider`. The message names the largest part, usually `grants` or `assignable`, and the bytes of `typeLevel`, `scopes` and `requires`, which no option leaves out. `omitAssignable` drops `assignable` on a page with no role editor, and `omitStatic` replaces `grants` with references into the generated bundle. When `gen.kinds` includes `bundle`, PD112 measures with `omitStatic`, as the project's pages do. `--only snapshot` runs PD112.
 
 ### PD113: legacy HS256 verification
 
@@ -840,6 +842,14 @@ With `[db] driver` set to `sqlite` or `sqlite-postgres` in the Supabase project 
 Postgres evaluates every permissive policy of a command, or-ed, and every restrictive one, and-ed, for each row. PD131 counts the policies the schema files and migrations leave on each table for one command and `authenticated` (a `to public` policy counts), and warns above `doctor.policies.max`, 4 by default. The name, the unit and the default are those of better-supabase's BS641, so one number means the same in both configs. The finding lists each policy with `permissive` or `restrictive` and its origin (`library`, `provider` or `app`); fold the provider or app policies into fewer conditions. [`permdock rls report`](/docs/cli/rls#report) shows the helper calls each policy adds.
 
 better-supabase measured a 1,000-row read at 0.92 ms with nine policies and 1.00 ms with thirteen (its ADR 1218), so PD131 stays a warning. When the better-supabase config sets `authorization.doctor.command`, better-supabase's doctor runs PermDock's under BS705 and reports the count itself as BS641, so PD131 reports nothing. `--only rls`, `--only supabase` and `--only performance` run PD131.
+
+### PD132: over a size budget
+
+`budgets` in `permdock.config.ts` sets byte budgets for the client bundle, the snapshot of the role with the most grants and the `memberships` claim ([budgets](/docs/cli/bundle#budgets)). PD132 is an error for each budget the policy is over and names the size, the gzip size, the budget and the largest part. `permdock generate --check` fails on the same budgets. `--only snapshot` runs PD132.
+
+### PD133: a bundle built in a server module
+
+`clientBundle(policy)` in a module without `"use client"`, passed to a provider's `bundle` prop, crosses into the client as props: React serialises the whole bundle into every document that renders the provider. Generate it with `permdock gen --kind bundle` and pass the `clientBundle` export of that `"use client"` module, which reaches the browser as a module reference. `--only next` runs PD133.
 
 ### PD136: Supabase CLI below 3.2.0
 

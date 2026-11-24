@@ -1,5 +1,6 @@
 export type { RoleMap, RoleThrough } from "../supabase/types.ts";
 export type {
+  BudgetsConfig,
   CatalogConfig,
   CollectConfig,
   DoctorConfig,

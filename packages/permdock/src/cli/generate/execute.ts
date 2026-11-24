@@ -7,6 +7,7 @@ import type { PermDockConfig } from "../types.ts";
 import type { GenerateRun, GenerateSummary } from "./pipeline.ts";
 import type { PermDockPlugin } from "./plugin.ts";
 
+import { breachText, budgetBreaches } from "../budgets/budgets.ts";
 import { suggestion } from "../core/args.ts";
 import { CliError } from "../core/errors.ts";
 import { runGen } from "../gen/gen.ts";
@@ -143,11 +144,20 @@ export async function executeGenerate(
     ...(input.db === undefined ? {} : { db: input.db }),
   });
   const written = run.files.map((file) => resolve(input.cwd, file.path));
+  const breaches = input.check
+    ? budgetBreaches(loaded.value, input.config).map(breachText)
+    : [];
+  const budgetCode = (code: ExitCode): ExitCode =>
+    code === 0 && breaches.length > 0 ? 1 : code;
   if (input.config.gen === undefined) {
     return {
       run,
-      code: run.code,
-      output: [input.check || input.dryRun ? run.diff : "", ...run.notes]
+      code: budgetCode(run.code),
+      output: [
+        input.check || input.dryRun ? run.diff : "",
+        ...breaches,
+        ...run.notes,
+      ]
         .filter((part) => part !== "")
         .join("\n"),
       summary: run.summary,
@@ -158,10 +168,11 @@ export async function executeGenerate(
   const typed = await typedModules(input);
   return {
     run,
-    code: run.code === 0 ? typed.code : run.code,
+    code: budgetCode(run.code === 0 ? typed.code : run.code),
     output: [
       input.check || input.dryRun ? run.diff : "",
       typed.output,
+      ...breaches,
       ...run.notes,
     ]
       .filter((part) => part !== "")

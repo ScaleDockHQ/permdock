@@ -67,6 +67,25 @@ export type DoctorWaiver = {
   readonly reason: string;
 };
 
+/**
+ * Byte budgets, in bytes of JSON. `permdock generate --check` and doctor PD132
+ * fail over one.
+ */
+export type BudgetsConfig = {
+  /** `clientBundle(policy)`, the module `permdock gen --kind bundle` writes. */
+  readonly bundle?: number;
+  /**
+   * The snapshot of the role with the most grants, holding `memberships`
+   * memberships (default 3).
+   */
+  readonly snapshot?: { readonly bytes: number; readonly memberships?: number };
+  /**
+   * The `memberships` claim of a user with `snapshot.memberships` memberships
+   * of one role each.
+   */
+  readonly claims?: number;
+};
+
 export type PermDockConfig = {
   readonly permissions?: string;
   readonly policy?: string;
@@ -105,6 +124,7 @@ export type PermDockConfig = {
   readonly powersync?: PowerSyncConfig;
   readonly doctor?: DoctorConfig;
   readonly gen?: GenConfig;
+  readonly budgets?: BudgetsConfig;
   /**
    * Generate plugins, in `definePlugin` order. `after` reorders them. An empty
    * list writes the core outputs only.

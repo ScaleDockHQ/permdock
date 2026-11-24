@@ -145,6 +145,29 @@ describe(executeGenerate, () => {
     expect(readFileSync(join(cwd, "echo.txt"), "utf8")).toBe("stale\n");
   });
 
+  it("--check fails over a budget even when every file is current", async () => {
+    const cwd = project();
+    const check = (budgets: NonNullable<PermDockConfig["budgets"]>) =>
+      executeGenerate({
+        cwd,
+        config: { plugins: [echo("one\n")], budgets },
+        policyPath: "policy.ts",
+        only: [],
+        check: true,
+        dryRun: false,
+        noCache: true,
+      });
+    writeFileSync(join(cwd, "echo.txt"), "one\n");
+    const over = await check({ bundle: 1 });
+    expect(over.code).toBe(1);
+    expect(over.output).toMatch(
+      /budgets\.bundle: \d+ bytes \(\d+ gzip\), over the 1 byte budget; the largest part is /u,
+    );
+    const within = await check({ bundle: 1e7 });
+    expect(within.code).toBe(0);
+    expect(within.output).not.toContain("budgets.");
+  });
+
   it("plans a dry run and refuses a plugin that is not one", async () => {
     const cwd = project();
     rmSync(join(cwd, "echo.txt"), { force: true });

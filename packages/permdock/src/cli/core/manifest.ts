@@ -281,6 +281,28 @@ export const SECTIONS: readonly Section[] = [
           }),
         ],
       ),
+      group(
+        "bundle",
+        "Measure the client bundle the generated bundle module ships",
+        "bundle",
+        [
+          leaf(
+            "size",
+            "Report bundle bytes per role and shared part, raw and gzip",
+            {
+              examples: [
+                "permdock bundle size",
+                "permdock bundle size --budget 32768 --json",
+              ],
+              docs: "bundle",
+              effects: [],
+              config: true,
+              load: async () =>
+                (await import("../commands/size.ts")).bundleSize,
+            },
+          ),
+        ],
+      ),
       group("roles", "List what each role holds", "roles", [
         leaf(
           "grants",
