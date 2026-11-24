@@ -1,6 +1,6 @@
 # 0076. better-supabase from a tarball of a pinned `main` commit
 
-- Status: accepted
+- Status: superseded by [0079](./0079-better-supabase-0-85-0-floor-and-release-age.md)
 - Date: 2026-11-24
 - Supersedes the catalog pin of [0075](./0075-better-supabase-0-84-0-pin-and-release-age.md) while the 0.32 branch is open
 

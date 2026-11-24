@@ -1,6 +1,6 @@
 # 0075. better-supabase 0.84.0 is the catalog pin and skips the release age; the peer floor stays 0.81.0
 
-- Status: accepted
+- Status: superseded by [0079](./0079-better-supabase-0-85-0-floor-and-release-age.md)
 - Date: 2026-11-23
 - Amends: 0074 (the catalog pin and its release-age entries)
 

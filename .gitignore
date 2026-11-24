@@ -92,5 +92,3 @@ apps/marketing/public/schemas/
 apps/marketing/public/.well-known/agent-skills/
 tests/bundle/tmp/
 
-# Packed by scripts/better-supabase-checkout.ts (decision 0076)
-/.better-supabase/
