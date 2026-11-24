@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 
+import type { SqlClient } from "../../src/cli/pg.ts";
+
 import { pd124 } from "../../src/cli/doctor/publications.ts";
 
-function database(rows: readonly Record<string, unknown>[]) {
+function database(rows: Record<string, unknown>[]) {
   const asked: unknown[][] = [];
   return {
     asked,
     database: {
       url: "postgres://x",
-      connect: () =>
+      connect: (): Promise<SqlClient> =>
         Promise.resolve({
-          query: (_sql: string, params: readonly unknown[]) => {
+          query: (_sql, params) => {
             asked.push([...params]);
             return Promise.resolve({ rows });
           },
