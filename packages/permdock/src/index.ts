@@ -295,6 +295,8 @@ export {
   resolveCustomRole,
   validateCustomRole,
 } from "./core/custom-roles.ts";
+export { decideCustomRole } from "./core/decide-custom-role.ts";
+export type { CustomRoleDecision } from "./core/decide-custom-role.ts";
 export { customRoleSource } from "./core/custom-role-source.ts";
 export type {
   CustomRoleReader,
