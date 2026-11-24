@@ -122,7 +122,8 @@ describe("shareKey", () => {
         properties: { claims: { ...claims("u1", "editor"), authz_ver: 1 } },
       },
       context: { tenant: ORG },
-      runtime: { versions: { get: () => 2 } },
+      // SAFETY: the hook reads `get` when the runtime's version cache has one, which the contract type omits.
+      runtime: { versions: { evict: () => undefined, get: () => 2 } as never },
     });
     expect(stale).toBeNull();
   });
