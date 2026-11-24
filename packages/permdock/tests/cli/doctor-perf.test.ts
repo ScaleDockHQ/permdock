@@ -434,9 +434,12 @@ create policy permdock_follow_parts_select on public.parts for select
   });
 
   describe("PD114 sample whose token is truncated", () => {
-    it("is an error in jwt mode and absent in database mode", async () => {
+    it("is an error in jwt mode and information in database mode", async () => {
       const truncated = { memberships: [], memberships_truncated: true };
-      const run = (authorize: "jwt" | "database") =>
+      const run = (
+        authorize: "jwt" | "database",
+        claims: Readonly<Record<string, unknown>> = truncated,
+      ) =>
         pd110(
           {
             cwd: "/",
@@ -449,7 +452,7 @@ create policy permdock_follow_parts_select on public.parts for select
                   query: (sql: string) =>
                     Promise.resolve({
                       rows: sql.includes("custom_access_token_hook")
-                        ? [{ claims: truncated }]
+                        ? [{ claims }]
                         : [],
                     }),
                   end: () => Promise.resolve(),
@@ -464,6 +467,18 @@ create policy permdock_follow_parts_select on public.parts for select
       expect(
         (await run("database")).map((finding) => finding.code),
       ).not.toContain("PD114");
+      const cut = await run("database", {
+        memberships: [{ scope: "tenant", id: "t1", roles: ["member"] }],
+        memberships_truncated: true,
+      });
+      expect(cut.filter((finding) => finding.code === "PD114")).toStrictEqual([
+        expect.objectContaining({
+          severity: "info",
+          message: expect.stringContaining(
+            "the token for a user in many organisations is truncated",
+          ),
+        }),
+      ]);
     });
   });
 

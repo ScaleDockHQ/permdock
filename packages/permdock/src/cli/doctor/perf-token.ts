@@ -150,6 +150,7 @@ export async function pd110(
   const fn = `${quoteIdent(schema)}.custom_access_token_hook`;
   const client = await database.connect(database.url);
   const findings: DoctorFinding[] = [];
+  const overBudget: string[] = [];
   try {
     for (const { label, event } of events) {
       await client.query("begin", []);
@@ -171,6 +172,15 @@ export async function pd110(
             message: `the token for ${label} is truncated and rls.authorize is 'jwt': the helpers miss every organisation the budget cut`,
             fix: "set rls.authorize to 'database', which falls back to the tables, or raise supabase.hook.budget until the token holds every membership",
           });
+        }
+        if (
+          project.config.rls?.authorize !== "jwt" &&
+          isRecord(minted) &&
+          minted["memberships_truncated"] === true &&
+          Array.isArray(minted["memberships"]) &&
+          minted["memberships"].length > 0
+        ) {
+          overBudget.push(label);
         }
         const length = tokenChars(minted);
         if (length > TOKEN_CHARS_BUDGET) {
@@ -196,6 +206,15 @@ export async function pd110(
     }
   } finally {
     await client.end();
+  }
+  if (overBudget.length > 0) {
+    findings.push({
+      code: "PD114",
+      severity: "info",
+      target: "supabase.hook.budget",
+      message: `the token for ${overBudget.join(", ")} is truncated: every instance rereads that subject from the database and the helpers read the tables`,
+      fix: "raise supabase.hook.budget until the token holds every membership, or set supabase.hook.membershipsClaim to false so no token carries a partial list; then every user's instance reads memberships from the database",
+    });
   }
   return findings;
 }

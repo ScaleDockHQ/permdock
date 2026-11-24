@@ -1,0 +1,178 @@
+{
+  "memo=false memberships=1": {
+    "key": "doc.read",
+    "claimsBytes": 192,
+    "mintedTruncated": false,
+    "mintedMemberships": 1,
+    "claims": {
+      "meanMs": 0.417,
+      "p50Ms": 0.39,
+      "p95Ms": 0.602,
+      "ms": 0.321,
+      "rows": 1,
+      "current": true
+    },
+    "table": {
+      "meanMs": 0.406,
+      "p50Ms": 0.369,
+      "p95Ms": 0.583,
+      "ms": 0.337,
+      "rows": 1,
+      "current": false
+    }
+  },
+  "memo=false memberships=8": {
+    "key": "doc.read",
+    "claimsBytes": 766,
+    "mintedTruncated": false,
+    "mintedMemberships": 8,
+    "claims": {
+      "meanMs": 0.495,
+      "p50Ms": 0.485,
+      "p95Ms": 0.614,
+      "ms": 0.511,
+      "rows": 8,
+      "current": true
+    },
+    "table": {
+      "meanMs": 0.457,
+      "p50Ms": 0.441,
+      "p95Ms": 0.578,
+      "ms": 0.504,
+      "rows": 8,
+      "current": false
+    }
+  },
+  "memo=false memberships=11": {
+    "key": "doc.read",
+    "claimsBytes": 1012,
+    "mintedTruncated": false,
+    "mintedMemberships": 11,
+    "claims": {
+      "meanMs": 0.728,
+      "p50Ms": 0.705,
+      "p95Ms": 0.983,
+      "ms": 0.856,
+      "rows": 11,
+      "current": true
+    },
+    "table": {
+      "meanMs": 0.673,
+      "p50Ms": 0.662,
+      "p95Ms": 0.902,
+      "ms": 0.784,
+      "rows": 11,
+      "current": false
+    }
+  },
+  "memo=false memberships=30": {
+    "key": "doc.read",
+    "claimsBytes": 1041,
+    "mintedTruncated": true,
+    "mintedMemberships": 11,
+    "claims": {
+      "meanMs": 0.708,
+      "p50Ms": 0.694,
+      "p95Ms": 0.849,
+      "ms": 0.656,
+      "rows": 30,
+      "current": false
+    },
+    "table": {
+      "meanMs": 0.704,
+      "p50Ms": 0.687,
+      "p95Ms": 0.834,
+      "ms": 0.668,
+      "rows": 30,
+      "current": false
+    }
+  },
+  "memo=true memberships=1": {
+    "key": "doc.read",
+    "claimsBytes": 192,
+    "mintedTruncated": false,
+    "mintedMemberships": 1,
+    "claims": {
+      "meanMs": 0.219,
+      "p50Ms": 0.204,
+      "p95Ms": 0.319,
+      "ms": 0.327,
+      "rows": 1,
+      "current": true
+    },
+    "table": {
+      "meanMs": 0.209,
+      "p50Ms": 0.189,
+      "p95Ms": 0.333,
+      "ms": 0.32,
+      "rows": 1,
+      "current": false
+    }
+  },
+  "memo=true memberships=8": {
+    "key": "doc.read",
+    "claimsBytes": 766,
+    "mintedTruncated": false,
+    "mintedMemberships": 8,
+    "claims": {
+      "meanMs": 0.329,
+      "p50Ms": 0.318,
+      "p95Ms": 0.41,
+      "ms": 0.357,
+      "rows": 8,
+      "current": true
+    },
+    "table": {
+      "meanMs": 0.281,
+      "p50Ms": 0.272,
+      "p95Ms": 0.355,
+      "ms": 0.272,
+      "rows": 8,
+      "current": false
+    }
+  },
+  "memo=true memberships=11": {
+    "key": "doc.read",
+    "claimsBytes": 1012,
+    "mintedTruncated": false,
+    "mintedMemberships": 11,
+    "claims": {
+      "meanMs": 0.386,
+      "p50Ms": 0.376,
+      "p95Ms": 0.467,
+      "ms": 0.426,
+      "rows": 11,
+      "current": true
+    },
+    "table": {
+      "meanMs": 0.335,
+      "p50Ms": 0.32,
+      "p95Ms": 0.417,
+      "ms": 0.322,
+      "rows": 11,
+      "current": false
+    }
+  },
+  "memo=true memberships=30": {
+    "key": "doc.read",
+    "claimsBytes": 1041,
+    "mintedTruncated": true,
+    "mintedMemberships": 11,
+    "claims": {
+      "meanMs": 0.657,
+      "p50Ms": 0.639,
+      "p95Ms": 0.843,
+      "ms": 0.524,
+      "rows": 30,
+      "current": false
+    },
+    "table": {
+      "meanMs": 0.655,
+      "p50Ms": 0.621,
+      "p95Ms": 0.857,
+      "ms": 0.592,
+      "rows": 30,
+      "current": false
+    }
+  }
+}

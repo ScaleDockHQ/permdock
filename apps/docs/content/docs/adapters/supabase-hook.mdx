@@ -468,6 +468,19 @@ Measured with `tests/integration/src/hook-token-shape.test.ts` (base64url of the
 
 `supabase.hook.membershipsClaim: false` writes `memberships` as `[]` and sets `memberships_truncated: true` for a user who holds a membership, so every reader takes the subject from the database (`permdock_subject()`, `subject_for` or a `claimsFirst` source). The tenant claim, `team_ids`, `roles` and `authz_ver` are written as before. No refresh reuses the incoming claims, and an explicit `refresh: 'reuse'` fails `generate`. It needs `rls.authorize: 'database'`: in `jwt` mode the RLS helpers read the claim, so `generate` exits `2`.
 
+In `database` mode the claim saves no time in SQL. `tests/integration/src/claims-branch-bench.test.ts` (run with `PERMDOCK_CLAIMS_BENCH=1`; results in `tests/integration/claims-branch.json`) times `permitted_<scope>_ids(key)` on Postgres 16 with a current token, which takes the claims branch, and with the same token marked truncated, which takes the table branch. The table branch was as fast or faster at every size:
+
+| Memberships | `rls.memo` | Claims branch, mean / p95 | Table branch, mean / p95 |
+| ----------- | ---------- | ------------------------- | ------------------------ |
+| 1           | `none`     | 0.417 / 0.602 ms          | 0.406 / 0.583 ms         |
+| 8           | `none`     | 0.495 / 0.614 ms          | 0.457 / 0.578 ms         |
+| 11          | `none`     | 0.728 / 0.983 ms          | 0.673 / 0.902 ms         |
+| 1           | `permdock` | 0.219 / 0.319 ms          | 0.209 / 0.333 ms         |
+| 8           | `permdock` | 0.329 / 0.410 ms          | 0.281 / 0.355 ms         |
+| 11          | `permdock` | 0.386 / 0.467 ms          | 0.335 / 0.417 ms         |
+
+The claim pays off in process: `claimsFirst` builds the subject from it without a database read. `membershipsClaim: false` makes every user's token truncated, so every instance rereads memberships, one PostgREST round trip (1.33 ms mean in `scripts/authz-latency.json`). That is why the default stays `true`. Set it to `false` when users routinely hold more memberships than the budget keeps, or when the server reads memberships through an instance cache. The helpers read the claims only when the hook keeps no `suspension` of its own and every scope's `rls.memberships` table matches its hook source. A memberships table keyed by a `scope` column, or a hook with `suspension`, always reads the tables.
+
 `node scripts/hook-bench.ts` times the hook on Postgres 17 and records `scripts/hook-bench.json`. Times are the median and p95 of 25 server-side calls on an Apple M5 Max; bytes are exact. Each entry of the claim takes about 56 bytes. Cookie chunks use better-supabase's BS405 estimate: claims times 4/3, plus 1,700 bytes, in 3,180-byte chunks.
 
 | Memberships | Claim                 | Full read, median / p95 | Claims  | Chunks |

@@ -5,6 +5,7 @@
   "tasks": {
     "test:integration": {
       "env": [
+        "PERMDOCK_CLAIMS_BENCH",
         "PERMDOCK_HOOK_BENCH",
         "PERMDOCK_HOOK_BENCH_WRITE",
         "PERMDOCK_POSTGRES_BIN",
