@@ -20,6 +20,7 @@ import {
   writeOutputFiles,
 } from "../core/output-files.ts";
 import { sqlFiles } from "../files.ts";
+import { charIndex } from "../sql/ast.ts";
 import { RETIRE_MARKER } from "../sql/markers.ts";
 import { HELPERS } from "../sql/shared.ts";
 import { sqlStatements } from "../sql/statements.ts";
@@ -121,25 +122,6 @@ function child(node: unknown, key: string): unknown {
 
 function list(value: unknown): readonly unknown[] {
   return Array.isArray(value) ? value : [];
-}
-
-/** libpg_query reports byte offsets; this maps them onto string indices. */
-function charIndex(text: string): (byte: number) => number {
-  if (Buffer.byteLength(text) === text.length) {
-    return (byte) => byte;
-  }
-  const map: number[] = [];
-  for (let index = 0; index < text.length; index += 1) {
-    const code = text.codePointAt(index) ?? 0;
-    const size = Buffer.byteLength(String.fromCodePoint(code));
-    for (let byte = 0; byte < size; byte += 1) {
-      map.push(index);
-    }
-    if (code > 0xff_ff) {
-      index += 1;
-    }
-  }
-  return (byte) => map[byte] ?? text.length;
 }
 
 /** The index just past the `)` closing the call that starts at `start`. */
