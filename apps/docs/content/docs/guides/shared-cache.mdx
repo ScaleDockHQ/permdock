@@ -1,0 +1,31 @@
+---
+title: Shared cache
+description: Share one better-supabase cache entry between callers who hold the same grants, and skip the live version read for writes that Postgres checks again.
+---
+
+`authorizationHooks` sets `shareKey`, the hook better-supabase calls to key a `share: "tenant"` cache entry. Callers in one tenant whose grants for the entry's permissions are equal get the same key and read one entry. The entry is still filled through the caller's own client under RLS.
+
+## Grant fingerprint
+
+`grantFingerprint(permdock, permissions)` from `permdock/better-supabase` returns `gf1:` and a SHA-256 digest of what the instance grants for `permissions` in its tenant. It leaves out the user id and the names of the roles, so an editor and an admin that grant `quote.read` under the same terms get the same digest.
+
+It returns `null`, and the entry stays per user, for:
+
+- a permission the policy does not declare, or an empty list;
+- an instance without a principal or a tenant, or a delegated or simulated one;
+- a grant whose condition is `opaque`, a `sqlFunction`, a `liveSession` check or not portable;
+- an instance that grants none of the permissions.
+
+The hook adds three cases: a token marked truncated (`memberships_truncated`, `team_ids_truncated`, `permissions_truncated`), a token whose `authz_ver` is behind the version in `runtime.versions`, and a subject that is not a user.
+
+## Provider tables
+
+A table shares per tenant only when its select policy filters by permission and not by row. Prove it per entry with `expectTenantShare` from `better-supabase/testing`: two callers with the same grant get the same key and read the same rows, and a member without the grant gets no key.
+
+## Writes that RLS checks again
+
+better-supabase sets `context.enforcement` to `rls` on a write that Postgres checks on current data. `authorizer` maps such a write to the `database-write` intent: `claimsFirst` takes the authorization version from the shared cache, as for a read. A role change inside the cache window can therefore let PermDock admit a write that RLS then refuses, and it cannot admit a write RLS would also accept on stale data. A write with `enforcement: "definer"`, or without it, reads the version live.
+
+```ts
+authorizer({ policy, memberships, versions });
+```

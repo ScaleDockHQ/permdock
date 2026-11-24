@@ -1,5 +1,5 @@
 import type { InstanceCache, InstanceCacheKey } from "./instance-cache.ts";
-import type { CustomRoleSourceFactory } from "./interfaces.ts";
+import type { CustomRoleSourceFactory, Intent } from "./interfaces.ts";
 import type { PermDockOptions } from "./permdock.ts";
 import type { Principal } from "./subject.ts";
 
@@ -62,7 +62,7 @@ async function customRolesVersion(
   policy: SubjectMapper,
   principal: Principal,
   options: PermDockOptions,
-  intent: "read" | "write",
+  intent: Intent,
 ): Promise<number | undefined | null> {
   const tenant = options.tenant ?? principal.tenant;
   if (

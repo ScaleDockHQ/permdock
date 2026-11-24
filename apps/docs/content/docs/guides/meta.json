@@ -6,6 +6,7 @@
     "merge-resources",
     "next-cache-components",
     "scenario-testing",
+    "shared-cache",
     "support-access"
   ]
 }

@@ -363,11 +363,12 @@ Each check builds its instance with an [`intent`](/docs/adapters/supabase#freshn
 | ------------------------------------------------------------------- | ---------------- |
 | The `intent` option is set                                          | its answer       |
 | better-supabase sets `context.intent` (`read` or `write`)           | `context.intent` |
+| A `write` whose `context.enforcement` is `rls`                      | `database-write` |
 | `evaluations`: list filtering and per-row checks                    | `read`           |
 | `evaluate` of a permission whose action is `read`, `list` or `view` | `read`           |
 | Every other `evaluate`: actions, mutations, route guards            | `write`          |
 
-Pass `intent: (request) => "read" | "write"` to decide it yourself. With `read`, `claimsFirst` may answer the version from the cache; with `write` it reads the version live. The function replaces the whole table, `evaluations` included:
+Pass `intent: (request) => Intent` to decide it yourself. With `read` and `database-write`, `claimsFirst` may answer the version from the cache; with `write` it reads the version live. `database-write` marks a write that Postgres checks again under RLS on current data, so a stale version cannot grant the row change itself; a write with `enforcement: "definer"` or none stays live. See [Shared cache](/docs/guides/shared-cache). The function replaces the whole table, `evaluations` included:
 
 ```ts
 import type { AuthorizationRequest } from "better-supabase/contract";
@@ -1041,10 +1042,10 @@ export const server = createServer(betterSupabase, {
 });
 ```
 
-`claims` is optional. Without it the hooks hold `apiVersion`, `name` and `sessionTags`, plus `approverOf` with `approvers` and `delegation` with the `delegation` option, but no `automation` or `tickets`, because both load a user's claims. `service`, `support` and `tickets` need `claims`; passing one without it is a type error.
+`claims` is optional. Without it the hooks hold `apiVersion`, `name`, `sessionTags` and `shareKey`, plus `approverOf` with `approvers` and `delegation` with the `delegation` option, but no `automation` or `tickets`, because both load a user's claims. `service`, `support` and `tickets` need `claims`; passing one without it is a type error.
 
 - `automation.mayPublish` lets a user publish an automation only with every key it uses granted to them in its tenant. `automation.runAs` loads the publisher's current claims, or `service(tenant)` for an organization-owned automation, checks every key again, and adds the automation's keys as `bsb_permission_cap`. A deleted or suspended publisher, a key they lost and a missing `service` run as no one.
-- `delegation` is set only with `delegation: true` or `delegation: { permissions }`; `authorizationHooks({ policy })` returns `{ apiVersion, name, sessionTags }`. An app that relied on the implicit hook adds `delegation: true`. The object form replaces the scope mapping with `permissions(ref)`, and a throw or rejection grants nothing.
+- `delegation` is set only with `delegation: true` or `delegation: { permissions }`; `authorizationHooks({ policy })` returns `{ apiVersion, name, sessionTags, shareKey }`. An app that relied on the implicit hook adds `delegation: true`. The object form replaces the scope mapping with `permissions(ref)`, and a throw or rejection grants nothing.
 - `delegation.permissions` maps a token's OAuth scopes to the keys whose `.scope` they are or were renamed from, and to the keys a policy `oauthScopes` entry covers. It reads no `authorization_details`.
 - `approverOf` exists with `approvers`. It refuses the requester and claims whose `sub` is not the approver, then matches `user()` by id and `holder()` with `decide` in the request's tenant.
 - `identities.principalByIdentity` exists when `principals` has `principalByIdentity`; a contact maps to `{ kind: "contact" }`. `delivery.subscribers` and `delivery.audience` are `subscriberPolicy` and exist with `principals` and `events`.

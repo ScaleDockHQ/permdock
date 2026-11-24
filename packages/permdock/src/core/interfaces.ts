@@ -67,11 +67,16 @@ export type SourceContext = {
 };
 
 /**
- * Whether an instance answers reads or writes: `read` may judge a token fresh
- * from a shared `VersionCache` within its `maxStaleMs`; `write` reads the
- * version live.
+ * Whether an instance answers reads or writes. `read` may judge a token fresh
+ * from a shared `VersionCache` within its `maxStaleMs`. `write` reads the
+ * version live. `database-write` is a write that runs as the caller under
+ * row-level security: the database checks it again on current data in its own
+ * statement, so the version comes from the cache as for `read`, and a role
+ * removed inside the window is refused by the policy instead of by the
+ * in-process check. Use it only when every write goes through the caller's
+ * database connection and has no effect outside it.
  */
-export type Intent = "read" | "write";
+export type Intent = "read" | "write" | "database-write";
 
 /** The custom-role sources' second argument. */
 export type CustomRoleContext = SourceContext & {
