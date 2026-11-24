@@ -10,6 +10,12 @@ export type {
   SnapshotHeadersOptions,
 } from "../core/snapshot-cache.ts";
 export { createPermDock } from "./create.ts";
+export { tenantFromPath } from "./tenant-from-path.ts";
+export type {
+  NextRouteParams,
+  NextTenantFromPathOptions,
+} from "./tenant-from-path.ts";
+export type { TenantSlugResolver } from "../server/tenant-from-path.ts";
 export type {
   ActionResult,
   GetPermDockQuery,

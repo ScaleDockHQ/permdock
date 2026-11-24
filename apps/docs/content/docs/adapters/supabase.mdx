@@ -190,6 +190,24 @@ export default {
 - `ctx.jwtClaims` is typed structurally as `SupabaseJwtClaims` (`sub`, `role`, `app_metadata`, index signature), so `@supabase/server`'s `JWTClaims` satisfies it without a peer dependency, and so does any other entry that contributes the same key. A `null` (no token, `publishable` or `secret` mode) reaches `subjectFromSupabase` and becomes the anonymous subject; an invalid token never reaches PermDock because `withClaims` answers `401` first.
 - `with*` is the pipeline's naming convention (`withClaims`, `withPostgresClient`), adopted here so the entry reads like its neighbours. No other PermDock entry uses it ([naming](/docs/getting-started/naming)).
 
+### Tenant from the URL path
+
+`tenantFromPath({ path, param, resolve })` is a `tenant` option for a tenant named by a slug in the request path, such as `/orgs/acme/mcp`:
+
+```ts
+import { createPermDock, tenantFromPath } from "permdock/supabase/middleware";
+
+export const { withPermDock } = createPermDock(app, {
+  tenant: tenantFromPath({
+    path: "/orgs/:org",
+    param: "org",
+    resolve: async (slug) => (await orgs.bySlug(slug))?.id,
+  }),
+});
+```
+
+A request path that starts with the segments of `path` is a tenant route, and `resolve` turns its `param` segment into a tenant id once per request. The id becomes the active tenant only when the subject holds a live membership there. A slug that `resolve` answers with `null`, a value that is not an id or a throw asks for a tenant no membership holds: the instance has no tenant, never the token's `tenant_id`, and tenant-scoped checks deny with `no-membership`. A path outside the template leaves the tenant to the subject. It is the same function as `tenantFromPath` in [`permdock/server`](/docs/adapters/server-kernel#tenant-from-the-url-path), called with `(ctx, request)`.
+
 ### With `@supabase/server`
 
 [`@supabase/server`](https://github.com/supabase/server) is Supabase's stateless server toolkit: header-based authentication for Edge Functions, Workers, Hono, Elysia, NestJS and H3, no cookies. Its core `withSupabase(config, handler)` verifies the bearer token against the project JWKS (asymmetric keys only; HS256 legacy tokens are rejected) and hands the handler a context with `jwtClaims` (the verified payload or `null`), `supabase` (an RLS-scoped client carrying the caller's token), `supabaseAdmin` (the bypass client, built lazily) and `authMode` (`user`, `publishable`, `secret`, `none`). Every one of those shapes is an input to `subjectFromSupabase`:

@@ -25,7 +25,7 @@ A policy declares its scopes in order (an organization, the customers inside it)
 ## Invariants
 
 1. Memberships and custom roles come only from a `subjectFrom*` provider, the policy's `subject` or `context` function, a `MembershipSource` or a `CustomRoleSource`. Never from a request body, an unsigned header, a model argument or a CLI flag.
-2. A requested tenant with no matching membership is no tenant, never a default one. Team and tenant ids are identifiers, never display names.
+2. A requested tenant with no matching membership is no tenant, never a default one. Team and tenant ids are identifiers, never display names: a URL slug goes through `tenantFromPath({ param, resolve })` (`permdock/next`, `permdock/server`, `permdock/supabase/middleware`), never straight into `tenant`.
 3. No cascade. An organization owner sees no customer portal unless they also hold a contact membership, and a global role never reaches scoped rows. An instance check without a row answers from first-scope memberships only; a nested membership needs the row or `permdock.team(id)`. A collection check (`create`, `list`) still answers from any membership in the tenant; for a staff-only guard pass `{ scope: '<first scope>' }` as the decide option.
 4. Role rules live on the role (`min`, `assigns`, `for`), not in handlers. `decideRoleChange` takes the actor from the instance and never writes.
 5. A custom role never exceeds the ceiling of declared `assignable` roles in its scope. Its grants carry no condition, approval or limit of their own; a `level` picks a condition the resource declares in code.

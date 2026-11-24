@@ -1,5 +1,10 @@
 export { createPermDock, tenantScope } from "./create.ts";
 export type { RequestContext, TenantOption, TenantScope } from "./create.ts";
+export { tenantFromPath } from "./tenant-from-path.ts";
+export type {
+  TenantFromPathOptions,
+  TenantSlugResolver,
+} from "./tenant-from-path.ts";
 export type {
   Guard,
   DeniedResponse,
