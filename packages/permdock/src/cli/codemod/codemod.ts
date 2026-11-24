@@ -10,6 +10,7 @@ import { applyFiles, refuseDirty } from "../core/files.ts";
 import { rel } from "../files.ts";
 import { rewriteStoredCatalog } from "./catalog-0.26.ts";
 import { rewriteCliCalls } from "./cli-calls.ts";
+import { CODEMOD_0_32 } from "./codemod-0.32.ts";
 import { moveConfigKeys } from "./config-moves.ts";
 import { rewrite026 } from "./rewrite-0.26.ts";
 import { rewriteLiterals017 } from "./shapes-0.17.ts";
@@ -32,6 +33,7 @@ export const CODEMOD_0_26: RenameSet = Object.freeze({
 const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
   "0.17": CODEMOD_0_17,
   "0.26": CODEMOD_0_26,
+  "0.32": CODEMOD_0_32,
 });
 
 export function codemodVersions(): readonly string[] {
