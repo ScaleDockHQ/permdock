@@ -109,7 +109,7 @@ describe("run: the root", () => {
     [
       ["--format", "xml", "--json"],
       "invalid_value",
-      "--format 'xml' is not one of text, json, github, sarif.",
+      "--format 'xml' is not one of text, json, github, sarif, findings.",
     ],
     [
       ["--json", "--format", "text"],
@@ -119,7 +119,7 @@ describe("run: the root", () => {
     [
       ["rls", "--format", "xml", "--json"],
       "invalid_value",
-      "--format 'xml' is not one of text, json, github, sarif.",
+      "--format 'xml' is not one of text, json, github, sarif, findings.",
     ],
   ])("answers %j with %s", async (argv, reason, message) => {
     const result = await run(argv, { cwd: FIXTURE });

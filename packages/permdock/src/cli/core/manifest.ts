@@ -26,7 +26,7 @@ export type LeafEntry = {
   readonly effects: readonly Effect[];
   /** Reads permdock.config.ts; the config loads only for these. */
   readonly config: boolean;
-  /** Reports findings, so `--format github` and `sarif` apply. */
+  /** Reports findings, so `--format github`, `sarif` and `findings` apply. */
   readonly findings?: boolean;
   /**
    * Prints for a shell to read, so agent mode keeps text output unless `--json`

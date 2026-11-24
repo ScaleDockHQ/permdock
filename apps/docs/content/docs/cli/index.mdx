@@ -22,19 +22,19 @@ The binary is `permdock`; `permdock --version` prints its version. A config file
 
 Every command takes these, before or after its own flags.
 
-| Flag                        | Meaning                                                                                                                                                    |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--cwd <dir>`               | Run as if started in this directory; paths in reports are relative to it                                                                                   |
-| `--config <file>`           | Config file; default `permdock.config.{ts,mts,js,mjs}` in `--cwd`. Only the commands that read the config load it                                          |
-| `--json`                    | Print [`cli-result-v2`](/docs/concepts/wire-formats#cli-result) JSON: the result on stdout, an error on stderr; `--no-json` turns agent mode's default off |
-| `--format <format>`         | `text`, `json`, `github` or `sarif`. `github` prints workflow annotations and `sarif` a SARIF 2.1.0 log, for commands that report findings                 |
-| `--yes`, `-y`               | Never prompt; take the answer the flags give                                                                                                               |
-| `--effects-digest <digest>` | With `--yes`, the digest a `confirmation_required` error gave, once the person agreed ([agent mode](/docs/cli/agent-mode#consent))                         |
-| `--agent <mode>`            | `auto` (default), `yes` or `no`; also `PERMDOCK_AGENT`. See [agent mode](/docs/cli/agent-mode)                                                             |
-| `--debug`                   | Log each step, and the cause of an error, on stderr                                                                                                        |
-| `--color`, `--no-color`     | Styled or plain output; the default follows the terminal, `FORCE_COLOR` and `NO_COLOR`                                                                     |
-| `--help`, `-h`              | Print the command's flags, examples, side effects and docs page                                                                                            |
-| `--version`, `-v`           | Print the version                                                                                                                                          |
+| Flag                        | Meaning                                                                                                                                                                                                                      |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--cwd <dir>`               | Run as if started in this directory; paths in reports are relative to it                                                                                                                                                     |
+| `--config <file>`           | Config file; default `permdock.config.{ts,mts,js,mjs}` in `--cwd`. Only the commands that read the config load it                                                                                                            |
+| `--json`                    | Print [`cli-result-v2`](/docs/concepts/wire-formats#cli-result) JSON: the result on stdout, an error on stderr; `--no-json` turns agent mode's default off                                                                   |
+| `--format <format>`         | `text`, `json`, `github`, `sarif` or `findings`. For commands that report findings, `github` prints workflow annotations, `sarif` a SARIF 2.1.0 log and `findings` the `{ findings }` document better-supabase's BS705 reads |
+| `--yes`, `-y`               | Never prompt; take the answer the flags give                                                                                                                                                                                 |
+| `--effects-digest <digest>` | With `--yes`, the digest a `confirmation_required` error gave, once the person agreed ([agent mode](/docs/cli/agent-mode#consent))                                                                                           |
+| `--agent <mode>`            | `auto` (default), `yes` or `no`; also `PERMDOCK_AGENT`. See [agent mode](/docs/cli/agent-mode)                                                                                                                               |
+| `--debug`                   | Log each step, and the cause of an error, on stderr                                                                                                                                                                          |
+| `--color`, `--no-color`     | Styled or plain output; the default follows the terminal, `FORCE_COLOR` and `NO_COLOR`                                                                                                                                       |
+| `--help`, `-h`              | Print the command's flags, examples, side effects and docs page                                                                                                                                                              |
+| `--version`, `-v`           | Print the version                                                                                                                                                                                                            |
 
 An unknown flag or command exits `2` with the nearest match. [`permdock codemod 0.26`](/docs/cli/codemod) rewrites a stored catalog and the generate commands 0.26 removed.
 

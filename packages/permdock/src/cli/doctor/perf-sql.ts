@@ -7,6 +7,7 @@ import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { nodeFiles } from "../shared/doctor-files.ts";
 import { SqlSyntaxError, parseSqlFile, readPolicy } from "../sql/ast.ts";
 import { taggedPolicyId, taggedPolicyIds } from "../sql/bsb-access.ts";
+import { isBetterSupabaseModule } from "../sql/bsb-module.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
 import { permdockSchema } from "./schema-checks.ts";
@@ -57,7 +58,8 @@ function statementsOf(
   ];
   return [...new Set(sqlFiles(cwd, entries))].flatMap((path) => {
     const text = files.read(path);
-    const generated = permdockSchema(cwd, { path, text });
+    const generated =
+      permdockSchema(cwd, { path, text }) || isBetterSupabaseModule(text);
     return sqlStatements(text).map((statement): Statement => ({
       file: rel(cwd, path),
       generated,

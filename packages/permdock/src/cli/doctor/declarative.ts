@@ -5,6 +5,7 @@ import type { PermDockConfig } from "../types.ts";
 
 import { rel, sqlFiles } from "../files.ts";
 import { nodeFiles } from "../shared/doctor-files.ts";
+import { isBetterSupabaseModule } from "../sql/bsb-module.ts";
 import { HOOK_MARKER } from "../sql/markers.ts";
 import {
   readSupabaseConfig,
@@ -173,7 +174,7 @@ export function pd069(
         continue;
       }
       const file = join(root, name);
-      if (files.isDirectory(file)) {
+      if (files.isDirectory(file) || isBetterSupabaseModule(files.read(file))) {
         continue;
       }
       findings.push({

@@ -186,14 +186,16 @@ describe("doctor", () => {
   it("names permdock doctor --json and passes timeoutMs through", () => {
     expect(
       authorizationProvider({ manifest: supabaseHookManifestFixture }).doctor,
-    ).toStrictEqual({ command: ["permdock", "doctor", "--json"] });
+    ).toStrictEqual({
+      command: ["permdock", "doctor", "--format", "findings"],
+    });
     expect(
       authorizationProvider({
         manifest: supabaseHookManifestFixture,
         doctor: { timeoutMs: 120_000 },
       }).doctor,
     ).toStrictEqual({
-      command: ["permdock", "doctor", "--json"],
+      command: ["permdock", "doctor", "--format", "findings"],
       timeoutMs: 120_000,
     });
   });
@@ -204,7 +206,7 @@ describe("doctor", () => {
       doctor: { timeoutMs: -1 },
     });
     expect(provider.doctor).toStrictEqual({
-      command: ["permdock", "doctor", "--json"],
+      command: ["permdock", "doctor", "--format", "findings"],
     });
     expect(provider.problems).toContainEqual(
       "doctor.timeoutMs is -1; pass a positive whole number of milliseconds.",

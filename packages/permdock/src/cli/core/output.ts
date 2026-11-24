@@ -125,6 +125,38 @@ function escapeProperty(value: string): string {
 }
 
 /** GitHub Actions workflow commands, one per finding. */
+/**
+ * `--format findings`: `{ findings: [{ code, severity, message, target?, help?
+ * }] }`, the document better-supabase's `authorization.doctor.command` reads
+ * (BS705).
+ */
+export function findingsDocument(findings: readonly Finding[]): string {
+  return JSON.stringify(
+    {
+      findings: findings.map((finding) => {
+        const target =
+          finding.file === undefined
+            ? finding.id?.slice(finding.code.length + 1)
+            : finding.line === undefined
+              ? finding.file
+              : `${finding.file}:${String(finding.line)}`;
+        return {
+          code: finding.code,
+          severity: finding.severity,
+          message:
+            finding.fix === undefined
+              ? finding.message
+              : `${finding.message} Fix: ${finding.fix}`,
+          ...(target === undefined || target === "" ? {} : { target }),
+          ...(finding.docs === undefined ? {} : { help: finding.docs }),
+        };
+      }),
+    },
+    null,
+    2,
+  );
+}
+
 export function githubAnnotations(findings: readonly Finding[]): string {
   return findings
     .map((finding) => {

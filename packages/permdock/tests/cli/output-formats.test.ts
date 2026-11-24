@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   findingOf,
+  findingsDocument,
   githubAnnotations,
   sarifLog,
 } from "../../src/cli/core/output.ts";
@@ -142,6 +143,53 @@ describe("output formats", () => {
       ).toBe("::error file=c%3Ad.ts,title=a%2Cb::50%25%0Anext%0AFix: do it");
       expect(JSON.parse(sarifLog("doctor", []))).toMatchObject({
         runs: [{ results: [], tool: { driver: { rules: [] } } }],
+      });
+    });
+  });
+
+  describe("--format findings", () => {
+    it("prints the findings list better-supabase BS705 reads", async () => {
+      const result = await run(["scan", "--format", "findings"], {
+        cwd: legacyApp(),
+      });
+      expect(result.code).toBe(0);
+      expect(JSON.parse(result.stdout)).toStrictEqual({
+        findings: [
+          {
+            code: "legacy-check",
+            severity: "info",
+            message: "role comparison: user.role === 'admin';",
+            target: "src/route.ts:2",
+            help: "https://permdock.com/docs/cli/scan",
+          },
+        ],
+      });
+    });
+
+    it("folds the fix into the message and names the docs as help", () => {
+      expect(
+        JSON.parse(
+          findingsDocument([
+            {
+              code: "PD001",
+              severity: "error",
+              message: "broken.",
+              fix: "repair it",
+              docs: "https://permdock.com/docs/x",
+              file: "a.ts",
+            },
+          ]),
+        ),
+      ).toStrictEqual({
+        findings: [
+          {
+            code: "PD001",
+            severity: "error",
+            message: "broken. Fix: repair it",
+            target: "a.ts",
+            help: "https://permdock.com/docs/x",
+          },
+        ],
       });
     });
   });

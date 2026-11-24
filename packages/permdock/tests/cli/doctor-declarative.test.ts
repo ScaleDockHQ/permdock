@@ -181,6 +181,13 @@ describe("doctor declarative", () => {
         "PD069",
       ]);
     });
+
+    it("PD069 leaves a better-supabase module file to better-supabase", () => {
+      const files = {
+        "supabase/schemas/900_better_supabase_019_permissions.sql": `-- better-supabase module: permissions\n-- @bsb-block permissions@1 managed\n-- @bsb-hash sha256:00\n${HELPERS}`,
+      };
+      expect(pd069(project(files), {})).toStrictEqual([]);
+    });
   });
 
   describe("PD043 schema_paths order", () => {

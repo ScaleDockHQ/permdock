@@ -3,7 +3,7 @@ import type { Flags } from "./command.ts";
 import type { Env } from "./env.ts";
 import type { Style } from "./style.ts";
 
-export type OutputFormat = "text" | "json" | "github" | "sarif";
+export type OutputFormat = "text" | "json" | "github" | "sarif" | "findings";
 
 /** One invocation's resolved globals, shared by every leaf. */
 export type CliContext = {
@@ -70,7 +70,7 @@ export const GLOBAL_FLAGS: Flags = {
   },
   format: {
     type: "enum",
-    options: ["text", "json", "github", "sarif"],
+    options: ["text", "json", "github", "sarif", "findings"],
     description: "Output format; github and sarif render findings",
   },
   yes: {

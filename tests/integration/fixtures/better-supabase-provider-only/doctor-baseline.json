@@ -1,0 +1,17 @@
+[
+  {
+    "code": "PD005",
+    "reason": "A test fixture installs no Agent Skills.",
+    "targets": ["project"]
+  },
+  {
+    "code": "PD026",
+    "reason": "The fixture tests the provider slots, not last-owner protection.",
+    "targets": ["project"]
+  },
+  {
+    "code": "PD097",
+    "reason": "The fixture has no Supabase CLI project; the test applies the seeds itself.",
+    "targets": ["supabase/config.toml"]
+  }
+]

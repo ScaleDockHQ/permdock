@@ -89,12 +89,12 @@ The schema files are read from the nearest Supabase project at or above the conf
 
 `authorizationProvider` from `permdock/better-supabase` supplies more of better-supabase's config. Doctor `PD094` reports a key in `better-supabase.config.ts` that now restates the provider.
 
-| 0.31                                                                                 | 0.32                                                                                  |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `blocks.<block>.permissions` keys in `better-supabase.config.ts`                     | `meta.answers` on the permission; `permdock codemod bsb-action-keys` moves them       |
-| `functions.approverFor` set by the provider                                          | not set; `permdock_approver_for_ids()` answers the users the caller decides for       |
-| `blocks.memberships.options.roleThrough`, `blocks.invitations.options.platformRoles` | derived from the provider's `roleSources` and `platformRoles`                         |
-| `doctor` findings run separately                                                     | `doctor.command` runs `permdock doctor --json`; better-supabase reports them as BS705 |
+| 0.31                                                                                 | 0.32                                                                                             |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `blocks.<block>.permissions` keys in `better-supabase.config.ts`                     | `meta.answers` on the permission; `permdock codemod bsb-action-keys` moves them                  |
+| `functions.approverFor` set by the provider                                          | not set; `permdock_approver_for_ids()` answers the users the caller decides for                  |
+| `blocks.memberships.options.roleThrough`, `blocks.invitations.options.platformRoles` | derived from the provider's `roleSources` and `platformRoles`                                    |
+| `doctor` findings run separately                                                     | `doctor.command` runs `permdock doctor --format findings`; better-supabase reports them as BS705 |
 
 ## Permission key renames
 

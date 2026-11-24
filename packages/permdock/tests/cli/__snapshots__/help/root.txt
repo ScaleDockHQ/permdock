@@ -46,17 +46,17 @@ Upgrade
   codemod  Apply a release's renames to files that import permdock; list call sites to edit by hand
 
 Global flags
-  --cwd <dir>                        Run as if started in this directory
-  --config <file>                    Config file (default permdock.config.{ts,mts,js,mjs})
-  --json                             Print cli-result-v2 JSON: the result on stdout, an error on stderr
-  --format <text|json|github|sarif>  Output format; github and sarif render findings
-  -y, --yes                          Never prompt; take the answer the flags give
-  --effects-digest <digest>          With --yes, the digest a confirmation_required error gave, once the person agreed
-  --agent <auto|yes|no>              Agent mode: no prompts, JSON by default (default auto, PERMDOCK_AGENT)
-  --debug                            Log each step and the cause of an error on stderr
-  --color                            Styled output on a colour terminal
-  --no-color                         Plain output
-  -h, --help                         Print help
-  -v, --version                      Print the permdock version
+  --cwd <dir>                                 Run as if started in this directory
+  --config <file>                             Config file (default permdock.config.{ts,mts,js,mjs})
+  --json                                      Print cli-result-v2 JSON: the result on stdout, an error on stderr
+  --format <text|json|github|sarif|findings>  Output format; github and sarif render findings
+  -y, --yes                                   Never prompt; take the answer the flags give
+  --effects-digest <digest>                   With --yes, the digest a confirmation_required error gave, once the person agreed
+  --agent <auto|yes|no>                       Agent mode: no prompts, JSON by default (default auto, PERMDOCK_AGENT)
+  --debug                                     Log each step and the cause of an error on stderr
+  --color                                     Styled output on a colour terminal
+  --no-color                                  Plain output
+  -h, --help                                  Print help
+  -v, --version                               Print the permdock version
 
 Run permdock <command> --help for its flags. Docs: https://permdock.com/docs/cli

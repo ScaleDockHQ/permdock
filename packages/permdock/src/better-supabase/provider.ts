@@ -120,8 +120,9 @@ export type AuthorizationProviderOptions<P = undefined> = {
    */
   readonly platformRoles?: boolean;
   /**
-   * `doctor.timeoutMs` for the `permdock doctor --json` run better-supabase's
-   * doctor makes (BS705); better-supabase stops it after 60,000 ms by default.
+   * `doctor.timeoutMs` for the `permdock doctor --format findings` run
+   * better-supabase's doctor makes (BS705); better-supabase stops it after
+   * 60,000 ms by default.
    */
   readonly doctor?: { readonly timeoutMs?: number };
   /**
@@ -161,7 +162,7 @@ const ID_TYPES: Readonly<Record<string, string>> = {
 };
 
 /** The command better-supabase's doctor runs, its findings joining BS705. */
-const DOCTOR_COMMAND = ["permdock", "doctor", "--json"] as const;
+const DOCTOR_COMMAND = ["permdock", "doctor", "--format", "findings"] as const;
 
 function doctorOf(
   options: AuthorizationProviderOptions["doctor"],

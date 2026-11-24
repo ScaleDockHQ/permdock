@@ -1,6 +1,6 @@
 -- better-supabase module: permissions
 -- @bsb-block permissions@1 managed
--- @bsb-hash sha256:f99bc60c80f55a9b73f01b84fc6e7d14160b6747eba820b6d025602f5afb4ac4
+-- @bsb-hash sha256:981f6796bba1728a202365079e512823c744301f7b8a5eeeec2e2e17379e0cf2
 -- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.permissions.model).
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -35,15 +35,14 @@ revoke execute on function better_supabase.user_disabled(uuid) from public, anon
 grant execute on function better_supabase.tenant_disabled(text) to service_role, supabase_auth_admin;
 grant execute on function better_supabase.user_disabled(uuid) to service_role, supabase_auth_admin;
 
--- `*` grants every key and `prefix.*` every key under prefix.
+-- A granted key matches only itself; the provider honours no wildcards.
 create or replace function better_supabase.permission_matches(granted text, wanted text)
 returns boolean
 language sql
 immutable
 set search_path = ''
 as $$
-  select granted = '*' or granted = wanted
-    or (right(granted, 2) = '.*' and starts_with(wanted, left(granted, -1)))
+  select granted = wanted
 $$;
 
 -- True for a user's own session and for no token at all. False for an API
