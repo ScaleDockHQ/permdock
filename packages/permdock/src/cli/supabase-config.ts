@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { join, posix } from "node:path";
+import { dirname, join, posix, relative, resolve } from "node:path";
 import { parse } from "smol-toml";
 
 import type { DoctorFinding } from "./shared/doctor-types.ts";
@@ -78,6 +78,27 @@ const CONFIG_FILES: readonly SupabaseConfigFile[] = [
  */
 function supabaseConfigFile(cwd: string): SupabaseConfigFile | undefined {
   return CONFIG_FILES.find(({ file }) => existsSync(join(cwd, file)));
+}
+
+/**
+ * The `supabase` directory relative to `cwd`: `supabase` when `cwd` has a
+ * Supabase config or none is found, else the one in the nearest parent with
+ * one, such as `../../supabase` for a config in `packages/identity`. The search
+ * stops after the first directory with `.git`, so a checkout never reads a
+ * project outside it.
+ */
+export function supabaseDir(cwd: string): string {
+  let dir = resolve(cwd);
+  for (;;) {
+    if (supabaseConfigFile(dir) !== undefined) {
+      return relative(cwd, join(dir, "supabase")).replaceAll("\\", "/");
+    }
+    const parent = dirname(dir);
+    if (parent === dir || existsSync(join(dir, ".git"))) {
+      return "supabase";
+    }
+    dir = parent;
+  }
 }
 
 /**

@@ -20,6 +20,7 @@ import {
 } from "../rls/approval-chain.ts";
 import { checkedManagers, isManagerRows } from "../rls/approval-managers.ts";
 import { charIndex, parseSqlFile, removeStatements } from "../sql/ast.ts";
+import { supabaseDir } from "../supabase-config.ts";
 
 /** What `permdock codemod manager-chain --json` prints. */
 export type ManagerChainReport = {
@@ -345,7 +346,10 @@ export async function runManagerChain(options: {
     );
   }
   const schema = config.rls?.schema ?? "permdock";
-  const dir = join(options.cwd, options.schemas ?? "supabase/schemas");
+  const dir = join(
+    options.cwd,
+    options.schemas ?? `${supabaseDir(options.cwd)}/schemas`,
+  );
   const files = sqlFiles(dir);
   const texts = new Map(
     files.map((file) => [file, readFileSync(file, "utf8")]),

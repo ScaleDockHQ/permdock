@@ -20,6 +20,7 @@ import {
 import { taggedAccessPolicies } from "../sql/bsb-access.ts";
 import { callsHelper, helperCallKeys } from "../sql/helper-calls.ts";
 import { isStripeDataPipelineSchema } from "../sql/platform.ts";
+import { supabaseDir } from "../supabase-config.ts";
 
 /** Who owns a policy, in better-supabase BS641's words. */
 export type PolicyOrigin = "library" | "provider" | "app";
@@ -149,8 +150,11 @@ export function reportFiles(
   return [
     ...new Set(
       sqlFiles(cwd, [
-        ...(config.doctor?.migrations ?? MIGRATION_DIRS),
-        "supabase/schemas",
+        ...(config.doctor?.migrations ?? [
+          ...MIGRATION_DIRS,
+          `${supabaseDir(cwd)}/migrations`,
+        ]),
+        `${supabaseDir(cwd)}/schemas`,
         ...outFiles(config.rls?.out),
       ]),
     ),

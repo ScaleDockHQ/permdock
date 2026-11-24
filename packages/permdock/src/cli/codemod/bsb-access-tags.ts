@@ -26,6 +26,7 @@ import {
 import { compileGrants } from "../sql/compile.ts";
 import { tableNames } from "../sql/tables.ts";
 import { svals, tenantCheck } from "../sql/tenant-check.ts";
+import { supabaseDir } from "../supabase-config.ts";
 
 /** What `permdock codemod bsb-access-tags --json` prints. */
 export type AccessTagReport = {
@@ -340,7 +341,7 @@ export async function runAccessTags(options: {
   const moved: { table: string; operations: Record<string, string> }[] = [];
   const planned: PlannedFile[] = [];
   for (const file of schemaSqlFiles(
-    join(options.cwd, options.schemas ?? "supabase/schemas"),
+    join(options.cwd, options.schemas ?? `${supabaseDir(options.cwd)}/schemas`),
   )) {
     const text = readFileSync(file, "utf8");
     const nodes = await parseSqlFile(text);

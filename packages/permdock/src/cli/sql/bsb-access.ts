@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { isRecord } from "../../core/compact.ts";
+import { supabaseDir } from "../supabase-config.ts";
 
 export type BsbTag = {
   readonly name: string;
@@ -115,7 +116,7 @@ export function schemaSqlFiles(dir: string): readonly string[] {
  */
 export async function taggedAccessPolicies(
   cwd: string,
-  dir = "supabase/schemas",
+  dir = `${supabaseDir(cwd)}/schemas`,
 ): Promise<readonly TaggedAccessPolicy[]> {
   const bsb = await loadBsbSql(cwd);
   if (bsb === undefined) {
