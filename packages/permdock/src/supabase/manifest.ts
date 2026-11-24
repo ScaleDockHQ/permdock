@@ -38,6 +38,12 @@ export type SupabaseHookManifest = {
      * 0.10.
      */
     readonly activeFrom?: SupabaseManifestActiveFrom;
+    /**
+     * `"request"` when the app resolves the active tenant per request
+     * (`supabase.hook.activeTenant`), so better-supabase reads it as
+     * `activeOrganizationFrom: "resolver"`.
+     */
+    readonly activeTenant?: "request";
   };
   readonly helpers: {
     readonly schema: string;

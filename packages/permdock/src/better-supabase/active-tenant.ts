@@ -1,4 +1,7 @@
-import type { SupabaseManifestActiveFrom } from "../supabase/manifest.ts";
+import type {
+  SupabaseHookManifest,
+  SupabaseManifestActiveFrom,
+} from "../supabase/manifest.ts";
 
 import { qualifySqlTable } from "../core/sql.ts";
 
@@ -11,6 +14,9 @@ export type BetterSupabaseActiveTenant =
   | "claim"
   | "resolver"
   | { readonly profileColumn: string; readonly key?: string };
+
+const REQUEST =
+  ', or set supabase.hook.activeTenant: "request" when the request resolves the tenant.';
 
 function describe(from: SupabaseManifestActiveFrom): string {
   return "appMetadata" in from
@@ -35,7 +41,7 @@ export function activeTenantMismatch(
     if ("appMetadata" in from && from.appMetadata === tenantClaim) {
       return undefined;
     }
-    return `blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.${tenantClaim}, but PermDock's token hook reads the active tenant from ${describe(from)}. Set supabase.hook.activeFrom: "app_metadata.${tenantClaim}" and run permdock supabase hook generate.`;
+    return `blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.${tenantClaim}, but PermDock's token hook reads the active tenant from ${describe(from)}. Set supabase.hook.activeFrom: "app_metadata.${tenantClaim}" and run permdock supabase hook generate${REQUEST}`;
   }
   const dot = activeTenant.profileColumn.lastIndexOf(".");
   if (dot <= 0) {
@@ -52,19 +58,28 @@ export function activeTenantMismatch(
   ) {
     return undefined;
   }
-  return `blocks.permissions.activeTenant writes the active tenant to ${table}.${column} (joined on ${id}), but PermDock's token hook reads it from ${describe(from)}. Set supabase.hook.activeFrom: { table: "${table}", column: "${column}", id: "${id}" } and run permdock supabase hook generate.`;
+  return `blocks.permissions.activeTenant writes the active tenant to ${table}.${column} (joined on ${id}), but PermDock's token hook reads it from ${describe(from)}. Set supabase.hook.activeFrom: { table: "${table}", column: "${column}", id: "${id}" } and run permdock supabase hook generate${REQUEST}`;
 }
 
 /**
  * Where the token hook reads the active tenant, as better-supabase names it in
- * `tokenHook.activeOrganizationFrom`, or `undefined` when the hook reads an
+ * `tokenHook.activeOrganizationFrom`: `"resolver"` with
+ * `supabase.hook.activeTenant: "request"`, else the hook's `activeFrom`.
+ * `undefined` when the manifest has no `activeFrom` or the hook reads an
  * `app_metadata` key other than the tenant claim, which has no better-supabase
  * name.
  */
 export function activeOrganizationFrom(
-  from: SupabaseManifestActiveFrom,
+  hook: SupabaseHookManifest["hook"],
   tenantClaim: string,
-): Exclude<BetterSupabaseActiveTenant, "resolver"> | undefined {
+): BetterSupabaseActiveTenant | undefined {
+  if (hook.activeTenant === "request") {
+    return "resolver";
+  }
+  const from = hook.activeFrom;
+  if (from === undefined) {
+    return undefined;
+  }
   if ("appMetadata" in from) {
     return from.appMetadata === tenantClaim ? "claim" : undefined;
   }

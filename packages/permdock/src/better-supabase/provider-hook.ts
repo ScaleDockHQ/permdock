@@ -31,9 +31,9 @@ export function tokenHookOf(
     (claim) => claim.name === TEAM_IDS_TRUNCATED,
   );
   const activeFrom =
-    activeTenant === "resolver" || manifest.hook.activeFrom === undefined
+    activeTenant === "resolver"
       ? undefined
-      : activeOrganizationFrom(manifest.hook.activeFrom, manifest.tenantClaim);
+      : activeOrganizationFrom(manifest.hook, manifest.tenantClaim);
   return {
     function: `${manifest.hook.schema}.${manifest.hook.function}`,
     tenantClaim: manifest.tenantClaim,

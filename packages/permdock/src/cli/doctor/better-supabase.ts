@@ -75,7 +75,7 @@ export async function pd078(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
   const hook = input.config.supabase?.hook;
-  if (hook === undefined) {
+  if (hook === undefined || hook.activeTenant === "request") {
     return [];
   }
   const config = await betterSupabaseConfig(lookupOf(input));
@@ -110,7 +110,7 @@ export async function pd078(
           code: "PD078",
           severity: "warning",
           message: mismatch,
-          fix: "set supabase.hook.activeFrom, then run permdock supabase hook generate",
+          fix: 'set supabase.hook.activeFrom, then run permdock supabase hook generate; or, when the request resolves the tenant, set supabase.hook.activeTenant: "request"',
         },
       ];
 }

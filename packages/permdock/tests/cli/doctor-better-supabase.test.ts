@@ -181,6 +181,32 @@ describe("doctor better-supabase", () => {
       expect(findings[0]?.message).toContain(
         'supabase.hook.activeFrom: "app_metadata.tenant_id"',
       );
+      expect(findings[0]?.fix).toContain(
+        'supabase.hook.activeTenant: "request"',
+      );
+    });
+
+    it("is silent with supabase.hook.activeTenant: 'request'", async () => {
+      const cwd = policyProject(
+        { policy: POLICY },
+        {
+          "better-supabase.config.mjs": betterSupabaseConfig({
+            permissions: { activeTenant: "claim" },
+          }),
+        },
+      );
+      const config = hookConfig("app_metadata.active_tenant");
+      expect(
+        await pd078({
+          cwd,
+          config: {
+            ...config,
+            supabase: {
+              hook: { ...config.supabase?.hook, activeTenant: "request" },
+            },
+          },
+        }),
+      ).toStrictEqual([]);
     });
 
     it("passes when the hook reads the claim better-supabase writes", async () => {

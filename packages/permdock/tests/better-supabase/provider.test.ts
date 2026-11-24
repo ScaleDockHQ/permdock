@@ -392,7 +392,7 @@ describe(authorizationProvider, () => {
         activeTenant: "claim",
       });
       expect(provider.problems).toStrictEqual([
-        `blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.${supabaseHookManifestFixture.tenantClaim}, but PermDock's token hook reads the active tenant from app_metadata.active_tenant. Set supabase.hook.activeFrom: "app_metadata.${supabaseHookManifestFixture.tenantClaim}" and run permdock supabase hook generate.`,
+        `blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.${supabaseHookManifestFixture.tenantClaim}, but PermDock's token hook reads the active tenant from app_metadata.active_tenant. Set supabase.hook.activeFrom: "app_metadata.${supabaseHookManifestFixture.tenantClaim}" and run permdock supabase hook generate, or set supabase.hook.activeTenant: "request" when the request resolves the tenant.`,
       ]);
     });
 
@@ -455,6 +455,23 @@ describe(authorizationProvider, () => {
       ).toStrictEqual({ profileColumn: "app.users.org", key: "user_id" });
       expect(from({ appMetadata: "active_tenant" })).toBeUndefined();
       expect(from({ appMetadata: claim }, "resolver")).toBeUndefined();
+    });
+
+    it("states activeOrganizationFrom: 'resolver' for a hook with activeTenant: 'request'", () => {
+      const provider = authorizationProvider({
+        manifest: {
+          ...supabaseHookManifestFixture,
+          hook: {
+            ...supabaseHookManifestFixture.hook,
+            activeFrom: { appMetadata: "active_tenant" },
+            activeTenant: "request",
+          },
+        },
+        catalog: emptyCatalog,
+        activeTenant: "claim",
+      });
+      expect(provider.tokenHook?.activeOrganizationFrom).toBe("resolver");
+      expect(provider.problems).toBeUndefined();
     });
   });
 

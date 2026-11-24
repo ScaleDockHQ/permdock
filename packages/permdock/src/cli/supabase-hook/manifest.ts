@@ -54,6 +54,7 @@ import {
 import { resolveNames } from "../sql/resolve-names.ts";
 import { CUSTOM_ROLES, customRolesOn, HELPERS } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
+import { hookActiveTenant } from "./active-tenant.ts";
 import { PERMDOCK_SUBJECT } from "./api.ts";
 import { hookClaims } from "./claims.ts";
 import { BUDGET_MEASURE } from "./sql.ts";
@@ -504,6 +505,9 @@ export function manifestOf(
       out,
       ...(parts.before.length === 0 ? {} : { before: parts.before }),
       activeFrom: parts.activeFrom,
+      ...(hookActiveTenant(parts.hook) === "request"
+        ? { activeTenant: "request" }
+        : {}),
     },
     helpers: {
       schema: parts.helpers.schema,

@@ -71,7 +71,8 @@ export type AuthorizationProviderOptions<P = undefined> = {
    * reads the active tenant from another place than better-supabase writes it,
    * `problems` names the `supabase.hook.activeFrom` to set. With `"resolver"`
    * the tenant comes from the request, so `tokenHook.activeOrganizationFrom`
-   * stays unset and doctor BS409 has nothing to compare.
+   * stays unset and doctor BS409 has nothing to compare. A manifest with
+   * `hook.activeTenant: "request"` states `"resolver"` itself.
    */
   readonly activeTenant?: BetterSupabaseActiveTenant;
   /**
@@ -331,9 +332,10 @@ export function authorizationProvider<P = undefined>(
       "personas: 'roles' needs a catalog of the policy's roles. Pass `catalog`.",
     );
   }
-  const activeFrom = hasTokenHook(manifest)
-    ? manifest.hook.activeFrom
-    : undefined;
+  const activeFrom =
+    hasTokenHook(manifest) && manifest.hook.activeTenant !== "request"
+      ? manifest.hook.activeFrom
+      : undefined;
   if (options.activeTenant !== undefined && activeFrom !== undefined) {
     const mismatch = activeTenantMismatch(
       activeFrom,

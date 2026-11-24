@@ -576,10 +576,16 @@ PD077 also reports a SQL helper name `rls generate` cannot write: a scope and a 
 better-supabase's `switch_organization` writes the active tenant where `blocks.permissions.activeTenant` says: `app_metadata.<auth.tenant.claim>` for `"claim"`, or the profile column for `{ profileColumn, key? }`. PermDock's token hook reads it from `supabase.hook.activeFrom`, by default `app_metadata.<claim>`, where the claim is better-supabase's `auth.tenant.claim` (or `claims.tenant` in a flat config), then `rls.tenantClaim`, then `tenant_id` when a `better-supabase.config.*` exports an object or throws while loading; plain Supabase keeps `app_metadata.active_<first scope>`. When the two differ, switching organizations never changes the tenant claim. The check loads `better-supabase.config.ts` and reports the `activeFrom` to set:
 
 ```txt
-warning PD078  blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.tenant_id, but PermDock's token hook reads the active tenant from app_metadata.custom. Set supabase.hook.activeFrom: "app_metadata.tenant_id" and run permdock supabase hook generate.
+warning PD078  blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.tenant_id, but PermDock's token hook reads the active tenant from app_metadata.custom. Set supabase.hook.activeFrom: "app_metadata.tenant_id" and run permdock supabase hook generate, or set supabase.hook.activeTenant: "request" when the request resolves the tenant.
 ```
 
-`"resolver"`, better-supabase's default, takes the tenant from the request, so PD078 reports nothing for it. `authorizationProvider({ activeTenant })` reports the same mismatch in `problems` ([better-supabase](/docs/adapters/better-supabase#api)). `--only supabase` (or `--only better-supabase`) runs PD078.
+When the app resolves the tenant per request, declare it once in `permdock.config.ts`:
+
+```ts title="permdock.config.ts"
+supabase: { hook: { activeTenant: "request" } },
+```
+
+PD078 then reports nothing, and the manifest's `hook.activeTenant` makes `authorizationProvider` state `tokenHook.activeOrganizationFrom: "resolver"`, which better-supabase's BS409 accepts without a `blocks.permissions.activeTenant` entry. `"resolver"`, better-supabase's default, takes the tenant from the request, so PD078 reports nothing for it either. `authorizationProvider({ activeTenant })` reports the same mismatch in `problems` ([better-supabase](/docs/adapters/better-supabase#api)). `--only supabase` (or `--only better-supabase`) runs PD078.
 
 ### PD079: block permission keys missing from the catalog
 

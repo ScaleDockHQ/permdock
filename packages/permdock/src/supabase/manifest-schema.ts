@@ -68,6 +68,11 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
             },
           ],
         },
+        activeTenant: {
+          const: "request",
+          description:
+            "The app resolves the active tenant per request (supabase.hook.activeTenant), which better-supabase reads as activeOrganizationFrom: resolver.",
+        },
       },
     },
     helpers: {
