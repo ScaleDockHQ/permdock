@@ -193,6 +193,55 @@ export function readPolicy(statement: SqlNode): SqlPolicy | undefined {
   };
 }
 
+const SIGNATURE_MODES = new Set([
+  "FUNC_PARAM_DEFAULT",
+  "FUNC_PARAM_IN",
+  "FUNC_PARAM_INOUT",
+  "FUNC_PARAM_VARIADIC",
+]);
+
+function typeName(argType: unknown): string {
+  if (!isRecord(argType) || !Array.isArray(argType["names"])) {
+    return "";
+  }
+  const name = argType["names"]
+    .map((part: unknown) =>
+      isRecord(part) && isRecord(part["String"])
+        ? String(part["String"]["sval"])
+        : "",
+    )
+    .join(".");
+  const bounds = Array.isArray(argType["arrayBounds"])
+    ? argType["arrayBounds"].length
+    : 0;
+  return `${name}${"[]".repeat(bounds)}`;
+}
+
+/**
+ * The input argument types of a `create function` or `create procedure`, as
+ * written: `["text", "uuid[]"]`. Output and `table` columns are not part of the
+ * signature.
+ */
+export function functionArgTypes(
+  statement: SqlNode,
+): readonly string[] | undefined {
+  if (statement.kind !== "CreateFunctionStmt") {
+    return undefined;
+  }
+  const parameters = statement.node["parameters"];
+  return (Array.isArray(parameters) ? parameters : []).flatMap(
+    (item: unknown) => {
+      const parameter: unknown = isRecord(item)
+        ? item["FunctionParameter"]
+        : undefined;
+      return isRecord(parameter) &&
+        SIGNATURE_MODES.has(String(parameter["mode"]))
+        ? [typeName(parameter["argType"])]
+        : [];
+    },
+  );
+}
+
 /** A function call inside an expression node. */
 export interface SqlCall {
   /** The qualified name parts, lower case: `["auth", "uid"]`. */

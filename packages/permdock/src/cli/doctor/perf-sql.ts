@@ -342,7 +342,7 @@ type Wanted = {
   readonly role: string;
 };
 
-function tableOf(resource: string, entry: RlsTable): string | undefined {
+export function tableOf(resource: string, entry: RlsTable): string | undefined {
   if (entry === false || typeof entry === "string") {
     return entry === false ? undefined : tableKey(entry);
   }

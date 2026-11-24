@@ -11,7 +11,9 @@ const COMMANDS = ["select", "insert", "update", "delete"] as const;
  * Whether better-supabase's doctor runs PermDock's through BS705, where BS641
  * reports the same count.
  */
-async function underBetterSupabaseDoctor(input: DoctorInput): Promise<boolean> {
+export async function underBetterSupabaseDoctor(
+  input: DoctorInput,
+): Promise<boolean> {
   const config = await betterSupabaseConfig({
     cwd: input.cwd,
     ...(input.files === undefined ? {} : { files: input.files }),
