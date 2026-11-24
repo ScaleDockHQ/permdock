@@ -7,12 +7,10 @@ import type { CommandResult, Finding } from "../core/result.ts";
 import type { EmittedFile } from "../generate/plugin.ts";
 import type { CliIo } from "../types.ts";
 
-import {
-  operationsModule,
-  routesFromSource,
-} from "../../openapi/annotate-routes.ts";
+import { operationsModule } from "../../openapi/annotate-routes.ts";
 import { configError } from "../core/errors.ts";
 import { rel } from "../files.ts";
+import { routesFromSource } from "./route-handlers.ts";
 
 function routesOf(cwd: string, routes: string): readonly AnnotatedRoute[] {
   return globSync(routes, { cwd })

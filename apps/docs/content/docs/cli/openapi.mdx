@@ -167,7 +167,7 @@ The generated file merges with hand-written definitions through `mergePermission
 
 ## Annotate
 
-`permdock openapi annotate --routes 'app/**/route.ts'` reads `@permission`, `@permissionCheck` and `@oauthScopes` on each exported handler and writes `src/operations.generated.ts`. The path comes from the file: `app/orgs/[org]/posts/route.ts` is `POST /orgs/{org}/posts` when the handler is `POST`. `x-authorization` and `x-oauth-scopes` on an existing document are input only; `emit` and the runtime hooks still write `x-permdock-*` and `security`.
+`permdock openapi annotate --routes 'app/**/route.ts'` reads `@permission`, `@permissionCheck` and `@oauthScopes` on each exported handler and writes `src/operations.generated.ts`. A handler is an exported function, an exported `const`, or `export { handler as GET }`; it takes the JSDoc block directly above its declaration, so a file header comment applies to no handler. The path comes from the file: `app/orgs/[org]/posts/route.ts` is `POST /orgs/{org}/posts` when the handler is `POST`, `app/route.ts` is `/`, and an optional catch-all `[[...slug]]` is `{slug}`. `x-authorization` and `x-oauth-scopes` on an existing document are input only; `emit` and the runtime hooks still write `x-permdock-*` and `security`.
 
 `--write-spec openapi.yaml` writes the route comments into an existing JSON or YAML document instead of a module: `@permission` becomes `x-authorization` (an object with `check` when `@permissionCheck` is set) and `@oauthScopes` becomes `x-oauth-scopes` on the matching `paths[path][method]`. YAML comments are kept. A route with no operation in the document is an `operation-not-in-spec` warning, and the document gains no new operations.
 
