@@ -53,6 +53,7 @@ catalog:
   "@standard-schema/spec": 1.1.0
   "@supabase/middleware": 1.0.0
   "@supabase/server": 1.9.2
+  "@supabase/ssr": 0.12.7
   "@supabase/supabase-js": 2.119.2
   "@testcontainers/postgresql": 12.2.1
   "@trpc/server": 11.19.0

@@ -17,7 +17,8 @@ const config: KnipConfig = {
       ignoreDependencies: ["supports-color"],
       // scripts/next-build.ts runs the `next` each example app installs.
       // MCP configs run marketing's `shadcn` through `pnpm exec`.
-      ignoreBinaries: ["next", "shadcn", "agent-browser"],
+      // The database workflow and scripts/authz-latency.ts run the Supabase CLI next-better-supabase installs.
+      ignoreBinaries: ["next", "shadcn", "agent-browser", "supabase"],
     },
     "apps/docs": {
       // `@permdock/ui` code blocks import shiki, which Next.js externalises; it must resolve from the app.
@@ -67,8 +68,9 @@ const config: KnipConfig = {
       entry: ["src/**/*.{ts,tsx}"],
     },
     "packages/permdock": {
-      // Imported for PL/pgSQL bodies once the SQL readers parse them (decision 0077).
-      ignoreDependencies: ["libpg-query"],
+      // libpg-query: imported for PL/pgSQL bodies once the SQL readers parse them (decision 0077).
+      // @supabase/ssr: tests/preset type-checks the generated preset files, which import it.
+      ignoreDependencies: ["libpg-query", "@supabase/ssr"],
       entry: [
         "tests/cli/fixtures/*/permdock.config.ts",
         "tests/cli/fixtures/*/src/*.ts",

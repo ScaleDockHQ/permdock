@@ -404,6 +404,7 @@
     "@solidjs/start": "catalog:",
     "@supabase/middleware": "catalog:",
     "@supabase/pg-parser": "catalog:",
+    "@supabase/ssr": "catalog:",
     "@supabase/supabase-js": "catalog:",
     "@sveltejs/kit": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",
