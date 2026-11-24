@@ -22,7 +22,7 @@ import { listSourceFiles, rel } from "../files.ts";
 import { pgConnector } from "../pg.ts";
 import { loadProject } from "../project/project.ts";
 import { runSkillsInstall } from "../skills.ts";
-import { pd045, pd074, pd136 } from "../supabase-config.ts";
+import { pd045, pd074, pd127, pd136 } from "../supabase-config.ts";
 import { attrsPlan } from "../supabase-hook/claims.ts";
 import {
   hookOut,
@@ -388,6 +388,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   { code: "PD045", groups: ["supabase"], run: (project) => pd045(project.cwd) },
   { code: "PD136", groups: ["supabase"], run: (project) => pd136(project.cwd) },
+  {
+    code: "PD127",
+    groups: ["supabase", "rls"],
+    run: (project) => pd127(project.cwd, project.config),
+  },
   {
     code: "PD074",
     groups: ["supabase", "helpers"],

@@ -366,6 +366,34 @@ export function pd136(cwd: string): readonly DoctorFinding[] {
   ];
 }
 
+const SQLITE_DRIVERS = new Set(["sqlite", "sqlite-postgres"]);
+
+/**
+ * PD127: `rls` is configured but `[db] driver` runs Supabase Lite on SQLite,
+ * which has no database functions, so the generated policies and helpers never
+ * exist there.
+ */
+export function pd127(
+  cwd: string,
+  config: PermDockConfig,
+): readonly DoctorFinding[] {
+  const driver = supabaseConfig(cwd).driver;
+  if (config.rls === undefined || driver === undefined) {
+    return [];
+  }
+  if (!SQLITE_DRIVERS.has(driver)) {
+    return [];
+  }
+  return [
+    {
+      code: "PD127",
+      severity: "warning",
+      message: `${supabaseConfigName(cwd)} sets [db] driver = "${driver}", which runs Supabase Lite without Postgres functions or row level security, so the policies and helpers rls generates do not exist there; can() in the app still decides`,
+      fix: "remove rls from permdock.config.ts while the project runs on SQLite, or set [db] driver back to Postgres",
+    },
+  ];
+}
+
 /**
  * PD074: `supabase.hook` is configured but `[auth.hook.custom_access_token]` in
  * the Supabase project config does not enable the generated function, so a

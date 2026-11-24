@@ -2,9 +2,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
+import type { PermDockConfig } from "../../src/cli/types.ts";
+
 import {
   pd045,
   pd074,
+  pd127,
   pd136,
   readSupabaseConfig,
   supabaseConfig,
@@ -263,6 +266,37 @@ schema_paths = [
           }),
         ),
       ).toStrictEqual([]);
+    });
+  });
+
+  describe("PD127 Supabase Lite on SQLite", () => {
+    const rls: PermDockConfig = { rls: { tables: {} } };
+
+    it("warns when rls is configured and [db] driver is sqlite or sqlite-postgres", () => {
+      for (const driver of ["sqlite", "sqlite-postgres"]) {
+        const cwd = project({
+          "supabase/config.toml": `[db]\ndriver = "${driver}"\n`,
+        });
+        expect(pd127(cwd, rls)).toStrictEqual([
+          expect.objectContaining({ code: "PD127", severity: "warning" }),
+        ]);
+      }
+    });
+
+    it("is silent on Postgres, without a driver or without rls", () => {
+      const sqlite = project({
+        "supabase/config.toml": '[db]\ndriver = "sqlite"\n',
+      });
+      expect(pd127(sqlite, {})).toStrictEqual([]);
+      expect(
+        pd127(
+          project({ "supabase/config.toml": '[db]\ndriver = "postgres"\n' }),
+          rls,
+        ),
+      ).toStrictEqual([]);
+      expect(pd127(project({ "supabase/config.toml": "" }), rls)).toStrictEqual(
+        [],
+      );
     });
   });
 

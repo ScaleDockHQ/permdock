@@ -181,6 +181,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD136` | The project installs a Supabase CLI older than 3.2.0                                                                                                                                                                                                                                                                                 | warning         |
 | `PD125` | pg-topo finds a cycle, an object two schema files create, or a table `rls.tables` names that no schema file creates                                                                                                                                                                                                                  | warning         |
 | `PD126` | The app lists `oxc-parser` or `pgsql-parser` and installs another version than `permdock` pins                                                                                                                                                                                                                                       | info            |
+| `PD127` | `rls` is configured and `[db] driver` is `sqlite` or `sqlite-postgres` (Supabase Lite), where generated policies and helpers do not exist                                                                                                                                                                                            | warning         |
 | `PD131` | A table has more than `doctor.policies.max` (default 4) policies for one command and `authenticated`                                                                                                                                                                                                                                 | warning         |
 
 ### PD001: server-only imports in client entries
@@ -824,6 +825,10 @@ PD125 resolves `@supabase/pg-topo` from the app, then from the installed `better
 ### PD126: a second parser copy
 
 `permdock` depends on `oxc-parser` and `pgsql-parser` at exact versions, because codemod edits and doctor findings depend on the parser version. PD126 reads the app's `package.json` and, for each of the two it lists, the version the app resolves; when that differs from the version `permdock` resolves, the project holds two copies. Remove the package from `package.json`; `permdock` installs its own. `--only project` runs PD126.
+
+### PD127: Supabase Lite on SQLite
+
+With `[db] driver` set to `sqlite` or `sqlite-postgres` in the Supabase project config, Supabase Lite stores data in SQLite: there are no Postgres functions and no row level security, so the policies and helpers `permdock rls generate` writes never exist. PD127 warns when `rls` is configured on such a project. `can()` in the app still decides; the database enforces nothing. `--only supabase` and `--only rls` run PD127.
 
 ### PD131: many policies for one command
 
