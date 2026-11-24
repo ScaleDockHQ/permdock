@@ -1,0 +1,189 @@
+{
+  "source": "centrakit",
+  "before": {
+    "config": {
+      "total": 206,
+      "column": 1,
+      "on": 1,
+      "through": 1,
+      "collect": 3,
+      "doctor": 19,
+      "gen": 4,
+      "openapi": 5,
+      "permissions": 1,
+      "plugins": 9,
+      "policy": 1,
+      "rls": 141,
+      "rls.actions": 29,
+      "rls.anonExecute": 1,
+      "rls.apiKeys": 1,
+      "rls.approvals": 10,
+      "rls.assignments": 1,
+      "rls.authorize": 1,
+      "rls.customRoleWrites": 9,
+      "rls.customRoles": 1,
+      "rls.dialect": 1,
+      "rls.helpersOnly": 1,
+      "rls.memberships": 12,
+      "rls.memo": 1,
+      "rls.readOnlyActors": 1,
+      "rls.roles": 1,
+      "rls.rowHelpers": 7,
+      "rls.schema": 1,
+      "rls.scopeTypes": 1,
+      "rls.suspension": 10,
+      "rls.tables": 46,
+      "rls.tenants": 1,
+      "rls.tokenScopes": 1,
+      "rls.treeValues": 1,
+      "rls.trustedReaders": 2,
+      "supabase": 8
+    },
+    "report": {},
+    "tableReads": {},
+    "pd128": {
+      "PD128": []
+    },
+    "betterSupabase": {
+      "BS409": [],
+      "BS428": [],
+      "BS429": []
+    }
+  },
+  "after": {
+    "config": {
+      "total": 152,
+      "column": 1,
+      "on": 1,
+      "through": 1,
+      "collect": 3,
+      "doctor": 12,
+      "gen": 4,
+      "openapi": 5,
+      "permissions": 1,
+      "plugins": 9,
+      "policy": 1,
+      "rls": 94,
+      "rls.actions": 5,
+      "rls.anonExecute": 1,
+      "rls.apiKeys": 1,
+      "rls.approvals": 10,
+      "rls.assignments": 1,
+      "rls.authorize": 1,
+      "rls.customRoleWrites": 9,
+      "rls.customRoles": 1,
+      "rls.helpersOnly": 1,
+      "rls.memberships": 12,
+      "rls.memo": 1,
+      "rls.readOnlyActors": 1,
+      "rls.roles": 1,
+      "rls.rowHelpers": 7,
+      "rls.suspension": 10,
+      "rls.tables": 26,
+      "rls.tenants": 1,
+      "rls.tokenScopes": 1,
+      "rls.treeValues": 1,
+      "rls.trustedReaders": 2,
+      "supabase": 8
+    },
+    "report": {
+      "tables": 430,
+      "totals": {
+        "policies": 3661,
+        "library": 1043,
+        "provider": 2141,
+        "app": 477
+      }
+    },
+    "tableReads": {
+      "tenant": 28,
+      "row": 256
+    },
+    "pd128": {
+      "PD128": []
+    },
+    "betterSupabase": {
+      "BS409": [],
+      "BS428": [],
+      "BS429": []
+    }
+  },
+  "sql": {
+    "committedToBranch": {},
+    "codemods": {
+      "helpers.sql": {
+        "added": 4665,
+        "removed": 1185
+      }
+    }
+  },
+  "shadow": "not run: pass --shadow <url|stack> with a Supabase stack running",
+  "steps": [
+    {
+      "command": "permdock rls report --json --yes --agent no",
+      "code": 2,
+      "stderr": "{\"$schema\":\"https://permdock.com/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.32; run permdock codemod 0.32\",\"type\":\"https://permdock.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{},\"userActionRequired\":false,\"retryable\":false}\n"
+    },
+    {
+      "command": "permdock supabase inspect --out --json --yes --agent no",
+      "code": 2,
+      "stderr": "{\"$schema\":\"https://permdock.com/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.32; run permdock codemod 0.32\",\"type\":\"https://permdock.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{},\"userActionRequired\":false,\"retryable\":false}\n"
+    },
+    {
+      "command": "permdock doctor --json --only PD128 --yes --agent no",
+      "code": 2,
+      "findings": true,
+      "stderr": "{\"$schema\":\"https://permdock.com/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.32; run permdock codemod 0.32\",\"type\":\"https://permdock.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{},\"userActionRequired\":false,\"retryable\":false}\n"
+    },
+    {
+      "command": "better-supabase doctor --json --only BS409,BS428,BS429 --fail-on never --agent no",
+      "code": 1,
+      "findings": true,
+      "stderr": "Checking the database...\n{\"$schema\":\"https://unpkg.com/better-supabase/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"not_found\",\"message\":\"No database to connect to: supabase/config.toml sets no [db] port, and `supabase status` failed (exit 1). Start the stack, set [db] port, or pass $DATABASE_URL or --db-url-stdin.\",\"type\":\"https://bettersupabase.com/docs/cli/errors#not_found\",\"next\":[],\"data\":{\"suggestion\":\"supabase start\"},\"userActionRequired\":false,\"retryable\":false}\n"
+    },
+    {
+      "command": "permdock generate --yes --agent no",
+      "code": 2,
+      "stderr": "PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.32; run permdock codemod 0.32\n"
+    },
+    {
+      "command": "permdock codemod 0.32 --force --yes --agent no",
+      "code": 0
+    },
+    {
+      "command": "permdock codemod config --prune --force --yes --agent no",
+      "code": 0
+    },
+    {
+      "command": "permdock codemod bsb-access-tags --force --yes --agent no",
+      "code": 0
+    },
+    {
+      "command": "permdock codemod bsb-action-keys --force --yes --agent no",
+      "code": 0
+    },
+    {
+      "command": "permdock generate --yes --agent no",
+      "code": 0
+    },
+    {
+      "command": "permdock rls report --json --yes --agent no",
+      "code": 0
+    },
+    {
+      "command": "permdock supabase inspect --out --json --yes --agent no",
+      "code": 0
+    },
+    {
+      "command": "permdock doctor --json --only PD128 --yes --agent no",
+      "code": 0,
+      "findings": true
+    },
+    {
+      "command": "better-supabase doctor --json --only BS409,BS428,BS429 --fail-on never --agent no",
+      "code": 1,
+      "findings": true,
+      "stderr": "Checking the database...\n{\"$schema\":\"https://unpkg.com/better-supabase/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"not_found\",\"message\":\"No database to connect to: supabase/config.toml sets no [db] port, and `supabase status` failed (exit 1). Start the stack, set [db] port, or pass $DATABASE_URL or --db-url-stdin.\",\"type\":\"https://bettersupabase.com/docs/cli/errors#not_found\",\"next\":[],\"data\":{\"suggestion\":\"supabase start\"},\"userActionRequired\":false,\"retryable\":false}\n"
+    }
+  ]
+}
