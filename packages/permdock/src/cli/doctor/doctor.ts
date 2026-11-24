@@ -22,6 +22,7 @@ import { listSourceFiles, rel } from "../files.ts";
 import { pgConnector } from "../pg.ts";
 import { loadProject } from "../project/project.ts";
 import { runSkillsInstall } from "../skills.ts";
+import { withSchemaDefaults } from "../sql/schema-tables.ts";
 import { pd045, pd074, pd127, pd136 } from "../supabase-config.ts";
 import { attrsPlan } from "../supabase-hook/claims.ts";
 import {
@@ -820,7 +821,7 @@ async function supabaseSetup(
   try {
     manifest = supabaseHookManifest(
       scopeList(policy.scopes),
-      input.config,
+      await withSchemaDefaults(input.cwd, input.config, policy),
       { out: hookOut(input.cwd, input.config) },
       policy,
     );

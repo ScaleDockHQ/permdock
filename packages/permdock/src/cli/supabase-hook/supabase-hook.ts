@@ -30,6 +30,7 @@ import { hookUri } from "../rls/rbac.ts";
 import { withTableReads } from "../rls/table-reads.ts";
 import { declarativeSql } from "../sql/declarative.ts";
 import { HOOK_MARKER, hookMarkerFields } from "../sql/markers.ts";
+import { withSchemaDefaults } from "../sql/schema-tables.ts";
 import { supabaseConfig } from "../supabase-config.ts";
 import {
   isSupabaseSchemas,
@@ -284,13 +285,14 @@ export async function runSupabase(input: {
   );
   if (area === "inspect" && action === undefined) {
     const policy = await loadHookPolicy(input.cwd, input.config);
+    const config = await withSchemaDefaults(input.cwd, input.config, policy);
     if (hooklessDatabase(input.config)) {
       const bare = await withTableReads(
         input.cwd,
         input.config,
         supabaseDatabaseManifest(
           scopeList(policy.scopes),
-          input.config,
+          config,
           overrides,
           policy,
         ),
@@ -316,7 +318,7 @@ export async function runSupabase(input: {
       input.config,
       supabaseHookManifest(
         scopeList(policy.scopes),
-        input.config,
+        config,
         {
           ...overrides,
           out: hookOut(input.cwd, input.config, input.schema, flag),

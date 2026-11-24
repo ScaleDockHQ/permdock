@@ -27,6 +27,7 @@ import {
   betterSupabaseTenantClaim,
 } from "../project/better-supabase.ts";
 import { filesOf } from "../shared/doctor-files.ts";
+import { withSchemaDefaults } from "../sql/schema-tables.ts";
 import {
   hooklessDatabase,
   supabaseDatabaseManifest,
@@ -364,9 +365,10 @@ async function providerOf(input: DoctorInput): Promise<Provider | undefined> {
   const path = catalogPath(input.config, input.cwd);
   try {
     const scopes = scopeList(policy.scopes);
+    const config = await withSchemaDefaults(input.cwd, input.config, policy);
     const manifest = hooklessDatabase(input.config)
-      ? supabaseDatabaseManifest(scopes, input.config, {}, policy)
-      : supabaseHookManifest(scopes, input.config, {}, policy);
+      ? supabaseDatabaseManifest(scopes, config, {}, policy)
+      : supabaseHookManifest(scopes, config, {}, policy);
     return authorizationProvider({
       manifest,
       ...(files.exists(path) ? { catalog: files.read(path) } : {}),
