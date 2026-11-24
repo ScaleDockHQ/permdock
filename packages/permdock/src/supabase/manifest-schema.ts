@@ -181,6 +181,16 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
         memberships: { type: "array", items: { $ref: "#/$defs/membership" } },
         customRoles: { type: "boolean" },
         customRoleTenant: { type: "string" },
+        customRoleScope: {
+          type: "object",
+          required: ["table", "column"],
+          additionalProperties: false,
+          properties: {
+            table: { type: "string" },
+            column: { type: "string" },
+            global: { type: "string" },
+          },
+        },
         roles: {
           type: "object",
           required: ["table", "user", "role"],

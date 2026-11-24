@@ -308,6 +308,17 @@ export type SupabaseManifestRls = {
    * table. A role source's `where` treats a non-null value as a custom role.
    */
   readonly customRoleTenant?: string;
+  /**
+   * `rls.customRoleWrites.roles` with a `scope` column: the custom-role table,
+   * that column and, with `globalScope`, the value of a platform role's row.
+   * `authorizationProvider` reads it for the `where` of `roleSources` and
+   * `platformRoles`.
+   */
+  readonly customRoleScope?: {
+    readonly table: string;
+    readonly column: string;
+    readonly global?: string;
+  };
   /** The global-roles table the hook and the `database` mode helpers read. */
   readonly roles?: {
     readonly table: string;

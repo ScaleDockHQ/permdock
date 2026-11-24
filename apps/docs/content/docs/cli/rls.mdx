@@ -632,13 +632,14 @@ customRoleWrites: {
     tenant: "organization_id", // null: a platform custom role (scope global), or a shared one
     shared: "shared", // optional boolean column: a row with no tenant is a shared role at `scope`
     scope: "scope", // optional text column naming the scope; default the first scope
+    globalScope: "system", // optional: the `scope` value of a platform role row, for better-supabase
     id: "scope_id", // optional: the instance the role is pinned to
     skip: "builtin", // optional boolean column: tenant rows that are declared or system roles
   },
 },
 ```
 
-A rename, or a move to another tenant, scope or instance, carries the role's grants and includes along, refusing a target that already has rows (`role-exists`); a delete removes them; tenant rows the `skip` column marks are ignored. A row with no tenant (a global or a shared role) is never skipped and stores no instance, so a staff-created role with `is_system` set is copied and cascaded like any other; only a declared role name excludes it. A signed-in caller at trigger depth 1 passes the write functions' checks: membership and authority over the stored definition where the role was, and after a move, membership and authority where it lands and entries inside that scope's ceiling. A migration, a job or a nested trigger moves the rows as the function owner. The roles table's own RLS still decides who may update or delete its rows.
+A rename, or a move to another tenant, scope or instance, carries the role's grants and includes along, refusing a target that already has rows (`role-exists`); a delete removes them; tenant rows the `skip` column marks are ignored. `globalScope` is read only by better-supabase's `platformRoles` ([provider](/docs/adapters/better-supabase)); the helpers still read a row with no tenant as a platform role. A row with no tenant (a global or a shared role) is never skipped and stores no instance, so a staff-created role with `is_system` set is copied and cascaded like any other; only a declared role name excludes it. A signed-in caller at trigger depth 1 passes the write functions' checks: membership and authority over the stored definition where the role was, and after a move, membership and authority where it lands and entries inside that scope's ceiling. A migration, a job or a nested trigger moves the rows as the function owner. The roles table's own RLS still decides who may update or delete its rows.
 
 ```sql
 select permdock.permdock_replace_custom_role_grants(

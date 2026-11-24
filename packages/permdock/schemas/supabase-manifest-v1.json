@@ -235,6 +235,22 @@
         "customRoleTenant": {
           "type": "string"
         },
+        "customRoleScope": {
+          "type": "object",
+          "required": ["table", "column"],
+          "additionalProperties": false,
+          "properties": {
+            "table": {
+              "type": "string"
+            },
+            "column": {
+              "type": "string"
+            },
+            "global": {
+              "type": "string"
+            }
+          }
+        },
         "roles": {
           "type": "object",
           "required": ["table", "user", "role"],

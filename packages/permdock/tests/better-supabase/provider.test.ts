@@ -860,9 +860,13 @@ describe(authorizationProvider, () => {
       },
       personas: "roles",
     });
-    expect(provider.roleSources?.[0]?.role.through.where).toBe(
-      "{row}.key in ('owner') or {row}.tenant_id is not null",
-    );
+    expect(provider.roleSources?.[0]?.role.through).toStrictEqual({
+      table: "public.roles",
+      id: "id",
+      column: "key",
+      tenant: "tenant_id",
+      where: "{row}.key in ('owner') or {row}.tenant_id is not null",
+    });
     expect(provider.personas).toBe("roles");
     expect(provider.fixtureRoles).toStrictEqual([
       {

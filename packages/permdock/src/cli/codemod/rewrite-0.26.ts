@@ -484,7 +484,7 @@ function suppliedFollowUps(file: string, program: Estree): CodemodFollowUp[] {
     found.push(
       followUp(
         "canAssign",
-        `${file}: canAssign naming permdock_can_assign_any is kept: the provider fills platformRoles.canAssign only for its own tenant scope, and another scope or a through.where narrows it; delete it when permdock doctor reports it as PD094`,
+        `${file}: canAssign naming permdock_can_assign_any is kept: the provider fills platformRoles.canAssign at the 'global' scope, with a through.where only from rls.customRoleWrites.roles.globalScope; delete it when permdock doctor reports it as PD094`,
       ),
     );
   }

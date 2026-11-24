@@ -46,6 +46,12 @@ export type RlsCustomRoleTable = {
    * at the first scope.
    */
   readonly scope?: string;
+  /**
+   * The `scope` column value of a platform role's row, such as `'system'`. Only
+   * better-supabase's `platformRoles.through.where` reads it; the helpers still
+   * read a row with no tenant as a platform role.
+   */
+  readonly globalScope?: string;
   /** A column pinning the role to one instance of its scope. */
   readonly id?: string;
   /**

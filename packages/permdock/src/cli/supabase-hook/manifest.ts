@@ -11,6 +11,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type {
   PermDockConfig,
   RlsActiveRow,
+  RlsCustomRoleTable,
   RlsSuspendedScope,
 } from "../types.ts";
 import type { Parts } from "./parts.ts";
@@ -317,6 +318,19 @@ function activeRowManifest(
   };
 }
 
+function customRoleScope(
+  roles: RlsCustomRoleTable | undefined,
+): Pick<SupabaseManifestRls, "customRoleScope"> {
+  if (roles?.scope === undefined) return {};
+  return {
+    customRoleScope: {
+      table: qualifySqlTable(roles.table),
+      column: roles.scope,
+      ...(roles.globalScope === undefined ? {} : { global: roles.globalScope }),
+    },
+  };
+}
+
 /**
  * The `rls` settings a package writing SQL next to the helpers reads: custom
  * roles, global roles, suspension and assignment triggers.
@@ -328,6 +342,7 @@ function rlsSettings(
   SupabaseManifestRls,
   | "customRoles"
   | "customRoleTenant"
+  | "customRoleScope"
   | "roles"
   | "suspension"
   | "assignments"
@@ -346,6 +361,7 @@ function rlsSettings(
     ...(rls?.customRoleWrites?.roles?.tenant === undefined
       ? {}
       : { customRoleTenant: rls.customRoleWrites.roles.tenant }),
+    ...customRoleScope(rls?.customRoleWrites?.roles),
     ...(parts.roles === undefined
       ? {}
       : {

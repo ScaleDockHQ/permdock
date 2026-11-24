@@ -23,13 +23,14 @@ import type { ProviderApprovers } from "./approvers.ts";
 import { parseCatalog } from "../catalog/parse.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { delegatedScopeMap } from "../core/oauth-scopes.ts";
-import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
+import { sqlIdent } from "../core/sql.ts";
 import { hasTokenHook, parseSupabaseManifest } from "../supabase/manifest.ts";
 import { activeTenantMismatch } from "./active-tenant.ts";
 import { actionKeysOf } from "./provider-action-keys.ts";
-import { ASSIGN_ANY, providerFunctions } from "./provider-functions.ts";
+import { providerFunctions } from "./provider-functions.ts";
 import { tokenHookOf } from "./provider-hook.ts";
 import { fixtureRolesOf } from "./provider-personas.ts";
+import { isRoleList, platformRolesOf, roleSourceOf } from "./provider-roles.ts";
 import { tablesOf } from "./provider-tables.ts";
 
 type ProviderKey<P> = [P] extends [undefined]
@@ -232,82 +233,6 @@ function rolesTableOf(source: SupabaseManifestMembership): {
   return {};
 }
 
-function isRoleList(
-  role: SupabaseManifestMembership["role"],
-): role is readonly SupabaseManifestRole[] {
-  return Array.isArray(role);
-}
-
-function scopeValue(source: SupabaseManifestMembership): string | undefined {
-  if (!("value" in source.scope)) {
-    return undefined;
-  }
-  return typeof source.scope.value === "string"
-    ? source.scope.value
-    : undefined;
-}
-
-function scopeRoleKeys(
-  catalog: CatalogDocument | undefined,
-  scope: string | undefined,
-): readonly string[] {
-  return (catalog?.roles ?? [])
-    .filter((role) =>
-      scope === undefined ? typeof role.on === "string" : role.on === scope,
-    )
-    .map((role) => role.key)
-    .toSorted();
-}
-
-function roleWhere(
-  column: string,
-  keys: readonly string[],
-  tenant: string | undefined,
-): string | undefined {
-  const parts: string[] = [];
-  if (keys.length > 0) {
-    const listed = keys.map((key) => quoteSqlLiteral(key)).join(", ");
-    parts.push(`{row}.${sqlIdent(column)} in (${listed})`);
-  }
-  if (tenant !== undefined && tenant !== "") {
-    parts.push(`{row}.${sqlIdent(tenant)} is not null`);
-  }
-  return parts.length === 0 ? undefined : parts.join(" or ");
-}
-
-function roleSourceOf(
-  source: SupabaseManifestMembership,
-  catalog: CatalogDocument | undefined,
-  tenant: string | undefined,
-): AuthorizationRoleSource | undefined {
-  const role = source.role;
-  if (
-    Array.isArray(role) ||
-    !("column" in role) ||
-    !("through" in role) ||
-    role.through.on !== undefined
-  ) {
-    return undefined;
-  }
-  const where = roleWhere(
-    role.through.column,
-    scopeRoleKeys(catalog, scopeValue(source)),
-    tenant,
-  );
-  return {
-    table: source.table,
-    role: {
-      column: role.column,
-      through: {
-        table: role.through.table,
-        id: role.through.id,
-        column: role.through.column,
-        ...(where === undefined ? {} : { where }),
-      },
-    },
-  };
-}
-
 function disabledRow(row: SupabaseManifestActiveRow): DisabledRow {
   return {
     table: row.table,
@@ -316,51 +241,6 @@ function disabledRow(row: SupabaseManifestActiveRow): DisabledRow {
     ...(row.status === undefined || row.active === undefined
       ? {}
       : { status: row.status, active: row.active }),
-  };
-}
-
-/**
- * `rls.roles` as better-supabase's `platformRoles`: the global-roles table with
- * its roles table, and the assignment helpers that answer without a tenant.
- */
-function platformRolesOf(
-  manifest: SupabaseManifest,
-  schema: string,
-  scope: string,
-  assignAny: boolean,
-): AuthorizationProvider["platformRoles"] {
-  const roles = manifest.rls.roles;
-
-  if (
-    roles === undefined ||
-    isRoleList(roles.role) ||
-    !("column" in roles.role)
-  ) {
-    return undefined;
-  }
-
-  const through = "through" in roles.role ? roles.role.through : undefined;
-  const literal = quoteSqlLiteral(scope);
-
-  return {
-    table: roles.table,
-    user: roles.user.column,
-    role: roles.role.column,
-    ...(through === undefined || through.on !== undefined
-      ? {}
-      : {
-          through: {
-            table: through.table,
-            id: through.id,
-            column: through.column,
-          },
-        }),
-    ...(assignAny
-      ? {
-          canAssign: `${schema}.${ASSIGN_ANY.canAssign.helper}({role}, null::uuid, ${literal}, null::text)`,
-          canAssignFor: `${schema}.${ASSIGN_ANY.canAssignFor.helper}({user}, {role}, null::uuid, ${literal}, null::text)`,
-        }
-      : {}),
   };
 }
 
@@ -529,7 +409,7 @@ export function authorizationProvider<P = undefined>(
     if (!covers(source, tenantScope)) continue;
     const membership = membershipOf(source, tenantScope, problems);
     if (membership) memberships.push(membership);
-    const roleSource = roleSourceOf(source, catalog, rls.customRoleTenant);
+    const roleSource = roleSourceOf(manifest, source, catalog);
     if (roleSource) roleSources.push(roleSource);
   }
   const users = rls.suspension?.users;
@@ -537,7 +417,7 @@ export function authorizationProvider<P = undefined>(
   const platformRoles =
     options.platformRoles === false
       ? undefined
-      : platformRolesOf(manifest, schema, tenantScope, assignAny && canAssign);
+      : platformRolesOf(manifest, schema, assignAny && canAssign);
   const operations = catalog === undefined ? {} : operationsOf(catalog);
   const actionKeys =
     catalog === undefined ? undefined : actionKeysOf(catalog, problems);
