@@ -48,6 +48,11 @@ const config: NextConfig = {
   redirects() {
     return [
       { source: "/", destination: "/docs", permanent: false },
+      {
+        source: "/docs/guides/upgrade-0-32",
+        destination: "/docs/guides/upgrade-0-31",
+        permanent: true,
+      },
       ...Object.entries(retiredResearch).flatMap(([slug, destination]) =>
         ["/", "%2F"].map((separator) => ({
           source: `/docs/research${separator}${slug}`,

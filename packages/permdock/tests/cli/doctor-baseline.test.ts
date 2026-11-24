@@ -183,7 +183,7 @@ describe("doctor baseline", () => {
     for (const key of ["waivers", "ignore"]) {
       const { code, error } = await runDoctorWith(`${key}: []`);
       expect(code).toBe(2);
-      expect(error.message).toContain("permdock codemod 0.32");
+      expect(error.message).toContain("permdock codemod 0.31");
     }
   });
 

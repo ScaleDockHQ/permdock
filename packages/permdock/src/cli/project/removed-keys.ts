@@ -5,9 +5,9 @@
  */
 const REMOVED_KEYS: Readonly<Record<string, string>> = Object.freeze({
   "doctor.waivers":
-    "doctor.waivers moved into the doctor.baseline file in 0.32; run permdock codemod 0.32",
+    "doctor.waivers moved into the doctor.baseline file in 0.31; run permdock codemod 0.31",
   "doctor.ignore":
-    "doctor.ignore moved into the doctor.baseline file in 0.32; run permdock codemod 0.32",
+    "doctor.ignore moved into the doctor.baseline file in 0.31; run permdock codemod 0.31",
 });
 
 /** The message for a removed key at `path`, such as `doctor.waivers`. */

@@ -244,7 +244,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
         tokenScopes: { type: "boolean" },
         tableReads: {
           description:
-            "Whether every holder of a table's select permissions in a tenant reads the same rows, from the select policies the schema files, migrations and rls.out leave defined. Absent from a manifest written before 0.32.",
+            "Whether every holder of a table's select permissions in a tenant reads the same rows, from the select policies the schema files, migrations and rls.out leave defined. Absent from a manifest written before 0.31.",
           type: "array",
           items: {
             type: "object",

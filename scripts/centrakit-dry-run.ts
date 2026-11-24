@@ -17,11 +17,11 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 /**
- * The 0.32 acceptance dry run: `node scripts/centrakit-dry-run.ts [--shadow
+ * The 0.31 acceptance dry run: `node scripts/centrakit-dry-run.ts [--shadow
  * <url|stack>] [--centrakit <dir>] [--keep]`. It copies `../CentraKit` to a
  * temp directory, never writing to the original, and links the copy's
  * `permdock` and `better-supabase` to this checkout's build and installed copy.
- * It runs `codemod 0.32`, `codemod config --prune`, `codemod bsb-access-tags`
+ * It runs `codemod 0.31`, `codemod config --prune`, `codemod bsb-access-tags`
  * and `codemod bsb-action-keys` on the copy and writes
  * `scripts/centrakit-dry-run.json`: config lines per section, the generated SQL
  * diff, `rls report` totals, `rls.tableReads` counts, PD128 and better-supabase
@@ -38,7 +38,7 @@ const FIXTURE = join(ROOT, "tests", "integration", "fixtures", "centrakit");
 const IDENTITY = join("packages", "identity");
 const GENERATED_SQL = join("supabase", "schemas", "identity", "permdock");
 const CODEMODS = [
-  ["codemod", "0.32"],
+  ["codemod", "0.31"],
   ["codemod", "config", "--prune"],
   ["codemod", "bsb-access-tags"],
   ["codemod", "bsb-action-keys"],

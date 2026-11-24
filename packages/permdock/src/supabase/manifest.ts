@@ -354,7 +354,7 @@ export type SupabaseManifestRls = {
   /**
    * Whether every holder of a table's select permissions in a tenant reads the
    * same rows, read from the select policies the schema files, migrations and
-   * `rls.out` leave defined. Absent from a manifest written before 0.32.
+   * `rls.out` leave defined. Absent from a manifest written before 0.31.
    */
   readonly tableReads?: readonly SupabaseManifestTableRead[];
   readonly apiKeys?: {

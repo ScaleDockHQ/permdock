@@ -52,7 +52,7 @@ doctor: { baseline: "doctor-baseline.json", failOn: "warning" }
 
 `doctor.failOn: "warning"` exits `1` on a warning as well as an error; `--fail-on` overrides it for one run. `--ignore <id>` (repeatable) accepts a finding for one run without a reason.
 
-When better-supabase runs `permdock doctor --json` through its `authorization.doctor.command` (BS705), its own `tooling.doctor.baseline` accepts PermDock's findings as BS705 entries whose target starts with the PermDock code. Both files use the same format. `doctor.waivers` and `doctor.ignore` were removed in 0.32; `permdock codemod 0.32` moves both into the baseline file ([codemod](/docs/cli/codemod#rewrites-in-032)).
+When better-supabase runs `permdock doctor --json` through its `authorization.doctor.command` (BS705), its own `tooling.doctor.baseline` accepts PermDock's findings as BS705 entries whose target starts with the PermDock code. Both files use the same format. `doctor.waivers` and `doctor.ignore` were removed in 0.31; `permdock codemod 0.31` moves both into the baseline file ([codemod](/docs/cli/codemod#rewrites-in-031)).
 
 ### Where doctor reads source files
 

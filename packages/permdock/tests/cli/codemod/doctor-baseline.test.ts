@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { codemod } from "../../../src/cli/codemod/codemod.ts";
-import { rewriteDoctorBaseline } from "../../../src/cli/codemod/doctor-baseline-0.32.ts";
+import { rewriteDoctorBaseline } from "../../../src/cli/codemod/doctor-baseline-0.31.ts";
 
 const TMP = join(import.meta.dirname, "../../../tmp");
 const temps: string[] = [];
@@ -45,7 +45,7 @@ export default defineConfig({
 });
 `;
 
-describe("codemod 0.32: doctor baseline", () => {
+describe("codemod 0.31: doctor baseline", () => {
   afterAll(() => {
     for (const dir of temps.splice(0)) {
       rmSync(dir, { recursive: true, force: true });
@@ -56,7 +56,7 @@ describe("codemod 0.32: doctor baseline", () => {
     const dir = project(CONFIG);
     const report = codemod({
       cwd: dir,
-      version: "0.32",
+      version: "0.31",
       paths: [],
       dryRun: false,
       json: true,
@@ -87,7 +87,7 @@ describe("codemod 0.32: doctor baseline", () => {
     const dir = project(CONFIG);
     const report = codemod({
       cwd: dir,
-      version: "0.32",
+      version: "0.31",
       paths: [],
       dryRun: true,
       json: true,
@@ -109,7 +109,7 @@ describe("codemod 0.32: doctor baseline", () => {
     );
     codemod({
       cwd: dir,
-      version: "0.32",
+      version: "0.31",
       paths: [],
       dryRun: false,
       json: true,

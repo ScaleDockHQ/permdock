@@ -25,7 +25,7 @@ The positional arguments after the version are files or directories; the default
 
 The codemod rewrites files in place, so in [agent mode](/docs/cli/agent-mode) a run without `--dry-run` first asks for the person's confirmation (`rewrite`).
 
-The version is `0.17`, `0.26` or `0.32` (`0.17.0` and `v0.17` are read the same way). Any other version is a usage error that names the supported ones, exit `2`. The 0.5 and 0.8 rename tables are history on the [Naming](/docs/getting-started/naming) page.
+The version is `0.17`, `0.26` or `0.31` (`0.17.0` and `v0.17` are read the same way; `0.32` is an alias of `0.31`). Any other version is a usage error that names the supported ones, exit `2`. The 0.5 and 0.8 rename tables are history on the [Naming](/docs/getting-started/naming) page.
 
 ## Prune the config
 
@@ -143,9 +143,9 @@ A membership literal counts only when it has `roles`, `tenant` or `team` holds a
 
 In a config object, the one `defineConfig` from `permdock` receives or a `permdock.config.*` file exports, `{ tableOf: "owner" }` entries move onto the owner's `also` list, and an `rls.actions` entry equal to the command PermDock infers from the action name is removed with its comment lines. Imports of the 0.25 generated files move to the new names: `permdock.generated.ts` is `constants.ts`, `permdock.schemas.ts` is `standard-schema.ts`.
 
-## Rewrites in 0.32
+## Rewrites in 0.31
 
-`permdock codemod 0.32` rewrites the config object, the one `defineConfig` from `permdock` receives or a `permdock.config.*` file exports. The [0.32 upgrade guide](/docs/guides/upgrade-0-32) lists every breaking change, with the ones this codemod does not make.
+`permdock codemod 0.31` rewrites the config object, the one `defineConfig` from `permdock` receives or a `permdock.config.*` file exports. The [0.31 upgrade guide](/docs/guides/upgrade-0-31) lists every breaking change, with the ones this codemod does not make.
 
 | Source                                               | Result                                                                               |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
