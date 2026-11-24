@@ -75,6 +75,7 @@ export default defineConfig({
       // BS721, BS722, BS723: pg-topo 1.0.0-alpha.8 reads `"public"."roles"."id"%type` as a type
       // and takes overloads for one function: permitted_quotes_rows(text, uuid) and (text, uuid[])
       // for a duplicate, and permdock_is_approver's overloads, which call each other, for a cycle.
+      // The first two are supabase/pg-toolbelt#609 and #610.
       // BS705: supabase:check runs permdock doctor before this, at its own threshold.
       ignore: ["BS107", "BS243", "BS601", "BS705", "BS721", "BS722", "BS723"],
     },
