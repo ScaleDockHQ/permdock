@@ -67,6 +67,8 @@ const config: KnipConfig = {
       entry: ["src/**/*.{ts,tsx}"],
     },
     "packages/permdock": {
+      // Imported for PL/pgSQL bodies once the SQL readers parse them (decision 0077).
+      ignoreDependencies: ["libpg-query"],
       entry: [
         "tests/cli/fixtures/*/permdock.config.ts",
         "tests/cli/fixtures/*/src/*.ts",
