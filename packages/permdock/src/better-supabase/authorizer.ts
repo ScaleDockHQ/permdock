@@ -15,6 +15,7 @@ import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
+import type { WarmReport, Warmable } from "../core/warm.ts";
 import type { PermDockFor } from "./permdock-for.ts";
 import type { BetterSupabaseOnError } from "./report.ts";
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
@@ -25,6 +26,7 @@ import { parseApprovalHeader } from "../core/approval-header.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { isRecord } from "../core/compact.ts";
 import { isPermission } from "../core/permission-registry.ts";
+import { warmUp } from "../core/warm.ts";
 import { resolverOf } from "./permdock-for.ts";
 import { deniedMessage, report } from "./report.ts";
 
@@ -228,7 +230,7 @@ const keyOf = (request: AuthorizationRequest<Permission>): string | null =>
  */
 export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
   options: AuthorizerOptions<V>,
-): Authorizer<Permission, AnyVersionCache> {
+): Authorizer<Permission, AnyVersionCache> & Warmable {
   const { operations, store } = options;
   const intentOf = (
     request: AuthorizationRequest<Permission>,
@@ -357,6 +359,10 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
   return Object.freeze({
     apiVersion: 1,
     name: "PermDock",
+    warm: (): Promise<WarmReport> =>
+      warmUp(options.policy, () =>
+        resolve(null, { tenant: null, intent: "read" }),
+      ),
     key(ref: Permission): string {
       if (!isPermission(ref)) throw new TypeError("Not a PermDock permission");
       return ref.key;
@@ -418,5 +424,5 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
         }),
       );
     },
-  } satisfies Authorizer<Permission, AnyVersionCache>);
+  } satisfies Authorizer<Permission, AnyVersionCache> & Warmable);
 }

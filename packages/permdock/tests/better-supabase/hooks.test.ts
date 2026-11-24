@@ -246,13 +246,14 @@ describe(authorizationHooks, () => {
     expect(hooks).toHaveProperty("delegation");
   });
 
-  it("returns apiVersion, name, sessionTags and shareKey alone for the bare form", () => {
+  it("returns apiVersion, name, sessionTags, shareKey and warm alone for the bare form", () => {
     const bare = authorizationHooks({ policy });
     expect(Object.keys(bare).toSorted()).toStrictEqual([
       "apiVersion",
       "name",
       "sessionTags",
       "shareKey",
+      "warm",
     ]);
   });
 
