@@ -288,9 +288,12 @@ export function outputFiles(plan: {
             SEEDS_MARKER,
             seeds,
             input.io.now?.() ?? dateAt(),
+            "seeds",
+            [],
+            { delta: true },
           );
           if (!planned.current || input.check) {
-            files.push({ part, rel: planned.rel, text: seeds });
+            files.push({ part, rel: planned.rel, text: planned.text });
           }
           if (!planned.current && planned.delta !== undefined) {
             input.io.stderr(`${seedDeltaNote(planned.delta)}\n`);

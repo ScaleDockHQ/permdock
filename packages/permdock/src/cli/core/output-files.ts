@@ -3,6 +3,7 @@ import { basename, dirname, resolve } from "node:path";
 
 import { dateAt } from "../../core/time.ts";
 import { applyFiles } from "./files.ts";
+import { replayedSeeds, seedDeltaSql, seedRest } from "./seed-delta.ts";
 import { shortDiff } from "./text-diff.ts";
 
 /**
@@ -290,11 +291,14 @@ export function nextMigrationVersion(
           ),
         ];
   });
-  return times.length === 0
-    ? migrationVersion(now)
-    : migrationVersion(
-        dateAt({ epochMilliseconds: Math.max(...times) + 1000 }),
-      );
+  return migrationVersion(
+    dateAt({
+      epochMilliseconds: Math.max(
+        now.getTime(),
+        ...times.map((time) => time + 1000),
+      ),
+    }),
+  );
 }
 
 /**
@@ -315,9 +319,12 @@ export function seedsMigration(
   now: Date,
   label = "seeds",
   reserved: readonly string[] = [],
+  options: { readonly delta?: boolean } = {},
 ): {
   readonly rel: string;
   readonly current: boolean;
+  /** What the file at `rel` holds: `text`, or only the changed rows. */
+  readonly text: string;
   /**
    * Rows added and removed against the newest migration with `marker`, when
    * there is one.
@@ -326,37 +333,60 @@ export function seedsMigration(
 } {
   const base = dir.endsWith("/") ? dir.slice(0, -1) : dir;
   const path = resolve(cwd, base);
-  const latest = existsSync(path)
+  const marked = existsSync(path)
     ? readdirSync(path)
         .filter((name) => name.endsWith(".sql"))
         .toSorted()
-        .toReversed()
-        .find((name) =>
-          readFileSync(resolve(path, name), "utf8").startsWith(marker),
-        )
-    : undefined;
-  if (
-    latest !== undefined &&
-    readFileSync(resolve(path, latest), "utf8") === text
-  ) {
-    return { rel: `${base}/${latest}`, current: true };
+        .flatMap((name) => {
+          const contents = readFileSync(resolve(path, name), "utf8");
+          return contents.startsWith(marker) ? [{ name, contents }] : [];
+        })
+    : [];
+  const latest = marked.at(-1);
+  if (latest?.contents === text) {
+    return { rel: `${base}/${latest.name}`, current: true, text };
   }
-  const delta =
-    latest === undefined
-      ? undefined
-      : {
-          ...seedDelta(readFileSync(resolve(path, latest), "utf8"), text),
-          since: latest,
-        };
   const names = [
     ...(existsSync(path) ? readdirSync(path) : []),
     ...reserved
       .filter((rel) => resolve(cwd, dirname(rel)) === path)
       .map((rel) => basename(rel)),
   ];
+  const rel = `${base}/${nextMigrationVersion(names, now)}_permdock_${label}.sql`;
+  if (latest === undefined) {
+    return { rel, current: false, text };
+  }
+  const applied =
+    options.delta === true
+      ? replayedSeeds(marked.map((item) => item.contents))
+      : undefined;
+  const changed =
+    applied === undefined
+      ? undefined
+      : seedDeltaSql(applied, text, latest.name);
+  if (changed === undefined) {
+    return {
+      rel,
+      current: false,
+      text,
+      delta: { ...seedDelta(latest.contents, text), since: latest.name },
+    };
+  }
+  if (changed.same && seedRest(latest.contents) === seedRest(text)) {
+    return {
+      rel: `${base}/${latest.name}`,
+      current: true,
+      text: latest.contents,
+    };
+  }
   return {
-    rel: `${base}/${nextMigrationVersion(names, now)}_permdock_${label}.sql`,
+    rel,
     current: false,
-    ...(delta === undefined ? {} : { delta }),
+    text: changed.text,
+    delta: {
+      added: changed.added,
+      removed: changed.removed,
+      since: latest.name,
+    },
   };
 }

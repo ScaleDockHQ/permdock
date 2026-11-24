@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { pd134 } from "../../src/cli/doctor/schema-tables.ts";
+import { pd134, pd135 } from "../../src/cli/doctor/schema-tables.ts";
 import {
   pluralTableName,
   schemaTables,
@@ -106,5 +106,23 @@ describe(withSchemaDefaults, () => {
     expect(findings.map((finding) => finding.target)).toStrictEqual([
       "rls.tables.ghost",
     ]);
+  });
+
+  it("suggests rls.seeds: 'view' for a pg-delta project as PD135", () => {
+    const cwd = project(SQL);
+    writeFileSync(
+      join(cwd, "supabase/config.toml"),
+      "[experimental.pgdelta]\nenabled = true\n",
+    );
+    const input = (rls: Record<string, unknown>) => ({
+      cwd,
+      config: { policy: "./policy.ts", rls },
+      policy: () => Promise.resolve(policy),
+    });
+    expect(pd135(input({})).map((finding) => finding.code)).toStrictEqual([
+      "PD135",
+    ]);
+    expect(pd135(input({ seeds: "view" }))).toStrictEqual([]);
+    expect(pd135({ ...input({}), cwd: project(SQL) })).toStrictEqual([]);
   });
 });

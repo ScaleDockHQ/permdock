@@ -1,6 +1,7 @@
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 
 import { schemaDefaults, schemaTables } from "../sql/schema-tables.ts";
+import { supabaseConfig } from "../supabase-config.ts";
 import { policyOf } from "./inputs.ts";
 
 /**
@@ -30,4 +31,33 @@ export async function pd134(
       fix: `map it in rls.tables: ${resource}: "schema.table", or ${resource}: false when it has no table`,
     }),
   );
+}
+
+/**
+ * PD135: a pg-delta project that writes the `role_permissions` rows as data
+ * migrations, where `rls.seeds: 'view'` keeps them in the declarative files.
+ */
+export function pd135(input: DoctorInput): readonly DoctorFinding[] {
+  const rls = input.config.rls;
+  if (
+    rls === undefined ||
+    rls.seeds !== undefined ||
+    rls.staticGrants === "ref" ||
+    !(
+      input.config.supabase?.schemas === "pg-delta" ||
+      supabaseConfig(input.cwd).pgDelta?.enabled === true
+    )
+  ) {
+    return [];
+  }
+  return [
+    {
+      code: "PD135",
+      severity: "info",
+      target: "rls.seeds",
+      message:
+        "the project is declarative (pg-delta), and the role_permissions rows go in a data migration that grows with every policy change",
+      fix: "set rls.seeds: 'view': the rows become a view in the helpers part, which pg-delta diffs like the rest of the schema",
+    },
+  ];
 }

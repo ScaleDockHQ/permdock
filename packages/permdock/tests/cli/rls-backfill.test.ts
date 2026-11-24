@@ -433,13 +433,13 @@ export const policy = definePolicy(permissions, {
     it("writes a versioned migration into a directory once, and --check names it", async () => {
       const dir = path.join(cwd, "supabase/migrations");
       mkdirSync(dir, { recursive: true });
-      writeFileSync(path.join(dir, "20261001000000_init.sql"), "select 1;\n");
+      writeFileSync(path.join(dir, "20991001000000_init.sql"), "select 1;\n");
       const first = await generate(
         { customRoles: { from } },
         { backfillOut: "supabase/migrations/" },
       );
       expect(first.code).toBe(0);
-      const written = path.join(dir, "20261001000001_permdock_backfill.sql");
+      const written = path.join(dir, "20991001000001_permdock_backfill.sql");
       expect(existsSync(written)).toBe(true);
       expect(readFileSync(written, "utf8")).toMatch(
         /^-- permdock:backfill v1 schema=permdock\n/u,
@@ -465,14 +465,14 @@ export const policy = definePolicy(permissions, {
       );
       expect(stale.code).toBe(1);
       expect(stale.output).toContain(
-        "backfill: missing supabase/migrations/20261001000002_permdock_backfill.sql",
+        "backfill: missing supabase/migrations/20991001000002_permdock_backfill.sql",
       );
     });
 
     it("gives seeds and backfill in one directory different versions", async () => {
       const dir = path.join(cwd, "db/migrations");
       mkdirSync(dir, { recursive: true });
-      writeFileSync(path.join(dir, "20261001000000_init.sql"), "select 1;\n");
+      writeFileSync(path.join(dir, "20991001000000_init.sql"), "select 1;\n");
       const run = (check = false) =>
         runRlsGenerate({
           cwd,
@@ -509,17 +509,17 @@ export const policy = definePolicy(permissions, {
       const missing = await run(true);
       expect(missing.code).toBe(1);
       expect(missing.output).toContain(
-        "seeds: missing db/migrations/20261001000001_permdock_seeds.sql",
+        "seeds: missing db/migrations/20991001000001_permdock_seeds.sql",
       );
       expect(missing.output).toContain(
-        "backfill: missing db/migrations/20261001000002_permdock_backfill.sql",
+        "backfill: missing db/migrations/20991001000002_permdock_backfill.sql",
       );
       const { code } = await run();
       expect(code).toBe(0);
       expect(readdirSync(dir).toSorted()).toStrictEqual([
-        "20261001000000_init.sql",
-        "20261001000001_permdock_seeds.sql",
-        "20261001000002_permdock_backfill.sql",
+        "20991001000000_init.sql",
+        "20991001000001_permdock_seeds.sql",
+        "20991001000002_permdock_backfill.sql",
       ]);
       expect((await run()).code).toBe(0);
       expect(readdirSync(dir)).toHaveLength(3);

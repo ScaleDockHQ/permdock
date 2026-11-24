@@ -172,6 +172,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD121` | `rls.memberships` or `rls.suspension` disagrees with the membership sources, or restates what they derive                                                                                                                                                                                                                            |
 | `PD122` | A granted verb has no `rls.actions` entry and infers no SQL command, so it compiles to `none` (information)                                                                                                                                                                                                                          |
 | `PD134` | No schema file creates a table for a resource without an `rls.tables` entry, under its verbatim name or its snake_case plural (information)                                                                                                                                                                                          |
+| `PD135` | A pg-delta project writes the `role_permissions` rows as a data migration; `rls.seeds: 'view'` keeps them declarative (information)                                                                                                                                                                                                  |
 | `PD130` | The project calls `permdockFor` and builds another instance with `getPermDock` or `createPermDock` and its own `memberships`, `customRoles`, `versions` or `instances`                                                                                                                                                               |
 
 ### PD001: server-only imports in client entries
@@ -791,6 +792,10 @@ A verb with no `rls.actions` entry, no default and no default-verb prefix compil
 ### PD134: resource without a table
 
 `rls generate` binds a resource with no `rls.tables` entry to the table of the same name, or to its snake_case plural when only that one exists in `supabase/schemas` or `supabase/migrations`. PD134 lists each resource for which neither exists, as information: name the table in `rls.tables`, or set the entry to `false` for a resource that has none. The check is silent without schema files.
+
+### PD135: seeds in a declarative project
+
+With pg-delta turned on explicitly (`enabled = true` under `[experimental.pgdelta]` in `supabase/config.toml`, or `supabase.schemas: 'pg-delta'`), the `role_permissions` rows still go in a data migration, because pg-delta does not diff rows. `rls generate --seeds-out <dir>` writes only the rows that changed since the newest seeds migration and stamps it at the later of now and one second past the newest migration, but the migrations still accumulate. PD135 suggests `rls.seeds: 'view'`, which writes the rows as a view in the helpers part. It is silent once `rls.seeds` or `rls.staticGrants: 'ref'` is set.
 
 ### PD130: repeated version reads
 

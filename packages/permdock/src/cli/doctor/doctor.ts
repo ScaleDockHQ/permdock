@@ -71,7 +71,7 @@ import {
   pd086,
 } from "./rls.ts";
 import { pd095, pd096, pd101 } from "./schema-checks.ts";
-import { pd134 } from "./schema-tables.ts";
+import { pd134, pd135 } from "./schema-tables.ts";
 import { pd097 } from "./seed-data.ts";
 import { pd054 } from "./seeds.ts";
 import { pd116 } from "./server-actions.ts";
@@ -304,6 +304,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   { code: "PD071", groups: ["rls"], run: pd071 },
   { code: "PD122", groups: ["rls"], run: pd122 },
   { code: "PD134", groups: ["rls"], run: pd134 },
+  { code: "PD135", groups: ["rls"], run: pd135 },
   { code: "PD072", groups: ["rls"], run: pd072 },
   { code: "PD073", groups: ["rls", "ownership"], run: pd073 },
   { code: "PD075", groups: ["rls"], run: pd075 },

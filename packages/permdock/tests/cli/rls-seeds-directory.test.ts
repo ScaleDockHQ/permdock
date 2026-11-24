@@ -66,35 +66,66 @@ describe("rls seeds directory", () => {
         path.join(cwd, "migrations/20261001080000_permdock_seeds.sql"),
         "utf8",
       );
+      const dropped = first
+        .split("\n")
+        .find((line) =>
+          /^ {2}\('[^']*', '[^']*', '[^']*', '[^']*', '[^']*'\),$/u.test(line),
+        );
+      expect(dropped).toBeDefined();
       writeFileSync(
         path.join(cwd, "migrations/20261001080000_permdock_seeds.sql"),
-        first.replace("on conflict", "-- edited\non conflict"),
+        first.replace(`${dropped ?? ""}\n`, ""),
       );
       const drift = await generate("2026-10-03T08:00:00Z", true);
       expect(drift.code).toBe(1);
       expect(drift.output).toContain(
-        "seeds: missing migrations/20261001090001_permdock_seeds.sql",
+        "seeds: missing migrations/20261003080000_permdock_seeds.sql",
       );
       expect((await generate("2026-10-03T08:00:00Z")).code).toBe(0);
       expect(migrations()).toStrictEqual([
         "20261001080000_permdock_seeds.sql",
         "20261001090000_other.sql",
-        "20261001090001_permdock_seeds.sql",
+        "20261003080000_permdock_seeds.sql",
       ]);
+      const delta = readFileSync(
+        path.join(cwd, "migrations/20261003080000_permdock_seeds.sql"),
+        "utf8",
+      );
+      expect(delta).toContain(
+        "-- permdock seeds delta since 20261001080000_permdock_seeds.sql: +1, -0",
+      );
+      expect(delta).toContain((dropped ?? "").replace(/,$/u, ""));
+      expect(delta).not.toContain("not in (values");
+      expect((await generate("2026-10-04T08:00:00Z", true)).code).toBe(0);
     });
 
-    it("names a new seeds migration one second after the newest, whatever the clock says", async () => {
-      const first = (await generate("2026-10-03T08:00:00Z", true)).output;
-      const second = (await generate("2031-01-01T00:00:00Z", true)).output;
-      expect(first).toBe(second);
+    it("leaves the seeds alone when only a comment in the newest migration changed", async () => {
+      const latest =
+        migrations().findLast((name) => name.endsWith("_permdock_seeds.sql")) ??
+        "";
+      const file = path.join(cwd, "migrations", latest);
+      writeFileSync(
+        file,
+        readFileSync(file, "utf8").replace(
+          "on conflict",
+          "-- edited\non conflict",
+        ),
+      );
+      expect((await generate("2031-01-01T00:00:00Z", true)).code).toBe(0);
     });
 
-    it("numbers a migration after the newest one in a directory", () => {
+    it("stamps a migration at the later of now and one second past the newest", () => {
       const now = new Date("2030-01-01T00:00:00Z");
       expect(
         nextMigrationVersion(
           ["20261231235959_a.sql", "20260101000000_b.sql", "notes.txt"],
           now,
+        ),
+      ).toBe("20300101000000");
+      expect(
+        nextMigrationVersion(
+          ["20261231235959_a.sql"],
+          new Date("2026-06-01T00:00:00Z"),
         ),
       ).toBe("20270101000000");
       expect(nextMigrationVersion([], now)).toBe("20300101000000");
