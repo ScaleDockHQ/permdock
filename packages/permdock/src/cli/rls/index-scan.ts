@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { relative, sep } from "node:path";
 
 import type { SqlNode, SqlRelation } from "../sql/ast.ts";
 import type { IndexTarget } from "./indexes.ts";
@@ -128,6 +129,17 @@ export async function indexKeysFromSql(
 }
 
 /**
+ * The SQL files under the migration and schema folders of `cwd`, without the
+ * `permdock` folders: other `generate` plugins write those during the same run,
+ * so reading them would make the result depend on plugin order.
+ */
+function appSqlFiles(cwd: string): readonly string[] {
+  return sqlFiles(cwd, [...MIGRATION_DIRS]).filter(
+    (file) => !relative(cwd, file).split(sep).includes("permdock"),
+  );
+}
+
+/**
  * The index keys of the SQL files under the migration and schema folders of
  * `cwd`.
  */
@@ -135,7 +147,7 @@ export async function indexKeysFromProject(
   cwd: string,
 ): Promise<Readonly<Record<string, readonly (readonly string[])[]>>> {
   const all: Record<string, (readonly string[])[]> = {};
-  for (const file of sqlFiles(cwd, [...MIGRATION_DIRS])) {
+  for (const file of appSqlFiles(cwd)) {
     const keys = await indexKeysFromSql(readFileSync(file, "utf8"));
     for (const [table, list] of Object.entries(keys)) {
       (all[table] ??= []).push(...list);
@@ -170,7 +182,7 @@ export async function tablesFromProject(
   cwd: string,
 ): Promise<ReadonlySet<string>> {
   const all = new Set<string>();
-  for (const file of sqlFiles(cwd, [...MIGRATION_DIRS])) {
+  for (const file of appSqlFiles(cwd)) {
     for (const table of await tablesFromSql(readFileSync(file, "utf8"))) {
       all.add(table);
     }

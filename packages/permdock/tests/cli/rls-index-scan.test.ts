@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import {
   indexKeysFromProject,
   indexKeysFromSql,
+  tablesFromProject,
   tablesFromSql,
   withoutServedTargets,
 } from "../../src/cli/rls/index-scan.ts";
@@ -131,5 +132,21 @@ CREATE INDEX permdock_notes_user_id_idx ON public.notes USING btree (user_id);
     expect(await indexKeysFromProject(cwd)).toStrictEqual({
       "public.jobs": [["owner_id"]],
     });
+  });
+
+  it("skips the permdock folders another generate plugin writes", async () => {
+    const own = mkdtempSync(path.join(TMP, "index-scan-own-"));
+    try {
+      const dir = path.join(own, "supabase/schemas/permdock/functions");
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        path.join(dir, "hook.sql"),
+        "create table permdock.cache (id uuid primary key);\n",
+      );
+      expect(await indexKeysFromProject(own)).toStrictEqual({});
+      expect([...(await tablesFromProject(own))]).toStrictEqual([]);
+    } finally {
+      rmSync(own, { recursive: true, force: true });
+    }
   });
 });
