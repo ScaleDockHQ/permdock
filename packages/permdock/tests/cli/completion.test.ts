@@ -133,6 +133,7 @@ describe("completion candidates", () => {
       "config",
       "manager-chain",
       "bsb-access-tags",
+      "bsb-action-keys",
     ]);
     expect(await candidates(["codemod", "--dry-run", ""])).toStrictEqual([
       "0.17",
@@ -141,6 +142,7 @@ describe("completion candidates", () => {
       "config",
       "manager-chain",
       "bsb-access-tags",
+      "bsb-action-keys",
     ]);
     expect(await candidates(["codemod", "0.26", ""])).toStrictEqual([]);
     expect(await candidates(["codemod", "--cwd", "app", ""])).toStrictEqual([
@@ -150,6 +152,7 @@ describe("completion candidates", () => {
       "config",
       "manager-chain",
       "bsb-access-tags",
+      "bsb-action-keys",
     ]);
     expect(await candidates(["codemod", "--", ""])).toStrictEqual([]);
   });

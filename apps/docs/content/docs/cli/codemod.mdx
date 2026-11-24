@@ -48,6 +48,20 @@ With `--json`, `data` is `{ file, check, removed, kept, unreachable }`. `unreach
 
 `rls verify --introspect`, `rls verify --shadow`, `rls explain`, `rls report` and doctor read the policies each `@bsb access` tag renders from better-supabase's `accessPolicies` and treat them as generated: `verify` does not report them as `policy-extra`, and PD090, PD103, PD104 and PD108 do not count them as hand-written. A policy is never recognised by its `bsb_access_` name prefix.
 
+## Move block keys to answers
+
+`permdock codemod bsb-action-keys` moves the keys a better-supabase config names under a `blocks` entry's `permissions` into the [`answers`](/docs/concepts/permissions) of the permission with that key, so the provider's `actionKeys` carries them. It moves only the actions better-supabase's `listActions` reports with source `config`.
+
+```ts
+// better-supabase.config.ts, before
+blocks: [{ block: "audit", permissions: { read: "audit.view" } }],
+
+// src/permissions.ts, after
+audit: resource({ collection: { view: { answers: ["blocks.audit.read"] } } }),
+```
+
+The codemod removes the string from the `blocks` entry, and the `permissions` object once it is empty. It adds the answer to the action's meta in the `definePermissions` call of the `permissions` module, turning an action array into a record when needed. The path to the action may run through object literals, top-level constants and `resource()` calls. Options nested deeper in an entry, such as `on.<event>.permissions`, stay. A key stays in the config, and is listed with its reason, when the config names it outside a literal `blocks` entry or the module declares the action in another form. With `--json`, `data` is `{ moved, kept, files }`. The codemod needs better-supabase 0.84.0 or later installed.
+
 ## What it renames
 
 The 0.5.0 names are history on the [Naming](/docs/getting-started/naming#renamed-in-050) page. `permdock codemod` no longer applies that table. A row renamed an identifier only where it was imported from one of the entries the row names, so a local `memorySink` of your own stayed as it was.

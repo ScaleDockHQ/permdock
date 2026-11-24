@@ -9,7 +9,7 @@ export const codemod: Leaf = defineLeaf({
     {
       name: "version",
       description:
-        "The release to migrate to (0.5), config with --prune, manager-chain or bsb-access-tags",
+        "The release to migrate to (0.5), config with --prune, manager-chain, bsb-access-tags or bsb-action-keys",
       required: true,
       async complete() {
         // Lazy: oxc-parser and the rename maps load only when completion asks for them.
@@ -60,6 +60,15 @@ export const codemod: Leaf = defineLeaf({
       return (await import("../codemod/bsb-access-tags.ts")).runAccessTags({
         cwd: ctx.cwd,
         ...(rest[0] === undefined ? {} : { schemas: rest[0] }),
+        dryRun: flags["dry-run"],
+        force: flags.force,
+        json: ctx.json,
+      });
+    }
+    if (args["version"] === "bsb-action-keys") {
+      // Lazy: oxc-parser and better-supabase load only when the codemod runs.
+      return (await import("../codemod/bsb-action-keys.ts")).runActionKeys({
+        cwd: ctx.cwd,
         dryRun: flags["dry-run"],
         force: flags.force,
         json: ctx.json,

@@ -42,6 +42,7 @@ export function codemodVersions(): readonly string[] {
     "config",
     "manager-chain",
     "bsb-access-tags",
+    "bsb-action-keys",
   ];
 }
 
