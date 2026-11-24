@@ -2061,3 +2061,34 @@ describe(authorizationProvider, () => {
     });
   });
 });
+
+describe("authorizationProvider tables", () => {
+  it("sets no tables unless asked", () => {
+    const provider = authorizationProvider({
+      manifest: exampleManifest,
+      catalog: exampleCatalog,
+    });
+    expect(provider.tables).toBeUndefined();
+  });
+
+  it("shares a table per tenant only when every select key is held at the tenant scope", () => {
+    const provider = authorizationProvider({
+      manifest: exampleManifest,
+      catalog: exampleCatalog,
+      tables: true,
+    });
+    expect(provider.tables).toStrictEqual({
+      quotes: { share: "row", permissions: ["quotes.list", "quotes.read"] },
+      staff: { share: "tenant", permissions: ["staff.list", "staff.read"] },
+    });
+  });
+
+  it("reports a missing catalog", () => {
+    const provider = authorizationProvider({
+      manifest: exampleManifest,
+      tables: true,
+    });
+    expect(provider.tables).toBeUndefined();
+    expect(provider.problems?.join(" ")).toContain("tables: true");
+  });
+});

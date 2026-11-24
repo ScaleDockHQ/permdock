@@ -20,6 +20,8 @@ The hook adds three cases: a token marked truncated (`memberships_truncated`, `t
 
 ## Provider tables
 
+`authorizationProvider({ manifest, catalog, tables: true })` fills better-supabase's `tables`. For each resource the manifest maps to a table it lists the keys of the `read`, `list` and `get` permissions and marks the table `tenant` only when every one of them is held at the tenant scope alone, carries no row condition and has a grant. A resource with a restriction, a field mask or a grant at another scope is `row`. Without `tables: true` the provider sets none, and every entry stays per user. Doctor BS428 checks each entry against the generated select policies.
+
 A table shares per tenant only when its select policy filters by permission and not by row. Prove it per entry with `expectTenantShare` from `better-supabase/testing`: two callers with the same grant get the same key and read the same rows, and a member without the grant gets no key.
 
 ## Writes that RLS checks again

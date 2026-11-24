@@ -29,6 +29,7 @@ import { activeTenantMismatch } from "./active-tenant.ts";
 import { ASSIGN_ANY, providerFunctions } from "./provider-functions.ts";
 import { tokenHookOf } from "./provider-hook.ts";
 import { fixtureRolesOf } from "./provider-personas.ts";
+import { tablesOf } from "./provider-tables.ts";
 
 type ProviderKey<P> = [P] extends [undefined]
   ? string
@@ -79,6 +80,14 @@ export type AuthorizationProviderOptions<P = undefined> = {
    * the rows the caller holds a permission on.
    */
   readonly rowHelpers?: boolean;
+  /**
+   * Fill better-supabase's `tables` from the manifest's resource tables and the
+   * catalog, so `share: "tenant"` cache entries can key on the grant. A table
+   * is `tenant` when every select permission it checks is held at the tenant
+   * scope alone with no row condition, else `row`. Needs `catalog`; doctor
+   * BS428 checks each entry against the generated policies.
+   */
+  readonly tables?: boolean;
   /**
    * Fill better-supabase's `roleIn` with `permdock_role_in`, which the manifest
    * lists with `rls.customRoles` in `database` mode, so the `membership_roles`
@@ -488,7 +497,16 @@ export function authorizationProvider<P = undefined>(
     );
     if (mismatch !== undefined) problems.push(mismatch);
   }
+  if (options.tables === true && catalog === undefined) {
+    problems.push(
+      "tables: true needs a catalog to tell which permissions a table's select policy checks. Pass `catalog`.",
+    );
+  }
   const tenantScope = tenantScopeOf(manifest, options.scope);
+  const tables =
+    options.tables === true && catalog !== undefined
+      ? tablesOf(manifest, catalog, tenantScope)
+      : undefined;
   const scopeNames = rls.scopes.map((scope) => scope.name);
   const schema = sqlIdent(rls.schema);
   const rootTenant =
@@ -578,6 +596,7 @@ export function authorizationProvider<P = undefined>(
     ...(personas === undefined ? {} : { personas }),
     ...(fixtureRoles === undefined ? {} : { fixtureRoles }),
     ...(Object.keys(operations).length > 0 ? { operations } : {}),
+    ...(tables === undefined ? {} : { tables }),
     ...(Object.keys(delegated).length > 0 || interactiveOnly.length > 0
       ? {
           delegation: {
