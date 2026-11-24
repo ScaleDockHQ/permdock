@@ -6,19 +6,21 @@ import type {
 } from "../../src/cli/shared/doctor-types.ts";
 
 import {
-  isClientSource,
-  pd001,
   pd007,
   pd008,
   pd010,
   pd011,
   pd013,
-  pd014,
-  pd015,
   pd036,
   pd038,
   pd041,
   pd057,
+} from "../../src/cli/doctor/source-readers.ts";
+import {
+  isClientSource,
+  pd001,
+  pd014,
+  pd015,
 } from "../../src/cli/doctor/source.ts";
 
 function src(file: string, text: string): DoctorSource {
@@ -135,9 +137,9 @@ describe("PD011 optional issuer tenant", () => {
 describe("PD013 algorithms", () => {
   it("warns on EdDSA, errors on none, and accepts Ed25519", () => {
     const findings = pd013([
-      src("a.ts", `algorithms: ['EdDSA']`),
-      src("b.ts", `algorithms: ["none"]`),
-      src("c.ts", `algorithms: ['Ed25519']`),
+      src("a.ts", `export const o = { algorithms: ['EdDSA'] };`),
+      src("b.ts", `export const o = { algorithms: ["none"] };`),
+      src("c.ts", `export const o = { algorithms: ['Ed25519'] };`),
     ]);
     expect(findings.map((item) => [item.severity, item.message])).toStrictEqual(
       [
@@ -378,5 +380,107 @@ describe("PD036 BOLA", () => {
     ).toStrictEqual([
       "c.ts:2 protects /orgs/{orgId}/posts with p.list and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)",
     ]);
+  });
+});
+
+describe("source readers read code, not comments or strings", () => {
+  it("PD007 needs a validate property and an adapter import", () => {
+    const adapter = src("app.ts", `import 'permdock/express'\n`);
+    expect(
+      pd007([
+        src("a.ts", `// validate: "never"\nexport const x = 1;\n`),
+        adapter,
+      ]),
+    ).toStrictEqual([]);
+    expect(
+      pd007([
+        src("policy.ts", `export const o = { validate: "never" }\n`),
+        src("b.ts", `export const doc = "permdock/express";\n`),
+      ]),
+    ).toStrictEqual([]);
+  });
+
+  it("PD008 reads export names, not a comment", () => {
+    expect(
+      pd008([src("a.ts", `import 'permdock'\n// export const dock = 1\n`)]),
+    ).toStrictEqual([]);
+    expect(
+      pd008([
+        src(
+          "b.ts",
+          `import 'permdock'\nconst x = 1;\nexport { x as ability };\n`,
+        ),
+      ]).map((item) => item.message),
+    ).toStrictEqual(["b.ts exports a reserved name (dock or ability)"]);
+  });
+
+  it("PD010 skips a claim named only in a string", () => {
+    expect(
+      pd010([src("a.ts", `export const doc = "user_metadata holds roles";\n`)]),
+    ).toStrictEqual([]);
+  });
+
+  it("PD011 skips a tenant named only in a comment", () => {
+    expect(
+      pd011([
+        src(
+          "a.ts",
+          `// the tenant comes from the org claim\nexport const issuer = 'https://accounts.google.com';\n`,
+        ),
+      ]),
+    ).toStrictEqual([]);
+  });
+
+  it("PD013 reads the algorithms list, not a later none", () => {
+    expect(
+      pd013([
+        src(
+          "a.ts",
+          `export const o = { algorithms: ["RS256"], mode: "none" };\n`,
+        ),
+      ]),
+    ).toStrictEqual([]);
+  });
+
+  it("PD038, PD057 and PD041 skip a call in a string and a key in a comment", () => {
+    expect(
+      pd038(
+        [
+          src(
+            "s.ts",
+            `export const doc = "subjectFromSupabase(claims)";\nsubjectFromSupabase(claims, { /* tenant: 'x' */ claims: { tenant: 'org_id' } });\n`,
+          ),
+        ],
+        "org_id",
+        "tenant_id",
+      ),
+    ).toStrictEqual([]);
+    expect(
+      pd057([
+        src(
+          "s.ts",
+          `subjectFromSupabase(claims, { anonymousSignIns: "deny" /* , anonymousSignIns: 'allow' */ });\n// subjectFromSupabase(claims)\n`,
+        ),
+      ]),
+    ).toStrictEqual([]);
+    expect(
+      pd041([
+        src(
+          "l.ts",
+          `exchangeCapability(s, { /* alg: "HS256" */ alg: "ES256" });\n`,
+        ),
+      ]),
+    ).toStrictEqual([]);
+  });
+
+  it("PD036 skips a protect call in a comment", () => {
+    expect(
+      pd036([
+        src(
+          "b.ts",
+          `import 'permdock/hono';\n// app.get('/posts/:id', protect(p.read), h);\n`,
+        ),
+      ]),
+    ).toStrictEqual([]);
   });
 });
