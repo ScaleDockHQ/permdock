@@ -14,6 +14,7 @@ import type { AuthorizationProviderOptions } from "./provider.ts";
 import { holder } from "../core/approvers.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import { IS_APPROVER, MANAGES, isApproverTemplate } from "./approvers.ts";
+import { portalFunctionsOf } from "./provider-portal.ts";
 
 /** `subject_for` for the signed-in user, from the hook (`permdock generate`). */
 const OWN_SUBJECT = "permdock_subject";
@@ -413,9 +414,15 @@ export function providerFunctions(
       .map((scope) => helpers.get(TEAM_IDS_OF.replace("{scope}", scope)))
       .find((helper) => helper !== undefined) ??
     helpers.get(TEAM_IDS_OF.replace("{scope}", "team"));
+  const portal = portalFunctionsOf({
+    manifest,
+    tenantScope,
+    requires,
+    problems,
+  });
   const teamIdsOf =
     teamHelper === undefined
-      ? undefined
+      ? portal.teamIdsOf
       : call(
           teamHelper.name,
           "{user}",
@@ -494,6 +501,12 @@ export function providerFunctions(
     isPlatform: `${schema}.${TEMPLATES.isPlatform.sql}`,
     ...(holdersOf === undefined ? {} : { holdersOf }),
     ...(teamIdsOf === undefined ? {} : { teamIdsOf }),
+    ...(portal.portalSubjects === undefined
+      ? {}
+      : { portalSubjects: portal.portalSubjects }),
+    ...(portal.portalParties === undefined
+      ? {}
+      : { portalParties: portal.portalParties }),
     ...(actorMayWrite === undefined ? {} : { actorMayWrite }),
     ...(isApprover === undefined ? {} : { isApprover }),
     ...(permitted === undefined ? {} : { permitted }),

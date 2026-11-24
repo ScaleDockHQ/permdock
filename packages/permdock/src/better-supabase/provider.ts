@@ -32,6 +32,7 @@ import { tokenHookOf } from "./provider-hook.ts";
 import { fixtureRolesOf } from "./provider-personas.ts";
 import { isRoleList, platformRolesOf, roleSourceOf } from "./provider-roles.ts";
 import { tablesOf } from "./provider-tables.ts";
+import { versionsOf, wildcardsOf } from "./provider-versions.ts";
 
 type ProviderKey<P> = [P] extends [undefined]
   ? string
@@ -421,6 +422,8 @@ export function authorizationProvider<P = undefined>(
   const operations = catalog === undefined ? {} : operationsOf(catalog);
   const actionKeys =
     catalog === undefined ? undefined : actionKeysOf(catalog, problems);
+  const versions = versionsOf(manifest);
+  const wildcards = wildcardsOf(catalog);
   const delegated = delegatedScopes(catalog);
   const interactiveOnly = (catalog?.permissions ?? [])
     .filter((permission) => permission.meta["interactiveOnly"] === true)
@@ -461,7 +464,8 @@ export function authorizationProvider<P = undefined>(
     scopes,
     tenantScope,
     functions,
-    requires,
+    requires:
+      versions === undefined ? requires : [...requires, versions.requires],
     ...(catalog
       ? { permissions: permissionsOf(catalog, new Set(scopeNames)) }
       : {}),
@@ -480,6 +484,8 @@ export function authorizationProvider<P = undefined>(
     ...(fixtureRoles === undefined ? {} : { fixtureRoles }),
     ...(Object.keys(operations).length > 0 ? { operations } : {}),
     ...(actionKeys === undefined ? {} : { actionKeys }),
+    ...(versions === undefined ? {} : { versions: versions.versions }),
+    ...(wildcards === undefined ? {} : { wildcards }),
     ...(tables === undefined ? {} : { tables }),
     ...(Object.keys(delegated).length > 0 || interactiveOnly.length > 0
       ? {

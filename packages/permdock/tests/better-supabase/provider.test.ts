@@ -118,6 +118,11 @@ describe(authorizationProvider, () => {
         args: "text",
         role: "authenticated",
       },
+      {
+        function: "permdock.authz_version_for",
+        args: "uuid",
+        role: "postgres",
+      },
     ]);
   });
 
