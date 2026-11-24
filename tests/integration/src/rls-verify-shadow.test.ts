@@ -125,7 +125,8 @@ describe("rls verify --shadow (pg-delta)", () => {
 
   /**
    * What strict coverage blocks when pg-delta plans `files` from an empty
-   * database.
+   * database. A reorder counts as blocked: it means a dependency the statements
+   * do not show, which a `-- pg-topo:requires` line must name.
    */
   async function strictlyBlocked(
     files: { readonly name: string; readonly sql: string }[],
@@ -139,6 +140,7 @@ describe("rls verify --shadow (pg-delta)", () => {
     try {
       const result = await planSchemaFiles(target, shadow, files, {
         profile: rawProfile,
+        statementFallback: false,
       });
       const blocked = [
         ...result.loadDiagnostics,
@@ -148,6 +150,7 @@ describe("rls verify --shadow (pg-delta)", () => {
       ].filter(
         (item) =>
           !("code" in item) ||
+          item.code === "reorder_on_failure" ||
           hasBlockingDiagnostics([item], { strictCoverage: true }),
       );
       return {
