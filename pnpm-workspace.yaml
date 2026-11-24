@@ -225,6 +225,9 @@ catalogs:
     "@opentelemetry/api": ">=1"
     "@orpc/server": ">=2.0.0-0"
     "@supabase/middleware": ">=1"
+    # An alpha changes the plan and the load order, so these two stop below 1.0.0 (decision 0077).
+    "@supabase/pg-delta": ">=1.0.0-alpha.61 <1.0.0"
+    "@supabase/pg-topo": ">=1.0.0-alpha.8 <1.0.0"
     "@trpc/server": ">=11"
     "@solidjs/start": ">=2"
     "@sveltejs/kit": ">=2"

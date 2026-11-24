@@ -46,6 +46,15 @@ function isFloor(range: unknown): boolean {
   );
 }
 
+/**
+ * Peers whose alphas change the output, so the range stops below 1.0.0
+ * (decision 0077).
+ */
+const ALPHA_BOUNDED = new Set(["@supabase/pg-delta", "@supabase/pg-topo"]);
+
+/** `>=1.0.0-<pre> <1.0.0`: from one prerelease up to the release. */
+const ALPHA_RANGE = /^>=1\.0\.0-[0-9A-Za-z.-]+ <1\.0\.0$/u;
+
 describe("peer dependencies", () => {
   it("marks every peer optional, because the main entry imports none of them", () => {
     const required = Object.keys(manifest.peerDependencies ?? {}).filter(
@@ -73,9 +82,24 @@ describe("peer dependencies", () => {
     const catalog = peerCatalog();
     expect(Object.keys(catalog).length).toBeGreaterThan(0);
     const capped = Object.entries(catalog).filter(
-      ([, range]) => !isFloor(range),
+      ([name, range]) => !ALPHA_BOUNDED.has(name) && !isFloor(range),
     );
     expect(capped).toStrictEqual([]);
+  });
+
+  it("bounds pg-delta and pg-topo below 1.0.0 from the tested alpha", () => {
+    const catalog = peerCatalog();
+    const ranges = [...ALPHA_BOUNDED].map((name) => [name, catalog[name]]);
+    expect(
+      ranges.filter(
+        ([, range]) => typeof range !== "string" || !ALPHA_RANGE.test(range),
+      ),
+    ).toStrictEqual([]);
+    expect(
+      [...ALPHA_BOUNDED].filter(
+        (name) => manifest.peerDependencies?.[name] !== "catalog:peers",
+      ),
+    ).toStrictEqual([]);
   });
 
   it.each(["^6", "~1.2.0", ">=0.11.0 <0.13.0", "1.2.3", "*", ">=1 <2 || >=3"])(

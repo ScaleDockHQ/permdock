@@ -474,6 +474,8 @@
     "@orpc/server": "catalog:peers",
     "@solidjs/start": "catalog:peers",
     "@supabase/middleware": "catalog:peers",
+    "@supabase/pg-delta": "catalog:peers",
+    "@supabase/pg-topo": "catalog:peers",
     "@sveltejs/kit": "catalog:peers",
     "@tanstack/react-start": "catalog:peers",
     "@trpc/server": "catalog:peers",
@@ -536,6 +538,12 @@
       "optional": true
     },
     "@supabase/middleware": {
+      "optional": true
+    },
+    "@supabase/pg-delta": {
+      "optional": true
+    },
+    "@supabase/pg-topo": {
       "optional": true
     },
     "@sveltejs/kit": {
