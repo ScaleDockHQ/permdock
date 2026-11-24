@@ -76,7 +76,7 @@ describe("rls token scopes", () => {
       );
       expect(sql).toContain(`->> 'kind' in ('support', 'impersonation')`);
       expect(sql).toContain(
-        `select "permdock".permdock_token_scope_allows(p_grant) and coalesce((`,
+        `select "permdock".permdock_token_scope_allows(p_grant) and ((((select auth.jwt()) -> 'api_key') is null or ((select auth.jwt()) -> 'api_key') = 'null'::jsonb)) and coalesce((`,
       );
       expect(sql).toContain(
         `  ) ids(id)\n  where (select "permdock".permdock_token_scope_allows(p_grant))`,

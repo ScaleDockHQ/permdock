@@ -495,6 +495,7 @@ rls: {
 - A [policy delegation](/docs/security/delegation#policy-delegations) does not compile into SQL. A Supabase OAuth client that carries only identity scopes and relies on one in process holds nothing on the Data API with this option on ([Supabase](/docs/adapters/supabase#actor-and-delegation-actorof-and-delegationof)).
 - Denies always apply. A token without `client_id` or `act`, and a support or impersonation session, is not limited; use [read-only actors](#read-only-actors) for those.
 - The `_for` helpers name their user and ignore the token.
+- Without this option, `permdock_has` refuses every global grant to a token with a non-empty `client_id` or an `act`, and without [API keys](#api-keys) to a token with an API key claim, so a delegated token never carries the user's platform permissions to the Data API.
 
 A key whose action sets `interactiveOnly: true` is left out of the map, and `permdock_interactive_allows` refuses it to every API key, OAuth client and `act` token, with or without this option ([interactive-only permissions](/docs/security/delegation#interactive-only-permissions)).
 

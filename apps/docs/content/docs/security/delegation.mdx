@@ -139,6 +139,8 @@ One OAuth access token can reach an application through several adapters: an MCP
 
 The same token can also reach Postgres directly, through PostgREST or a backend that forwards it. [`rls.tokenScopes`](/docs/cli/rls#token-scopes) holds it there to the permissions its `scope` claim reaches, through the map better-supabase reads. A policy delegation does not compile into SQL, so a client whose rights come only from one holds nothing on the Data API with that option on.
 
+Global grants are refused to such a token even without that option. `permdock_has` holds a global grant for a token with an API key claim only under `rls.apiKeys`, and for a token with a non-empty `client_id` or an `act` only under `rls.tokenScopes`, so an OAuth client a platform admin authorizes never carries the admin's platform permissions to the Data API. The `_for` helpers name their user and ignore the token.
+
 ## Parallel agents
 
 An orchestrator that fans work out to several sub-agents at once keeps one principal, the person it acts for, and gives each sub-agent its own `actor.id` and a `delegation` no wider than the task:

@@ -27,7 +27,7 @@ create table if not exists "app"."user_roles" (
 alter table "app"."user_roles" enable row level security;
 revoke all on table "app"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (jwt: reads the role and memberships claims) sha-256:RHdPmzPlU3JLOtnsinnl6C3Qbn0Qo27V9hI4bU98OxA
+-- permdock helpers (jwt: reads the role and memberships claims) sha-256:oZJgLZrrbZvehJaKbZD-Ux-P3BQQoDzPUP6UYHFzHFg
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "app";
@@ -110,6 +110,7 @@ cost 1000
 parallel safe
 set search_path = ''
 as $$
+  select ((((select auth.jwt()) -> 'api_key') is null or ((select auth.jwt()) -> 'api_key') = 'null'::jsonb) and coalesce(((select auth.jwt()) ->> 'client_id'), '') = '' and (((select auth.jwt()) -> 'act') is null or ((select auth.jwt()) -> 'act') = 'null'::jsonb)) and coalesce((
   select coalesce((select "app".permdock_user_id())::text, '') <> '' and exists (
     select 1
     from jsonb_array_elements_text(
@@ -122,6 +123,7 @@ as $$
     cross join lateral "app".permdock_role_grant_keys('global', r.role) rp(grant_key)
     where rp.grant_key = p_grant
   )
+  ), false)
 $$;
 revoke execute on function "app".permdock_has(text) from public, anon;
 grant execute on function "app".permdock_has(text) to authenticated;
@@ -420,6 +422,8 @@ as $$
     from pdk_m
   ),
   pdk_g as (
+  select g.grant_key
+  from (
   select rp.grant_key
   from jsonb_array_elements_text(
       case jsonb_typeof(coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role'))
@@ -430,6 +434,8 @@ as $$
     ) r(role)
   cross join lateral "app".permdock_role_grant_keys('global', r.role) rp(grant_key)
   where coalesce((select "app".permdock_user_id())::text, '') <> ''
+  ) g(grant_key)
+  where ((((select auth.jwt()) -> 'api_key') is null or ((select auth.jwt()) -> 'api_key') = 'null'::jsonb) and coalesce(((select auth.jwt()) ->> 'client_id'), '') = '' and (((select auth.jwt()) -> 'act') is null or ((select auth.jwt()) -> 'act') = 'null'::jsonb))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -489,6 +495,8 @@ as $$
     where pdk_m.key in (select k.key from pg_catalog.unnest(p_keys) k(key))
   ),
   pdk_g as (
+  select g.grant_key
+  from (
   select rp.grant_key
   from jsonb_array_elements_text(
       case jsonb_typeof(coalesce(nullif(((select auth.jwt()) -> 'user_role'), 'null'::jsonb), (select auth.jwt()) -> 'app_metadata' -> 'user_role'))
@@ -499,6 +507,8 @@ as $$
     ) r(role)
   cross join lateral "app".permdock_role_grant_keys('global', r.role) rp(grant_key)
   where coalesce((select "app".permdock_user_id())::text, '') <> ''
+  ) g(grant_key)
+  where ((((select auth.jwt()) -> 'api_key') is null or ((select auth.jwt()) -> 'api_key') = 'null'::jsonb) and coalesce(((select auth.jwt()) ->> 'client_id'), '') = '' and (((select auth.jwt()) -> 'act') is null or ((select auth.jwt()) -> 'act') = 'null'::jsonb))
   ),
   pdk_s as (
     select pdk_i.grant_key
