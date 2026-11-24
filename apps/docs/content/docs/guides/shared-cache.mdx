@@ -42,3 +42,41 @@ authorizer({ policy, memberships, versions });
 | `postgresCacheVersionStore(pool, "schema.t")` | The app has no runtime cache; the table is `(user_id text primary key, version bigint, at bigint)`. |
 
 `testVersionStore` from `permdock/testing` checks a store against that shape.
+
+## Timings
+
+`node scripts/authz-latency.ts` measures these against the local Supabase stack of `apps/examples/next-better-supabase` and writes `scripts/authz-latency.json`. The numbers below are from 24 November 2026 on an Apple M5 Max (18 cores, 64 GB), Darwin 25.6.0 arm64, Node.js 26.13.1, Postgres 17.11 and `permdock` 0.30.0. The database holds the example's seed data: 4 users and 2 organisations.
+
+Each cell is the mean, with the p95 in brackets. Version reads and helpers ran 200 times, cold instances 30 times in a fresh `node` process each, and the fingerprint and the hook 10,000 times on a built instance. Before is the generated helper where a variant ran against it; a dash means there is one measurement.
+
+| Measurement                                                               | Before                      | After or today              | Source                                          |
+| ------------------------------------------------------------------------- | --------------------------- | --------------------------- | ----------------------------------------------- |
+| `authz_version_for`, round trip over `pg`                                 | -                           | 0.101 ms (0.204)            | `versionRead.authzVersionFor.pgRoundTrip`       |
+| `authz_version_for`, server time                                          | -                           | 0.010 ms (0.019), 4 buffers | `versionRead.authzVersionFor.server`            |
+| `custom_roles_version_for`, round trip over `pg`                          | -                           | 0.103 ms (0.157)            | `versionRead.customRolesVersionFor.pgRoundTrip` |
+| `custom_roles_version_for`, server time                                   | -                           | 0.022 ms (0.045), 5 buffers | `versionRead.customRolesVersionFor.server`      |
+| PostgREST round trip of a one-row read as `anon`                          | -                           | 1.331 ms (1.752)            | `versionRead.postgrestRpcFloor`                 |
+| Cold instance, `generate-perf` fixture: `definePolicy` to first `can`     | -                           | 17.30 ms (18.36)            | `coldInstance.fixture.cold`                     |
+| Cold instance, example policy: `definePolicy` to first `can`              | -                           | 6.44 ms (6.89)              | `coldInstance.example.cold`                     |
+| Policy imported in `register()`, fixture: first `getPermDock`             | -                           | 1.03 ms (1.30)              | `coldInstance.fixture.warm`                     |
+| Policy imported in `register()`, fixture: first `can`                     | -                           | 1.34 ms (1.55)              | `coldInstance.fixture.warm`                     |
+| `grantFingerprint`, example, 2 keys                                       | -                           | 0.039 ms (0.052)            | `grantFingerprint.example`                      |
+| `grantFingerprint`, fixture admin, 1 key                                  | -                           | 0.966 ms (1.213)            | `grantFingerprint.fixtureOneKey`                |
+| `grantFingerprint`, fixture admin, 39 keys                                | -                           | 3.452 ms (4.315)            | `grantFingerprint.fixtureAllReads`              |
+| `shareKey` hook through `permdockFor`, 2 keys                             | -                           | 0.049 ms (0.054)            | `shareKey.instances`                            |
+| `permitted_organization_ids`, server time (variant B after)               | 0.403 ms (0.484), 9 buffers | 0.385 ms (0.454), 7 buffers | `helpers.today.ids`, `helpers.variantB.ids`     |
+| `permitted_organization_ids_by_permission`, server time (variant B after) | 0.430 ms (0.503), 9 buffers | 0.416 ms (0.492), 7 buffers | `helpers.today.byPermission`                    |
+
+The cold instance is above the 3 ms threshold of a compiled policy index: on the fixture's 273 keys and 1,790 grants, `definePolicy` takes 14.9 ms, the first `getPermDock` 1.0 ms and the first `can` 1.4 ms. Importing the policy in `register()` moves `definePolicy` out of the first request, which then pays 2.4 ms.
+
+`grantFingerprint` made no source call on a built instance, and the hook read no membership. Without a version cache, `permdockFor` read `version` once per hook call; with `versions: memoryVersionCache()` it read it once in 10,201 calls.
+
+Variant B stores `permdock_token_current()` once per transaction and cuts the helpers' mean by 4.5% and 3.3%, under the fifth a variant needs to ship. Buffers are shared hits per statement.
+
+Not measured:
+
+- `authz_version_for` over PostgREST: the example sets no `supabase.hook.api`, so no `public` wrapper exposes the function. The one-row read above is the round trip a wrapper would add.
+- Variant C: the example's helpers join no suspension table, so the claims branch has no join to drop.
+- The Server Action and the shared `bsb.kept` entry: both need the example's Next.js app running with a signed-in session, and it was not running.
+
+An earlier run on the same machine, with other processes busy, gave round trips up to 3.5 times higher. Compare numbers from one run.
