@@ -259,7 +259,39 @@
           "disabledAt": "disabled_at"
         }
       }
-    }
+    },
+    "tableReads": [
+      {
+        "table": "public.memberships",
+        "share": "row",
+        "rules": ["unknown"]
+      },
+      {
+        "table": "public.organizations",
+        "share": "row",
+        "rules": ["unknown"]
+      },
+      {
+        "table": "public.platform_roles",
+        "share": "row",
+        "rules": ["unknown"]
+      },
+      {
+        "table": "public.profiles",
+        "share": "row",
+        "rules": ["unknown"]
+      },
+      {
+        "table": "public.projects",
+        "share": "row",
+        "rules": ["form"]
+      },
+      {
+        "table": "public.reporting_lines",
+        "share": "row",
+        "rules": ["unknown"]
+      }
+    ]
   },
   "decidingColumns": [
     "public.memberships.role",
