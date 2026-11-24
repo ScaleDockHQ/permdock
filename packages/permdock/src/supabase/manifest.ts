@@ -357,6 +357,20 @@ export type SupabaseManifestRls = {
    * `rls.out` leave defined. Absent from a manifest written before 0.31.
    */
   readonly tableReads?: readonly SupabaseManifestTableRead[];
+  /**
+   * The functions the schema files define that better-supabase's doctor BS430
+   * accepts in a `share: "tenant"` fill: `language sql`, `security invoker`,
+   * `stable` or `immutable`, no caller identity, reading `tenant` tables only.
+   * Absent from a manifest written before 0.31.
+   */
+  readonly sharedFunctions?: readonly SupabaseManifestSharedFunction[];
+  /**
+   * The generated helpers whose answer for one tenant and one key depends only
+   * on the caller's grants of that key in that tenant, so two callers with an
+   * equal `grantFingerprint` for the key get the same answer. Absent from a
+   * manifest written before 0.31.
+   */
+  readonly tenantPureHelpers?: readonly SupabaseManifestTenantHelper[];
   readonly apiKeys?: {
     readonly claim: string;
     readonly scopes: string;
@@ -364,6 +378,26 @@ export type SupabaseManifestRls = {
     readonly roles: string;
     readonly serviceRoles: readonly string[];
   };
+};
+
+/** One entry of `rls.sharedFunctions`. */
+export type SupabaseManifestSharedFunction = {
+  /** `schema.name`. */
+  readonly function: string;
+  /** The `tenant` tables the function reads, as `schema.table`. */
+  readonly tables: readonly string[];
+  /** The keys the select policies of those tables check. */
+  readonly permissions: readonly string[];
+};
+
+/** One entry of `rls.tenantPureHelpers`. */
+export type SupabaseManifestTenantHelper = {
+  /** `schema.name`. */
+  readonly name: string;
+  /** The argument that holds the permission or grant key (`text` or `text[]`). */
+  readonly keyArgument: string;
+  /** The argument that holds the tenant id; it must be the entry's tenant. */
+  readonly tenantArgument: string;
 };
 
 /** One entry of `rls.tableReads`. */

@@ -26,6 +26,7 @@ import { isPlatformSchema } from "../sql/platform.ts";
 import { tenantCheck } from "../sql/tenant-check.ts";
 import { keyReason, tryKeyReasons } from "./key-reasons.ts";
 import { droppedPolicy, reportFiles } from "./report.ts";
+import { sharedFunctionsOf, tenantPureHelpersOf } from "./shared-functions.ts";
 
 type TableRead = SupabaseManifestTableRead;
 
@@ -379,9 +380,21 @@ export async function withTableReads<M extends SupabaseManifest>(
   reasons?: KeyReasons,
 ): Promise<M> {
   const reads = await manifestTableReads(cwd, config, manifest, reasons);
-  return reads.length === 0
-    ? manifest
-    : { ...manifest, rls: { ...manifest.rls, tableReads: reads } };
+  const tenantPureHelpers = tenantPureHelpersOf(manifest);
+  const pure = tenantPureHelpers.length === 0 ? {} : { tenantPureHelpers };
+  if (reads.length === 0) {
+    return { ...manifest, rls: { ...manifest.rls, ...pure } };
+  }
+  const sharedFunctions = await sharedFunctionsOf({
+    cwd,
+    config,
+    schema: manifest.rls.schema,
+    tableReads: reads,
+  });
+  return {
+    ...manifest,
+    rls: { ...manifest.rls, tableReads: reads, sharedFunctions, ...pure },
+  };
 }
 
 /**

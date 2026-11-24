@@ -59,6 +59,43 @@ After the change run `permdock generate`, `permdock codemod bsb-access-tags`, `p
 
 A table shares per tenant only when its select policy filters by permission and not by row. Prove it per entry with `expectTenantShare` from `better-supabase/testing`: two callers with the same grant get the same key and read the same rows, and a member without the grant gets no key.
 
+## Shared functions
+
+`authorizationProvider({ manifest, catalog, tables: true, sharedFunctions: true })` fills better-supabase's `sharedFunctions`: the functions a `share: "tenant"` fill may call. `permdock supabase inspect` writes `rls.sharedFunctions` into the manifest, one entry `{ function, tables, permissions }` for each function the schema files, migrations and `rls.out` define that passes better-supabase's BS430:
+
+- `language sql`, `security invoker`, `stable` or `immutable` (a function that states no volatility is `volatile` and is left out);
+- no `auth.*`, `current_user`, `session_user`, `current_setting` or helper of the helpers' schema;
+- every function it calls is itself listed, or a built-in;
+- every relation it reads is a `tenant` table in `rls.tableReads`, resolved through `[<function schema>, public]` like better-supabase does.
+
+`permissions` is the union of the keys those tables check. A function that reads one `row` table is not listed. An overloaded name is listed when every overload qualifies. `sharedFunctions: true` needs `tables: true` and a manifest from `inspect` 0.31 or later; the provider names either gap in `problems`.
+
+[Doctor PD137](/docs/cli/doctor#pd137-a-shared-function-that-reads-a-row-table) fails when the committed manifest lists a function that the files now make read a `row` table or the caller. better-supabase's BS430 checks the same properties on the database.
+
+## Helpers that answer the same for equal grants
+
+Two callers with an equal `grantFingerprint` for a key hold the same grants of that key in the tenant. A helper gives them the same answer only when its result depends on nothing else. `permdock supabase inspect` writes the helpers that do into `rls.tenantPureHelpers`, with the argument that holds the key and the argument that holds the tenant:
+
+| Helper                                                               | Key argument | Tenant argument | Why it is the same for equal grants                        |
+| -------------------------------------------------------------------- | ------------ | --------------- | ---------------------------------------------------------- |
+| `permdock_<root>_has(p_grant, p_tenant)`                             | `p_grant`    | `p_tenant`      | It tests one grant key in one tenant.                      |
+| `permitted_<root>_permission_keys(p_id, p_keys)` (`p_keys` overload) | `p_keys`     | `p_id`          | It lists which of `p_keys` the caller holds on one tenant. |
+
+The answer is the same only when the tenant argument is the entry's tenant and the key argument is one of the entry's `permissions`. A call with another tenant reads grants the fingerprint does not cover.
+
+These helpers are left out, and the guide says why:
+
+| Helper                                                                                    | Why callers with an equal fingerprint differ                                                                            |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `permitted_<root>_ids_by_permission`, `permitted_<root>_ids`, `permitted_<root>_id_array` | They list every tenant the caller holds the key in. A caller who is also a member of another tenant gets a longer list. |
+| `permdock_has`, `permdock_has_permission`                                                 | They answer for the global scope, not for the tenant.                                                                   |
+| `permitted_<resource>_rows`, `permitted_<resource>_ids`                                   | They decide per row, through restrictions, instance grants and row conditions the fingerprint does not cover.           |
+| `permdock_subject`, `permdock_bootstrap_permissions`, `permdock_user_id`                  | They read the caller.                                                                                                   |
+
+`tests/integration/src/tenant-pure-helpers.test.ts` checks both lists on PGlite: callers with an equal fingerprint get one answer from each listed helper, and `permitted_<root>_ids_by_permission` returns `acme` for one and `acme, beta, delta` for another. `permdock_<root>_has` takes the grant key, which equals the permission key for an unconditional allow.
+
+A function can call a listed helper only if better-supabase's BS430 accepts the call and adds the key to the share key. It does not today: BS430 refuses every call into the helpers' schema. The request is in [better-supabase requests](https://github.com/ScaleDockHQ/permdock/blob/main/docs/agents/better-supabase-requests.md).
+
 ## Writes that RLS checks again
 
 better-supabase sets `context.enforcement` to `rls` on a write that Postgres checks on current data. `authorizer` maps such a write to the `database-write` intent: `claimsFirst` takes the authorization version from the shared cache, as for a read. A role change inside the cache window can therefore let PermDock admit a write that RLS then refuses, and it cannot admit a write RLS would also accept on stale data. A write with `enforcement: "definer"`, or without it, reads the version live.

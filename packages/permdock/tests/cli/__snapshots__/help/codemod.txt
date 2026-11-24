@@ -10,7 +10,7 @@ Flags
   --dry-run  Print what would change; write nothing
   --force    Rewrite files with uncommitted changes too
   --prune    With config: remove each key set to its default, after proving every generated file stays the same
-  --check    With config --prune: exit 1 when a key would be removed
+  --check    With config --prune: exit 1 when a key would be removed. With bsb-access-tags: write nothing, exit 1 when a table would move
 
 Global flags
   --cwd --config --json --format --yes --effects-digest --agent --debug --color --help; see permdock --help

@@ -275,6 +275,36 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
             },
           },
         },
+        sharedFunctions: {
+          description:
+            "Functions better-supabase doctor BS430 accepts in a tenant fill: language sql, security invoker, stable or immutable, no caller identity, reading tenant tables only. Absent from a manifest written before 0.31.",
+          type: "array",
+          items: {
+            type: "object",
+            required: ["function", "tables", "permissions"],
+            additionalProperties: false,
+            properties: {
+              function: { type: "string" },
+              tables: { type: "array", items: { type: "string" } },
+              permissions: { type: "array", items: { type: "string" } },
+            },
+          },
+        },
+        tenantPureHelpers: {
+          description:
+            "Generated helpers whose answer for one tenant and key depends only on the caller's grants of that key in the tenant. Absent from a manifest written before 0.31.",
+          type: "array",
+          items: {
+            type: "object",
+            required: ["name", "keyArgument", "tenantArgument"],
+            additionalProperties: false,
+            properties: {
+              name: { type: "string" },
+              keyArgument: { type: "string" },
+              tenantArgument: { type: "string" },
+            },
+          },
+        },
         apiKeys: {
           type: "object",
           required: ["claim", "scopes", "tenant", "roles", "serviceRoles"],

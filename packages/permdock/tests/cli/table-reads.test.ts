@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { authorizationProvider } from "../../src/better-supabase/provider.ts";
 import { run } from "../../src/cli/core/run.ts";
-import { pd128 } from "../../src/cli/doctor/table-reads.ts";
+import { pd128, pd137 } from "../../src/cli/doctor/table-reads.ts";
 import {
   configuredTableReads,
   tableReads,
@@ -222,6 +222,61 @@ describe(tableReads, () => {
         severity: "error",
         message:
           "permdock.manifest.json marks public.notes share: 'tenant', but its select policies are row-scoped (form)",
+      }),
+    ]);
+  });
+
+  it("writes sharedFunctions and tenantPureHelpers into the manifest and lets PD137 catch a function over a row table", async () => {
+    const cwd = project();
+    writeFileSync(
+      join(cwd, "supabase/schemas/fn.sql"),
+      `create function public.invoice_total() returns numeric language sql stable as $$ select count(*) from public.invoices $$;
+create function public.note_total() returns numeric language sql stable as $$ select count(*) from public.notes $$;
+`,
+    );
+    expect((await run(["supabase", "inspect", "--out"], { cwd })).code).toBe(0);
+    const path = join(cwd, "permdock.manifest.json");
+    const manifest = parseSupabaseManifest(
+      JSON.parse(readFileSync(path, "utf8")),
+    );
+    expect(manifest.rls.sharedFunctions).toStrictEqual([
+      {
+        function: "public.invoice_total",
+        tables: ["public.invoices"],
+        permissions: ["invoice.read"],
+      },
+    ]);
+    expect(
+      manifest.rls.tenantPureHelpers?.map((helper) => helper.name),
+    ).toStrictEqual([
+      "permdock.permdock_organization_has",
+      "permdock.permitted_organization_permission_keys",
+    ]);
+    expect(await pd137({ cwd, config: {} })).toStrictEqual([]);
+
+    writeFileSync(
+      path,
+      JSON.stringify({
+        ...manifest,
+        rls: {
+          ...manifest.rls,
+          sharedFunctions: [
+            ...(manifest.rls.sharedFunctions ?? []),
+            {
+              function: "public.note_total",
+              tables: ["public.notes"],
+              permissions: ["note.read"],
+            },
+          ],
+        },
+      }),
+    );
+    expect(await pd137({ cwd, config: {} })).toStrictEqual([
+      expect.objectContaining({
+        code: "PD137",
+        severity: "error",
+        message:
+          "permdock.manifest.json lists public.note_total in rls.sharedFunctions, but it reads public.notes, which is not a tenant table",
       }),
     ]);
   });
