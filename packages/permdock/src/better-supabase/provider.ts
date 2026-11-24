@@ -1,14 +1,11 @@
 import type {
   AuthorizationMembership,
-  AuthorizationOperation,
   AuthorizationPermission,
   AuthorizationProvider,
   AuthorizationRoleSource,
 } from "better-supabase/contract";
 
 import type { CatalogDocument } from "../catalog/types.ts";
-import type { OperationRisk } from "../core/operation-risks.ts";
-import type { OperationEffect } from "../core/operations.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PermissionKeyOf } from "../core/type-helpers.ts";
 import type {
@@ -29,6 +26,7 @@ import { activeTenantMismatch } from "./active-tenant.ts";
 import { actionKeysOf } from "./provider-action-keys.ts";
 import { providerFunctions } from "./provider-functions.ts";
 import { tokenHookOf } from "./provider-hook.ts";
+import { operationsOf } from "./provider-operations.ts";
 import { fixtureRolesOf } from "./provider-personas.ts";
 import { isRoleList, platformRolesOf, roleSourceOf } from "./provider-roles.ts";
 import { tablesOf } from "./provider-tables.ts";
@@ -271,64 +269,6 @@ function permissionsOf(
   });
 }
 
-const RISKS: Readonly<
-  Record<
-    OperationRisk,
-    NonNullable<NonNullable<AuthorizationOperation["meta"]>["risk"]>
-  >
-> = { low: "low", medium: "medium", high: "high", critical: "high" };
-
-const EFFECTS: Readonly<
-  Record<
-    OperationEffect,
-    NonNullable<NonNullable<AuthorizationOperation["meta"]>["effects"]>[number]
-  >
-> = {
-  read: "read",
-  write: "write",
-  delete: "delete",
-  send: "external",
-  spend: "external",
-  external: "external",
-};
-
-/**
- * The catalog's `defineOperations` entries as better-supabase operations. A
- * name with a `.` is used as written (`workflow.node.http`); any other is the
- * tool `ai.tool.<name>` and `mcp.tool.<name>`. `critical` risk is `high`, and
- * `send` and `spend` effects are `external`.
- */
-function operationsOf(
-  catalog: CatalogDocument,
-): Record<string, AuthorizationOperation> {
-  const operations: Record<string, AuthorizationOperation> = {};
-  for (const operation of catalog.operations ?? []) {
-    const effects = [
-      ...new Set(
-        (operation.meta.effects ?? []).map((effect) => EFFECTS[effect]),
-      ),
-    ];
-    const meta = {
-      ...(operation.meta.risk === undefined
-        ? {}
-        : { risk: RISKS[operation.meta.risk] }),
-      ...(effects.length > 0 ? { effects } : {}),
-      ...(operation.meta.title === undefined
-        ? {}
-        : { title: operation.meta.title }),
-    };
-    const entry: AuthorizationOperation = {
-      permission: operation.permission,
-      ...(Object.keys(meta).length > 0 ? { meta } : {}),
-    };
-    const names = operation.name.includes(".")
-      ? [operation.name]
-      : [`ai.tool.${operation.name}`, `mcp.tool.${operation.name}`];
-    for (const name of names) operations[name] = entry;
-  }
-  return operations;
-}
-
 /**
  * better-supabase's `delegation.scopes`, the same map `rls.tokenScopes`
  * compiles.
@@ -419,7 +359,8 @@ export function authorizationProvider<P = undefined>(
     options.platformRoles === false
       ? undefined
       : platformRolesOf(manifest, schema, assignAny && canAssign);
-  const operations = catalog === undefined ? {} : operationsOf(catalog);
+  const operations =
+    catalog === undefined ? {} : operationsOf(catalog, tenantScope, problems);
   const actionKeys =
     catalog === undefined ? undefined : actionKeysOf(catalog, problems);
   const versions = versionsOf(manifest);
