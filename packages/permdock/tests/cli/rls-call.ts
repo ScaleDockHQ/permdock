@@ -25,8 +25,8 @@ import { loadConfig } from "../../src/cli/project/config.ts";
 import { dateAt } from "../../src/core/time.ts";
 
 /**
- * Verbs the fixtures grant that do not infer a SQL command. Generation fails
- * closed without an `rls.actions` entry; the fixtures mean "no policy".
+ * Verbs the fixtures grant that do not infer a SQL command, declared `none` so
+ * the recorded output carries no PD122 note.
  */
 const DECLARED_NONE = [
   "accept",

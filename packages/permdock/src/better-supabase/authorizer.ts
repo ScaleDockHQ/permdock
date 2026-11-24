@@ -88,7 +88,9 @@ export type AuthorizerOptions<V extends PolicyVocabulary = PolicyVocabulary> = {
    * without it a batch (`evaluations`, list and row filtering) and an action
    * named `read`, `list` or `view` are `read`, so `claimsFirst` may answer from
    * the version cache, and every other check is `write` and reads the version
-   * live.
+   * live. A write whose `context.enforcement` is `rls` is `database-write`: the
+   * version comes from the cache and the policy refuses a write a stale
+   * decision let through.
    */
   readonly intent?: (request: AuthorizationRequest<Permission>) => Intent;
   /**
@@ -233,13 +235,18 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
     batch: boolean,
   ): Intent => {
     if (options.intent !== undefined) return options.intent(request);
-    const { intent } = request.context;
-    if (intent === "read" || intent === "write") return intent;
-    if (batch) return "read";
-    return isPermission(request.action) &&
-      READ_ACTIONS.has(request.action.action)
-      ? "read"
-      : "write";
+    const { intent, enforcement } = request.context;
+    const base = ((): Intent => {
+      if (intent === "read" || intent === "write") return intent;
+      if (batch) return "read";
+      return isPermission(request.action) &&
+        READ_ACTIONS.has(request.action.action)
+        ? "read"
+        : "write";
+    })();
+    // RLS checks the write again on current data in its own statement, so the
+    // version may come from the cache. `definer` and an unset value stay live.
+    return base === "write" && enforcement === "rls" ? "database-write" : base;
   };
   const resolve = resolverOf(options, "authorizer");
   const instanceFor = (

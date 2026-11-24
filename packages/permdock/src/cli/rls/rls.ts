@@ -8,8 +8,8 @@ import type { VerifyIgnore } from "./verify-findings.ts";
 
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { describeError, exitCodeOfError, usageResult } from "../core/errors.ts";
-import { requirePeer } from "../core/peer.ts";
 import { pgConnector } from "../pg.ts";
+import { taggedAccessPolicies } from "../sql/bsb-access.ts";
 import { isSupabaseSchemas, schemasRefusal } from "../supabase-schemas.ts";
 import { runRlsAdvisors } from "./advisors.ts";
 import { describeExplain } from "./explain.ts";
@@ -22,20 +22,19 @@ import {
   introspectMixed,
   introspectRls,
   missingIndexes,
+  normalizeTableName,
 } from "./introspect.ts";
 import { readOnlyActorKinds } from "./policies.ts";
 import { parseRbacAuthorize } from "./rbac.ts";
 import { verifyIgnores, verifyResult } from "./verify-findings.ts";
+import { verifyShadow } from "./verify-shadow.ts";
 import { runRlsVerify } from "./verify.ts";
-
-/** `rls migrate` and `rls import` read the pgsql-parser 18 AST. */
-const PGSQL_PARSER_MAJOR = 18;
 
 export const RLS_HELP = `permdock rls generate | import | verify | migrate | explain
 
   generate  Compile the policy into RLS policies and helpers
   import    Turn existing policies (--sql or --db-url-stdin) into a permissions module
-  verify    Run the fixtures, or compare a live database with --introspect
+  verify    Run the fixtures, or compare a live database with --introspect or --shadow
   migrate   Rewrite the rls.migrate helpers' calls onto the generated helpers
   explain   Show the tables, membership sources, custom roles and triggers the SQL binds to
 
@@ -82,6 +81,8 @@ export type RlsRunInput = {
   readonly revokeColumns: boolean;
   readonly tree: boolean;
   readonly introspect: boolean;
+  /** `verify --shadow`: an empty database's URL, or `stack`. */
+  readonly shadow?: string | undefined;
   readonly split: string | undefined;
   /** `--schemas`: `pg-delta`, `migra` or `migrations`. */
   readonly schemas?: string | undefined;
@@ -216,7 +217,20 @@ async function explain(input: RlsRunInput): Promise<CommandResult> {
   if (generated.explain === undefined) {
     return { code: generated.code, output: generated.output };
   }
-  let report = generated.explain;
+  const tagged = await taggedAccessPolicies(input.cwd);
+  let report =
+    tagged.length === 0
+      ? generated.explain
+      : {
+          ...generated.explain,
+          tagged: tagged.map((policy) => ({
+            table: `${policy.schema}.${policy.table}`,
+            operation: policy.operation,
+            name: policy.name,
+            key: policy.key,
+            tenantColumn: policy.tenantColumn,
+          })),
+        };
   if (input.db !== undefined) {
     try {
       const facts = await readTableIndexFacts(
@@ -270,15 +284,7 @@ async function migrate(input: RlsRunInput): Promise<CommandResult> {
   if (generated.code !== 0) {
     return { code: 2, output: generated.output };
   }
-  // Lazy: pgsql-parser is an optional peer that only migrate and import need.
-  await requirePeer(
-    () => import("pgsql-parser"),
-    "pgsql-parser",
-    "permdock rls migrate",
-    input.cwd,
-    PGSQL_PARSER_MAJOR,
-  );
-  // Lazy: the migrate code loads only after its peer check passes.
+  // Lazy: the migrate code and the WASM parser load only for this command.
   const { migrateTarget, runRlsMigrate } = await import("./migrate.ts");
   return runRlsMigrate({
     cwd: input.cwd,
@@ -367,11 +373,13 @@ async function introspect(
   if (generated.code !== 0 || generated.policies === undefined) {
     return { code: 2, output: generated.output };
   }
-  const expected = expectedRls(
-    generated.policies,
-    generated.text,
-    generated.indexes,
-  );
+  const expected = {
+    ...expectedRls(generated.policies, generated.text, generated.indexes),
+    tagged: (await taggedAccessPolicies(input.cwd)).map((policy) => ({
+      table: `${policy.schema}.${policy.table}`,
+      name: policy.name,
+    })),
+  };
   if (generated.helpersOnly === true) {
     return introspectHelpersOnly(
       input.db,
@@ -395,6 +403,57 @@ async function introspect(
   } catch (cause) {
     return usageResult(cause);
   }
+}
+
+/**
+ * `verify --shadow`: the schema directory loaded into a shadow against the live
+ * database, for the objects `generate` writes with the same flags.
+ */
+async function shadow(
+  input: RlsRunInput & { readonly shadow: string },
+  ignore: readonly VerifyIgnore[],
+): Promise<CommandResult> {
+  if (input.db === undefined) {
+    return {
+      code: 2,
+      output:
+        "PermDock CLI: rls verify --shadow needs a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
+    };
+  }
+  const dialect = asDialect(input.dialect ?? input.config.rls?.dialect);
+  if (dialect === undefined) {
+    return {
+      code: 2,
+      output:
+        "rls verify --dialect (or rls.dialect) must be supabase, neon or guc",
+    };
+  }
+  const generated = await runRlsGenerate({
+    ...generateInput(input, "sql", dialect),
+    check: false,
+    write: false,
+  });
+  if (generated.code !== 0 || generated.policies === undefined) {
+    return { code: 2, output: generated.output };
+  }
+  return verifyShadow({
+    cwd: input.cwd,
+    config: input.config,
+    db: input.db,
+    shadow: input.shadow,
+    schema: generated.schema ?? PERMDOCK_SCHEMA,
+    policies: [
+      ...generated.policies.map((policy) => ({
+        table: normalizeTableName(policy.table),
+        name: policy.name,
+      })),
+      ...(await taggedAccessPolicies(input.cwd)).map((policy) => ({
+        table: `${policy.schema}.${policy.table}`,
+        name: policy.name,
+      })),
+    ],
+    ignore,
+  });
 }
 
 export async function runRls(input: RlsRunInput): Promise<CommandResult> {
@@ -430,15 +489,7 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
       });
     }
     case "import": {
-      // Lazy: pgsql-parser is an optional peer that only migrate and import need.
-      await requirePeer(
-        () => import("pgsql-parser"),
-        "pgsql-parser",
-        "permdock rls import",
-        input.cwd,
-        PGSQL_PARSER_MAJOR,
-      );
-      // Lazy: the import code loads only after its peer check passes.
+      // Lazy: the import code and the WASM parser load only for this command.
       const { runRlsImport } = await import("./import.ts");
       return runRlsImport({
         cwd: input.cwd,
@@ -473,6 +524,9 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
         });
       }
       const ignore = verifyIgnores(input.config, input.ignore);
+      if (input.shadow !== undefined) {
+        return shadow({ ...input, shadow: input.shadow }, ignore);
+      }
       if (input.introspect) {
         return introspect(input, ignore);
       }

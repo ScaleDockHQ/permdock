@@ -5,6 +5,9 @@ import { outFiles } from "../core/output-files.ts";
 import { rel, sqlFiles } from "../files.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { nodeFiles } from "../shared/doctor-files.ts";
+import { SqlSyntaxError, parseSqlFile, readPolicy } from "../sql/ast.ts";
+import { taggedPolicyId, taggedPolicyIds } from "../sql/bsb-access.ts";
+import { isBetterSupabaseModule } from "../sql/bsb-module.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
 import { permdockSchema } from "./schema-checks.ts";
@@ -26,10 +29,6 @@ type Policy = Statement & {
 };
 
 const NAME = String.raw`((?:"[^"]+"|\w+)(?:\s*\.\s*(?:"[^"]+"|\w+))?)`;
-const CREATE_POLICY = new RegExp(
-  String.raw`^create\s+policy\s+("[^"]+"|\w+)\s+on\s+${NAME}([\s\S]*)$`,
-  "iu",
-);
 const CREATE_INDEX = new RegExp(
   String.raw`^create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?(?:(?:"[^"]+"|\w+)\s+)?on\s+(?:only\s+)?${NAME}\s*(?:using\s+\w+\s*)?\(([^)]*)\)`,
   "iu",
@@ -59,7 +58,8 @@ function statementsOf(
   ];
   return [...new Set(sqlFiles(cwd, entries))].flatMap((path) => {
     const text = files.read(path);
-    const generated = permdockSchema(cwd, { path, text });
+    const generated =
+      permdockSchema(cwd, { path, text }) || isBetterSupabaseModule(text);
     return sqlStatements(text).map((statement): Statement => ({
       file: rel(cwd, path),
       generated,
@@ -68,27 +68,44 @@ function statementsOf(
   });
 }
 
-function policiesOf(statements: readonly Statement[]): readonly Policy[] {
-  return statements.flatMap((statement): Policy[] => {
-    const match = CREATE_POLICY.exec(header(statement.text));
-    if (match === null) {
-      return [];
+/**
+ * The `create policy` statements of `statements`. A policy an `@bsb access` tag
+ * of the project renders counts as generated, wherever its file is.
+ */
+async function policiesOf(
+  statements: readonly Statement[],
+  cwd: string,
+): Promise<readonly Policy[]> {
+  const tagged = await taggedPolicyIds(cwd);
+  const out: Policy[] = [];
+  for (const statement of statements) {
+    if (!/^create\s+policy\b/iu.test(statement.text)) {
+      continue;
     }
-    const rest = group(match, 3);
-    const command = /\bfor\s+(all|select|insert|update|delete)\b/iu
-      .exec(rest)?.[1]
-      ?.toLowerCase();
-    return [
-      {
+    let nodes: Awaited<ReturnType<typeof parseSqlFile>>;
+    try {
+      nodes = await parseSqlFile(statement.text);
+    } catch (error) {
+      if (error instanceof SqlSyntaxError) {
+        continue;
+      }
+      throw error;
+    }
+    const policy = nodes[0] === undefined ? undefined : readPolicy(nodes[0]);
+    if (policy !== undefined) {
+      const table = `${policy.schema}.${policy.table}`;
+      out.push({
         ...statement,
-        name: unquote(group(match, 1)),
-        table: tableKey(group(match, 2).replaceAll(/\s/gu, "")),
-        commands:
-          command === undefined || command === "all" ? COMMANDS : [command],
-        restrictive: /\bas\s+restrictive\b/iu.test(rest),
-      },
-    ];
-  });
+        generated:
+          statement.generated || tagged.has(taggedPolicyId(table, policy.name)),
+        name: policy.name,
+        table,
+        commands: policy.command === "all" ? COMMANDS : [policy.command],
+        restrictive: !policy.permissive,
+      });
+    }
+  }
+  return out;
 }
 
 function lineOf(statement: Statement, text: string, index: number): number {
@@ -239,42 +256,44 @@ function correlatedSetCall(text: string, table: string): string | undefined {
  * `security definer`, so the planner cannot inline them and a table scan makes
  * one call per row.
  */
-export function pd103(
+export async function pd103(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
-): readonly DoctorFinding[] {
+): Promise<readonly DoctorFinding[]> {
   const statements = statementsOf(cwd, config, files);
   const helpers = setHelperBodies(statements);
-  return policiesOf(statements).flatMap((policy): DoctorFinding[] => {
-    const text = header(policy.text);
-    const setCall = callsSetPerRow(text, helpers);
-    const correlated = correlatedSetCall(text, policy.table);
-    const perRow =
-      ROW_HELPER.test(text) ||
-      [...text.matchAll(CAN_CALL)].some((call) => readsRow(group(call, 1))) ||
-      setCall !== undefined ||
-      correlated !== undefined;
-    const correlatedDetail =
-      correlated === undefined
-        ? ""
-        : `: ${correlated} takes a column of the row, so the set is read again for every row`;
-    const detail =
-      setCall === undefined
-        ? correlatedDetail
-        : `: ${setCall} has no arm for its key and calls permitted_*_match for every row`;
-    return perRow
-      ? [
-          {
-            code: "PD103",
-            severity: "warning",
-            target: `${policy.file}:${policy.table}:${policy.name}`,
-            message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policy.table} calls a PermDock helper once per row${detail}`,
-            fix: "lead with the tenant: <tenant column> = any((select permdock.permitted_<scope>_id_array('<key>'))); run permdock rls generate for a generated policy, which writes a set helper that states each key's arm",
-          },
-        ]
-      : [];
-  });
+  return (await policiesOf(statements, cwd)).flatMap(
+    (policy): DoctorFinding[] => {
+      const text = header(policy.text);
+      const setCall = callsSetPerRow(text, helpers);
+      const correlated = correlatedSetCall(text, policy.table);
+      const perRow =
+        ROW_HELPER.test(text) ||
+        [...text.matchAll(CAN_CALL)].some((call) => readsRow(group(call, 1))) ||
+        setCall !== undefined ||
+        correlated !== undefined;
+      const correlatedDetail =
+        correlated === undefined
+          ? ""
+          : `: ${correlated} takes a column of the row, so the set is read again for every row`;
+      const detail =
+        setCall === undefined
+          ? correlatedDetail
+          : `: ${setCall} has no arm for its key and calls permitted_*_match for every row`;
+      return perRow
+        ? [
+            {
+              code: "PD103",
+              severity: "warning",
+              target: `${policy.file}:${policy.table}:${policy.name}`,
+              message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policy.table} calls a PermDock helper once per row${detail}`,
+              fix: "lead with the tenant: <tenant column> = any((select permdock.permitted_<scope>_id_array('<key>'))); run permdock rls generate for a generated policy, which writes a set helper that states each key's arm",
+            },
+          ]
+        : [];
+    },
+  );
 }
 
 /**
@@ -282,13 +301,16 @@ export function pd103(
  * one of them. Postgres evaluates every permissive policy and ORs the results,
  * so each added policy adds a predicate to every scan.
  */
-export function pd104(
+export async function pd104(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
-): readonly DoctorFinding[] {
+): Promise<readonly DoctorFinding[]> {
   const groups = new Map<string, Policy[]>();
-  for (const policy of policiesOf(statementsOf(cwd, config, files))) {
+  for (const policy of await policiesOf(
+    statementsOf(cwd, config, files),
+    cwd,
+  )) {
     if (policy.restrictive) {
       continue;
     }
@@ -337,7 +359,7 @@ type Wanted = {
   readonly role: string;
 };
 
-function tableOf(resource: string, entry: RlsTable): string | undefined {
+export function tableOf(resource: string, entry: RlsTable): string | undefined {
   if (entry === false || typeof entry === "string") {
     return entry === false ? undefined : tableKey(entry);
   }
@@ -513,12 +535,12 @@ const TENANT_LEAD =
  * generated policy reads the one-argument form only where no tenant can lead
  * it, so it is not reported.
  */
-export function pd108(
+export async function pd108(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
-): readonly DoctorFinding[] {
-  return policiesOf(statementsOf(cwd, config, files)).flatMap(
+): Promise<readonly DoctorFinding[]> {
+  return (await policiesOf(statementsOf(cwd, config, files), cwd)).flatMap(
     (policy): DoctorFinding[] => {
       if (policy.generated) {
         return [];

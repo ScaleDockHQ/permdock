@@ -43,7 +43,7 @@
     "runtime:perf": "node scripts/runtime-perf.ts --check",
     "size": "env -u TURBO_CACHE_DIR turbo run size",
     "standards:fixtures": "node scripts/fetch-standards-fixtures.ts && oxfmt packages/permdock/tests/fixtures/standards",
-    "supabase:prune": "node scripts/supabase-prune.ts",
+    "supabase:prune": "pnpm --filter @permdock/example-next-better-supabase exec supabase stack prune --yes",
     "test": "env -u TURBO_CACHE_DIR turbo run test",
     "test:changed": "node scripts/select-tests.ts unit",
     "test:changed:integration": "node scripts/select-tests.ts integration",
@@ -94,12 +94,12 @@
     },
     "runtime": {
       "name": "node",
-      "version": "24.x",
+      "version": "26.x",
       "onFail": "download"
     }
   },
   "engines": {
-    "node": "24.x",
+    "node": "26.x",
     "pnpm": "12.18.0"
   },
   "packageManager": "pnpm@12.18.0"

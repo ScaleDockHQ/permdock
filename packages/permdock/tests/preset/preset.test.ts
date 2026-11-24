@@ -94,24 +94,6 @@ const STUBS: Readonly<Record<string, string>> = {
   readonly secretKey: string;
   readonly publishableKey: string;
 }): { authenticateRequest(request: Request): Promise<{ toAuth(): unknown }> };`,
-  "@supabase/ssr": `type Cookie = { readonly name: string; readonly value: string; readonly options: { readonly path?: string; readonly maxAge?: number; readonly httpOnly?: boolean } };
-export declare function createServerClient(
-  url: string,
-  key: string,
-  options: {
-    readonly cookies: {
-      readonly getAll: () => readonly { readonly name: string; readonly value: string }[];
-      readonly setAll: (cookies: readonly Cookie[], headers: Record<string, string>) => void;
-    };
-  },
-): {
-  readonly auth: {
-    getClaims(): Promise<
-      | { readonly data: { readonly claims: { readonly sub: string } }; readonly error: null }
-      | { readonly data: null; readonly error: Error }
-    >;
-  };
-};`,
   "@prisma/adapter-pg": `export declare class PrismaPg {
   constructor(options: { readonly connectionString: string });
 }`,

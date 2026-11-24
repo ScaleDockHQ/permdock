@@ -3,6 +3,10 @@ import type { Middleware } from "@supabase/middleware";
 import { defineMiddleware } from "@supabase/middleware";
 
 export type { FetchHandler } from "@supabase/middleware";
+export type {
+  TenantFromPathOptions,
+  TenantSlugResolver,
+} from "../server/tenant-from-path.ts";
 
 import type { Credential } from "../core/credential.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
@@ -13,6 +17,7 @@ import type { Principal, Subject } from "../core/subject.ts";
 import type { ServerAdapterServices } from "../server/bind.ts";
 import type { RequestContext } from "../server/create.ts";
 import type { OpenApiHooks } from "../server/server-types.ts";
+import type { TenantFromPathOptions } from "../server/tenant-from-path.ts";
 import type { SupabaseRpcCaller } from "./postgrest.ts";
 
 import { withApp } from "../core/app.ts";
@@ -23,6 +28,7 @@ import { composeWraps } from "../core/wrap.ts";
 import { attached } from "../server/bind.ts";
 import { createPermDock as createServerPermDock } from "../server/create.ts";
 import { methodNotAllowed } from "../server/problem.ts";
+import { tenantFromPath as tenantFromRequestPath } from "../server/tenant-from-path.ts";
 import { SUPABASE_OPTIONS, supabaseOptionsOf } from "./definition-options.ts";
 import { subjectFromSupabase } from "./subject.ts";
 
@@ -139,6 +145,21 @@ export type SupabaseMiddlewarePermDock<
   readonly permdockHandler: () => SupabaseMiddlewareHandler;
   readonly openapi: OpenApiHooks;
 };
+
+/**
+ * The `tenant` option for a tenant in the URL path, as `permdock/server`'s
+ * `tenantFromPath`: the id `resolve` answers is the active tenant only when the
+ * subject holds a live membership there; otherwise the instance has no tenant.
+ */
+export function tenantFromPath(
+  options: TenantFromPathOptions,
+): (
+  ctx: SupabaseMiddlewareContext,
+  request: Request,
+) => Promise<string | undefined> {
+  const fromRequest = tenantFromRequestPath(options);
+  return (_ctx, request) => fromRequest(request);
+}
 
 const SECRET_KEY_NAME = /^[A-Za-z0-9_-]+$/u;
 

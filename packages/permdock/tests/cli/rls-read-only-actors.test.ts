@@ -179,6 +179,35 @@ grant execute on function "permdock".permdock_actor_may_write() to authenticated
       expect(sql).toContain('"permdock".permdock_actor_may_write()');
     });
 
+    it("guards every table whose schema files let authenticated write, with --helpers-only", async () => {
+      const policyPath = path.join(
+        import.meta.dirname,
+        "../fixtures/named-scopes.ts",
+      );
+      const cwd = project({
+        "permdock.config.ts": `export default ${JSON.stringify({
+          permissions: policyPath,
+          policy: policyPath,
+          rls: { dialect: "supabase", readOnlyActors: true, helpersOnly: true },
+        })};\n`,
+        "supabase/schemas/app.sql": `create table public.notes (id uuid primary key);
+create policy notes_write on public.notes for all to authenticated using (true);
+create table public.logs (id uuid primary key);
+create policy logs_read on public.logs for select to authenticated using (true);
+create policy logs_guard on public.logs as restrictive for insert to authenticated with check (true);
+`,
+      });
+      const result = await rlsGenerate(["--out", "rls.sql"], { cwd });
+      expect(result.code).toBe(0);
+      const sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
+      for (const command of ["insert", "update", "delete"]) {
+        expect(sql).toContain(
+          `create policy "public_notes_${command}_read_only_actors"`,
+        );
+      }
+      expect(sql).not.toContain("public_logs_");
+    });
+
     it("writes guarded read-only actor policies with --helpers-only on the tables rls.tables names", async () => {
       const policyPath = path.join(
         import.meta.dirname,

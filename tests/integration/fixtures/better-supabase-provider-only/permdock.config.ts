@@ -22,10 +22,9 @@ export default defineConfig({
       seeds: { out: "supabase/migrations/" },
     }),
   ],
+  doctor: { baseline: "doctor-baseline.json" },
   rls: {
-    dialect: "supabase",
     authorize: "database",
-    actions: { manage: "none" },
     scopeTypes: { tenant: "text" },
     tables: { projects: "projects", organizations: false },
     membershipSources: memberships,

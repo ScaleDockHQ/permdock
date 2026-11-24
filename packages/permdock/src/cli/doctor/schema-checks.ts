@@ -1,11 +1,22 @@
 import { join } from "node:path";
 
 import type { DoctorFiles, DoctorFinding } from "../shared/doctor-types.ts";
+import type { SqlNode } from "../sql/ast.ts";
 import type { PermDockConfig } from "../types.ts";
 
+import { isRecord } from "../../core/compact.ts";
 import { rel } from "../files.ts";
+import {
+  functionArgTypes,
+  parseSqlLenient,
+  parseSqlStatements,
+  readPolicy,
+  readRelation,
+  stringValues,
+} from "../sql/ast.ts";
 import { membershipColumns, tableKey } from "../sql/deciding-columns.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
+import { exportedDuplicates } from "./exported-duplicates.ts";
 
 const SCHEMA_DIR = "supabase/schemas";
 const MIGRATIONS = "supabase/migrations";
@@ -48,163 +59,196 @@ function sqlUnder(
   return found;
 }
 
-export function captured(match: RegExpMatchArray, index: number): string {
-  const value = match[index];
-  if (typeof value !== "string") {
-    throw new TypeError(
-      "PermDock CLI: schema pattern matched without its group",
-    );
-  }
-  return value;
+/** The last dotted part of a name: `folders` for `public.folders`. */
+function lastSegment(name: string): string {
+  return name.split(".").at(-1) ?? name;
 }
 
-export function matchStart(match: RegExpMatchArray): number {
-  if (typeof match.index !== "number") {
-    throw new TypeError("PermDock CLI: schema match has no index");
-  }
-  return match.index;
+/** `schema.name` as written, lower case, or the bare name. */
+function dotted(parts: readonly string[]): string {
+  return parts.join(".").toLowerCase();
 }
 
-export function lastSegment(name: string): string {
-  const bare = name.split(".").at(-1);
-  if (bare === undefined) {
-    return name;
-  }
-  return bare;
+function relationName(relation: unknown): string | undefined {
+  const read = readRelation(relation);
+  return read === undefined
+    ? undefined
+    : dotted(
+        read.schema === undefined ? [read.name] : [read.schema, read.name],
+      );
 }
 
-function ifNotExistsShapes(text: string): readonly string[] {
-  const shapes: string[] = [];
-  const pattern =
-    /\bcreate\s+(table|(?:unique\s+)?index|policy)\s+if\s+not\s+exists\b/giu;
-  for (const match of text.matchAll(pattern)) {
-    const kind = captured(match, 1)
-      .toLowerCase()
-      .replace(/^unique\s+/u, "");
-    const shape = `create ${kind} if not exists`;
-    if (!shapes.includes(shape)) {
-      shapes.push(shape);
+/** The body of a `do` block, from its `as` argument. */
+function doBody(statement: SqlNode): string {
+  const args = statement.node["args"];
+  for (const item of Array.isArray(args) ? args : []) {
+    const element: unknown = isRecord(item) ? item["DefElem"] : undefined;
+    if (isRecord(element) && element["defname"] === "as") {
+      return stringValues([element["arg"]]).join("");
     }
   }
-  return shapes;
+  return "";
 }
 
-function dropsTriggerBeforeCreate(text: string): boolean {
-  return /\bdrop\s+trigger\b[^;]*;\s*create\s+(?:constraint\s+)?trigger\b/iu.test(
-    text,
-  );
+function ifNotExistsShape(statement: SqlNode): string | undefined {
+  if (statement.node["if_not_exists"] !== true) {
+    return undefined;
+  }
+  switch (statement.kind) {
+    case "CreateStmt":
+      return "create table if not exists";
+    case "IndexStmt":
+      return "create index if not exists";
+    default:
+      return undefined;
+  }
 }
 
-function doCreates(text: string): boolean {
-  const marker = /\bdo\s+(\$\$|\$[A-Za-z0-9_]*\$)/giu;
-  for (const match of text.matchAll(marker)) {
-    const fence = captured(match, 1);
-    const start = matchStart(match) + match[0].length;
-    const end = text.indexOf(fence, start);
-    const body = end === -1 ? text.slice(start) : text.slice(start, end);
-    if (/\bcreate\b/iu.test(body)) {
-      return true;
+/** The tables and functions a `grant` names; none for `on all ... in schema`. */
+function grantObjects(statement: SqlNode): readonly string[] {
+  if (
+    statement.kind !== "GrantStmt" ||
+    statement.node["targtype"] !== "ACL_TARGET_OBJECT"
+  ) {
+    return [];
+  }
+  const objects = statement.node["objects"];
+  return (Array.isArray(objects) ? objects : []).flatMap((item: unknown) => {
+    if (!isRecord(item)) {
+      return [];
+    }
+    const table = relationName(item["RangeVar"]);
+    if (table !== undefined) {
+      return [table];
+    }
+    const routine: unknown = item["ObjectWithArgs"];
+    return isRecord(routine) ? [dotted(stringValues(routine["objname"]))] : [];
+  });
+}
+
+/** The function, table or view a statement defines, lower case. */
+function definedName(statement: SqlNode): string | undefined {
+  switch (statement.kind) {
+    case "CreateFunctionStmt":
+      return dotted(stringValues(statement.node["funcname"]));
+    case "CreateStmt":
+      return relationName(statement.node["relation"]);
+    case "ViewStmt":
+      return relationName(statement.node["view"]);
+    default:
+      return undefined;
+  }
+}
+
+const POLICY_IF_NOT_EXISTS = /^create\s+policy\s+if\s+not\s+exists\b/iu;
+
+/** What pg-delta cannot diff in one schema file's statements. */
+async function schemaProblems(text: string): Promise<readonly string[]> {
+  const { nodes, rejected } = await parseSqlStatements(text);
+  const problems = new Set<string>();
+  const signatures = new Set<string>();
+  const views = new Set<string>();
+  for (const statement of nodes) {
+    if (statement.kind === "ViewStmt") {
+      const name = relationName(statement.node["view"]);
+      if (name !== undefined) {
+        views.add(name);
+      }
     }
   }
-  return false;
-}
-
-function signatures(text: string): ReadonlyMap<string, number> {
-  const counts = new Map<string, number>();
-  const pattern =
-    /\bcreate\s+(?:or\s+replace\s+)?function\s+([^\s(]+)\s*(\([^)]*\))/giu;
-  for (const match of text.matchAll(pattern)) {
-    const key = `${captured(match, 1).toLowerCase()}${captured(match, 2).toLowerCase()}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return counts;
-}
-
-function viewNames(text: string): ReadonlySet<string> {
-  const names = new Set<string>();
-  const pattern = /\bcreate\s+(?:or\s+replace\s+)?view\s+([^\s(]+)/giu;
-  for (const match of text.matchAll(pattern)) {
-    names.add(captured(match, 1).replaceAll('"', "").toLowerCase());
-  }
-  return names;
-}
-
-function triggerOnView(text: string, views: ReadonlySet<string>): boolean {
-  const pattern =
-    /\bcreate\s+(?:or\s+replace\s+)?trigger\s+\S+\s+\w+\s+on\s+([^\s;]+)/giu;
-  for (const match of text.matchAll(pattern)) {
-    const target = captured(match, 1).replaceAll('"', "").toLowerCase();
-    const bare = lastSegment(target);
-    if (views.has(target) || views.has(bare)) {
-      return true;
+  for (const [index, statement] of nodes.entries()) {
+    if (statement.kind === "DoStmt" && /\bcreate\b/iu.test(doBody(statement))) {
+      problems.add("a do block whose body contains create");
+    }
+    if (
+      statement.kind === "GrantStmt" &&
+      statement.node["targtype"] === "ACL_TARGET_ALL_IN_SCHEMA"
+    ) {
+      problems.add("grant on all");
+    }
+    if (statement.kind === "CreateFunctionStmt") {
+      const signature = `${definedName(statement) ?? ""}(${(functionArgTypes(statement) ?? []).join(",")})`;
+      if (signatures.has(signature)) {
+        problems.add("two definitions of one signature");
+      }
+      signatures.add(signature);
+    }
+    const shape = ifNotExistsShape(statement);
+    if (shape !== undefined) {
+      problems.add(shape);
+    }
+    const next = nodes[index + 1];
+    if (
+      statement.kind === "DropStmt" &&
+      statement.node["removeType"] === "OBJECT_TRIGGER" &&
+      next?.kind === "CreateTrigStmt"
+    ) {
+      problems.add("drop trigger before create trigger");
+    }
+    if (statement.kind === "CreateTrigStmt") {
+      const target = relationName(statement.node["relation"]);
+      if (
+        target !== undefined &&
+        (views.has(target) || views.has(lastSegment(target)))
+      ) {
+        problems.add("a trigger on a view");
+      }
     }
   }
-  return false;
+  if (rejected.some((range) => POLICY_IF_NOT_EXISTS.test(range.text))) {
+    problems.add("create policy if not exists");
+  }
+  return [...problems];
 }
 
-function grantedNames(text: string): readonly string[] {
+/** Each defined or granted name, with and without its schema. */
+async function ownedNames(
+  text: string,
+  granted: boolean,
+): Promise<readonly string[]> {
   const names: string[] = [];
-  const pattern =
-    /\bgrant\b[^;]*\bon\s+(?:table\s+|function\s+|all\s+)?([^\s(;]+)/giu;
-  for (const match of text.matchAll(pattern)) {
-    const name = captured(match, 1).replaceAll('"', "").toLowerCase();
-    if (name !== "" && name !== "all") {
-      names.push(name, lastSegment(name));
+  for (const statement of await parseSqlLenient(text)) {
+    const found = [
+      definedName(statement),
+      ...(granted ? grantObjects(statement) : []),
+    ];
+    for (const name of found) {
+      if (name !== undefined && name !== "") {
+        names.push(name, lastSegment(name));
+      }
     }
-  }
-  return names;
-}
-
-function definedNames(text: string): ReadonlySet<string> {
-  const names = new Set<string>();
-  const pattern =
-    /\bcreate\s+(?:or\s+replace\s+)?(?:function|table|view)\s+([^\s(]+)/giu;
-  for (const match of text.matchAll(pattern)) {
-    const name = captured(match, 1).replaceAll('"', "").toLowerCase();
-    names.add(name);
-    names.add(lastSegment(name));
   }
   return names;
 }
 
 /**
- * PD095: a schema file uses a shape pg-delta rejects, or a `-- permdock:`
+ * PD095: a schema file uses a shape pg-delta rejects, another schema file
+ * creates a function or policy a PermDock file creates, or a `-- permdock:`
  * migration repeats DDL or a grant the schema file already defines. The shapes
  * include `if not exists` on `create table`, `create index` and `create
  * policy`, and a `drop trigger` before a `create trigger`: pg-delta diffs the
  * file, so each is `create`, `create or replace` or nothing.
  */
-export function pd095(
+export async function pd095(
   cwd: string,
   files: DoctorFiles,
-): readonly DoctorFinding[] {
+): Promise<readonly DoctorFinding[]> {
   const schema = sqlUnder(cwd, SCHEMA_DIR, files).filter((file) =>
     permdockSchema(cwd, file),
   );
-  const findings: DoctorFinding[] = [];
+  const findings: DoctorFinding[] = [
+    ...(await exportedDuplicates(
+      SCHEMA_DIR,
+      sqlUnder(cwd, SCHEMA_DIR, files).map((file) => ({
+        path: rel(cwd, file.path),
+        text: file.text,
+      })),
+    )),
+  ];
   const owned = new Set<string>();
   for (const file of schema) {
     const label = rel(cwd, file.path);
-    const problems: string[] = [];
-    if (doCreates(file.text)) {
-      problems.push("a do block whose body contains create");
-    }
-    if (/\bgrant\s+\S+\s+on\s+all\b/iu.test(file.text)) {
-      problems.push("grant on all");
-    }
-    const repeated = [...signatures(file.text)].filter(
-      ([, count]) => count > 1,
-    );
-    if (repeated.length > 0) {
-      problems.push("two definitions of one signature");
-    }
-    problems.push(...ifNotExistsShapes(file.text));
-    if (dropsTriggerBeforeCreate(file.text)) {
-      problems.push("drop trigger before create trigger");
-    }
-    if (triggerOnView(file.text, viewNames(file.text))) {
-      problems.push("a trigger on a view");
-    }
+    const problems = await schemaProblems(file.text);
     if (problems.length > 0) {
       findings.push({
         code: "PD095",
@@ -214,7 +258,7 @@ export function pd095(
         fix: "rewrite the schema file as plain create or replace statements pg-delta can diff",
       });
     }
-    for (const name of definedNames(file.text)) {
+    for (const name of await ownedNames(file.text, false)) {
       owned.add(name);
     }
   }
@@ -226,10 +270,9 @@ export function pd095(
       continue;
     }
     const label = rel(cwd, file.path);
-    const repeated = [
-      ...definedNames(file.text),
-      ...grantedNames(file.text),
-    ].filter((name) => owned.has(name));
+    const repeated = (await ownedNames(file.text, true)).filter((name) =>
+      owned.has(name),
+    );
     if (repeated.length > 0) {
       findings.push({
         code: "PD095",
@@ -277,9 +320,6 @@ export function pd096(config: PermDockConfig): readonly DoctorFinding[] {
   return findings;
 }
 
-const POLICY_ON =
-  /create\s+policy\s+(?:"[^"]+"|\w+)\s+on\s+((?:"[^"]+"|\w+)(?:\s*\.\s*(?:"[^"]+"|\w+))?)([^;]*);/giu;
-
 function tableId(raw: string): string {
   const bare = raw.replaceAll(/[\s"]/gu, "").toLowerCase();
   return bare.includes(".") ? bare : `public.${bare}`;
@@ -305,11 +345,11 @@ function followChildren(config: PermDockConfig): ReadonlyMap<string, string> {
  * insert, update and delete there, and permissive policies add up, so the app
  * policy widens them for the commands it names (`all` names every one).
  */
-export function pd101(
+export async function pd101(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles,
-): readonly DoctorFinding[] {
+): Promise<readonly DoctorFinding[]> {
   const children = followChildren(config);
   if (children.size === 0) {
     return [];
@@ -320,22 +360,21 @@ export function pd101(
       continue;
     }
     const label = rel(cwd, file.path);
-    for (const match of file.text.matchAll(POLICY_ON)) {
-      const table = tableId(captured(match, 1));
-      const resource = children.get(table);
-      const clause = match[2] ?? "";
-      if (resource === undefined || /\bas\s+restrictive\b/iu.test(clause)) {
+    for (const statement of await parseSqlLenient(file.text)) {
+      const policy = readPolicy(statement);
+      if (policy === undefined || !policy.permissive) {
         continue;
       }
-      const command = (
-        /\bfor\s+(select|insert|update|delete|all)\b/iu.exec(clause)?.[1] ??
-        "all"
-      ).toLowerCase();
+      const table = `${policy.schema}.${policy.table}`.toLowerCase();
+      const resource = children.get(table);
+      if (resource === undefined) {
+        continue;
+      }
       findings.push({
         code: "PD101",
         severity: "warning",
         target: `${label}:${table}`,
-        message: `${label} defines a permissive ${command} policy on ${table}, which the generated follows policies for ${resource} already allow`,
+        message: `${label} defines a permissive ${policy.command} policy on ${table}, which the generated follows policies for ${resource} already allow`,
         fix: "delete the policy and let rls.tables.<resource>.follows decide, or drop the table from follows",
       });
     }

@@ -1,0 +1,557 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/snapshot-v2.json",
+  "title": "PermDock snapshot v2",
+  "description": "A compact Snapshot as /snapshot serves it. Grant terms that repeat are stored once in `conditions` without their membership; each grant names its permission and references its terms by index, or as `[term, memberships]` with the indexes of the principal memberships it holds through. An id list used by more than one `in` condition is stored once in `lists` and referenced as `{ \"list\": n }`. `assignable` entries reference `permissions` by index. A membership that carries only scope, id, roles and via is written `[shape, id]` with its scope, roles and via in `shapes`. `requires` holds, once per key, where each `requires` key is held; a client places it back into the grants that list the key. `bundle` names the client bundle the snapshot leaves its vocabulary, scopes, shared grants or bit-set `typeLevel` to; a client with another bundle resolves no grant. `parseSnapshot` validates it and `readSnapshot` flattens it. Signed as a vnd.permdock.snapshot+jwt, issuedAt and expiresAt move to iat and exp and the rest is the snapshot claim. Version 1 is refused. Unknown properties are allowed so a v2 minor release can add one.",
+  "type": "object",
+  "required": [
+    "v",
+    "issuedAt",
+    "subject",
+    "roles",
+    "grants",
+    "tenants",
+    "conditions"
+  ],
+  "properties": {
+    "v": {
+      "const": 2
+    },
+    "issuedAt": {
+      "$ref": "#/$defs/instant"
+    },
+    "expiresAt": {
+      "$ref": "#/$defs/instant"
+    },
+    "authzVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The token's authz_ver the snapshot was built from."
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "The Auth session_id the snapshot was built for."
+    },
+    "subject": {
+      "type": "object",
+      "required": ["principal", "context"],
+      "properties": {
+        "principal": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": ["id", "roles"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "roles": {
+                  "$ref": "#/$defs/strings"
+                },
+                "plans": {
+                  "$ref": "#/$defs/strings"
+                },
+                "tenant": {
+                  "type": "string"
+                },
+                "memberships": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object"
+                      },
+                      {
+                        "type": "array",
+                        "prefixItems": [
+                          {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "items": false,
+                        "minItems": 2
+                      }
+                    ],
+                    "description": "A membership, or `[shape, id]` with `shape` an index into `shapes`."
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "delegation": {
+          "$ref": "#/$defs/delegation"
+        },
+        "context": {
+          "type": "object"
+        }
+      }
+    },
+    "roles": {
+      "$ref": "#/$defs/strings"
+    },
+    "audiences": {
+      "$ref": "#/$defs/strings"
+    },
+    "grants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["permission", "cond"],
+        "properties": {
+          "permission": {
+            "type": "string",
+            "minLength": 1
+          },
+          "cond": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "items": false,
+                      "minItems": 2
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "tenants": {
+      "$ref": "#/$defs/strings"
+    },
+    "include": {
+      "$ref": "#/$defs/strings"
+    },
+    "simulated": {
+      "const": true
+    },
+    "vocabulary": {
+      "type": "object"
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "key"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "within": {
+            "type": "string"
+          },
+          "resources": {
+            "$ref": "#/$defs/strings"
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "assignable": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tenant", "roles", "permissions"],
+        "properties": {
+          "tenant": {
+            "type": "string"
+          },
+          "roles": {
+            "$ref": "#/$defs/strings"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "notEntitled": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "ids": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "delegated": {
+      "$ref": "#/$defs/strings"
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/terms"
+      }
+    },
+    "static": {
+      "type": "object",
+      "description": "Grants of declared roles left out of `grants` and listed as references into the client bundle. `held` pairs a role with the index of the principal membership that holds it, or null for a global role. `digests` pins each listed role to the bundle entry with the same sha-256 digest; a client without a matching entry grants nothing from that role. `shared` pins the bundle's shared grants, the ones every signed-in subject holds without a membership.",
+      "required": ["held", "digests"],
+      "properties": {
+        "held": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": ["integer", "null"],
+                "minimum": 0
+              }
+            ],
+            "items": false,
+            "minItems": 2
+          }
+        },
+        "digests": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/digest"
+          }
+        },
+        "shared": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "lists": {
+      "type": "array",
+      "description": "Id lists that `{ \"list\": n }` in an `in` or `notIn` condition value refers to.",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "permissions": {
+      "type": "array",
+      "description": "Every permission an assignable entry lists, written once.",
+      "items": {
+        "type": "object",
+        "required": ["key"],
+        "properties": {
+          "key": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "truncated": {
+      "$ref": "#/$defs/strings",
+      "description": "Tenants whose grants maxGrantsPerTenant left out; a check in one denies with opaque-condition."
+    },
+    "shapes": {
+      "type": "array",
+      "description": "The scope, roles and via that `[shape, id]` memberships share.",
+      "items": {
+        "type": "object",
+        "required": ["scope", "roles"],
+        "properties": {
+          "scope": {
+            "type": "string"
+          },
+          "roles": {
+            "$ref": "#/$defs/strings"
+          },
+          "via": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "requires": {
+      "type": "array",
+      "description": "For each group of `requires` keys with the same holding: `true` when the subject holds the key everywhere, or the indexes of the principal memberships whose scope and id hold it.",
+      "items": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "$ref": "#/$defs/strings"
+          },
+          {
+            "anyOf": [
+              {
+                "const": true
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            ]
+          }
+        ],
+        "items": false,
+        "minItems": 2
+      }
+    },
+    "bundle": {
+      "$ref": "#/$defs/digest",
+      "description": "The `digest` of the client bundle the snapshot was compacted against."
+    },
+    "typeLevel": {
+      "description": "Permission keys a rowless check answers: as key lists, or as base64url bit sets over the bundle's sorted `keys` when `bits` is true.",
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["granted"],
+          "properties": {
+            "granted": {
+              "$ref": "#/$defs/strings"
+            },
+            "approval": {
+              "$ref": "#/$defs/strings"
+            },
+            "endpoint": {
+              "$ref": "#/$defs/strings"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["bits", "granted"],
+          "properties": {
+            "bits": {
+              "const": true
+            },
+            "granted": {
+              "$ref": "#/$defs/bits"
+            },
+            "approval": {
+              "$ref": "#/$defs/bits"
+            },
+            "endpoint": {
+              "$ref": "#/$defs/bits"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "instant": {
+      "description": "RFC 3339 date-time.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "strings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "delegation": {
+      "description": "OAuth scope (RFC 6749, space-separated) and RFC 9396 authorization_details.",
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string"
+        },
+        "authorization_details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "terms": {
+      "type": "object",
+      "required": ["effect", "role", "to"],
+      "properties": {
+        "effect": {
+          "enum": ["allow", "deny"]
+        },
+        "role": {
+          "type": ["string", "null"]
+        },
+        "to": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          ]
+        },
+        "where": {
+          "type": "object"
+        },
+        "check": {
+          "type": "object"
+        },
+        "approval": {
+          "anyOf": [
+            {
+              "const": "human"
+            },
+            {
+              "type": "object"
+            }
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": ["resource"],
+              "properties": {
+                "resource": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "membership": {
+          "type": "object"
+        },
+        "portable": {
+          "const": false
+        },
+        "fields": {
+          "$ref": "#/$defs/strings"
+        },
+        "validity": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/instant"
+            },
+            "until": {
+              "$ref": "#/$defs/instant"
+            }
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "meta": {
+          "type": "object"
+        },
+        "obligations": {
+          "type": "array"
+        },
+        "requires": {
+          "type": "object",
+          "required": ["keys", "fields"],
+          "description": "Permission keys the grant needs elsewhere and the `[scope, field]` pairs a held key is placed on.",
+          "properties": {
+            "keys": {
+              "$ref": "#/$defs/strings"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "items": false,
+                "minItems": 2
+              }
+            }
+          }
+        },
+        "placed": {
+          "const": true,
+          "description": "The `where` already holds the placed requirement; the client does not place it again."
+        }
+      }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha-256:"
+    },
+    "bits": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]*$"
+    }
+  }
+}

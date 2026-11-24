@@ -390,11 +390,11 @@ describe.each([
             )
           ).rows[0]?.ok,
       );
-    const mapped = keep !== undefined && !mode.includes("sources");
-    expect(await authorize("asset.read", OWNER, "B")).toBe(mapped);
+    const kept = keep !== undefined;
+    expect(await authorize("asset.read", OWNER, "B")).toBe(kept);
     expect(await authorize("asset.update", OWNER, "B")).toBe(false);
-    expect(await authorize("asset.update", OWNER, "T")).toBe(mapped);
+    expect(await authorize("asset.update", OWNER, "T")).toBe(true);
     expect(await authorize("asset.update", STAFF, "T")).toBe(false);
-    expect(await authorize("asset.read", STAFF, "T")).toBe(mapped);
+    expect(await authorize("asset.read", STAFF, "T")).toBe(kept);
   });
 });

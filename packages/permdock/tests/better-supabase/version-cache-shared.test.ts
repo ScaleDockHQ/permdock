@@ -22,13 +22,15 @@ import {
 const USER = "22222222-2222-4222-8222-222222222222";
 const READ = { live: false } as const;
 
-function mapStore(): VersionStore & { readonly data: Map<string, number> } {
-  const data = new Map<string, number>();
+function mapStore(): VersionStore & {
+  readonly data: Map<string, { version: number; at: number }>;
+} {
+  const data = new Map<string, { version: number; at: number }>();
   return {
     data,
     get: (id) => data.get(id),
-    set: (id, version) => {
-      data.set(id, version);
+    set: (id, version, at) => {
+      data.set(id, { version, at });
     },
     delete: (id) => {
       data.delete(id);
@@ -78,15 +80,37 @@ describe("memoryVersionCache shared store", () => {
       evictions: 0,
       size: 1,
     });
-    expect(store.data.get(USER)).toBe(7);
+    expect(store.data.get(USER)?.version).toBe(7);
+  });
+
+  it("counts maxStaleMs from the database read the store dates", async () => {
+    const store = mapStore();
+    let now = 100_000;
+    const cache = memoryVersionCache({
+      shared: store,
+      maxStaleMs: 30_000,
+      now: () => Temporal.Instant.fromEpochMilliseconds(now),
+    });
+    store.data.set(USER, { version: 3, at: 80_000 });
+    let reads = 0;
+    const read = (): number => {
+      reads += 1;
+      return 9;
+    };
+    expect(await cache.current({ id: USER }, read, READ)).toBe(3);
+    expect(store.data.get(USER)).toStrictEqual({ version: 3, at: 80_000 });
+    now = 111_000;
+    expect(await cache.current({ id: USER }, read, READ)).toBe(9);
+    expect(reads).toBe(1);
+    expect(store.data.get(USER)).toStrictEqual({ version: 9, at: 111_000 });
   });
 
   it("reads live and writes the result to the store", async () => {
     const store = mapStore();
-    store.data.set(USER, 1);
+    store.data.set(USER, { version: 1, at: 0 });
     const cache = memoryVersionCache({ shared: store });
     expect(await cache.current({ id: USER }, () => 4, { live: true })).toBe(4);
-    expect(store.data.get(USER)).toBe(4);
+    expect(store.data.get(USER)?.version).toBe(4);
     expect(cache.stats().storeHits).toBe(0);
   });
 
@@ -94,7 +118,7 @@ describe("memoryVersionCache shared store", () => {
     const store = mapStore();
     const cache = memoryVersionCache({ shared: store });
     cache.seed(USER, 2);
-    expect(store.data.get(USER)).toBe(2);
+    expect(store.data.get(USER)?.version).toBe(2);
     cache.evict(USER);
     expect(store.data.has(USER)).toBe(false);
   });

@@ -46,6 +46,7 @@ import { resolve } from "./manifest.ts";
 import {
   dataOf,
   errorDocument,
+  findingsDocument,
   githubAnnotations,
   resultDocument,
   sarifLog,
@@ -311,7 +312,8 @@ export async function run(
       given === "text" ||
       given === "json" ||
       given === "github" ||
-      given === "sarif"
+      given === "sarif" ||
+      given === "findings"
     ) {
       if (globals.json === true && given !== "json") {
         return cliFailure(
@@ -324,7 +326,7 @@ export async function run(
     }
     return cliFailure(
       "usage",
-      `--format '${given}' is not one of text, json, github, sarif.${suggestion(given, ["text", "json", "github", "sarif"])}`,
+      `--format '${given}' is not one of text, json, github, sarif, findings.${suggestion(given, ["text", "json", "github", "sarif", "findings"])}`,
       { code: "invalid_value", extensions: { flag: "--format" } },
     );
   };
@@ -489,7 +491,7 @@ export async function run(
   ): Promise<RunResult> {
     const name = path.join(" ");
     if (
-      (format === "github" || format === "sarif") &&
+      (format === "github" || format === "sarif" || format === "findings") &&
       entry.findings !== true
     ) {
       return fail(
@@ -653,12 +655,14 @@ export async function run(
     if (result.streamed === true) {
       return done(result.code);
     }
-    if (format === "github" || format === "sarif") {
+    if (format === "github" || format === "sarif" || format === "findings") {
       const findings = result.findings ?? [];
       writeOut(
         format === "github"
           ? githubAnnotations(findings)
-          : sarifLog(name, findings),
+          : format === "sarif"
+            ? sarifLog(name, findings)
+            : findingsDocument(findings),
       );
       return done(result.code);
     }

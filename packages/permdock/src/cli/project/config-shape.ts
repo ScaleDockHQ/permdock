@@ -1,4 +1,5 @@
 import type {
+  BudgetsConfig,
   CatalogConfig,
   CollectConfig,
   DoctorConfig,
@@ -22,6 +23,7 @@ export type KeyShape = readonly ValueKind[];
 
 const STRING = ["string"] as const satisfies KeyShape;
 const BOOLEAN = ["boolean"] as const satisfies KeyShape;
+const NUMBER = ["number"] as const satisfies KeyShape;
 const ARRAY = ["array"] as const satisfies KeyShape;
 const OBJECT = ["object"] as const satisfies KeyShape;
 const BOOLEAN_OR_OBJECT = ["boolean", "object"] as const satisfies KeyShape;
@@ -138,9 +140,16 @@ const DOCTOR = {
   claims: STRING,
   srcPath: ARRAY,
   cacheHelpers: ARRAY,
-  ignore: ARRAY,
-  waivers: ARRAY,
+  baseline: STRING,
+  failOn: STRING,
+  policies: OBJECT,
 } as const satisfies Record<keyof DoctorConfig, KeyShape>;
+
+const BUDGETS = {
+  bundle: NUMBER,
+  snapshot: OBJECT,
+  claims: NUMBER,
+} as const satisfies Record<keyof BudgetsConfig, KeyShape>;
 
 const GEN = {
   out: STRING,
@@ -173,6 +182,7 @@ export const CONFIG_SHAPE: Readonly<
   powersync: POWERSYNC,
   doctor: DOCTOR,
   gen: GEN,
+  budgets: BUDGETS,
 };
 
 export const MODULE_KEYS: Readonly<Record<ModuleKey, KeyShape>> = {

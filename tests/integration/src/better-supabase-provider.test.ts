@@ -18,10 +18,20 @@ const provider = authorizationProvider({
   catalog: readFileSync(join(EXAMPLE, "permissions.catalog.json"), "utf8"),
 });
 
+/**
+ * Templates better-supabase reads as rows: `from <template> as g(tenant,
+ * subject_type, subject_id)`.
+ */
+const ROW_TEMPLATES: ReadonlySet<string> = new Set([
+  "portalSubjects",
+  "portalParties",
+]);
+
 const LITERALS: Readonly<Record<string, string>> = {
   permission: "'quotes.read'",
   user: "'00000000-0000-4000-8000-000000000001'::uuid",
   role: "'owner'",
+  action: "'read'",
   tenant: "'00000000-0000-4000-8000-000000000002'",
   resource: "'organization'",
   id: "'00000000-0000-4000-8000-000000000002'",
@@ -78,8 +88,11 @@ describe("authorizationProvider against the example's migrations", () => {
             /\{(\w+)\}/gu,
             (_: string, key: string) => LITERALS[key] ?? "",
           );
+        const query = ROW_TEMPLATES.has(name)
+          ? `select * from ${sql} as g(tenant, subject_type, subject_id)`
+          : `select ${sql}`;
         await expect(
-          owner.query(`select ${sql}`),
+          owner.query(query),
           `${name} at ${scope}`,
         ).resolves.toBeDefined();
       }

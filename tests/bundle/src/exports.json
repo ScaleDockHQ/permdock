@@ -59,6 +59,7 @@
     "customRoleSource",
     "decideAutomation",
     "decideCredential",
+    "decideCustomRole",
     "decideRoleChange",
     "decideSupportSession",
     "defineOperations",
@@ -144,7 +145,9 @@
     "parseSupportSession",
     "plan",
     "policyDocumentFromClaims",
+    "postgresCacheVersionStore",
     "principal",
+    "readSnapshot",
     "readable",
     "relation",
     "requiredPlans",
@@ -153,6 +156,7 @@
     "resolveScope",
     "resource",
     "role",
+    "runtimeCacheVersionStore",
     "separationConflicts",
     "sha256Digest",
     "shadowMode",
@@ -348,7 +352,8 @@
     "createPermDock",
     "snapshotHeaders",
     "snapshotKey",
-    "snapshotTag"
+    "snapshotTag",
+    "tenantFromPath"
   ],
   "./server": [
     "InvalidSignatureError",
@@ -385,6 +390,7 @@
     "subjectFromApiKey",
     "subjectFromRunTicket",
     "subjectFromSupportSession",
+    "tenantFromPath",
     "tenantScope",
     "validationProblem",
     "webBotAuthVerifier",
@@ -741,7 +747,7 @@
     "tableApprovalPolicySource",
     "tableMembershipSource"
   ],
-  "./supabase/middleware": ["createPermDock"],
+  "./supabase/middleware": ["createPermDock", "tenantFromPath"],
   "./supabase/client": ["supabaseRealtimeRefresh"],
   "./ssf": [
     "SSF_POLL_DELIVERY",
@@ -782,6 +788,7 @@
     "defineBlocksConfig",
     "definePermDock",
     "getPermissions",
+    "grantFingerprint",
     "handlerCan",
     "hookCan",
     "isBetterSupabaseVersionCache",

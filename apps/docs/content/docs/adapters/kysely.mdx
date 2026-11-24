@@ -60,6 +60,8 @@ Operator mapping:
 | `contains`                           | `eb(col, '@>', eb.val([v]))` for `options.listFields`, `like` with escaped wildcards for text |
 | `and`, `or`, `not`                   | `eb.and([...])`, `eb.or([...])`, `eb.not(...)`                                                |
 
+Under RLS a `status` filter on an enum column never uses a composite `(<tenant column>, status, ...)` index, because enum comparison is not leakproof: see [Indexes under row-level security](/docs/adapters/rls#indexes-under-row-level-security).
+
 ## Request lifecycle
 
 1. The request-scoped `PermDock` is created from the policy and subject.

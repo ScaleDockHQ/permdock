@@ -71,6 +71,13 @@ export type ActionMeta = {
   readonly manageRoles?: boolean;
   readonly interactiveOnly?: boolean;
   /**
+   * The better-supabase actions this permission answers, each
+   * `<blocks|recordTypes|buckets|topics>.<name>.<action>`
+   * (`blocks.invoices.recordPayment`). `authorizationProvider` from
+   * `permdock/better-supabase` emits them as its `actionKeys`.
+   */
+  readonly answers?: readonly string[];
+  /**
    * Set by a generator (`permdock openapi import`) to the operation an action
    * was inferred from.
    */

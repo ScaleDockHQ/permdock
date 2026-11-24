@@ -6,6 +6,7 @@ import { claimWarnings } from "../claims.ts";
 import { localRows } from "../rows.ts";
 import { powersyncPlan } from "../streams.ts";
 import { powersyncYaml } from "../yaml.ts";
+import { publicationFile } from "./publication.ts";
 
 const DEFAULT_OUT = "sync-config.yaml";
 
@@ -40,17 +41,28 @@ export function powersyncFiles(
   policy: Policy,
   config: PermDockConfig,
   out?: string,
+  /** The schema file for the publication statement; see `publicationPath`. */
+  publicationAt?: string,
 ): {
   readonly files: readonly PowerSyncFile[];
   readonly warnings: readonly string[];
   /** PD084: one line per stream that reads a token claim. */
   readonly claims: readonly string[];
   readonly publication?: string;
+  /** Whether a schema file holds the publication statement. */
+  readonly publicationWritten: boolean;
 } {
   const plan = powersyncPlan(policy, config);
+  const written = publicationAt !== undefined && plan.publication !== undefined;
   const files: PowerSyncFile[] = [
-    { path: powersyncOut(config, out), text: powersyncYaml(plan) },
+    {
+      path: powersyncOut(config, out),
+      text: powersyncYaml(plan, { publicationComment: !written }),
+    },
   ];
+  if (written) {
+    files.push(publicationFile(publicationAt, plan.publication));
+  }
   const manifest = config.powersync?.manifest;
   if (manifest !== undefined) {
     files.push({
@@ -73,5 +85,6 @@ export function powersyncFiles(
     ...(plan.publication === undefined
       ? {}
       : { publication: plan.publication }),
+    publicationWritten: written,
   };
 }

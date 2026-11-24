@@ -236,13 +236,13 @@ describe("principal refs and snapshots", () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected json snapshot");
     }
-    expect(snapshot.v).toBe(1);
+    expect(snapshot.v).toBe(2);
     expect(expandSnapshot(snapshot).grants[0]?.to).toMatchObject({
       kind: "role",
       role: "owner",
     });
     expect(snapshot.vocabulary?.roles?.["owner"]?.key).toBe("owner");
-    expect(parseSnapshot(snapshot).v).toBe(1);
+    expect(parseSnapshot(snapshot).v).toBe(2);
   });
 });
 

@@ -191,6 +191,27 @@ export const { getPermDock, getPermission, requirePermission } = createPermDock(
 
 Root parameters are readable only in Server Components: in a Server Action or Route Handler the getter throws, the resolver yields no tenant, and tenant-scoped checks deny. Pass `{ tenant }` explicitly there. With Cache Components, the root layout also needs `generateStaticParams` returning at least one value.
 
+### Active tenant from a slug
+
+When the segment holds a slug (`app/orgs/[org]`, `/orgs/acme`) and memberships hold tenant ids, `tenantFromPath({ param, resolve })` reads the slug from the route's `params` and resolves it through the application's own store:
+
+```ts
+import { tenantFromPath } from "permdock/next";
+
+export const orgTenant = tenantFromPath({
+  param: "org",
+  resolve: async (slug) => (await db.orgs.bySlug(slug))?.id,
+});
+
+// app/orgs/[org]/projects/route.ts
+export async function POST(request: Request, { params }: RouteContext) {
+  const permdock = await getPermDock({ tenant: await orgTenant(params) });
+  permdock.assert(permissions.project.create);
+}
+```
+
+The id becomes the active tenant only when the subject holds a live membership there. A slug that `resolve` answers with `null`, a value that is not an id or a throw, a missing segment and a catch-all segment all ask for a tenant no membership holds: the instance has no tenant, never the factory's `tenant`, and tenant-scoped checks deny with `no-membership`. `resolve` is the only lookup; the slug itself is never used as an id.
+
 ### Keeping the instance on the server
 
 When the bundled React exposes `experimental_taintObjectReference` (Next.js with `experimental.taint: true`), `createPermDock` taints its options and every instance it builds, so a Server Component that passes either to a Client Component fails at render instead of leaking policy closures. Without the function the calls are skipped. `createNextConfig()` and both example configs set `experimental.taint`.

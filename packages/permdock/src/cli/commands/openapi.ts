@@ -148,6 +148,12 @@ const annotateFlags = {
     description: "Path parameter that carries the tenant id, such as orgId",
     valueHint: "param",
   },
+  "write-spec": {
+    type: "string",
+    description:
+      "With --routes: write x-authorization and x-oauth-scopes into this OpenAPI file",
+    valueHint: "path",
+  },
   ...outFlag,
   ...checkFlag,
   ...dryRunFlag,
@@ -188,9 +194,11 @@ async function executeAnnotate(
       "the route modules or the OpenAPI document to read",
     );
   }
+  const writeSpec = given(flags["write-spec"]);
   return (await import("../openapi/annotate.ts")).runAnnotate({
     cwd: ctx.cwd,
     routes,
+    ...(writeSpec === undefined ? {} : { writeSpec }),
     out:
       fileOut("openapi annotate", flags.out) ?? "src/operations.generated.ts",
     io: ctx.io,

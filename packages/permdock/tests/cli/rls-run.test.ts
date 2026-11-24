@@ -564,9 +564,10 @@ export const policy = definePolicy(permissions, {
     it("warns about a bound table that no project SQL file creates", async () => {
       const project = mkdtempSync(path.join(TMP, "rls-run-tables-"));
       mkdirSync(path.join(project, "supabase/migrations"), { recursive: true });
+      const migration = path.join(project, "supabase/migrations/0001_init.sql");
       writeFileSync(
-        path.join(project, "supabase/migrations/0001_init.sql"),
-        "create table public.posts (id uuid primary key);",
+        migration,
+        "create table public.articles (id uuid primary key);",
       );
       try {
         const missing = await runRls(
@@ -581,20 +582,23 @@ export const policy = definePolicy(permissions, {
         expect(missing.output).toContain(
           "resource post is bound to public.post, which no SQL file in the migration or schema folders creates; name its table in rls.tables, or set rls.tables.post: false when it has none",
         );
-        const mapped = await runRls(
+        writeFileSync(
+          migration,
+          "create table public.posts (id uuid primary key);",
+        );
+        const plural = await runRls(
           input({
             cwd: project,
-            config: {
-              ...config,
-              rls: { ...config.rls, tables: { post: "public.posts" } },
-            },
             rest: ["generate"],
             dialect: "guc",
             out: "bind.sql",
           }),
         );
-        expect(mapped.code).toBe(0);
-        expect(mapped.output).not.toContain("which no SQL file");
+        expect(plural.code).toBe(0);
+        expect(plural.output).not.toContain("which no SQL file");
+        expect(readFileSync(path.join(project, "bind.sql"), "utf8")).toContain(
+          `alter table "public"."posts" enable row level security;`,
+        );
       } finally {
         rmSync(project, { recursive: true, force: true });
       }

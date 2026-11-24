@@ -3,8 +3,9 @@ import type { RlsApprovalManagers } from "../types.ts";
 
 import { MAX_MANAGER_LEVELS } from "../../core/approvers.ts";
 import { tenantTypeOf, userTypeOf } from "../sql/columns.ts";
-import { qualified, quoteIdent, quoteQualified } from "../sql/quote.ts";
+import { qualified } from "../sql/quote.ts";
 import { subjectIdSql } from "../sql/subject.ts";
+import { managerEdges } from "./approval-managers.ts";
 
 /** The caller plus active delegators, one hop. */
 export const APPROVER_FOR_IDS = "permdock_approver_for_ids";
@@ -68,12 +69,12 @@ function managedSql(
   me: string,
 ): string {
   const fn = qualified(ctx, MANAGED_USER_IDS);
-  const table = quoteQualified(managers.table);
-  const user = quoteIdent(managers.user);
-  const boss = quoteIdent(managers.manager);
+  const edges = managerEdges(managers);
+  const table = edges.from;
+  const user = edges.user;
+  const boss = edges.manager;
   const type = userTypeOf(ctx);
-  const tenant =
-    managers.tenant === undefined ? undefined : quoteIdent(managers.tenant);
+  const tenant = edges.tenant;
   const argType = tenant === undefined ? "" : tenantTypeOf(ctx);
   const argument = tenant === undefined ? "" : `p_tenant ${argType}`;
   const seedTenant =

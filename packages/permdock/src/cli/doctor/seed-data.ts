@@ -12,6 +12,7 @@ import {
   FIXTURES_PATH,
   seedPathsLine,
 } from "../rls/emit/seed-sql.ts";
+import { supabaseConfigName } from "../supabase-config.ts";
 
 const SQL_ROOTS = ["supabase/migrations", "supabase/schemas"] as const;
 
@@ -116,18 +117,19 @@ export async function pd097(
     }
   }
   const seedFile = join(project.cwd, FIXTURES_PATH);
-  const toml = join(project.cwd, "supabase/config.toml");
+  const configFile = supabaseConfigName(project.cwd);
+  const config = join(project.cwd, configFile);
   if (project.files.exists(seedFile)) {
     const listed =
-      project.files.exists(toml) &&
-      project.files.read(toml).includes("seeds/permdock.sql");
+      project.files.exists(config) &&
+      project.files.read(config).includes("seeds/permdock.sql");
     if (!listed) {
       findings.push({
         code: "PD097",
         severity: "warning",
-        target: "supabase/config.toml",
-        message: `supabase/config.toml does not list ${FIXTURES_PATH}. Add:\n${seedPathsLine()}`,
-        fix: `add the [db.seed] sql_paths line. PermDock does not edit config.toml`,
+        target: configFile,
+        message: `${configFile} does not list ${FIXTURES_PATH}. Add:\n${seedPathsLine()}`,
+        fix: `add the [db.seed] sql_paths entry. PermDock does not edit ${configFile}`,
       });
     }
   }

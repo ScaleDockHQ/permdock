@@ -10,6 +10,7 @@ import {
   isSection,
   kindOf,
 } from "./config-shape.ts";
+import { removedKey } from "./removed-keys.ts";
 
 const TOP_LEVEL: ReadonlySet<string> = new Set<string>([
   ...Object.keys(MODULE_KEYS),
@@ -84,6 +85,10 @@ export function parseConfig(value: unknown, file: string): ParsedConfig {
     }
     const known = CONFIG_SHAPE[key];
     for (const [child, childValue] of Object.entries(entry)) {
+      const removed = removedKey(`${key}.${child}`);
+      if (removed !== undefined) {
+        throw configError(`PermDock CLI: ${file}: ${removed}`);
+      }
       const kinds = Object.hasOwn(known, child) ? known[child] : undefined;
       if (kinds === undefined) {
         warnings.push(unknown(`${key}.${child}`, Object.keys(known)));

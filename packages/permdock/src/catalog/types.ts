@@ -33,6 +33,11 @@ export type CatalogPermission = {
   /** Present only when the policy lists the permission in `hostable`. */
   readonly hostable?: true;
   /**
+   * The action's `meta.answers`: the better-supabase actions it answers,
+   * sorted; absent when none.
+   */
+  readonly answers?: readonly string[];
+  /**
    * `true` when a code grant for the key has a condition beyond role and scope,
    * so the SQL helpers alone cannot enforce it, and when the catalog was built
    * without the policy, which leaves it unknown.

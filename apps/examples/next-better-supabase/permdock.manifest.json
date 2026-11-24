@@ -318,7 +318,65 @@
       "role": {
         "column": "role"
       }
-    }
+    },
+    "tableReads": [
+      {
+        "table": "public.contacts",
+        "share": "row",
+        "rules": ["unknown"]
+      },
+      {
+        "table": "public.customers",
+        "share": "row",
+        "rules": ["unknown"]
+      },
+      {
+        "table": "public.datetime_preferences",
+        "share": "row",
+        "rules": ["owner"]
+      },
+      {
+        "table": "public.memberships",
+        "share": "row",
+        "rules": ["unknown"]
+      },
+      {
+        "table": "public.organization_features",
+        "share": "row",
+        "rules": ["unknown"]
+      },
+      {
+        "table": "public.organization_memberships",
+        "share": "row",
+        "rules": ["owner", "restrictive"]
+      },
+      {
+        "table": "public.organizations",
+        "share": "row",
+        "rules": ["condition"]
+      },
+      {
+        "table": "public.quotes",
+        "share": "row",
+        "rules": ["condition"]
+      },
+      {
+        "table": "public.role_permissions",
+        "share": "row",
+        "permissions": ["roles.manage"],
+        "rules": ["condition"]
+      },
+      {
+        "table": "public.roles",
+        "share": "row",
+        "rules": ["condition"]
+      },
+      {
+        "table": "public.staff",
+        "share": "row",
+        "rules": ["form"]
+      }
+    ]
   },
   "decidingColumns": [
     "public.contacts.customer_id",

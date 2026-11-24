@@ -14,6 +14,7 @@ import type { AuthorizationProviderOptions } from "./provider.ts";
 import { holder } from "../core/approvers.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import { IS_APPROVER, MANAGES, isApproverTemplate } from "./approvers.ts";
+import { portalFunctionsOf } from "./provider-portal.ts";
 
 /** `subject_for` for the signed-in user, from the hook (`permdock generate`). */
 const OWN_SUBJECT = "permdock_subject";
@@ -41,6 +42,7 @@ type Template = Exclude<
   | "managedUsers"
   | "canIn"
   | "roleIn"
+  | "roleOn"
   | RowTemplate
 >;
 
@@ -163,6 +165,7 @@ const TEAM_IDS_OF = "member_{scope}_ids_of";
 const TEAM_SCOPE = /^teams?$/u;
 const ACTOR_MAY_WRITE = "permdock_actor_may_write";
 const MANAGED_USERS = "permdock_managed_user_ids";
+const REQUEST_APPROVERS = "permdock_request_approver_ids";
 /**
  * Whether a role is the tenant's, for better-supabase's `membership_roles`
  * trigger.
@@ -411,9 +414,15 @@ export function providerFunctions(
       .map((scope) => helpers.get(TEAM_IDS_OF.replace("{scope}", scope)))
       .find((helper) => helper !== undefined) ??
     helpers.get(TEAM_IDS_OF.replace("{scope}", "team"));
+  const portal = portalFunctionsOf({
+    manifest,
+    tenantScope,
+    requires,
+    problems,
+  });
   const teamIdsOf =
     teamHelper === undefined
-      ? undefined
+      ? portal.teamIdsOf
       : call(
           teamHelper.name,
           "{user}",
@@ -457,9 +466,12 @@ export function providerFunctions(
       ? undefined
       : call(name, sql, "authenticated", argTypes(helper.args));
   };
-  // `approverFor` stays unset: better-supabase reads it as the users who may
-  // decide request `{id}`, but `permdock_approver_for_ids()` is the users the
-  // caller decides for, which always holds the caller.
+  const approverFor = setTemplate(
+    REQUEST_APPROVERS,
+    /\bp_tenant\b/u.test(helpers.get(REQUEST_APPROVERS)?.args ?? "")
+      ? "{requester}, {tenant}"
+      : "{requester}",
+  );
   // better-supabase passes `{tenant}`; a manager table without a tenant column writes no `p_tenant`.
   const managedUsers = /\bp_tenant\b/u.test(
     helpers.get(MANAGED_USERS)?.args ?? "",
@@ -489,6 +501,12 @@ export function providerFunctions(
     isPlatform: `${schema}.${TEMPLATES.isPlatform.sql}`,
     ...(holdersOf === undefined ? {} : { holdersOf }),
     ...(teamIdsOf === undefined ? {} : { teamIdsOf }),
+    ...(portal.portalSubjects === undefined
+      ? {}
+      : { portalSubjects: portal.portalSubjects }),
+    ...(portal.portalParties === undefined
+      ? {}
+      : { portalParties: portal.portalParties }),
     ...(actorMayWrite === undefined ? {} : { actorMayWrite }),
     ...(isApprover === undefined ? {} : { isApprover }),
     ...(permitted === undefined ? {} : { permitted }),
@@ -497,6 +515,7 @@ export function providerFunctions(
     ...(subjectForTenant === undefined ? {} : { subjectForTenant }),
     ...(bootstrapPermissions === undefined ? {} : { bootstrapPermissions }),
     ...(managedUsers === undefined ? {} : { managedUsers }),
+    ...(approverFor === undefined ? {} : { approverFor }),
     ...(roleIn === undefined ? {} : { roleIn }),
   };
   return { functions, requires, canAssign: listed("canAssign", tenantScope) };

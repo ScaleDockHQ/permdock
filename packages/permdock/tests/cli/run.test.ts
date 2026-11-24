@@ -423,7 +423,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
     it.each([
       [
         ["catalog", "--format", "xml"],
-        "--format 'xml' is not one of text, json, github, sarif.",
+        "--format 'xml' is not one of text, json, github, sarif, findings.",
       ],
       [
         ["openapi", "import", "--doc", "x.json", "--validator", "joi"],

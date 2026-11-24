@@ -21,7 +21,12 @@ import { ownershipRules, unsatisfiedKinds } from "../rls/ownership.ts";
 import { byKey } from "../shared/compare.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { filesOf } from "../shared/doctor-files.ts";
-import { commandFor, tableFor } from "../sql/compile.ts";
+import {
+  INFERRED_VERBS,
+  commandFor,
+  tableFor,
+  unmappedActions,
+} from "../sql/compile.ts";
 import { contextRefs } from "../sql/conditions.ts";
 import {
   ROW_CONDITION_FIX,
@@ -441,7 +446,7 @@ export async function pd037(
     input.cwd,
     input.config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    for (const found of helperTablePolicies(files.read(file))) {
+    for (const found of await helperTablePolicies(files.read(file))) {
       const keys = found.keys.filter((key) => conditioned.has(key));
       if (keys.length > 0) {
         findings.push({
@@ -486,6 +491,37 @@ function suggestsWrite(verb: string): boolean {
     const next = verb.charAt(prefix.length);
     return next === "" || /[A-Z0-9_-]/u.test(next);
   });
+}
+
+/**
+ * Verbs that compile to `none` because they have no `rls.actions` entry and
+ * infer no command; PD071 reports the ones that read as a write.
+ */
+export async function pd122(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
+  const rls = input.config.rls;
+  if (rls === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await policyOf(input);
+  if (policy === undefined) {
+    return [];
+  }
+  const verbs = unmappedActions(
+    policy.vocabulary.permissions,
+    rls.actions,
+  ).filter((verb) => !suggestsWrite(verb));
+  return verbs.length === 0
+    ? []
+    : [
+        {
+          code: "PD122",
+          severity: "info" as const,
+          message: `${verbs.join(", ")} ${verbs.length === 1 ? "has" : "have"} no rls.actions entry and infer${verbs.length === 1 ? "s" : ""} no SQL command, so ${verbs.length === 1 ? "it compiles" : "they compile"} to 'none' and add no SQL policy. Verbs that infer: ${INFERRED_VERBS}.`,
+          fix: `map a verb in rls.actions only when its permission should reach a table: ${verbs[0] ?? "verb"}: "select", "insert", "update" or "delete"`,
+        },
+      ];
 }
 
 export async function pd071(
@@ -755,7 +791,7 @@ export async function pd075(
           code: "PD075",
           severity: "error" as const,
           message: `rls.tables maps ${names.join(" and ")} to ${table}, so the same rows carry two sets of keys and helpers`,
-          fix: `merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes ${table} policies`,
+          fix: `merge them into one resource, retiring each key with permdock keys rename <from> <to> (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes ${table} policies`,
         };
       }),
   ];

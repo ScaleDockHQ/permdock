@@ -114,3 +114,36 @@ export const claimsSize: Leaf = defineLeaf({
     }
   },
 });
+
+export const bundleSize: Leaf = defineLeaf({
+  flags: {
+    ...policyFlag,
+    budget: {
+      type: "string",
+      description: "Bytes the bundle may weigh (default budgets.bundle)",
+      valueHint: "bytes",
+    },
+  },
+  async run(ctx, { flags }) {
+    try {
+      // Lazy: the implementation loads only when this command runs, not for --help.
+      const { runBundleSize } = await import("../budgets/bundle-size.ts");
+      const path = given(flags.policy) ?? ctx.config.policy;
+      const policy = await requirePolicy(
+        ctx.cwd,
+        path,
+        "set policy in permdock.config.ts or pass --policy",
+      );
+      return runBundleSize({
+        policy,
+        budget:
+          flags.budget === undefined || flags.budget === ""
+            ? ctx.config.budgets?.bundle
+            : count(flags.budget, 0),
+        json: ctx.json,
+      });
+    } catch (error) {
+      return usageResult(error);
+    }
+  },
+});

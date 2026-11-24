@@ -195,7 +195,7 @@ function snapshotGrant(
 
 function docSnapshot(extra: Partial<ExpandedSnapshot> = {}): Snapshot {
   return compactSnapshot({
-    v: 1,
+    v: 2,
     issuedAt: "1970-01-01T00:00:01Z",
     subject: {
       principal: {

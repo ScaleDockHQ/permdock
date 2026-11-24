@@ -7,6 +7,7 @@ Flags
   --doc <path>            OpenAPI file to read the operations from
   --permissions <module>  Module exporting the permissions (default permissions in the config)
   --tenant-path <param>   Path parameter that carries the tenant id, such as orgId
+  --write-spec <path>     With --routes: write x-authorization and x-oauth-scopes into this OpenAPI file
   --out <file>            File to write
   --check                 Exit 1 when a file on disk is stale; write nothing
   --dry-run               Print what would change; write nothing

@@ -1,5 +1,5 @@
 import { definePermDock } from "permdock/supabase";
-import { createPermDock } from "permdock/supabase/middleware";
+import { createPermDock, tenantFromPath } from "permdock/supabase/middleware";
 
 import { policy } from "./policy.ts";
 
@@ -18,4 +18,21 @@ const app = definePermDock(policy, {
   },
 });
 
-export const { withPermDock, permdockHandler } = createPermDock(app);
+// Stands in for the app's organisations table: slug to tenant id.
+const organisations: ReadonlyMap<string, string> = new Map([
+  ["acme", "o1"],
+  ["globex", "o2"],
+]);
+
+// `/orgs/:org/...` names the tenant by slug. The id is the active tenant only
+// when the token holds a membership there; any other path keeps `tenant_id`.
+export const { withPermDock, permdockHandler } = createPermDock(app, {
+  tenant: tenantFromPath({
+    path: "/orgs/:org",
+    param: "org",
+    resolve: async (slug) => {
+      await Promise.resolve();
+      return organisations.get(slug) ?? null;
+    },
+  }),
+});

@@ -114,7 +114,10 @@ describe("PowerSync streams that read token claims", () => {
     const source = (file: string, text: string) => ({ file, text });
     expect(
       await pd084(input, [
-        source("app.tsx", "refreshOn={[nativeRefresh({ supabase })]}"),
+        source(
+          "app.tsx",
+          "export const el = <App refreshOn={[nativeRefresh({ supabase })]} />;",
+        ),
       ]),
     ).toStrictEqual([]);
     const bridge = [
@@ -123,5 +126,18 @@ describe("PowerSync streams that read token claims", () => {
     ];
     expect(await pd084(input, bridge)).toStrictEqual([]);
     expect(await pd084(input, bridge.slice(0, 1))).toHaveLength(1);
+  });
+
+  it("does not take a comment or a string for a refresh call", async () => {
+    const input = { cwd, config, policy: async () => policy };
+    const source = (file: string, text: string) => ({ file, text });
+    expect(
+      await pd084(input, [
+        source(
+          "app.tsx",
+          '// nativeRefresh({ supabase }) is planned\nconst note = "nativeRefresh()";',
+        ),
+      ]),
+    ).toHaveLength(1);
   });
 });

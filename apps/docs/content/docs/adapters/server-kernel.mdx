@@ -78,6 +78,31 @@ export default async function handler(request: Request): Promise<Response> {
 | `wrap`                           | A `PermDockWrap` applied to each instance after `otel`. Build it with `wrapPermDock` so `tenant()`, `team()` and `derive()` stay wrapped.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `operations`                     | `permdock/server` only: the result of `operationPermissions` from `permdock/openapi` (anything with `oauthScopesForRequest(method, path)`). `protect` reads the OAuth scopes the matching operation declares as the route's `oauthScopes`, unless the call passes its own.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
+### Tenant from the URL path
+
+`tenantFromPath({ path, param, resolve })` builds the `tenant` option for a tenant named by a slug in the request path:
+
+```ts
+import { createPermDock, tenantFromPath } from "permdock/server";
+
+export const { getPermDock, protect } = createPermDock(policy, {
+  subject,
+  tenant: tenantFromPath({
+    path: "/orgs/:org",
+    param: "org",
+    resolve: async (slug) => (await db.orgs.bySlug(slug))?.id,
+  }),
+});
+```
+
+| Request path                                                                                           | Tenant asked for                              |
+| ------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| Starts with the segments of `path`, and `resolve` answers an id                                        | That id, once per request                     |
+| Starts with the segments of `path`, and `resolve` answers `null`, a value that is not an id, or throws | A tenant no membership holds                  |
+| Does not start with them                                                                               | None: the subject's own active tenant applies |
+
+The asked-for tenant becomes active only when the subject holds a live membership there; otherwise the instance has no tenant and tenant-scoped checks deny with `no-membership` ([tenancy](/docs/concepts/tenancy)). A slug that resolves to nothing never falls back to the token's tenant. `path` must start with `/` and name `:<param>` once; anything else throws when the option is built. A framework adapter whose router parses the path passes its own value instead: `tenant: async (c) => (await db.orgs.bySlug(c.req.param("org")))?.id`.
+
 ### Typed generics
 
 `createPermDock` in the kernel is generic over the policy (for permission and subject types) and over an optional `Ctx` type that framework adapters bind to their context. Adapter factories forward those generics so `c.get('permdock')` in Hono, `req.permdock` in Express and `ctx.permdock` in tRPC are typed `PermDock` for that policy without casts. permix's `setupMiddleware` returned an untyped `MiddlewareHandler`, which its users hit in issue 27; here the middleware type is derived, not `any`.

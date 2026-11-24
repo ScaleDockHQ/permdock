@@ -7,6 +7,7 @@ import { barrelFile, guessPermissions } from "./collect.ts";
 import { DOCS_BASE } from "./core/manifest.ts";
 import { CONFIG_REPORT_SCHEMA } from "./core/version.ts";
 import { defaultSrcPath, rel } from "./files.ts";
+import { resolveConfig, restatedDefaults } from "./project/resolve-config.ts";
 import {
   DEFAULT_SENSITIVE_ACTIONS,
   MIGRATION_DIRS,
@@ -27,6 +28,12 @@ export type ConfigReport = {
     readonly sensitiveActions: readonly string[];
     readonly rlsSchema: string;
   };
+  /** The config with each unset key of an opened section filled in. */
+  readonly effective: PermDockConfig;
+  /** Keys `effective` took from a default. */
+  readonly defaults: readonly string[];
+  /** Keys set to their default, which `permdock codemod config --prune` removes. */
+  readonly restated: readonly string[];
   readonly warnings: readonly string[];
 };
 
@@ -39,6 +46,7 @@ function configReport(input: {
   const { cwd, config } = input;
   const srcPath = config.collect?.srcPath ?? defaultSrcPath();
   const barrel = config.collect?.barrel;
+  const effective = resolveConfig(config);
   return {
     $schema: CONFIG_REPORT_SCHEMA,
     file: input.file === undefined ? null : rel(cwd, input.file),
@@ -56,6 +64,9 @@ function configReport(input: {
       rlsSchema:
         config.rls?.schema ?? config.rls?.rbac?.schema ?? PERMDOCK_SCHEMA,
     },
+    effective: effective.value,
+    defaults: effective.defaults,
+    restated: restatedDefaults(config).map((entry) => entry.path.join(".")),
     warnings: input.warnings,
   };
 }

@@ -13,6 +13,7 @@ import {
   HELPER_TABLES,
   helperCallKeys,
 } from "../sql/helper-calls.ts";
+import { isPlatformSchema } from "../sql/platform.ts";
 import { COLUMNS_SQL, INDEX_COLUMNS_SQL } from "./indexes.ts";
 import { ACTOR_MAY_WRITE } from "./policies.ts";
 import { rlsFinding } from "./verify-findings.ts";
@@ -55,6 +56,14 @@ export type ExpectedRls = {
    * is checked.
    */
   readonly indexes: readonly IndexTarget[];
+  /**
+   * The policies `@bsb access` tags render, as better-supabase lists them:
+   * generated, so `verify` does not report them as extra.
+   */
+  readonly tagged?: readonly {
+    readonly table: string;
+    readonly name: string;
+  }[];
 };
 
 /**
@@ -380,7 +389,9 @@ export function diffRls(
     }
   }
   const wanted = new Set(
-    expected.policies.map((item) => `${item.table}\u0000${item.name}`),
+    [...expected.policies, ...(expected.tagged ?? [])].map(
+      (item) => `${normalizeTableName(item.table)}\u0000${item.name}`,
+    ),
   );
   for (const have of actual.policies) {
     if (
@@ -643,10 +654,13 @@ const WRITES = ["insert", "update", "delete"] as const;
 
 /**
  * `rls generate` inlines the check in its `<table>_<command>_read_only_actors`
- * policies.
+ * policies; an `@bsb access` tag with `actor-guard` calls better-supabase's.
  */
 function inlinesActorCheck(expression: string): boolean {
-  return expression.includes("'act'") && expression.includes("'read_only'");
+  return (
+    (expression.includes("'act'") && expression.includes("'read_only'")) ||
+    expression.includes("better_supabase.actor_may_write(")
+  );
 }
 
 /**
@@ -700,32 +714,10 @@ function unguardedWrites(
   return out;
 }
 
-const SYSTEM_SCHEMAS = [
-  "pg_catalog",
-  "information_schema",
-  "pg_toast",
-  "auth",
-  "storage",
-  "realtime",
-  "extensions",
-  "graphql",
-  "graphql_public",
-  "vault",
-  "pgsodium",
-  "pgsodium_masks",
-  "net",
-  "cron",
-  "supabase_functions",
-  "supabase_migrations",
-] as const;
-
 function inScope(table: string): boolean {
   const schema = beforeFirst(table, ".");
   return (
-    HELPER_TABLES.some((item) => item === table) ||
-    !(
-      SYSTEM_SCHEMAS.some((item) => item === schema) || schema.startsWith("pg_")
-    )
+    HELPER_TABLES.some((item) => item === table) || !isPlatformSchema(schema)
   );
 }
 

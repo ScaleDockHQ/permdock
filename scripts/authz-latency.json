@@ -1,0 +1,396 @@
+{
+  "machine": {
+    "date": "2026-11-24T11:25:03Z",
+    "node": "v26.13.1",
+    "os": "darwin 25.6.0 arm64",
+    "cpu": "Apple M5 Max (18 cores)",
+    "memoryGb": 64,
+    "postgres": "17.11",
+    "permdock": "0.30.0",
+    "commit": "6340ccd92"
+  },
+  "stack": "apps/examples/next-better-supabase local stack, seed data (4 users, 2 organizations)",
+  "versionRead": {
+    "authzVersionFor": {
+      "function": "permdock.authz_version_for(uuid)",
+      "pgRoundTrip": {
+        "runs": 200,
+        "meanMs": 0.101,
+        "p50Ms": 0.086,
+        "p95Ms": 0.204
+      },
+      "server": {
+        "runs": 200,
+        "meanMs": 0.01,
+        "p50Ms": 0.009,
+        "p95Ms": 0.019,
+        "sharedHitBlocks": 4
+      },
+      "postgrestRpc": {
+        "measured": false,
+        "reason": "the example sets no supabase.hook.api, so no public wrapper exposes it and the permdock schema is not in the API's schemas"
+      }
+    },
+    "customRolesVersionFor": {
+      "function": "permdock.custom_roles_version_for(uuid)",
+      "pgRoundTrip": {
+        "runs": 200,
+        "meanMs": 0.103,
+        "p50Ms": 0.093,
+        "p95Ms": 0.157
+      },
+      "server": {
+        "runs": 200,
+        "meanMs": 0.022,
+        "p50Ms": 0.018,
+        "p95Ms": 0.045,
+        "sharedHitBlocks": 5
+      },
+      "postgrestRpc": {
+        "measured": false,
+        "reason": "the example sets no supabase.hook.api, so no public wrapper exposes it and the permdock schema is not in the API's schemas"
+      }
+    },
+    "postgrestRpcFloor": {
+      "note": "GET /organizations?select=id&id=eq.<acme> as anon: a one-row primary-key read, the round trip a version wrapper would add over PostgREST",
+      "runs": 200,
+      "meanMs": 1.331,
+      "p50Ms": 1.273,
+      "p95Ms": 1.752
+    }
+  },
+  "coldInstance": {
+    "thresholdMs": 3,
+    "fixture": {
+      "policy": "tests/integration/fixtures/generate-perf: 273 keys, 1,790 admin grants",
+      "cold": {
+        "marks": {
+          "permdock": {
+            "runs": 30,
+            "meanMs": 30.272,
+            "p50Ms": 29.952,
+            "p95Ms": 32.381
+          },
+          "policyModule": {
+            "runs": 30,
+            "meanMs": 21.554,
+            "p50Ms": 21.44,
+            "p95Ms": 22.223
+          },
+          "definePolicy": {
+            "runs": 30,
+            "meanMs": 14.926,
+            "p50Ms": 14.85,
+            "p95Ms": 16.076
+          },
+          "getPermDock": {
+            "runs": 30,
+            "meanMs": 1.015,
+            "p50Ms": 0.991,
+            "p95Ms": 1.188
+          },
+          "can": {
+            "runs": 30,
+            "meanMs": 1.362,
+            "p50Ms": 1.309,
+            "p95Ms": 1.73
+          }
+        },
+        "build": {
+          "runs": 30,
+          "meanMs": 38.857,
+          "p50Ms": 38.883,
+          "p95Ms": 40.278
+        },
+        "buildNote": "policy module, definePolicy, first getPermDock and first can; the permdock import is excluded",
+        "overThreshold": true,
+        "evaluatorAndInstance": {
+          "runs": 30,
+          "meanMs": 17.303,
+          "p50Ms": 17.197,
+          "p95Ms": 18.355
+        },
+        "evaluatorAndInstanceNote": "definePolicy, first getPermDock and first can: the part a compiled policy index replaces",
+        "evaluatorAndInstanceOverThreshold": true
+      },
+      "warm": {
+        "getPermDock": {
+          "runs": 30,
+          "meanMs": 1.034,
+          "p50Ms": 0.975,
+          "p95Ms": 1.295
+        },
+        "can": {
+          "runs": 30,
+          "meanMs": 1.343,
+          "p50Ms": 1.295,
+          "p95Ms": 1.545
+        },
+        "secondGetPermDock": {
+          "runs": 30,
+          "meanMs": 0.085,
+          "p50Ms": 0.081,
+          "p95Ms": 0.103
+        }
+      }
+    },
+    "example": {
+      "policy": "apps/examples/next-better-supabase/src/policy.ts: 8 keys, 4 roles",
+      "cold": {
+        "marks": {
+          "permdock": {
+            "runs": 30,
+            "meanMs": 30.349,
+            "p50Ms": 30.094,
+            "p95Ms": 31.97
+          },
+          "policyModule": {
+            "runs": 30,
+            "meanMs": 38.273,
+            "p50Ms": 37.967,
+            "p95Ms": 41.31
+          },
+          "definePolicy": {
+            "runs": 30,
+            "meanMs": 4.167,
+            "p50Ms": 4.094,
+            "p95Ms": 4.543
+          },
+          "getPermDock": {
+            "runs": 30,
+            "meanMs": 0.935,
+            "p50Ms": 0.913,
+            "p95Ms": 1.072
+          },
+          "can": {
+            "runs": 30,
+            "meanMs": 1.333,
+            "p50Ms": 1.291,
+            "p95Ms": 1.572
+          }
+        },
+        "build": {
+          "runs": 30,
+          "meanMs": 44.708,
+          "p50Ms": 44.541,
+          "p95Ms": 48.202
+        },
+        "buildNote": "policy module, definePolicy, first getPermDock and first can; the permdock import is excluded",
+        "overThreshold": true,
+        "evaluatorAndInstance": {
+          "runs": 30,
+          "meanMs": 6.435,
+          "p50Ms": 6.409,
+          "p95Ms": 6.893
+        },
+        "evaluatorAndInstanceNote": "definePolicy, first getPermDock and first can: the part a compiled policy index replaces",
+        "evaluatorAndInstanceOverThreshold": true
+      },
+      "warm": {
+        "getPermDock": {
+          "runs": 30,
+          "meanMs": 0.965,
+          "p50Ms": 0.905,
+          "p95Ms": 1.273
+        },
+        "can": {
+          "runs": 30,
+          "meanMs": 1.402,
+          "p50Ms": 1.346,
+          "p95Ms": 1.761
+        },
+        "secondGetPermDock": {
+          "runs": 30,
+          "meanMs": 0.091,
+          "p50Ms": 0.084,
+          "p95Ms": 0.117
+        }
+      }
+    }
+  },
+  "grantFingerprint": {
+    "example": {
+      "keys": 2,
+      "shape": "gf1:",
+      "runs": 10000,
+      "meanMs": 0.039,
+      "p50Ms": 0.035,
+      "p95Ms": 0.052,
+      "calls": 10000,
+      "sourceCallsAtBuild": {
+        "membershipsFor": 1,
+        "version": 0,
+        "customRolesVersion": 0
+      },
+      "sourceCallsInFingerprint": 0
+    },
+    "fixtureOneKey": {
+      "keys": 1,
+      "shape": "gf1:",
+      "runs": 10000,
+      "meanMs": 0.966,
+      "p50Ms": 0.909,
+      "p95Ms": 1.213,
+      "calls": 10000,
+      "sourceCallsAtBuild": {
+        "membershipsFor": 1,
+        "version": 0,
+        "customRolesVersion": 0
+      },
+      "sourceCallsInFingerprint": 0
+    },
+    "fixtureAllReads": {
+      "keys": 39,
+      "shape": "gf1:",
+      "runs": 10000,
+      "meanMs": 3.452,
+      "p50Ms": 3.31,
+      "p95Ms": 4.315,
+      "calls": 10000,
+      "sourceCallsAtBuild": {
+        "membershipsFor": 1,
+        "version": 0,
+        "customRolesVersion": 0
+      },
+      "sourceCallsInFingerprint": 0
+    }
+  },
+  "shareKey": {
+    "instances": {
+      "wiring": "authorizationHooks({ policy, permdockFor }) over permdockFor({ policy, memberships: counting, instances: instanceCache() }), the token hook's claims for olivia in acme",
+      "keys": 2,
+      "shape": "gf1:",
+      "firstCallMs": 1.142,
+      "sourceCallsFirstCall": {
+        "membershipsFor": 0,
+        "version": 1,
+        "customRolesVersion": 0
+      },
+      "runs": 10000,
+      "meanMs": 0.049,
+      "p50Ms": 0.046,
+      "p95Ms": 0.054,
+      "calls": 10000,
+      "sourceCallsTotal": {
+        "membershipsFor": 0,
+        "version": 10201,
+        "customRolesVersion": 0
+      }
+    },
+    "instancesAndVersions": {
+      "wiring": "authorizationHooks({ policy, permdockFor }) over permdockFor({ policy, memberships: counting, instances: instanceCache(), versions: memoryVersionCache() }), the token hook's claims for olivia in acme",
+      "keys": 2,
+      "shape": "gf1:",
+      "firstCallMs": 0.44,
+      "sourceCallsFirstCall": {
+        "membershipsFor": 0,
+        "version": 1,
+        "customRolesVersion": 0
+      },
+      "runs": 10000,
+      "meanMs": 0.047,
+      "p50Ms": 0.046,
+      "p95Ms": 0.051,
+      "calls": 10000,
+      "sourceCallsTotal": {
+        "membershipsFor": 0,
+        "version": 1,
+        "customRolesVersion": 0
+      }
+    }
+  },
+  "helpers": {
+    "subject": "olivia (owner of acme, member of globex) with the token hook's current claims, as authenticated",
+    "method": "server time is EXPLAIN (ANALYZE, BUFFERS, TIMING OFF) Execution Time per statement in its own rolled-back transaction, today and variant B alternating; the round trip reuses one transaction",
+    "today": {
+      "ids": {
+        "call": "permdock.permitted_organization_ids('quotes.read')",
+        "rows": 1,
+        "roundTrip": {
+          "runs": 200,
+          "meanMs": 0.499,
+          "p50Ms": 0.465,
+          "p95Ms": 0.649
+        },
+        "server": {
+          "runs": 200,
+          "meanMs": 0.403,
+          "p50Ms": 0.387,
+          "p95Ms": 0.484,
+          "sharedHitBlocks": 9
+        }
+      },
+      "byPermission": {
+        "call": "permdock.permitted_organization_ids_by_permission('quotes.read')",
+        "rows": 1,
+        "roundTrip": {
+          "runs": 200,
+          "meanMs": 0.655,
+          "p50Ms": 0.612,
+          "p95Ms": 0.896
+        },
+        "server": {
+          "runs": 200,
+          "meanMs": 0.43,
+          "p50Ms": 0.416,
+          "p95Ms": 0.503,
+          "sharedHitBlocks": 9
+        }
+      }
+    },
+    "variantB": {
+      "what": "permdock_token_current() memoised per transaction in a GUC, shared by every grant key of the statement",
+      "ids": {
+        "call": "pg_temp.permitted_organization_ids_b('quotes.read')",
+        "rows": 1,
+        "roundTrip": {
+          "runs": 200,
+          "meanMs": 0.465,
+          "p50Ms": 0.445,
+          "p95Ms": 0.604
+        },
+        "server": {
+          "runs": 200,
+          "meanMs": 0.385,
+          "p50Ms": 0.369,
+          "p95Ms": 0.454,
+          "sharedHitBlocks": 7
+        }
+      },
+      "byPermission": {
+        "call": "pg_temp.permitted_organization_ids_by_permission_b('quotes.read')",
+        "rows": 1,
+        "roundTrip": {
+          "runs": 200,
+          "meanMs": 0.508,
+          "p50Ms": 0.477,
+          "p95Ms": 0.696
+        },
+        "server": {
+          "runs": 200,
+          "meanMs": 0.416,
+          "p50Ms": 0.402,
+          "p95Ms": 0.492,
+          "sharedHitBlocks": 7
+        }
+      },
+      "meanCut": {
+        "ids": 0.045,
+        "byPermission": 0.033
+      },
+      "ships": "cuts the mean by less than a fifth"
+    },
+    "variantC": {
+      "measured": false,
+      "reason": "the example's helpers join no suspension table (its config sets no suspension source), so the claims branch has no join to drop"
+    }
+  },
+  "serverAction": {
+    "measured": false,
+    "reason": "needs the example's Next.js app running with a signed-in session through the auth service; it was not running, and starting next dev would compile the other uncommitted work in this tree"
+  },
+  "sharedEntry": {
+    "measured": false,
+    "reason": "needs the example's Next.js app running with a signed-in session through the auth service; it was not running, and starting next dev would compile the other uncommitted work in this tree"
+  }
+}

@@ -311,6 +311,22 @@ describe("supabase hook", () => {
       });
     });
 
+    it("carries supabase.hook.activeTenant: 'request' into the manifest", async () => {
+      const { code, cwd } = await generate(
+        `{ memberships: [${SOURCES}], activeTenant: 'request' }`,
+      );
+      expect(code).toBe(0);
+      const manifest: SupabaseHookManifest = jsonData(
+        (await run(["supabase", "inspect", "--json"], { cwd })).stdout,
+      );
+      expect(manifest.hook.activeTenant).toBe("request");
+
+      const wrong = await generate(
+        `{ memberships: [${SOURCES}], activeTenant: 'token' }`,
+      );
+      expect(wrong.code).toBe(2);
+    });
+
     it("calls each supabase.hook.before function first and returns its error", async () => {
       const { code, sql, cwd } = await generate(
         `{ memberships: [${SOURCES}], before: ['auth_checks.require_sso', 'auth_checks.require_mfa'], claims: { features: 'auth_checks.feature_claims' } }`,

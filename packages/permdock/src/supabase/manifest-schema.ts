@@ -68,6 +68,11 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
             },
           ],
         },
+        activeTenant: {
+          const: "request",
+          description:
+            "The app resolves the active tenant per request (supabase.hook.activeTenant), which better-supabase reads as activeOrganizationFrom: resolver.",
+        },
       },
     },
     helpers: {
@@ -181,6 +186,16 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
         memberships: { type: "array", items: { $ref: "#/$defs/membership" } },
         customRoles: { type: "boolean" },
         customRoleTenant: { type: "string" },
+        customRoleScope: {
+          type: "object",
+          required: ["table", "column"],
+          additionalProperties: false,
+          properties: {
+            table: { type: "string" },
+            column: { type: "string" },
+            global: { type: "string" },
+          },
+        },
         roles: {
           type: "object",
           required: ["table", "user", "role"],
@@ -227,6 +242,38 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
           properties: { tables: { type: "array", items: { type: "string" } } },
         },
         tokenScopes: { type: "boolean" },
+        tableReads: {
+          description:
+            "Whether every holder of a table's select permissions in a tenant reads the same rows, from the select policies the schema files, migrations and rls.out leave defined. Absent from a manifest written before 0.32.",
+          type: "array",
+          items: {
+            type: "object",
+            required: ["table", "share"],
+            additionalProperties: false,
+            properties: {
+              table: { type: "string" },
+              share: { enum: ["tenant", "row"] },
+              column: { type: "string" },
+              permissions: { type: "array", items: { type: "string" } },
+              rules: {
+                type: "array",
+                items: {
+                  enum: [
+                    "follows",
+                    "via",
+                    "walk",
+                    "owner",
+                    "condition",
+                    "restrictive",
+                    "fields",
+                    "form",
+                    "unknown",
+                  ],
+                },
+              },
+            },
+          },
+        },
         apiKeys: {
           type: "object",
           required: ["claim", "scopes", "tenant", "roles", "serviceRoles"],
@@ -382,7 +429,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
     helperName: {
       type: "string",
       pattern:
-        "^(permdock_has(_for)?|permitted_[a-z][a-z0-9_]*_(ids|permission_keys)(_for)?|permitted_[a-z][a-z0-9_]*_users|member_[a-z][a-z0-9_]*_ids(_for|_of)?|permdock_can_assign(_any|_custom_role)?(_for)?|permdock_api_key_allows|permdock_token_scope_allows|permdock_interactive_allows|permdock_actor_may_write|permdock_is_approver|permdock_manages|permdock_user_id|permdock_subject|permdock_approver_for_ids|permdock_managed_user_ids|permdock_bootstrap_permissions|permdock_role_in)$",
+        "^(permdock_has(_for)?|permitted_[a-z][a-z0-9_]*_(ids|permission_keys)(_for)?|permitted_[a-z][a-z0-9_]*_users|member_[a-z][a-z0-9_]*_ids(_for|_of)?|permdock_can_assign(_any|_custom_role)?(_for)?|permdock_api_key_allows|permdock_token_scope_allows|permdock_interactive_allows|permdock_actor_may_write|permdock_is_approver|permdock_manages|permdock_user_id|permdock_subject|permdock_approver_for_ids|permdock_managed_user_ids|permdock_request_approver_ids|permdock_bootstrap_permissions|permdock_role_in)$",
     },
     column: {
       type: "object",

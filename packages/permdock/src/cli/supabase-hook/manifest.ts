@@ -11,6 +11,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type {
   PermDockConfig,
   RlsActiveRow,
+  RlsCustomRoleTable,
   RlsSuspendedScope,
 } from "../types.ts";
 import type { Parts } from "./parts.ts";
@@ -21,6 +22,7 @@ import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
 import { SUPABASE_MANIFEST_SCHEMA } from "../core/version.ts";
 import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
+import { REQUEST_APPROVER_IDS } from "../rls/approval-chain.ts";
 import { MANAGES } from "../rls/approval-managers.ts";
 import { APPROVER_FOR_IDS, MANAGED_USER_IDS } from "../rls/approval-sets.ts";
 import { IS_APPROVER } from "../rls/approvals.ts";
@@ -52,6 +54,7 @@ import {
 import { resolveNames } from "../sql/resolve-names.ts";
 import { CUSTOM_ROLES, customRolesOn, HELPERS } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
+import { hookActiveTenant } from "./active-tenant.ts";
 import { PERMDOCK_SUBJECT } from "./api.ts";
 import { hookClaims } from "./claims.ts";
 import { BUDGET_MEASURE } from "./sql.ts";
@@ -227,6 +230,14 @@ function trustedHelpers(
             "setof uuid",
             client,
           ),
+          helperEntry(
+            REQUEST_APPROVER_IDS,
+            config.rls.approvals.managers.tenant === undefined
+              ? "p_requester uuid"
+              : `p_requester uuid, p_tenant ${tenantType}`,
+            "setof uuid",
+            client,
+          ),
         ]
       : []),
     ...forUser,
@@ -308,6 +319,19 @@ function activeRowManifest(
   };
 }
 
+function customRoleScope(
+  roles: RlsCustomRoleTable | undefined,
+): Pick<SupabaseManifestRls, "customRoleScope"> {
+  if (roles?.scope === undefined) return {};
+  return {
+    customRoleScope: {
+      table: qualifySqlTable(roles.table),
+      column: roles.scope,
+      ...(roles.globalScope === undefined ? {} : { global: roles.globalScope }),
+    },
+  };
+}
+
 /**
  * The `rls` settings a package writing SQL next to the helpers reads: custom
  * roles, global roles, suspension and assignment triggers.
@@ -319,6 +343,7 @@ function rlsSettings(
   SupabaseManifestRls,
   | "customRoles"
   | "customRoleTenant"
+  | "customRoleScope"
   | "roles"
   | "suspension"
   | "assignments"
@@ -337,6 +362,7 @@ function rlsSettings(
     ...(rls?.customRoleWrites?.roles?.tenant === undefined
       ? {}
       : { customRoleTenant: rls.customRoleWrites.roles.tenant }),
+    ...customRoleScope(rls?.customRoleWrites?.roles),
     ...(parts.roles === undefined
       ? {}
       : {
@@ -479,6 +505,9 @@ export function manifestOf(
       out,
       ...(parts.before.length === 0 ? {} : { before: parts.before }),
       activeFrom: parts.activeFrom,
+      ...(hookActiveTenant(parts.hook) === "request"
+        ? { activeTenant: "request" }
+        : {}),
     },
     helpers: {
       schema: parts.helpers.schema,

@@ -17,11 +17,9 @@ export default defineConfig({
       seeds: { out: "supabase/migrations/" },
     }),
   ],
-  collect: { srcPath: ["./src"] },
   // orgQuotesTopic and quoteFilesPath, from the realtime and storage blocks below.
   gen: { kinds: ["constants"], out: "src/generated" },
   rls: {
-    dialect: "supabase",
     authorize: "database",
     actions: { manage: "none", revert: "none" },
     scopeTypes: { tenant: "uuid" },

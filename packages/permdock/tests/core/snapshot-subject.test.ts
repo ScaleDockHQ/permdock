@@ -79,7 +79,7 @@ describe(heldRoleNames, () => {
 
 describe(subjectFromSnapshot, () => {
   const base: ExpandedSnapshot = {
-    v: 1,
+    v: 2,
     issuedAt: "1970-01-01T00:00:00Z",
     subject: { principal: { id: "u1", roles: [], tenant: "t1" }, context: {} },
     roles: [],

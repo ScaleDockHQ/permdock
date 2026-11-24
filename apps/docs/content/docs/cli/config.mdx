@@ -49,9 +49,17 @@ With `--json`, `data` is the report `--print` prints.
     ],
     "rlsSchema": "permdock"
   },
+  "effective": {
+    "permissions": "./src/permissions.ts",
+    "collect": { "barrel": true, "srcPath": ["./src"] }
+  },
+  "defaults": ["collect.srcPath"],
+  "restated": [],
   "warnings": []
 }
 ```
+
+`effective` is the config every command reads: each unset key of a section the config opens (`rls`, `supabase.hook`, `gen`, `collect`, `doctor`) holds its default, and `defaults` names those keys. A section the config does not open stays unset, because opening it turns a command on. `restated` lists keys set to their default, which doctor `PD120` reports and `permdock codemod config --prune` removes.
 
 | `resolved` field   | Unset default                                                                                  | Read by                           |
 | ------------------ | ---------------------------------------------------------------------------------------------- | --------------------------------- |
@@ -113,6 +121,9 @@ Every key PermDock reads, with the kinds of value it accepts. The command page o
 | `gen.kinds`               | an array                                      | [gen](/docs/cli/gen)                                                           |
 | `gen.fields`              | a boolean                                     | [gen](/docs/cli/gen)                                                           |
 | `gen.zod`                 | an object (`specifier`)                       | [gen](/docs/cli/gen)                                                           |
+| `budgets.bundle`          | a number                                      | [bundle](/docs/cli/bundle#budgets)                                             |
+| `budgets.snapshot`        | an object, `{ bytes, memberships }`           | [bundle](/docs/cli/bundle#budgets)                                             |
+| `budgets.claims`          | a number                                      | [bundle](/docs/cli/bundle#budgets)                                             |
 | `openapi.doc`             | an array                                      | [openapi](/docs/cli/openapi)                                                   |
 | `openapi.operations`      | a string                                      | [doctor](/docs/cli/doctor#pd091-a-tenant-operation-has-no-permission)          |
 | `openapi.tenantPaths`     | an array                                      | [doctor](/docs/cli/doctor#pd091-a-tenant-operation-has-no-permission)          |
@@ -190,8 +201,9 @@ Every key PermDock reads, with the kinds of value it accepts. The command page o
 | `doctor.claims`           | a string                                      | [doctor](/docs/cli/doctor)                                                     |
 | `doctor.srcPath`          | an array                                      | [doctor](/docs/cli/doctor)                                                     |
 | `doctor.cacheHelpers`     | an array                                      | [doctor](/docs/cli/doctor#pd080-and-pd081-sources-and-caches-created-per-call) |
-| `doctor.ignore`           | an array                                      | [doctor](/docs/cli/doctor#ignore-a-finding)                                    |
-| `doctor.waivers`          | an array                                      | [doctor](/docs/cli/doctor#pd017-sensitive-verbs-without-approval)              |
+| `doctor.baseline`         | a string                                      | [doctor](/docs/cli/doctor#accept-a-finding)                                    |
+| `doctor.failOn`           | a string, `"error"` or `"warning"`            | [doctor](/docs/cli/doctor#accept-a-finding)                                    |
+| `doctor.policies`         | an object, `{ max }`                          | [doctor](/docs/cli/doctor#pd131-many-policies-for-one-command)                 |
 
 ## Side effects
 

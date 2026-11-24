@@ -71,24 +71,30 @@ function sql(ctx: RlsSqlContext): string {
   );
 }
 
-function map(text: string): unknown {
-  const match = /'(\{.*\})'::jsonb -> p_scope/u.exec(text);
-  return JSON.parse(match?.[1] ?? "null");
+/** The rows of the `permission_keys` view, one line per row. */
+function keyRows(text: string): readonly string[] {
+  const start = text.indexOf(
+    'create or replace view "permdock".permission_keys',
+  );
+  const body = text.slice(start, text.indexOf(";", start));
+  return body
+    .split("\n")
+    .filter((line) => line.startsWith("    ('"))
+    .map((line) => line.trim().replace(/,$/u, ""));
 }
 
 describe("permission-key helpers", () => {
   it("maps a permission key to its unconditional allows and every deny, and its conditioned keys apart", () => {
     const text = sql(base);
-    expect(map(text)).toStrictEqual({
-      tenant: {
-        "invoice.read": {
-          allow: ["invoice.read#1"],
-          deny: [],
-          "conditioned-allow": ["invoice.read#2"],
-        },
-        "invoice.void": { allow: ["invoice.void#1"], deny: ["invoice.void#2"] },
-      },
-    });
+    expect(keyRows(text)).toStrictEqual([
+      "('invoice.read', 'tenant', 'allow', 'invoice.read#1', false)",
+      "('invoice.read', 'tenant', 'allow', 'invoice.read#2', true)",
+      "('invoice.void', 'tenant', 'allow', 'invoice.void#1', false)",
+      "('invoice.void', 'tenant', 'deny', 'invoice.void#2', false)",
+    ]);
+    expect(text).toContain(
+      'grant select on table "permdock".permission_keys to authenticated;',
+    );
     expect(text).toContain(
       `coalesce('{"bill.read":"invoice.read"}'::jsonb ->> p_permission, p_permission)`,
     );
@@ -160,7 +166,7 @@ describe("permission-key helpers", () => {
     const filtered = keysFn(database, "(p_id text, p_keys text[])");
     expect(filtered).toContain("set jit = off");
     expect(filtered).toContain(
-      `('invoice.void', 'tenant', 'deny', 'invoice.void#2')`,
+      `from "permdock".permission_keys k\n    where not k.conditioned and k.scope in ('global', 'tenant')`,
     );
     expect(filtered).toContain(
       `where pdk_m.key in (select coalesce('{"bill.read":"invoice.read"}'::jsonb ->> k.key, k.key) from pg_catalog.unnest(p_keys) k(key))`,

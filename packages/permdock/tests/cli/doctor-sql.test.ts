@@ -172,14 +172,14 @@ create policy wrapped on doc for update to authenticated
 create policy loose on doc for update to authenticated
   using (owner_id = (select auth.uid()));`;
 
-    it("PD051 reports bare auth.uid() and auth.jwt() once per policy", () => {
-      expect(messages(pd051(migration(sql), config))).toStrictEqual([
+    it("PD051 reports bare auth.uid() and auth.jwt() once per policy", async () => {
+      expect(messages(await pd051(migration(sql), config))).toStrictEqual([
         `${MIGRATION}:1 policy own rows on public.doc calls auth.uid() and auth.jwt() once per row`,
       ]);
     });
 
-    it("PD052 reports an update policy without with check", () => {
-      expect(messages(pd052(migration(sql), config))).toStrictEqual([
+    it("PD052 reports an update policy without with check", async () => {
+      expect(messages(await pd052(migration(sql), config))).toStrictEqual([
         `${MIGRATION}:6 update policy loose on public.doc has no with check, so Postgres checks the new row against using alone`,
       ]);
     });
@@ -338,7 +338,7 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
   });
 
   describe("PD090 repeated actor guard", () => {
-    it("reports a hand-written policy that calls the guard where the generated one applies", () => {
+    it("reports a hand-written policy that calls the guard where the generated one applies", async () => {
       const cwd = migration(
         [
           `create policy "public_quotes_update_read_only_actors" on "public"."quotes" as restrictive for update to authenticated using ((select permdock_actor_may_write()));`,
@@ -347,7 +347,7 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
           `create policy quotes_plain on public.quotes for update to authenticated using (true);`,
         ].join("\n"),
       );
-      expect(messages(pd090(cwd, config))).toStrictEqual([
+      expect(messages(await pd090(cwd, config))).toStrictEqual([
         `${MIGRATION}:2 policy quotes_write on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
       ]);
     });
@@ -371,7 +371,7 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
   describe("PD090 declarative schemas and rls.out", () => {
     const generated = `create policy "public_quotes_update_read_only_actors" on "public"."quotes" as restrictive for update to authenticated using ((select "permdock".permdock_actor_may_write()));`;
 
-    it("reads supabase/schemas when doctor.migrations lists another folder", () => {
+    it("reads supabase/schemas when doctor.migrations lists another folder", async () => {
       const cwd = project({
         "supabase/schemas/permdock.sql": generated,
         "supabase/schemas/app.sql": `create policy quotes_write on public.quotes for update to authenticated using ((select permdock_actor_may_write()));`,
@@ -379,26 +379,26 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
       });
       expect(
         messages(
-          pd090(cwd, { doctor: { migrations: ["supabase/migrations"] } }),
+          await pd090(cwd, { doctor: { migrations: ["supabase/migrations"] } }),
         ),
       ).toStrictEqual([
         `supabase/schemas/app.sql:1 policy quotes_write on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
       ]);
     });
 
-    it("reads rls.out and matches the guard 0.24 inlined", () => {
+    it("reads rls.out and matches the guard 0.24 inlined", async () => {
       const cwd = project({
         "generated/rls.sql": generated,
         [MIGRATION]: `create policy "quotes_write" on "public"."quotes" for update to authenticated using (not coalesce((((select auth.jwt()) -> 'act') ->> 'kind') = 'support', false) or coalesce((((select auth.jwt()) -> 'act') ->> 'read_only') = 'false', false));`,
       });
       expect(
-        messages(pd090(cwd, { rls: { out: "generated/rls.sql" } })),
+        messages(await pd090(cwd, { rls: { out: "generated/rls.sql" } })),
       ).toHaveLength(1);
     });
   });
 
   describe("PD090 policy commands", () => {
-    it("treats a policy for all or without a command as every write, and skips other statements", () => {
+    it("treats a policy for all or without a command as every write, and skips other statements", async () => {
       const cwd = migration(
         [
           `select 1;`,
@@ -407,15 +407,43 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
           `create policy quotes_any on public.quotes using ((select permdock_actor_may_write()));`,
         ].join("\n"),
       );
-      expect(messages(pd090(cwd, config))).toStrictEqual([
+      expect(messages(await pd090(cwd, config))).toStrictEqual([
         `${MIGRATION}:3 policy quotes_all on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
         `${MIGRATION}:4 policy quotes_any on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
       ]);
     });
   });
 
+  describe("policies read through the SQL layer", () => {
+    it("PD090 does not take a for update inside a subquery as the policy command", async () => {
+      const cwd = migration(
+        [
+          `create policy "public_quotes_update_read_only_actors" on "public"."quotes" as restrictive for update to authenticated using ((select permdock_actor_may_write()));`,
+          `create policy quotes_read on public.quotes for select to authenticated using ((select permdock_actor_may_write()) and id in (select id from public.quotes for update));`,
+        ].join("\n"),
+      );
+      expect(messages(await pd090(cwd, config))).toStrictEqual([]);
+    });
+
+    it("PD052 does not take a for update inside a subquery as the policy command", async () => {
+      const cwd = migration(
+        `create policy locked on public.doc for select to authenticated using (id in (select id from public.doc for update));`,
+      );
+      expect(messages(await pd052(cwd, config))).toStrictEqual([]);
+    });
+
+    it("PD051 keeps the policy when its using clause holds a quoted semicolon", async () => {
+      const cwd = migration(
+        `create policy "a;b" on "s".t for select to authenticated using (note <> ';' and owner_id = auth.uid());`,
+      );
+      expect(messages(await pd051(cwd, config))).toStrictEqual([
+        `${MIGRATION}:1 policy a;b on s.t calls auth.uid() once per row`,
+      ]);
+    });
+  });
+
   describe("the generated RLS", () => {
-    it("passes every SQL check", () => {
+    it("passes every SQL check", async () => {
       const golden = readFileSync(
         path.join(
           import.meta.dirname,
@@ -424,7 +452,7 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
         "utf8",
       );
       const cwd = migration(golden);
-      const findings = [
+      const checks = [
         pd047,
         pd048,
         pd049,
@@ -434,7 +462,11 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
         pd053,
         pd062,
         pd063,
-      ].flatMap((check) => check(cwd, config));
+      ];
+      const findings = [];
+      for (const check of checks) {
+        findings.push(...(await check(cwd, config)));
+      }
       expect(findings).toStrictEqual([]);
     });
   });

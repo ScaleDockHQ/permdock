@@ -4,6 +4,7 @@ import { Hono } from "hono";
 
 import { flags, reviewQueue } from "./flags.ts";
 import { isDevUser, jwks, mintToken } from "./keys.ts";
+import { mcp } from "./mcp.ts";
 import { permdockHandler, withPermDock } from "./permdock.ts";
 import { ownPost, permissions } from "./permissions.ts";
 import { toHono } from "./to-hono.ts";
@@ -99,6 +100,9 @@ function routeFor(request: Request): Route | null {
   }
   if (request.method === "GET" && pathname === "/flags") {
     return flags;
+  }
+  if (/^\/orgs\/[^/]+\/mcp(?:\/oauth-protected-resource)?$/u.test(pathname)) {
+    return mcp;
   }
   if (pathname.startsWith("/hono/")) {
     return async (honoRequest) => {

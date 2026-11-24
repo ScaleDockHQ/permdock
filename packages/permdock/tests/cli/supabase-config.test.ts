@@ -1,8 +1,14 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+
+import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import {
   pd045,
   pd074,
+  pd127,
+  pd136,
   readSupabaseConfig,
   supabaseConfig,
 } from "../../src/cli/supabase-config.ts";
@@ -41,6 +47,8 @@ schema_paths = [
       });
       expect(readSupabaseConfig(cwd)).toStrictEqual({
         ok: true,
+        file: "supabase/config.toml",
+        format: "toml",
         config: {
           jwtExpiry: 1800,
           schemaPaths: ["./schemas/permdock.sql", "./schemas/**/*.sql"],
@@ -114,6 +122,85 @@ schema_paths = [
       );
     });
 
+    it("reads config.jsonc as supabase config convert writes it, ahead of config.toml", () => {
+      const cwd = project({
+        "supabase/config.toml": "[auth]\njwt_expiry = 60\n",
+        "supabase/config.jsonc": `{
+  // converted from config.toml
+  "auth": { "jwt_expiry": 1800, "site_url": "http://a//b" },
+  "db": { "major_version": 17, "migrations": { "schema_paths": ["./schemas/*.sql",] } },
+  /* pg-delta */
+  "experimental": { "pgdelta": { "enabled": true } },
+}
+`,
+      });
+      expect(readSupabaseConfig(cwd)).toStrictEqual({
+        ok: true,
+        file: "supabase/config.jsonc",
+        format: "jsonc",
+        config: {
+          jwtExpiry: 1800,
+          majorVersion: 17,
+          schemaPaths: ["./schemas/*.sql"],
+          pgDelta: { enabled: true, schemaDir: "supabase/schemas" },
+        },
+      });
+    });
+
+    it("reads the example's config.toml, its supabase config convert output and the TOML converted back as one config", () => {
+      const fixture = (name: string): string =>
+        readFileSync(
+          join(import.meta.dirname, "fixtures/supabase-config", name),
+          "utf8",
+        );
+      const read = (file: string, name: string) => {
+        const result = readSupabaseConfig(project({ [file]: fixture(name) }));
+        return result?.ok === true ? result.config : result;
+      };
+      const toml = read("supabase/config.toml", "config.toml");
+      expect(toml).toMatchObject({
+        majorVersion: 17,
+        pgDelta: { enabled: true },
+        customAccessTokenHook: { enabled: true },
+      });
+      expect(read("supabase/config.jsonc", "config.jsonc")).toStrictEqual(toml);
+      expect(
+        read("supabase/config.toml", "config.roundtrip.toml"),
+      ).toStrictEqual(toml);
+    });
+
+    it("refuses config.json beside config.jsonc, as the CLI does", () => {
+      const cwd = project({
+        "supabase/config.json": "{}",
+        "supabase/config.jsonc": "{}",
+      });
+      expect(readSupabaseConfig(cwd)).toMatchObject({
+        ok: false,
+        file: "supabase/config.json",
+      });
+      expect(pd045(cwd)[0]?.message).toContain("both exist");
+    });
+
+    it("resolves env(NAME) values and reports an unset one by name", () => {
+      const cwd = project({
+        "supabase/config.toml":
+          '[auth]\njwt_expiry = "env(JWT_EXPIRY)"\n[db]\nmajor_version = "env(PG_MAJOR)"\n',
+      });
+      expect(supabaseConfig(cwd)).toMatchObject({
+        unresolvedEnv: [
+          "auth.jwt_expiry = env(JWT_EXPIRY)",
+          "db.major_version = env(PG_MAJOR)",
+        ],
+      });
+      expect(
+        readSupabaseConfig(cwd, { JWT_EXPIRY: "900", PG_MAJOR: "16" }),
+      ).toMatchObject({ config: { jwtExpiry: 900, majorVersion: 16 } });
+      expect(pd045(cwd, {}).map((finding) => finding.message)).toStrictEqual([
+        "supabase/config.toml sets auth.jwt_expiry = env(JWT_EXPIRY), and the variable is unset, so PermDock reads the key as unset",
+        "supabase/config.toml sets db.major_version = env(PG_MAJOR), and the variable is unset, so PermDock reads the key as unset",
+      ]);
+    });
+
     it("ignores values of the wrong type", () => {
       const cwd = project({
         "supabase/config.toml":
@@ -145,6 +232,74 @@ schema_paths = [
     });
   });
 
+  describe("PD136 Supabase CLI floor", () => {
+    const withCli = (version: string): string =>
+      project({
+        "package.json": "{}",
+        "supabase/config.toml": "",
+        "node_modules/supabase/package.json": JSON.stringify({
+          name: "supabase",
+          version,
+        }),
+      });
+
+    it("names the 3.2.0 floor for an older installed CLI", () => {
+      expect(pd136(withCli("2.119.0"))).toStrictEqual([
+        expect.objectContaining({
+          code: "PD136",
+          message:
+            "the project installs Supabase CLI 2.119.0; PermDock supports 3.2.0 and later",
+        }),
+      ]);
+      expect(pd136(withCli("3.1.9"))).toHaveLength(1);
+    });
+
+    it("is silent from 3.2.0, without the package or without a Supabase project", () => {
+      expect(pd136(withCli("3.2.0"))).toStrictEqual([]);
+      expect(pd136(withCli("3.10.0-beta.1"))).toStrictEqual([]);
+      expect(pd136(project({ "supabase/config.toml": "" }))).toStrictEqual([]);
+      expect(
+        pd136(
+          project({
+            "package.json": "{}",
+            "node_modules/supabase/package.json": '{"version":"2.0.0"}',
+          }),
+        ),
+      ).toStrictEqual([]);
+    });
+  });
+
+  describe("PD127 Supabase Lite on SQLite", () => {
+    const rls: PermDockConfig = { rls: { tables: {} } };
+
+    it("warns when rls is configured and [db] driver is sqlite or sqlite-postgres", () => {
+      for (const driver of ["sqlite", "sqlite-postgres"]) {
+        const cwd = project({
+          "supabase/config.toml": `[db]\ndriver = "${driver}"\n`,
+        });
+        expect(pd127(cwd, rls)).toStrictEqual([
+          expect.objectContaining({ code: "PD127", severity: "warning" }),
+        ]);
+      }
+    });
+
+    it("is silent on Postgres, without a driver or without rls", () => {
+      const sqlite = project({
+        "supabase/config.toml": '[db]\ndriver = "sqlite"\n',
+      });
+      expect(pd127(sqlite, {})).toStrictEqual([]);
+      expect(
+        pd127(
+          project({ "supabase/config.toml": '[db]\ndriver = "postgres"\n' }),
+          rls,
+        ),
+      ).toStrictEqual([]);
+      expect(pd127(project({ "supabase/config.toml": "" }), rls)).toStrictEqual(
+        [],
+      );
+    });
+  });
+
   describe("PD074 custom access token hook in config.toml", () => {
     // SAFETY: only supabase.hook and rls.schema are read.
     const configured = { supabase: { hook: { memberships: [] } } } as never;
@@ -166,6 +321,16 @@ schema_paths = [
         ]);
         expect(findings[0]?.fix).toContain(URI);
       }
+    });
+
+    it("prints the fix in the format the project uses", () => {
+      const findings = pd074(
+        project({ "supabase/config.json": '{"auth": {}}' }),
+        configured,
+      );
+      expect(findings[0]?.fix).toBe(
+        `add to supabase/config.json:\n"auth": { "hook": { "custom_access_token": { "enabled": true, "uri": "${URI}" } } }`,
+      );
     });
 
     it("warns when the uri names another function", () => {

@@ -22,34 +22,44 @@ import { listSourceFiles, rel } from "../files.ts";
 import { pgConnector } from "../pg.ts";
 import { loadProject } from "../project/project.ts";
 import { runSkillsInstall } from "../skills.ts";
-import { pd045, pd074 } from "../supabase-config.ts";
+import { withSchemaDefaults } from "../sql/schema-tables.ts";
+import { pd045, pd074, pd127, pd136 } from "../supabase-config.ts";
 import { attrsPlan } from "../supabase-hook/claims.ts";
 import {
   hookOut,
   supabaseHookManifest,
 } from "../supabase-hook/supabase-hook.ts";
 import { pd039 } from "../supabase-setup.ts";
+import { pd123 } from "./action-keys.ts";
 import { pd064 } from "./assignments.ts";
-import { applyDoctorIgnores, reported } from "./baseline.ts";
+import { reported, settleBaseline } from "./baseline.ts";
 import { pd078, pd079, pd082, pd087, pd094, pd100 } from "./better-supabase.ts";
+import { pd132, pd133 } from "./budgets.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { eventsOf, pd085 } from "./hook-role.ts";
 import { pd092 } from "./lockfile.ts";
+import { pd121InProject } from "./membership-facts.ts";
 import { pd044, pd065 } from "./next.ts";
 import { pd091, pd091Applies } from "./openapi.ts";
+import { pd126 } from "./parser-pins.ts";
 import { pd080, pd081 } from "./per-request.ts";
 import { pd115 } from "./perf-drift.ts";
 import { pd111 } from "./perf-limit.ts";
 import { pd112 } from "./perf-snapshot.ts";
 import { pd103, pd104, pd105, pd106, pd107, pd108 } from "./perf-sql.ts";
 import { pd109, pd110, pd114 } from "./perf-token.ts";
+import { pd125 } from "./pg-topo.ts";
+import { pd131 } from "./policy-count.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
 import { pd083 } from "./postgrest.ts";
 import { pd058, pd084, pd102 } from "./powersync.ts";
 import { pd005, pd006, pd009, pd012, pd022, pd028, pd040 } from "./project.ts";
+import { pd124 } from "./publications.ts";
+import { pd130 } from "./repeated-version-reads.ts";
+import { pd120InProject } from "./restated-defaults.ts";
 import {
   pd016,
   pd020,
@@ -60,6 +70,7 @@ import {
   pd034,
   pd037,
   pd071,
+  pd122,
   pd072,
   pd073,
   pd075,
@@ -67,23 +78,22 @@ import {
   pd086,
 } from "./rls.ts";
 import { pd095, pd096, pd101 } from "./schema-checks.ts";
+import { pd134, pd135 } from "./schema-tables.ts";
 import { pd097 } from "./seed-data.ts";
 import { pd054 } from "./seeds.ts";
 import { pd116 } from "./server-actions.ts";
 import {
-  pd001,
   pd007,
   pd008,
   pd010,
   pd011,
   pd013,
-  pd014,
-  pd015,
   pd036,
   pd038,
   pd041,
   pd057,
-} from "./source.ts";
+} from "./source-readers.ts";
+import { pd001, pd014, pd015 } from "./source.ts";
 import {
   pd046,
   pd047,
@@ -105,6 +115,7 @@ import {
 import { pd098, pd099 } from "./supabase-checklist.ts";
 import { pd113 } from "./supabase-jwt.ts";
 import { pd061 } from "./suspension.ts";
+import { pd128 } from "./table-reads.ts";
 
 export type { DoctorFinding, DoctorSeverity } from "../shared/doctor-types.ts";
 
@@ -131,7 +142,7 @@ export type DoctorReport = {
   /** What `--fix` changed before the checks ran; empty without `--fix`. */
   readonly fixed: readonly string[];
   readonly findings: readonly ReportedFinding[];
-  /** Findings `doctor.ignore` or `--ignore` accepted, with their reasons. */
+  /** Findings `doctor.baseline` or `--ignore` accepted, with their reasons. */
   readonly ignored: readonly IgnoredFinding[];
   readonly errors: number;
   readonly warnings: number;
@@ -145,6 +156,8 @@ export type DoctorCheck = {
   readonly code: `PD${string}`;
   readonly groups: readonly string[];
   readonly when?: (config: PermDockConfig) => boolean;
+  /** Reports only with a database URL, so without one it judges nothing. */
+  readonly database?: true;
   readonly run: (
     project: Project,
   ) => readonly DoctorFinding[] | Promise<readonly DoctorFinding[]>;
@@ -297,6 +310,9 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   { code: "PD026", groups: ["ownership"], run: pd026 },
   { code: "PD027", groups: ["rls", "context-refs"], run: pd027 },
   { code: "PD071", groups: ["rls"], run: pd071 },
+  { code: "PD122", groups: ["rls"], run: pd122 },
+  { code: "PD134", groups: ["rls"], run: pd134 },
+  { code: "PD135", groups: ["rls"], run: pd135 },
   { code: "PD072", groups: ["rls"], run: pd072 },
   { code: "PD073", groups: ["rls", "ownership"], run: pd073 },
   { code: "PD075", groups: ["rls"], run: pd075 },
@@ -376,6 +392,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd069(project.cwd, project.config, project.files),
   },
   { code: "PD045", groups: ["supabase"], run: (project) => pd045(project.cwd) },
+  { code: "PD136", groups: ["supabase"], run: (project) => pd136(project.cwd) },
+  {
+    code: "PD127",
+    groups: ["supabase", "rls"],
+    run: (project) => pd127(project.cwd, project.config),
+  },
   {
     code: "PD074",
     groups: ["supabase", "helpers"],
@@ -402,6 +424,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   {
     code: "PD085",
+    database: true,
     groups: ["supabase", "hook"],
     when: (config) => config.supabase?.hook !== undefined,
     run: pd085,
@@ -428,7 +451,13 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   { code: "PD091", groups: ["openapi"], when: pd091Applies, run: pd091 },
   { code: "PD092", groups: ["project"], run: pd092 },
+  {
+    code: "PD126",
+    groups: ["project"],
+    run: (project) => pd126(project.cwd, project.files),
+  },
   { code: "PD094", groups: ["better-supabase"], run: pd094 },
+  { code: "PD123", groups: ["better-supabase"], run: pd123 },
   {
     code: "PD095",
     groups: ["rls", "supabase"],
@@ -494,6 +523,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   {
     code: "PD110",
+    database: true,
     groups: ["supabase", "hook", "performance"],
     when: (config) => config.supabase?.hook !== undefined,
     run: (project) => pd110(project, eventsOf(project)),
@@ -512,6 +542,17 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: pd112,
   },
   {
+    code: "PD132",
+    groups: ["snapshot", "performance"],
+    when: (config) => config.budgets !== undefined,
+    run: pd132,
+  },
+  {
+    code: "PD133",
+    groups: ["next", "snapshot", "performance"],
+    run: (project) => pd133(project.sources()),
+  },
+  {
     code: "PD113",
     groups: ["supabase", "jwt"],
     run: (project) => pd113(project.sources()),
@@ -523,6 +564,26 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd116(project.sources()),
   },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
+  {
+    code: "PD130",
+    groups: ["next", "supabase", "performance"],
+    run: (project) => pd130(project.sources()),
+  },
+  { code: "PD131", groups: ["rls", "supabase", "performance"], run: pd131 },
+  { code: "PD128", groups: ["rls", "supabase"], run: pd128 },
+  { code: "PD125", groups: ["supabase", "sql"], run: pd125 },
+  { code: "PD124", database: true, groups: ["supabase", "rls"], run: pd124 },
+  {
+    code: "PD120",
+    groups: ["project"],
+    run: (project) => pd120InProject(project.cwd),
+  },
+  {
+    code: "PD121",
+    groups: ["rls", "supabase"],
+    when: (config) => config.rls !== undefined,
+    run: (project) => pd121InProject(project.cwd),
+  },
 ];
 
 /**
@@ -548,6 +609,8 @@ export async function runDoctor(input: {
   readonly config: PermDockConfig;
   readonly only: readonly string[];
   readonly ignore?: readonly string[];
+  /** Rewrite `doctor.baseline` to accept this run's errors and warnings. */
+  readonly updateBaseline?: boolean;
   readonly json: boolean;
   readonly fix: boolean;
   readonly strict: boolean;
@@ -594,19 +657,29 @@ export async function runDoctor(input: {
     check.groups.some((group) => wanted.has(group));
 
   const collected: DoctorFinding[] = [];
+  const judged = new Set<string>();
   for (const check of DOCTOR_CHECKS) {
     if (check.when !== undefined && !check.when(input.config)) {
       continue;
     }
     if (selected(check)) {
+      if (check.database === undefined || input.db !== undefined) {
+        judged.add(check.code);
+      }
       collected.push(...dedupe(await check.run(project)));
     }
   }
-  const { findings, ignored } = applyDoctorIgnores(
-    collected.map(reported),
-    input.config,
-    input.ignore ?? [],
-  );
+  const { findings, ignored, wrote } = settleBaseline({
+    cwd: input.cwd,
+    config: input.config,
+    findings: collected.map(reported),
+    judged: (code) => judged.has(code),
+    ignore: input.ignore ?? [],
+    update: input.updateBaseline === true,
+  });
+  if (wrote !== undefined) {
+    fixed.push(`baseline: ${wrote}`);
+  }
 
   const errors = findings.filter((item) => item.severity === "error").length;
   const warnings = findings.filter(
@@ -748,7 +821,7 @@ async function supabaseSetup(
   try {
     manifest = supabaseHookManifest(
       scopeList(policy.scopes),
-      input.config,
+      await withSchemaDefaults(input.cwd, input.config, policy),
       { out: hookOut(input.cwd, input.config) },
       policy,
     );

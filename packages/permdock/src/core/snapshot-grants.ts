@@ -1,8 +1,8 @@
-import type { Condition } from "../conditions/ast.ts";
 import type { CustomGrant } from "./custom-roles.ts";
 import type { GranteeMatch } from "./grantee.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
+import type { SnapshotRequires } from "./snapshot-types.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { hasConditionOp } from "../conditions/ast.ts";
@@ -23,11 +23,21 @@ import { flattenGrantee } from "./grantee.ts";
 import { idText } from "./ids.ts";
 import { getResource, listPermissions } from "./permission-registry.ts";
 import { declaredRoleNames, grantList } from "./policy.ts";
-import { requirementCondition } from "./requires-conditions.ts";
+import {
+  requirementCondition,
+  requirementFields,
+} from "./requires-conditions.ts";
 import { isPrincipalRelation } from "./resource-relations.ts";
 import { expandRoleNames } from "./role-loading.ts";
 import { keepsPermission, scopeList, tenantOf } from "./scopes.ts";
 import { nowSeconds } from "./tenancy.ts";
+
+/** A grant the subject reaches, with the membership it holds it through. */
+export type SnapshotGrantItem = {
+  readonly grant: Grant;
+  readonly membership?: Membership;
+  readonly requires?: SnapshotRequires;
+};
 
 /**
  * A grant on a relation with a `period` is decided on the server, where the
@@ -111,7 +121,7 @@ export function collectSnapshotGrants(
   now: number = nowSeconds(),
   customGrants: readonly CustomGrant[] = customGrantsFor(policy, customRoles),
   mode: "held" | "not-entitled" = "held",
-): readonly { readonly grant: Grant; readonly membership?: Membership }[] {
+): readonly SnapshotGrantItem[] {
   const skip = (grant: Grant, match: GranteeMatch): boolean =>
     mode === "held"
       ? !match.matched
@@ -149,22 +159,40 @@ export function collectSnapshotGrants(
     (typeof item.scope === "string"
       ? entry.membership.scope === item.scope
       : entry.membership.on !== undefined);
-  const requirementOf = (
+  // The requirement goes last in `where`, so the snapshot writes it as a `requires` table and places it back.
+  const withRequirement = (
     grant: Grant,
+    where: Grant["where"],
     resource: ResourceNode | undefined,
-  ): Condition | undefined =>
-    grant.requires === undefined || grant.effect !== "allow"
-      ? undefined
-      : requirementCondition(
-          policy,
-          subject,
-          grant.requires,
-          resource,
-          now,
-          customRoles,
-          customGrants,
-        );
-  const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
+  ): Omit<SnapshotGrantItem, "membership"> => {
+    const merged = graphAware(grant, where);
+    if (grant.requires === undefined || grant.effect !== "allow") {
+      return { grant: merged };
+    }
+    const requirement = requirementCondition(
+      policy,
+      subject,
+      grant.requires,
+      resource,
+      now,
+      customRoles,
+      customGrants,
+    );
+    return {
+      grant:
+        requirement === undefined
+          ? merged
+          : freezeDeep({
+              ...merged,
+              where: combineWhere(merged.where, requirement) ?? requirement,
+            }),
+      requires: {
+        keys: grant.requires,
+        fields: requirementFields(resource, scopes),
+      },
+    };
+  };
+  const out: SnapshotGrantItem[] = [];
   for (const grant of grantList(policy)) {
     if (!contactMayUse(policy, subject, grant)) {
       continue;
@@ -203,13 +231,10 @@ export function collectSnapshotGrants(
     if (!globalOk) {
       continue;
     }
-    const merged: Grant = graphAware(
-      grant,
-      combineWhere(match.where, requirementOf(grant, resource)),
-    );
+    const merged = withRequirement(grant, match.where, resource);
     const scoped = roleItems.filter((item) => item.scope !== "global");
     if (scoped.length === 0) {
-      out.push({ grant: merged });
+      out.push(merged);
       continue;
     }
     for (const entry of held) {
@@ -217,7 +242,7 @@ export function collectSnapshotGrants(
         keepsPermission(entry.membership, grant.permission.key) &&
         scoped.every((item) => item.kind === "role" && holds(entry, item))
       ) {
-        out.push({ grant: merged, membership: entry.membership });
+        out.push({ ...merged, membership: entry.membership });
       }
     }
   }
@@ -282,15 +307,12 @@ export function collectSnapshotGrants(
     if (skip(grant, match)) {
       continue;
     }
-    const merged: Grant = graphAware(
-      grant,
-      combineWhere(match.where, requirementOf(grant, resource)),
-    );
+    const merged = withRequirement(grant, match.where, resource);
     if (globalHeld) {
-      out.push({ grant: merged });
+      out.push(merged);
     }
     for (const entry of holders) {
-      out.push({ grant: merged, membership: entry.membership });
+      out.push({ ...merged, membership: entry.membership });
     }
   }
   const fresh = policy.fresh ?? [];

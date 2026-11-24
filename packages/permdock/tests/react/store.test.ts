@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Decision } from "../../src/core/decision.ts";
 import type { TokenVerifier } from "../../src/core/interfaces.ts";
-import type { Snapshot } from "../../src/core/snapshot-types.ts";
+import type {
+  ExpandedSnapshot,
+  Snapshot,
+} from "../../src/core/snapshot-types.ts";
 
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
@@ -325,13 +328,14 @@ async function memberSnapshot(): Promise<Snapshot> {
  * the endpoint.
  */
 async function closureSnapshot(
-  extra: Partial<Snapshot> = {},
+  extra: Pick<Partial<ExpandedSnapshot>, "simulated" | "ids"> = {},
 ): Promise<Snapshot> {
   const snapshot = await memberSnapshot();
+  const expanded = expandSnapshot(snapshot);
   return compactSnapshot({
-    ...snapshot,
+    ...expanded,
     ...extra,
-    grants: expandSnapshot(snapshot).grants.map((grant) =>
+    grants: expanded.grants.map((grant) =>
       grant.permission === "post.update"
         ? {
             permission: grant.permission,

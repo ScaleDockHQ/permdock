@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { PermDock } from "../../src/core/permdock.ts";
-import type { Snapshot, SnapshotGrant } from "../../src/core/snapshot-types.ts";
+import type {
+  ExpandedSnapshot,
+  SnapshotGrant,
+} from "../../src/core/snapshot-types.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
@@ -30,11 +33,11 @@ const read: SnapshotGrant = {
 
 function permdock(
   grants: readonly SnapshotGrant[],
-  subject: Partial<Snapshot["subject"]> = {},
+  subject: Partial<ExpandedSnapshot["subject"]> = {},
 ): PermDock {
   return fromSnapshot(
     compactSnapshot({
-      v: 1,
+      v: 2,
       issuedAt: "1970-01-01T00:00:01Z",
       subject: {
         principal: { id: "u1", roles: ["member"], tenant: "t1" },

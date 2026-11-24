@@ -103,6 +103,60 @@ describe("PD094", () => {
     ]);
   });
 
+  it("compares SQL names by case and whitespace, as BS427 does", async () => {
+    expect(
+      await findings(`{
+  blocks: {
+    memberships: { options: { roleThrough: { column: "KEY", id: "id", table: "public.roles" } } },
+  },
+}`),
+    ).toStrictEqual(["blocks.memberships.options.roleThrough"]);
+  });
+
+  it("reports a roleThrough with the custom-role table's tenant and scope", async () => {
+    const scoped: PermDockConfig = {
+      ...permdock,
+      rls: {
+        ...permdock.rls,
+        customRoleWrites: {
+          roles: {
+            table: "roles",
+            key: "key",
+            tenant: "organization_id",
+            scope: "scope",
+          },
+        },
+      },
+    };
+    expect(
+      await findings(
+        `{
+  blocks: { memberships: { options: { roleThrough: {
+    table: "public.roles", id: "id", column: "key",
+    tenant: "organization_id", where: "{row}.scope = 'organization'",
+  } } } },
+}`,
+        scoped,
+      ),
+    ).toStrictEqual(["blocks.memberships.options.roleThrough"]);
+  });
+
+  it("reports a column string where the provider supplies the row form", async () => {
+    expect(
+      await findings(`{
+  blocks: { permissions: { disabled: { user: "public.profiles.disabled_at" } } },
+}`),
+    ).toStrictEqual(["blocks.permissions.disabled.user"]);
+  });
+
+  it("reports a claimsHook equal to the provider's token hook", async () => {
+    expect(
+      await findings(`{
+  blocks: { impersonation: { options: { claimsHook: "permdock.custom_access_token_hook" } } },
+}`),
+    ).toStrictEqual(["blocks.impersonation.options.claimsHook"]);
+  });
+
   describe("platformRoles", () => {
     const withPlatform: PermDockConfig = {
       ...permdock,
@@ -125,13 +179,34 @@ describe("PD094", () => {
 
     it("reports platformRoles equal to the provider's", async () => {
       expect(
-        await findings(
-          platformRoles("null::uuid, 'organization'"),
-          withPlatform,
-        ),
+        await findings(platformRoles("null::uuid, 'global'"), withPlatform),
       ).toStrictEqual(["blocks.invitations.options.platformRoles"]);
       expect(
-        await findings(platformRoles("null, 'organization'"), withPlatform),
+        await findings(platformRoles("null, 'global'"), withPlatform),
+      ).toStrictEqual(["blocks.invitations.options.platformRoles"]);
+    });
+
+    it("reports a through.where the custom-role table's globalScope restates", async () => {
+      const scoped: PermDockConfig = {
+        ...withPlatform,
+        rls: {
+          ...withPlatform.rls,
+          customRoleWrites: {
+            roles: {
+              table: "roles",
+              key: "key",
+              tenant: "organization_id",
+              scope: "scope",
+              globalScope: "system",
+            },
+          },
+        },
+      };
+      expect(
+        await findings(
+          platformRoles("null, 'global'", `, where: "{row}.scope = 'system'"`),
+          scoped,
+        ),
       ).toStrictEqual(["blocks.invitations.options.platformRoles"]);
     });
 
@@ -141,9 +216,6 @@ describe("PD094", () => {
           platformRoles("null, 'global'", `, where: "{row}.scope = 'system'"`),
           withPlatform,
         ),
-      ).toStrictEqual([]);
-      expect(
-        await findings(platformRoles("null, 'global'"), withPlatform),
       ).toStrictEqual([]);
     });
   });

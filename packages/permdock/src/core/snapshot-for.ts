@@ -39,11 +39,13 @@ export type SnapshotForOptions = {
   readonly omitAssignable?: boolean;
   /** See `SnapshotOptions.omitStatic`. */
   readonly omitStatic?: boolean;
+  /** See `SnapshotOptions.maxGrantsPerTenant`. */
+  readonly maxGrantsPerTenant?: number;
   /**
-   * The wire version. `1` is the only one that exists, so the option pins it;
-   * any other value is a `TypeError` rather than a silently ignored request.
+   * The wire version. `2` is the only one written, so the option pins it; any
+   * other value is a `TypeError` rather than a silently ignored request.
    */
-  readonly v?: 1;
+  readonly v?: 2;
   /** The instant for `issuedAt` and membership expiry. Defaults to the clock. */
   readonly now?: Instant;
 };
@@ -82,9 +84,9 @@ export function snapshotFor<
   options: SnapshotForOptions = {},
 ): Snapshot {
   const version: number | undefined = options.v;
-  if (version !== undefined && version !== 1) {
+  if (version !== undefined && version !== 2) {
     throw new TypeError(
-      `PermDock: snapshotFor() writes snapshot wire version 1 only, got v: ${String(version)}`,
+      `PermDock: snapshotFor() writes snapshot wire version 2 only, got v: ${String(version)}`,
     );
   }
   const expanded = expandedSnapshotFor(policy, user, options);
@@ -94,7 +96,8 @@ export function snapshotFor<
     : compactSnapshot(expanded);
 }
 
-function expandedSnapshotFor<
+/** The flat form `snapshotFor` writes, as the server evaluated it. */
+export function expandedSnapshotFor<
   TUser,
   TPrincipal extends Principal = Principal,
   V extends PolicyVocabulary = PolicyVocabulary,
@@ -154,6 +157,7 @@ function expandedSnapshotFor<
       include: options.include,
       tenants: options.tenants,
       omitAssignable: options.omitAssignable,
+      maxGrantsPerTenant: options.maxGrantsPerTenant,
       now: options.now === undefined ? undefined : nowSeconds(options.now),
     }),
   );

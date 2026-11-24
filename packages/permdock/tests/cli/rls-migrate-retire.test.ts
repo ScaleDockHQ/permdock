@@ -236,7 +236,7 @@ export default {
   describe("rls migrate --retire-out", () => {
     it("writes nothing and exits 1 while the table is read", async () => {
       const cwd = project({
-        "supabase/migrations/20261001000000_legacy.sql": LEGACY,
+        "supabase/migrations/20991001000000_legacy.sql": LEGACY,
       });
       const result = await run(
         [...ARGS, "--dry-run", "--retire-out", "supabase/migrations/"],
@@ -254,8 +254,8 @@ export default {
 
     it("writes one versioned retire migration after the rewrite and the cleanup", async () => {
       const cwd = project({
-        "supabase/migrations/20261001000000_legacy.sql": LEGACY,
-        "supabase/migrations/20261001000001_cleanup.sql": CLEANUP,
+        "supabase/migrations/20991001000000_legacy.sql": LEGACY,
+        "supabase/migrations/20991001000001_cleanup.sql": CLEANUP,
       });
       const { code } = await run([...ARGS], { cwd });
       expect(code).toBe(0);
@@ -267,16 +267,16 @@ export default {
       const out = [...ARGS, "--retire-out", "supabase/migrations/"];
       const dry = await run([...out, "--dry-run"], { cwd });
       expect(dry.stdout).toContain(
-        "would write supabase/migrations/20261001000002_permdock_retire.sql",
+        "would write supabase/migrations/20991001000002_permdock_retire.sql",
       );
       expect(readdirSync(join(cwd, "supabase/migrations"))).toHaveLength(2);
       const first = await run(out, { cwd });
       expect(first.code).toBe(0);
       expect(first.stdout).toContain(
-        "wrote supabase/migrations/20261001000002_permdock_retire.sql",
+        "wrote supabase/migrations/20991001000002_permdock_retire.sql",
       );
       const retire = readFileSync(
-        join(cwd, "supabase/migrations/20261001000002_permdock_retire.sql"),
+        join(cwd, "supabase/migrations/20991001000002_permdock_retire.sql"),
         "utf8",
       );
       expect(retire).toContain(

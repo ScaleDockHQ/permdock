@@ -525,6 +525,7 @@ export function buildInstance(
           include: options?.include,
           tenants: options?.tenants,
           omitAssignable: options?.omitAssignable,
+          maxGrantsPerTenant: options?.maxGrantsPerTenant,
           simulated: envBase.simulated,
         }),
       );

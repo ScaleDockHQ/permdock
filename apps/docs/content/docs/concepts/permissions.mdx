@@ -174,6 +174,17 @@ const permissions = definePermissions({
 });
 ```
 
+`answers` lists the better-supabase actions a permission decides, each `<blocks|recordTypes|buckets|topics>.<name>.<action>`. The catalog carries it as the permission's `answers` field, and [`authorizationProvider`](/docs/adapters/better-supabase) turns it into better-supabase's `actionKeys`, so `better-supabase.config.ts` names no permission key for those actions. An entry in another form throws at `definePermissions`. `permdock codemod bsb-action-keys` moves the keys a config names into `answers`.
+
+```ts
+const permissions = definePermissions({
+  invoice: resource({
+    actions: { recordPayment: { answers: ["blocks.invoices.recordPayment"] } },
+  }),
+  doc: resource({ collection: { read: { answers: ["buckets.docs.read"] } } }),
+});
+```
+
 ## What a leaf contains
 
 ```ts
@@ -188,13 +199,13 @@ permissions.post.update;
 // }
 ```
 
-| Field      | Example                                                                 | Used by                                                                                                                   |
-| ---------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `key`      | `'post.update'`                                                         | Grants, snapshots, cache keys, audit events, catalog, `findPermission`                                                    |
-| `scope`    | `'billing:invoice:pay'`                                                 | OAuth scopes, MCP `scopeChallenge`, OpenAPI `securitySchemes`, RFC 9396 `authorization_details`                           |
-| `resource` | `'post'`                                                                | Lookup of the resource node (schema, `id` field), `alternatives` in denials                                               |
-| `action`   | `'update'`                                                              | RLS command mapping (`update` becomes `USING` plus `WITH CHECK`), tool descriptions                                       |
-| `meta`     | `{ title, description, tags, readOnly, interactiveOnly, inferredFrom }` | Catalogs, docs, tool hints; `inferredFrom` is written by `permdock openapi import` with the operation an action came from |
+| Field      | Example                                                                          | Used by                                                                                                                                                 |
+| ---------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `key`      | `'post.update'`                                                                  | Grants, snapshots, cache keys, audit events, catalog, `findPermission`                                                                                  |
+| `scope`    | `'billing:invoice:pay'`                                                          | OAuth scopes, MCP `scopeChallenge`, OpenAPI `securitySchemes`, RFC 9396 `authorization_details`                                                         |
+| `resource` | `'post'`                                                                         | Lookup of the resource node (schema, `id` field), `alternatives` in denials                                                                             |
+| `action`   | `'update'`                                                                       | RLS command mapping (`update` becomes `USING` plus `WITH CHECK`), tool descriptions                                                                     |
+| `meta`     | `{ title, description, tags, readOnly, interactiveOnly, answers, inferredFrom }` | Catalogs, docs, tool hints, better-supabase `actionKeys`; `inferredFrom` is written by `permdock openapi import` with the operation an action came from |
 
 The schema is not on the leaf. It lives on the resource node, reachable through the definition, so a leaf stays JSON-serialisable while `can(permissions.post.update, post)` still knows that `post` must be a `Post`.
 

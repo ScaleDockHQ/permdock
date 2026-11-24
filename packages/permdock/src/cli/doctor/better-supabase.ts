@@ -27,6 +27,7 @@ import {
   betterSupabaseTenantClaim,
 } from "../project/better-supabase.ts";
 import { filesOf } from "../shared/doctor-files.ts";
+import { withSchemaDefaults } from "../sql/schema-tables.ts";
 import {
   hooklessDatabase,
   supabaseDatabaseManifest,
@@ -75,7 +76,7 @@ export async function pd078(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
   const hook = input.config.supabase?.hook;
-  if (hook === undefined) {
+  if (hook === undefined || hook.activeTenant === "request") {
     return [];
   }
   const config = await betterSupabaseConfig(lookupOf(input));
@@ -110,7 +111,7 @@ export async function pd078(
           code: "PD078",
           severity: "warning",
           message: mismatch,
-          fix: "set supabase.hook.activeFrom, then run permdock supabase hook generate",
+          fix: 'set supabase.hook.activeFrom, then run permdock supabase hook generate; or, when the request resolves the tenant, set supabase.hook.activeTenant: "request"',
         },
       ];
 }
@@ -348,7 +349,7 @@ export async function pd087(
 
 type Provider = Pick<
   ReturnType<typeof authorizationProvider>,
-  "roleSources" | "suspension" | "platformRoles"
+  "roleSources" | "suspension" | "platformRoles" | "tokenHook" | "actionKeys"
 >;
 
 /**
@@ -364,9 +365,10 @@ async function providerOf(input: DoctorInput): Promise<Provider | undefined> {
   const path = catalogPath(input.config, input.cwd);
   try {
     const scopes = scopeList(policy.scopes);
+    const config = await withSchemaDefaults(input.cwd, input.config, policy);
     const manifest = hooklessDatabase(input.config)
-      ? supabaseDatabaseManifest(scopes, input.config, {}, policy)
-      : supabaseHookManifest(scopes, input.config, {}, policy);
+      ? supabaseDatabaseManifest(scopes, config, {}, policy)
+      : supabaseHookManifest(scopes, config, {}, policy);
     return authorizationProvider({
       manifest,
       ...(files.exists(path) ? { catalog: files.read(path) } : {}),
@@ -385,18 +387,34 @@ function at(value: unknown, ...keys: readonly string[]): unknown {
 }
 
 /**
- * `value` with SQL strings compared by shape: runs of whitespace and a cast on
- * `null` do not change what a template calls.
+ * `value` in the form two equal settings share, as better-supabase's BS427
+ * compares them: object keys sorted, runs of whitespace collapsed, a cast on
+ * `null` dropped and an unquoted SQL name lower-cased.
  */
 function sqlShape(value: unknown): unknown {
   if (typeof value === "string") {
-    return value.replaceAll(/\bnull::\w+/gu, "null").replaceAll(/\s+/gu, " ");
+    return value
+      .replaceAll(/\bnull::\w+/gu, "null")
+      .replaceAll(/\s+/gu, " ")
+      .trim()
+      .replaceAll(/"[^"]*"|[A-Za-z_][\w$]*/gu, (token) =>
+        token.startsWith('"') ? token : token.toLowerCase(),
+      );
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sqlShape(item));
   }
   return isRecord(value)
     ? Object.fromEntries(
-        Object.entries(value).map(([key, entry]) => [key, sqlShape(entry)]),
+        Object.keys(value)
+          .toSorted()
+          .map((key) => [key, sqlShape(value[key])]),
       )
     : value;
+}
+
+function sameShape(a: unknown, b: unknown): boolean {
+  return isDeepStrictEqual(sqlShape(a), sqlShape(b));
 }
 
 /**
@@ -415,7 +433,7 @@ function restated(
   if (
     through !== undefined &&
     (provider?.roleSources ?? []).some((source) =>
-      isDeepStrictEqual(source.role.through, through),
+      sameShape(source.role.through, through),
     )
   ) {
     names.push("blocks.memberships.options.roleThrough");
@@ -430,7 +448,7 @@ function restated(
   if (
     platformRoles !== undefined &&
     provider?.platformRoles !== undefined &&
-    isDeepStrictEqual(sqlShape(platformRoles), sqlShape(provider.platformRoles))
+    sameShape(platformRoles, provider.platformRoles)
   ) {
     names.push("blocks.invitations.options.platformRoles");
   }
@@ -438,12 +456,70 @@ function restated(
     for (const subject of ["tenant", "user"] as const) {
       const value = at(config, "blocks", "permissions", "disabled", subject);
       const supplied = provider?.suspension?.[subject];
-      if (value !== undefined && isDeepStrictEqual(value, supplied)) {
+      if (value !== undefined && sameShape(value, supplied)) {
         names.push(`blocks.permissions.disabled.${subject}`);
       }
     }
   }
+  const claimsHook = at(
+    config,
+    "blocks",
+    "impersonation",
+    "options",
+    "claimsHook",
+  );
+  if (
+    typeof claimsHook === "string" &&
+    provider?.tokenHook !== undefined &&
+    sameShape(claimsHook, provider.tokenHook.function)
+  ) {
+    names.push("blocks.impersonation.options.claimsHook");
+  }
+  const blocks = at(config, "blocks");
+  for (const [block, entry] of Object.entries(isRecord(blocks) ? blocks : {})) {
+    const permissions = at(entry, "permissions");
+    for (const [action, key] of Object.entries(
+      isRecord(permissions) ? permissions : {},
+    )) {
+      const supplied = provider?.actionKeys?.blocks?.[block]?.[action];
+      if (
+        typeof key === "string" &&
+        supplied !== undefined &&
+        key === supplied
+      ) {
+        names.push(`blocks.${block}.permissions.${action}`);
+      }
+    }
+  }
   return names;
+}
+
+/**
+ * A suspension written as a `"schema.table.column"` string where the provider
+ * supplies the `{ table, id, disabledAt }` row. They differ on a user or tenant
+ * with no row: the row form refuses it, the column string lets it through.
+ */
+function suspensionForms(
+  config: Record<string, unknown>,
+  provider: Provider | undefined,
+): readonly DoctorFinding[] {
+  const findings: DoctorFinding[] = [];
+  for (const subject of ["tenant", "user"] as const) {
+    const value = at(config, "blocks", "permissions", "disabled", subject);
+    const supplied = provider?.suspension?.[subject];
+    if (typeof value !== "string" || !isRecord(supplied)) {
+      continue;
+    }
+    const name = `blocks.permissions.disabled.${subject}`;
+    findings.push({
+      code: "PD094",
+      severity: "warning",
+      target: name,
+      message: `better-supabase config sets ${name} to the column string ${value}, and the provider supplies the row form: with the string a ${subject} with no row passes better-supabase's block functions, while PermDock's policies refuse it`,
+      fix: `delete ${name} from the better-supabase config, so both libraries refuse a ${subject} with no row; the rendered block functions change, so review the next migration`,
+    });
+  }
+  return findings;
 }
 
 /**
@@ -457,21 +533,18 @@ export async function pd094(
   if (config === undefined) {
     return [];
   }
-  const names =
-    at(config, "blocks", "memberships", "options", "roleThrough") ===
-      undefined &&
-    at(config, "blocks", "permissions", "disabled") === undefined &&
-    at(config, "blocks", "invitations", "options", "platformRoles") ===
-      undefined
-      ? []
-      : restated(config, await providerOf(input));
-  return names.map((name) => ({
-    code: "PD094",
-    severity: "error" as const,
-    target: name,
-    message: `better-supabase config sets ${name}, which the provider supplies`,
-    fix: `delete ${name} from the better-supabase config`,
-  }));
+  const provider = await providerOf(input);
+  const names = restated(config, provider);
+  return [
+    ...names.map((name) => ({
+      code: "PD094",
+      severity: "error" as const,
+      target: name,
+      message: `better-supabase config sets ${name}, which the provider supplies`,
+      fix: `delete ${name} from the better-supabase config`,
+    })),
+    ...suspensionForms(config, provider),
+  ];
 }
 
 const SUPABASE_FACTORY =

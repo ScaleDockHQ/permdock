@@ -33,7 +33,7 @@ A new rule gets `description`, `globs` and `alwaysApply` (Cursor) frontmatter, p
 
 ## Status
 
-`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per `roadmap.mdx` Versioning: a breaking change to a name, default or wire format carries a changeset that says so; a breaking wire-format change bumps that format's major. Every wire format is `v1` except the catalog (`catalog-v2.json`, `version: 2`). Node.js 24, pnpm 12.18.0 (`devEngines` downloads it), TypeScript 7.
+`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per `roadmap.mdx` Versioning: a breaking change to a name, default or wire format carries a changeset that says so; a breaking wire-format change bumps that format's major. Every wire format is `v1` except the catalog (`catalog-v2.json`, `version: 2`). Node.js 26, pnpm 12.18.0 (`devEngines` downloads it), TypeScript 7.
 
 ## Repo layout
 
@@ -123,7 +123,7 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 9. **Boundary validation** of HTTP bodies, tool args, client `refresh` and model output against the resource schema.
 10. **Prototype-safe, no eval.**
 11. **Never emit `service_role`**, never trust a model-supplied subject or actor; approval tokens are bound and approvers are distinct.
-12. **Runtime entries depend on `@standard-schema/spec` only**; CLI and test code never reach them. The CLI may take regular dependencies; heavy or rare ones are optional peers.
+12. **Runtime entries depend on `@standard-schema/spec` only**; CLI and test code never reach them. The CLI may take regular dependencies; `oxc-parser`, `pgsql-parser` and `libpg-query` are exact-pinned (decision 0077) and other heavy or rare ones are optional peers.
 13. **Authentication is upstream.** Core never verifies a token; no subject, membership or tenant from flags, bodies, model args or unsigned headers.
 14. **Naming convention** (`naming.mdc`) is public API.
 15. **The Cloud is optional** and never on the decision path; every hosted capability is an interface with an in-process default.

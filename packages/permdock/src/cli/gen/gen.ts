@@ -14,6 +14,7 @@ import { fileSummary, planFiles } from "../core/files.ts";
 import { STDOUT, driftOf, writeOutputFiles } from "../core/output-files.ts";
 import { pluginVersion } from "../generate/plugins/version.ts";
 import { requirePolicy } from "../project/load.ts";
+import { withSchemaDefaults } from "../sql/schema-tables.ts";
 import { FILE_NAMES, renderGen } from "./emit/render.ts";
 import { modelDigest } from "./header.ts";
 import { genModel } from "./model.ts";
@@ -94,7 +95,9 @@ export type GenInput = {
 };
 
 /** The files `permdock gen` writes: one per kind under the output directory. */
-async function genFiles(input: GenInput): Promise<readonly OutputFile[]> {
+export async function genFiles(
+  input: GenInput,
+): Promise<readonly OutputFile[]> {
   const kinds = kindsOf(input.kinds, input.config, input.out);
   if (input.out !== undefined && kinds.length > 1) {
     throw new CliError(
@@ -150,7 +153,7 @@ export async function renderKinds(
   );
   const model = genModel({
     policy: input.policy,
-    config: input.config,
+    config: await withSchemaDefaults(input.cwd, input.config, input.policy),
     operations,
   });
   const fields = input.fields ?? input.config.gen?.fields === true;

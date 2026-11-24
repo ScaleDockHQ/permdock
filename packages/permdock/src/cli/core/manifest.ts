@@ -26,7 +26,7 @@ export type LeafEntry = {
   readonly effects: readonly Effect[];
   /** Reads permdock.config.ts; the config loads only for these. */
   readonly config: boolean;
-  /** Reports findings, so `--format github` and `sarif` apply. */
+  /** Reports findings, so `--format github`, `sarif` and `findings` apply. */
   readonly findings?: boolean;
   /**
    * Prints for a shell to read, so agent mode keeps text output unless `--json`
@@ -281,6 +281,28 @@ export const SECTIONS: readonly Section[] = [
           }),
         ],
       ),
+      group(
+        "bundle",
+        "Measure the client bundle the generated bundle module ships",
+        "bundle",
+        [
+          leaf(
+            "size",
+            "Report bundle bytes per role and shared part, raw and gzip",
+            {
+              examples: [
+                "permdock bundle size",
+                "permdock bundle size --budget 32768 --json",
+              ],
+              docs: "bundle",
+              effects: [],
+              config: true,
+              load: async () =>
+                (await import("../commands/size.ts")).bundleSize,
+            },
+          ),
+        ],
+      ),
       group("roles", "List what each role holds", "roles", [
         leaf(
           "grants",
@@ -295,6 +317,22 @@ export const SECTIONS: readonly Section[] = [
             config: true,
             load: async () =>
               (await import("../commands/roles.ts")).rolesGrants,
+          },
+        ),
+      ]),
+      group("keys", "Change permission keys", "keys", [
+        leaf(
+          "rename",
+          "Retire a permission key: the tree maps it to its successor, and stored custom-role grants move",
+          {
+            examples: [
+              "permdock keys rename fileNode.read file.read",
+              "permdock keys rename fileNode.comment file.comment --dry-run",
+            ],
+            docs: "keys",
+            effects: ["rewrite", "files"],
+            config: true,
+            load: async () => (await import("../commands/keys.ts")).keysRename,
           },
         ),
       ]),
@@ -422,6 +460,20 @@ export const SECTIONS: readonly Section[] = [
               effects: ["database:read"],
               config: true,
               load: async () => (await import("../commands/rls.ts")).explain,
+            },
+          ),
+          leaf(
+            "report",
+            "List each table's policies by command, role, origin and helper calls",
+            {
+              examples: [
+                "permdock rls report",
+                "permdock rls report --local --json",
+              ],
+              docs: "rls",
+              effects: ["database:read"],
+              config: true,
+              load: async () => (await import("../commands/rls.ts")).report,
             },
           ),
         ],
@@ -649,6 +701,7 @@ export const SECTIONS: readonly Section[] = [
           examples: [
             "permdock codemod 0.26 --dry-run",
             "permdock codemod 0.17 src",
+            "permdock codemod config --prune --check",
           ],
           docs: "codemod",
           effects: ["rewrite"],

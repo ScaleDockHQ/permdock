@@ -24,6 +24,7 @@ import {
   readCache,
   writeCache,
 } from "./cache.ts";
+import { exportedCopyFiles } from "./exported-copies.ts";
 import { policyModel } from "./model.ts";
 import { orderPlugins } from "./plugin.ts";
 import { concurrencyOf, mapLimited } from "./pool.ts";
@@ -173,7 +174,11 @@ export async function runGenerate(input: {
         ].join("|");
       }),
       optionsKey(configWithoutPlugins),
-      ...inputsKey(input.cwd, ["supabase/config.toml"]),
+      ...inputsKey(input.cwd, [
+        "supabase/config.json",
+        "supabase/config.jsonc",
+        "supabase/config.toml",
+      ]),
       canonicalJson(model),
       ...(input.importGraph ?? []),
     ].join("\n"),
@@ -205,47 +210,18 @@ export async function runGenerate(input: {
       };
     }
   }
-  const tasks: {
-    readonly plugin: PermDockPlugin;
-    readonly task: PluginTask;
-  }[] = [];
-  for (const plugin of plugins) {
-    for (const task of await plugin.plan(model, input.ctx)) {
-      tasks.push({ plugin, task });
-    }
-  }
-  const groups = await mapLimited(
-    tasks,
-    concurrencyOf(input.concurrency),
-    async (item) => {
-      const produced = partsOf(
-        await item.plugin.emit(item.task, model, {
-          cwd: input.cwd,
-          config: input.config,
-          policy: input.policy,
-          ...(input.db === undefined ? {} : { db: input.db }),
-        }),
-      );
-      return {
-        files: produced.files.map((file) => ({
-          plugin: item.plugin.name,
-          path: file.path,
-          contents: file.contents,
-        })),
-        notes: produced.notes,
-      };
-    },
-  );
-  const notes = groups.flatMap((group) => group.notes);
-  const emitted = groups.flatMap((group) => group.files);
-  for (const plugin of plugins) {
-    for (const file of (await plugin.seeds?.(model, input.ctx)) ?? []) {
-      emitted.push({ plugin: plugin.name, ...file });
-    }
-    for (const finding of (await plugin.doctor?.(model, input.ctx)) ?? []) {
-      notes.push(`${finding.code} ${finding.severity}: ${finding.message}`);
-    }
-  }
+  const { emitted, notes } = await emitPluginFiles({
+    cwd: input.cwd,
+    policy: input.policy,
+    plugins,
+    config: input.config,
+    ctx: input.ctx,
+    model,
+    ...(input.db === undefined ? {} : { db: input.db }),
+    ...(input.concurrency === undefined
+      ? {}
+      : { concurrency: input.concurrency }),
+  });
   const bodies = emitted.map((item) => ({
     path: item.path,
     text: item.contents,
@@ -293,4 +269,73 @@ export async function runGenerate(input: {
     notes,
     code: input.check === true && drifted ? 1 : 0,
   };
+}
+
+export type EmittedPluginFile = {
+  readonly plugin: string;
+  readonly path: string;
+  readonly contents: string;
+};
+
+/** Every file the plugins emit for `config`, in memory; nothing is written. */
+export async function emitPluginFiles(input: {
+  readonly cwd: string;
+  readonly policy: Policy;
+  readonly plugins: readonly PermDockPlugin[];
+  readonly config: PermDockConfig;
+  readonly ctx: ProjectContext;
+  readonly model?: PolicyModel;
+  readonly db?: string;
+  readonly concurrency?: number;
+}): Promise<{
+  readonly emitted: EmittedPluginFile[];
+  readonly notes: string[];
+}> {
+  const model = input.model ?? policyModel(input.policy);
+  const plugins = orderPlugins(input.plugins);
+  const tasks: {
+    readonly plugin: PermDockPlugin;
+    readonly task: PluginTask;
+  }[] = [];
+  for (const plugin of plugins) {
+    for (const task of await plugin.plan(model, input.ctx)) {
+      tasks.push({ plugin, task });
+    }
+  }
+  const groups = await mapLimited(
+    tasks,
+    concurrencyOf(input.concurrency),
+    async (item) => {
+      const produced = partsOf(
+        await item.plugin.emit(item.task, model, {
+          cwd: input.cwd,
+          config: input.config,
+          policy: input.policy,
+          ...(input.db === undefined ? {} : { db: input.db }),
+        }),
+      );
+      return {
+        files: produced.files.map((file) => ({
+          plugin: item.plugin.name,
+          path: file.path,
+          contents: file.contents,
+        })),
+        notes: produced.notes,
+      };
+    },
+  );
+  const notes = groups.flatMap((group) => group.notes);
+  const emitted = groups.flatMap((group) => group.files);
+  for (const plugin of plugins) {
+    for (const file of (await plugin.seeds?.(model, input.ctx)) ?? []) {
+      emitted.push({ plugin: plugin.name, ...file });
+    }
+    for (const finding of (await plugin.doctor?.(model, input.ctx)) ?? []) {
+      notes.push(`${finding.code} ${finding.severity}: ${finding.message}`);
+    }
+  }
+  const copies = await exportedCopyFiles(input.cwd, input.config, emitted);
+  emitted.push(...copies.files);
+  notes.push(...copies.notes);
+  return { emitted, notes };
 }

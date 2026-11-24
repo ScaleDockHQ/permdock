@@ -1,0 +1,22 @@
+permdock keys rename: Retire a permission key: the tree maps it to its successor, and stored custom-role grants move
+
+Usage  permdock keys rename <from> <to> [flags]
+
+Arguments
+  from  The permission key to retire, such as fileNode.read
+  to    The key that replaces it, such as file.read; an existing key merges
+
+Flags
+  --dry-run           Print what would change; write nothing
+  --force             Rewrite the permissions module with uncommitted changes too
+  --migration <file>  Data migration to write (default <migrations dir>/<timestamp>_permdock_keys_rename.sql)
+
+Global flags
+  --cwd --config --json --format --yes --effects-digest --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock keys rename fileNode.read file.read
+  permdock keys rename fileNode.comment file.comment --dry-run
+
+Side effects  rewrite, files
+Docs  https://permdock.com/docs/cli/keys

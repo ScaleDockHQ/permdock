@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import {
   indexKeysFromProject,
   indexKeysFromSql,
+  tablesFromProject,
   tablesFromSql,
   withoutServedTargets,
 } from "../../src/cli/rls/index-scan.ts";
@@ -25,23 +26,36 @@ create table other (code text unique, check (code <> ''), foreign key (code) ref
 `;
 
 describe("indexKeysFromSql edge cases", () => {
-  it("skips an expression-first index, an unbalanced group and unquoted odd text", () => {
+  it("skips an expression-first index and a statement Postgres rejects", async () => {
     expect(
-      indexKeysFromSql(`
+      await indexKeysFromSql(`
 create index on a ((lower(name)), id);
 create index on b (id;
-create index on c ("it""s" , 'a)b');
-create table d (note text default 'x(y', id uuid primary key, unique ((lower(note))));
-create table e (id uuid unique, unique ("co""de");
+create index on c ("it""s", (lower(x)));
+create table d (note text default 'x(y', id uuid primary key);
 create table f (name text default 'a;
 `),
     ).toStrictEqual({ "public.c": [['it"s']], "public.d": [["id"]] });
   });
+
+  it("keeps a key after a -- inside a string and ignores SQL in a function body", async () => {
+    expect(
+      await indexKeysFromSql(`
+create table g (note text default '--x', id uuid primary key);
+create function f() returns void language plpgsql as $$
+begin
+  execute 'create index on fake (x)';
+end
+$$;
+create index on "S".t (k);
+`),
+    ).toStrictEqual({ "public.g": [["id"]], "S.t": [["k"]] });
+  });
 });
 
 describe(indexKeysFromSql, () => {
-  it("reads indexes, constraints and keys, cut at the first expression", () => {
-    expect(indexKeysFromSql(SQL)).toStrictEqual({
+  it("reads indexes, constraints and keys, cut at the first expression", async () => {
+    expect(await indexKeysFromSql(SQL)).toStrictEqual({
       "public.organization_members": [
         ["id"],
         ["user_id", "role_id", "organization_id"],
@@ -53,8 +67,8 @@ describe(indexKeysFromSql, () => {
     });
   });
 
-  it("drops the targets an index leads with and keeps the rest", () => {
-    const keys = indexKeysFromSql(SQL);
+  it("drops the targets an index leads with and keeps the rest", async () => {
+    const keys = await indexKeysFromSql(SQL);
     expect(
       withoutServedTargets(
         [
@@ -78,15 +92,16 @@ describe(indexKeysFromSql, () => {
 });
 
 describe(tablesFromSql, () => {
-  it("lists created tables, qualified, without temporary ones or comments", () => {
+  it("lists created tables, qualified, without temporary ones or comments", async () => {
     expect([
-      ...tablesFromSql(`
+      ...(await tablesFromSql(`
 -- create table public.commented (id int);
 create table public.organization_members (id uuid);
 CREATE UNLOGGED TABLE IF NOT EXISTS app."Jobs" (id uuid);
 create table audit_events partition of events for values in ('audit');
 create temp table scratch (id int);
-`),
+create function f() returns void language sql as $$ create table public.body_only (id int) $$;
+`)),
     ]).toStrictEqual([
       "public.organization_members",
       "app.Jobs",
@@ -104,7 +119,7 @@ describe(indexKeysFromProject, () => {
     rmSync(cwd, { recursive: true, force: true });
   });
 
-  it("reads the migrations and ignores the indexes PermDock generated", () => {
+  it("reads the migrations and ignores the indexes PermDock generated", async () => {
     const dir = path.join(cwd, "supabase/migrations");
     mkdirSync(dir, { recursive: true });
     writeFileSync(
@@ -114,8 +129,24 @@ create index jobs_owner on public.jobs (owner_id);
 CREATE INDEX permdock_notes_user_id_idx ON public.notes USING btree (user_id);
 `,
     );
-    expect(indexKeysFromProject(cwd)).toStrictEqual({
+    expect(await indexKeysFromProject(cwd)).toStrictEqual({
       "public.jobs": [["owner_id"]],
     });
+  });
+
+  it("skips the permdock folders another generate plugin writes", async () => {
+    const own = mkdtempSync(path.join(TMP, "index-scan-own-"));
+    try {
+      const dir = path.join(own, "supabase/schemas/permdock/functions");
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        path.join(dir, "hook.sql"),
+        "create table permdock.cache (id uuid primary key);\n",
+      );
+      expect(await indexKeysFromProject(own)).toStrictEqual({});
+      expect([...(await tablesFromProject(own))]).toStrictEqual([]);
+    } finally {
+      rmSync(own, { recursive: true, force: true });
+    }
   });
 });

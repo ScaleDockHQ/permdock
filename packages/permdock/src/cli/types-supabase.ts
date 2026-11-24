@@ -29,6 +29,13 @@ export type SupabaseHookConfig = {
     | string
     | { readonly table: string; readonly id?: string; readonly column: string };
   /**
+   * `"request"` when the app resolves the active tenant per request (better-
+   * supabase's `x-bsb-tenant`), not from the token. The manifest then tells
+   * better-supabase `activeOrganizationFrom: "resolver"`, and doctor PD078
+   * stays silent.
+   */
+  readonly activeTenant?: "request";
+  /**
    * The `attrs` claim, for attribute conditions such as
    * `principal.claims.attrs.region`: allow-listed columns of a server-owned
    * table (`table`, joined on `id`), and `app_metadata.<key>` entries. Never

@@ -32,12 +32,13 @@ import { canFixture } from "../rls/verify.ts";
 import { collectGrants } from "../sql/grants.ts";
 import { quoteIdent } from "../sql/quote.ts";
 import { powersyncFiles, powersyncOut, sameJson } from "./emit/files.ts";
+import { publicationPath } from "./publication-path.ts";
 import { POSTGRES, powersyncPlan } from "./streams.ts";
 import { verifyClaimsChange } from "./verify-claims.ts";
 import { verifyFollowedRow } from "./verify-followed.ts";
 import { warnedFor } from "./verify-gaps.ts";
 
-export { powersyncFiles };
+export { powersyncFiles, publicationPath };
 export type { PowerSyncFile };
 
 const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
@@ -335,7 +336,12 @@ export async function runPowerSync(input: {
   let compiled: ReturnType<typeof powersyncFiles>;
   try {
     policy = await loadPolicy(input.cwd, input.config, input.from);
-    compiled = powersyncFiles(policy, input.config, input.out);
+    compiled = powersyncFiles(
+      policy,
+      input.config,
+      input.out,
+      await publicationPath(input.cwd, input.config),
+    );
   } catch (cause) {
     return usageResult(cause);
   }
@@ -364,7 +370,7 @@ export async function runPowerSync(input: {
       code: 0,
       output: [
         ...files.map((file) => `wrote ${file.path}`),
-        ...(compiled.publication === undefined
+        ...(compiled.publication === undefined || compiled.publicationWritten
           ? []
           : [
               `add the tables outside public to the powersync publication: ${compiled.publication}`,

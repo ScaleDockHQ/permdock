@@ -21,10 +21,14 @@ export function powersync(
         return [];
       }
       // Lazy: the stream compiler loads only when this plugin emits.
-      const { powersyncFiles } = await import("../../powersync/powersync.ts");
-      return powersyncFiles(source.policy, source.config, task.out).files.map(
-        (file) => ({ path: file.path, contents: file.text }),
-      );
+      const { powersyncFiles, publicationPath } =
+        await import("../../powersync/powersync.ts");
+      return powersyncFiles(
+        source.policy,
+        source.config,
+        task.out,
+        await publicationPath(source.cwd, source.config),
+      ).files.map((file) => ({ path: file.path, contents: file.text }));
     },
   });
 }

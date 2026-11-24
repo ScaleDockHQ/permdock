@@ -14,7 +14,10 @@ import {
   definePermissions,
   resource as permissionResource,
 } from "../../src/index.ts";
-import { junctionMembershipSource } from "../../src/supabase/index.ts";
+import {
+  junctionMembershipSource,
+  parseSupabaseManifest,
+} from "../../src/supabase/index.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 import { defined } from "../support/defined.ts";
 
@@ -114,6 +117,11 @@ describe(authorizationProvider, () => {
         function: "permdock.permdock_bootstrap_permissions",
         args: "text",
         role: "authenticated",
+      },
+      {
+        function: "permdock.authz_version_for",
+        args: "uuid",
+        role: "postgres",
       },
     ]);
   });
@@ -384,7 +392,7 @@ describe(authorizationProvider, () => {
         activeTenant: "claim",
       });
       expect(provider.problems).toStrictEqual([
-        `blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.${supabaseHookManifestFixture.tenantClaim}, but PermDock's token hook reads the active tenant from app_metadata.active_tenant. Set supabase.hook.activeFrom: "app_metadata.${supabaseHookManifestFixture.tenantClaim}" and run permdock supabase hook generate.`,
+        `blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.${supabaseHookManifestFixture.tenantClaim}, but PermDock's token hook reads the active tenant from app_metadata.active_tenant. Set supabase.hook.activeFrom: "app_metadata.${supabaseHookManifestFixture.tenantClaim}" and run permdock supabase hook generate, or set supabase.hook.activeTenant: "request" when the request resolves the tenant.`,
       ]);
     });
 
@@ -447,6 +455,23 @@ describe(authorizationProvider, () => {
       ).toStrictEqual({ profileColumn: "app.users.org", key: "user_id" });
       expect(from({ appMetadata: "active_tenant" })).toBeUndefined();
       expect(from({ appMetadata: claim }, "resolver")).toBeUndefined();
+    });
+
+    it("states activeOrganizationFrom: 'resolver' for a hook with activeTenant: 'request'", () => {
+      const provider = authorizationProvider({
+        manifest: {
+          ...supabaseHookManifestFixture,
+          hook: {
+            ...supabaseHookManifestFixture.hook,
+            activeFrom: { appMetadata: "active_tenant" },
+            activeTenant: "request",
+          },
+        },
+        catalog: emptyCatalog,
+        activeTenant: "claim",
+      });
+      expect(provider.tokenHook?.activeOrganizationFrom).toBe("resolver");
+      expect(provider.problems).toBeUndefined();
     });
   });
 
@@ -857,9 +882,13 @@ describe(authorizationProvider, () => {
       },
       personas: "roles",
     });
-    expect(provider.roleSources?.[0]?.role.through.where).toBe(
-      "{row}.key in ('owner') or {row}.tenant_id is not null",
-    );
+    expect(provider.roleSources?.[0]?.role.through).toStrictEqual({
+      table: "public.roles",
+      id: "id",
+      column: "key",
+      tenant: "tenant_id",
+      where: "{row}.key in ('owner') or {row}.tenant_id is not null",
+    });
     expect(provider.personas).toBe("roles");
     expect(provider.fixtureRoles).toStrictEqual([
       {
@@ -878,8 +907,6 @@ describe(authorizationProvider, () => {
     expect(
       resolvePersonas(provider).map((persona) => persona.name),
     ).toStrictEqual(["owner", "platform"]);
-    // permdock_approver_for_ids() holds the caller, so as better-supabase's
-    // "who may decide this request" set it would let anyone decide.
     expect(provider.functions.approverFor).toBeUndefined();
     expect(provider.functions.managedUsers).toBe(
       "permdock.permdock_managed_user_ids({tenant})",
@@ -889,6 +916,26 @@ describe(authorizationProvider, () => {
       args: "text",
       role: "authenticated",
     });
+  });
+
+  it("fills approverFor from permdock_request_approver_ids", () => {
+    const provider = authorizationProvider({
+      manifest: withRls({
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          {
+            name: "permdock_request_approver_ids",
+            args: "p_requester uuid, p_tenant uuid",
+            returns: "setof uuid",
+            execute: ["authenticated"],
+          },
+        ],
+      }),
+      catalog: emptyCatalog,
+    });
+    expect(provider.functions.approverFor).toBe(
+      "permdock.permdock_request_approver_ids({requester}, {tenant})",
+    );
   });
 
   it("leaves managedUsers out for a manager table without a tenant column", () => {
@@ -2059,5 +2106,51 @@ describe(authorizationProvider, () => {
         expect.stringContaining("names no permitted_<resource>_rows helper"),
       );
     });
+  });
+});
+
+describe("authorizationProvider tables", () => {
+  it("sets no tables unless asked", () => {
+    const provider = authorizationProvider({
+      manifest: exampleManifest,
+      catalog: exampleCatalog,
+    });
+    expect(provider.tables).toBeUndefined();
+  });
+
+  it("shares a table per tenant only when every select key is held at the tenant scope", () => {
+    const manifest = parseSupabaseManifest(exampleManifest);
+    const { tableReads: _reads, ...rls } = manifest.rls;
+    const provider = authorizationProvider({
+      manifest: { ...manifest, rls },
+      catalog: exampleCatalog,
+      tables: true,
+    });
+    expect(provider.tables).toStrictEqual({
+      quotes: { share: "row", permissions: ["quotes.list", "quotes.read"] },
+      staff: { share: "tenant", permissions: ["staff.list", "staff.read"] },
+    });
+  });
+
+  it("answers from rls.tableReads when the manifest has it", () => {
+    const provider = authorizationProvider({
+      manifest: exampleManifest,
+      catalog: exampleCatalog,
+      tables: true,
+    });
+    expect(provider.tables?.["public.staff"]).toStrictEqual({
+      share: "row",
+      permissions: [],
+    });
+    expect(provider.tables?.["staff"]).toBeUndefined();
+  });
+
+  it("reports a missing catalog", () => {
+    const provider = authorizationProvider({
+      manifest: exampleManifest,
+      tables: true,
+    });
+    expect(provider.tables).toBeUndefined();
+    expect(provider.problems?.join(" ")).toContain("tables: true");
   });
 });

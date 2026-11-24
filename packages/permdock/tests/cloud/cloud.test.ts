@@ -42,7 +42,7 @@ const approver = {
   }),
 };
 const SNAPSHOT: ExpandedSnapshot = {
-  v: 1,
+  v: 2,
   issuedAt: "1970-01-01T00:00:01Z",
   subject: { principal: { id: "u_1", roles: ["member"] }, context: {} },
   roles: ["member"],

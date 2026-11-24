@@ -220,6 +220,7 @@ export default { permissions };
       >();
       expect(Object.keys(CONFIG_SHAPE).toSorted()).toStrictEqual([
         "betterSupabase",
+        "budgets",
         "catalog",
         "collect",
         "doctor",
@@ -284,6 +285,13 @@ export default { permissions };
           ],
           rlsSchema: "permdock",
         },
+        effective: {
+          permissions: "./src/permissions.ts",
+          collect: { barrel: true, srcPath: ["./src"] },
+          doctr: {},
+        },
+        defaults: ["collect.srcPath"],
+        restated: [],
         warnings: [expect.stringContaining("unknown key doctr")],
       });
     });

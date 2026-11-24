@@ -1,5 +1,6 @@
 export type { RoleMap, RoleThrough } from "../supabase/types.ts";
 export type {
+  BudgetsConfig,
   CatalogConfig,
   CollectConfig,
   DoctorConfig,
@@ -14,6 +15,7 @@ export type {
 } from "./types-powersync.ts";
 export type {
   RlsApiKeys,
+  RlsApprovalManagerRows,
   RlsApprovalManagers,
   RlsApprovalPolicies,
   RlsApprovalPolicyColumns,

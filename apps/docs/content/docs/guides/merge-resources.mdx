@@ -62,7 +62,7 @@ The role grant `allow(permissions.file.read)` on an organisation role still reac
 
 1. **Move the relations.** Copy the per-row resource's relations, `parent` and `restricted` onto the surviving resource, then delete the per-row resource. One resource has one table and one `id` column; a pair that needs two is two resources by definition, so declare the second with `rls.tables.<resource>: { tableOf: "<owner>" }`.
 2. **Decide each verb.** Use the table below. Every removed key gets a `renamed` entry that names its survivor.
-3. **Rename the keys.** `definePermissions(tree, { renamed })` keeps stored custom roles, OAuth scopes in their `:` form, AuthZEN actions and hosted grants resolving ([renamed keys](/docs/concepts/permissions#renamed-keys)). `rls generate` seeds `role_permissions` under the former keys too, and `permdock diff` reports each one as `renamed`, which is not breaking.
+3. **Rename the keys.** `permdock keys rename <from> <to>` does this per key ([run it per pair](#run-it-per-pair)). `definePermissions(tree, { renamed })` keeps stored custom roles, OAuth scopes in their `:` form, AuthZEN actions and hosted grants resolving ([renamed keys](/docs/concepts/permissions#renamed-keys)). `rls generate` seeds `role_permissions` under the former keys too, and `permdock diff` reports each one as `renamed`, which is not breaking.
 4. **Rewrite references.** Change `permissions.fileNode.read` to `permissions.file.read`. The removed leaf no longer exists, so the type checker lists every site; `permdock codemod` covers only release renames.
 5. **Replace the helpers.** With `rls.rowHelpers`, replace the per-row resource in the list with the survivor: `rowHelpers: ["file"]`. `rls generate` then writes one `permitted_file_rows(p_permission)` with one `case` arm per permission, each arm ORing the role branch and the relation branches. Replace `permitted_file_node_rows` calls in hand-written SQL with `permitted_file_rows`, and drop the old function in a migration: `rls generate` stops writing it but does not remove it from the database.
 6. **Regenerate the catalog.** `permdock collect` writes one resource entry with every relation and one set of permissions. Each surviving permission lists the keys it replaced in `renamedFrom`; the catalog format is unchanged.
@@ -72,16 +72,31 @@ The role grant `allow(permissions.file.read)` on an organisation role still reac
 
 A verb either merges into a verb the survivor already has, joins the survivor as a new instance action, or moves to `collection` when it never touches a row. Merging two verbs means their grants now reach the same rows: a user who held only the per-row key keeps the rows shared with them, and an organisation member who held only the org-level key keeps every row of the organisation.
 
-| Pair                                | Verb               | Decision                                                                                                     |
-| ----------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `file` + `fileNode`                 | `read`, `update`   | Merge: `fileNode.read` to `file.read`, `fileNode.update` to `file.update`                                    |
-| `file` + `fileNode`                 | `comment`          | Join `file` as an instance action: `fileNode.comment` to `file.comment`                                      |
-| `file` + `fileNode`                 | `delete`, `create` | Keep on `file`; `create` stays in `collection`                                                               |
-| `knowledge` + `knowledgeCollection` | `read`             | Merge: `knowledgeCollection.read` to `knowledge.read`; move `creator` and `member` onto `knowledge`          |
-| `workflow` + `workflowDefinition`   | `read`             | Merge: `workflowDefinition.read` to `workflow.read`; `run`, `update` and `delete` stay org-level role grants |
-| `chat` + `thread`                   | `read`             | Merge: `thread.read` to `chat.read`; `owner` and `participant` join `org` on `chat`                          |
+| Pair                                | Verb               | Decision                                                                                                      |
+| ----------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `file` + `fileNode`                 | `read`, `update`   | Merge: `fileNode.read` to `file.read`, `fileNode.update` to `file.update`                                     |
+| `file` + `fileNode`                 | `comment`          | Join `file` as an instance action: `fileNode.comment` to `file.comment`                                       |
+| `file` + `fileNode`                 | `delete`, `create` | Keep on `file`; `create` stays in `collection`                                                                |
+| `knowledge` + `knowledgeCollection` | `read`             | Merge: `knowledgeCollection.read` to `knowledge.read`; move `creator` and `member` onto `knowledge`           |
+| `workflows` + `workflowDefinition`  | `read`             | Merge: `workflowDefinition.read` to `workflows.read`; `run`, `update` and `delete` stay org-level role grants |
+| `chat` + `thread`                   | `read`             | Merge: `thread.read` to `chat.read`; `owner` and `participant` join `org` on `chat`                           |
 
 An organisation member who should see only the rows shared with them can no longer get that by holding the per-row key alone. Leave the role grant out for that role, or add a `deny` with a row condition.
+
+## Run it per pair
+
+`permdock keys rename` takes one key at a time ([keys](/docs/cli/keys)). For the four pairs above, after moving each per-row resource's relations onto its survivor (step 1):
+
+```bash
+permdock keys rename fileNode.read file.read
+permdock keys rename fileNode.update file.update
+permdock keys rename fileNode.comment file.comment
+permdock keys rename knowledgeCollection.read knowledge.read
+permdock keys rename workflowDefinition.read workflows.read
+permdock keys rename thread.read chat.read
+```
+
+Five of the six merge into a key the survivor already has; `fileNode.comment` joins `file` as a new instance action. The run that retires a resource's last action removes the resource from the tree, so `fileNode`, `knowledgeCollection`, `workflowDefinition` and `thread` are gone after their last line. With custom roles stored in the database, each run writes a data migration that moves stored grants of every `renamed` entry, so the last one written covers all six. Then replace the helpers (step 5), replace `fileNode`, `knowledgeCollection` and `workflowDefinition` in `rls.rowHelpers` with `file`, `knowledge` and `workflows`, and regenerate.
 
 ## Prove the merge
 

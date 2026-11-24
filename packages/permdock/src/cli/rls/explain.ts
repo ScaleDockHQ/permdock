@@ -65,6 +65,17 @@ export type RlsExplain = {
     readonly permissions: readonly string[];
   }[];
   readonly triggers: readonly GeneratedTrigger[];
+  /**
+   * The policies the schema files' `@bsb access` tags render, as
+   * better-supabase lists them; absent when there are none.
+   */
+  readonly tagged?: readonly {
+    readonly table: string;
+    readonly operation: string;
+    readonly name: string;
+    readonly key: string;
+    readonly tenantColumn: string;
+  }[];
 };
 
 type ExplainInput = {
@@ -246,6 +257,14 @@ export function describeExplain(explain: RlsExplain): string {
     lines.push("", "generated triggers:");
     for (const trigger of explain.triggers) {
       lines.push(`  ${trigger.name} on ${trigger.table} (${trigger.reason})`);
+    }
+  }
+  if (explain.tagged !== undefined) {
+    lines.push("", "@bsb access policies (rendered by better-supabase):");
+    for (const policy of explain.tagged) {
+      lines.push(
+        `  ${policy.name} on ${policy.table} (${policy.operation}): ${policy.tenantColumn} in the ids of ${policy.key}`,
+      );
     }
   }
   return lines.join("\n");

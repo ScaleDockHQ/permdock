@@ -25,7 +25,7 @@ function snapshotWith(
   extra: Partial<ExpandedSnapshot> = {},
 ): ExpandedSnapshot {
   return {
-    v: 1,
+    v: 2,
     issuedAt: "1970-01-01T00:00:01Z",
     subject: {
       principal: {

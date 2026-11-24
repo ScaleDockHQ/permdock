@@ -1,6 +1,7 @@
 import type {
   CustomRoleSource,
   EntitlementSource,
+  Intent,
   SourceContext,
 } from "./interfaces.ts";
 
@@ -54,7 +55,7 @@ export type InstanceCacheKey = {
    * an edit of a role moves the key, so the instance is rebuilt.
    */
   readonly customRolesVersion?: number;
-  readonly intent: "read" | "write";
+  readonly intent: Intent;
   readonly parts: unknown;
 };
 

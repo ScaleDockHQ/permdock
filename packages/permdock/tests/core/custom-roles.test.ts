@@ -19,7 +19,10 @@ import { listPermissions } from "../../src/core/permission-registry.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
+import {
+  expandSnapshot,
+  readSnapshot,
+} from "../../src/core/snapshot-compact.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import { decideRoleChange } from "../../src/index.ts";
@@ -947,7 +950,9 @@ describe("snapshot parity", () => {
       snapshot.grants.every((grant) => grant.permission.startsWith("post.")),
     ).toBe(true);
     expect(
-      snapshot.assignable?.[0]?.permissions.map((leaf) => leaf.key),
+      readSnapshot(snapshot).assignable?.[0]?.permissions.map(
+        (leaf) => leaf.key,
+      ),
     ).toStrictEqual(["post.read", "post.update", "post.create"]);
     const full = server.snapshot();
     if (full instanceof Promise) {

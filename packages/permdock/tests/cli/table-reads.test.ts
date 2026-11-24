@@ -1,0 +1,183 @@
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+
+import { authorizationProvider } from "../../src/better-supabase/provider.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { pd128 } from "../../src/cli/doctor/table-reads.ts";
+import { tableReads } from "../../src/cli/rls/table-reads.ts";
+import { parseSupabaseManifest } from "../../src/supabase/manifest.ts";
+
+const TMP = join(import.meta.dirname, "../../tmp");
+
+const POLICY = `import { allow, definePermissions, definePolicy, resource, role } from "permdock";
+
+export const permissions = definePermissions({
+  invoice: resource({
+    actions: ["read"],
+    relations: { org: { field: "organization_id", memberOf: "organization" } },
+  }),
+  note: resource({
+    actions: ["read"],
+    relations: { org: { field: "organization_id", memberOf: "organization" } },
+  }),
+});
+
+export const policy = definePolicy(permissions, {
+  scopes: { organization: { key: "organization_id" } },
+  subject: () => null,
+  roles: [
+    role("member", [
+      allow(permissions.invoice.read),
+      allow(permissions.note.read),
+    ], { on: "organization" }),
+  ],
+});
+`;
+
+const SCHEMA = `create table public.invoices (id uuid primary key, organization_id uuid not null);
+alter table public.invoices enable row level security;
+create policy invoices_read on public.invoices for select to authenticated
+  using (organization_id in (select permdock.permitted_organization_ids_by_permission('invoice.read')));
+create policy invoices_session on public.invoices as restrictive for select to authenticated
+  using (permdock.permdock_token_current());
+
+create table public.notes (id uuid primary key, organization_id uuid not null);
+alter table public.notes enable row level security;
+create policy notes_read on public.notes for select to authenticated
+  using (organization_id in (select permdock.permitted_organization_ids('note.read')));
+
+create table public.profiles (id uuid primary key, user_id uuid not null);
+alter table public.profiles enable row level security;
+create policy profiles_read on public.profiles for select to authenticated
+  using (user_id = auth.uid());
+
+create table public.audit (id uuid primary key, organization_id uuid not null, hidden boolean);
+alter table public.audit enable row level security;
+create policy audit_read on public.audit for select to authenticated
+  using (organization_id in (select permdock.permitted_organization_ids_by_permission('invoice.read')));
+create policy audit_hidden on public.audit as restrictive for select to authenticated
+  using (not hidden);
+
+create table public.logs (id uuid primary key);
+`;
+
+const dirs: string[] = [];
+
+function project(): string {
+  mkdirSync(TMP, { recursive: true });
+  const cwd = mkdtempSync(join(TMP, "table-reads-"));
+  dirs.push(cwd);
+  mkdirSync(join(cwd, "supabase/schemas"), { recursive: true });
+  writeFileSync(join(cwd, "supabase/schemas/app.sql"), SCHEMA);
+  writeFileSync(join(cwd, "policy.ts"), POLICY);
+  writeFileSync(
+    join(cwd, "permdock.config.ts"),
+    `export default { policy: "./policy.ts", rls: { dialect: "supabase", authorize: "database", memberships: { scopes: { organization: { table: "memberships", user: "user_id", role: "role", columns: { organization: "organization_id" } } } } } };\n`,
+  );
+  return cwd;
+}
+
+function reads(cwd: string): ReturnType<typeof tableReads> {
+  return tableReads({
+    cwd,
+    config: { rls: { dialect: "supabase" } },
+    schema: "permdock",
+    root: "organization",
+  });
+}
+
+describe(tableReads, () => {
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("marks a table tenant only for the by-permission tenant form", async () => {
+    expect(await reads(project())).toStrictEqual([
+      {
+        table: "public.audit",
+        share: "row",
+        permissions: ["invoice.read"],
+        rules: ["restrictive"],
+      },
+      {
+        table: "public.invoices",
+        share: "tenant",
+        column: "organization_id",
+        permissions: ["invoice.read"],
+      },
+      { table: "public.logs", share: "row", rules: ["unknown"] },
+      { table: "public.notes", share: "row", rules: ["form"] },
+      { table: "public.profiles", share: "row", rules: ["owner"] },
+    ]);
+  });
+
+  it("moves a plain-form table to tenant after codemod bsb-access-tags", async () => {
+    const cwd = project();
+    const moved = await run(["codemod", "bsb-access-tags", "--force"], { cwd });
+    expect(moved.code).toBe(0);
+    expect(
+      (await reads(cwd)).find((read) => read.table === "public.notes"),
+    ).toStrictEqual({
+      table: "public.notes",
+      share: "tenant",
+      column: "organization_id",
+      permissions: ["note.read"],
+    });
+  });
+
+  it("is written into the manifest, read by the provider and checked by PD128", async () => {
+    const cwd = project();
+    const inspected = await run(["supabase", "inspect", "--out"], { cwd });
+    expect(inspected.code).toBe(0);
+    const path = join(cwd, "permdock.manifest.json");
+    const manifest = parseSupabaseManifest(
+      JSON.parse(readFileSync(path, "utf8")),
+    );
+    expect(manifest.rls.tableReads).toStrictEqual(await reads(cwd));
+    expect(
+      authorizationProvider({
+        manifest,
+        tables: true,
+        catalog: {
+          $schema: "https://permdock.com/schemas/catalog-v2.json",
+          version: 2,
+          generatedAt: "2026-01-01T00:00:00Z",
+          generator: "test",
+          resources: {},
+          permissions: [],
+        },
+      }).tables?.["public.invoices"],
+    ).toStrictEqual({ share: "tenant", permissions: ["invoice.read"] });
+    expect(await pd128({ cwd, config: {} })).toStrictEqual([]);
+
+    const edited = {
+      ...manifest,
+      rls: {
+        ...manifest.rls,
+        tableReads: manifest.rls.tableReads?.map((read) =>
+          read.table === "public.notes"
+            ? { table: read.table, share: "tenant", column: "organization_id" }
+            : read,
+        ),
+      },
+    };
+    writeFileSync(path, JSON.stringify(edited));
+    expect(await pd128({ cwd, config: {} })).toStrictEqual([
+      expect.objectContaining({
+        code: "PD128",
+        severity: "error",
+        message:
+          "permdock.manifest.json marks public.notes share: 'tenant', but its select policies are row-scoped (form)",
+      }),
+    ]);
+  });
+});

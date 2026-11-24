@@ -1,4 +1,7 @@
+import { deparse } from "pgsql-parser";
+
 import { beforeFirst } from "../shared/text.ts";
+import { SqlSyntaxError, parseSqlFile, readPolicy } from "./ast.ts";
 import { HELPERS } from "./shared.ts";
 
 /**
@@ -58,9 +61,6 @@ export type HelperTablePolicy = {
   readonly keys: readonly string[];
 };
 
-const CREATE_POLICY =
-  /\bcreate\s+policy\s+("(?:[^"]|"")+"|\w+)\s+on\s+((?:"[^"]+"|\w+)\.(?:"[^"]+"|\w+))([\s\S]*?);/giu;
-
 function tableName(name: string): string {
   return name.replaceAll('"', "").toLowerCase();
 }
@@ -70,22 +70,46 @@ function helperTable(name: string): HelperTablePolicy["table"] | undefined {
   return HELPER_TABLES.find((candidate) => candidate === table);
 }
 
+async function deparsed(expr: unknown): Promise<string> {
+  if (expr === undefined) {
+    return "";
+  }
+  // SAFETY: readPolicy takes expr from pgsql-parser's own parse tree, which deparse accepts.
+  const text = await deparse(expr as Parameters<typeof deparse>[0]);
+  return text;
+}
+
 /**
  * `create policy` statements on {@link HELPER_TABLES} in migration SQL, with
- * the keys their condition-blind helper calls pass.
+ * the keys their condition-blind helper calls pass. A file libpg_query rejects
+ * has none; PD045 reports it.
  */
-export function helperTablePolicies(sql: string): readonly HelperTablePolicy[] {
-  const text = sql
-    .replaceAll(/--[^\n]*/gu, "")
-    .replaceAll(/\/\*[\s\S]*?\*\//gu, "");
+export async function helperTablePolicies(
+  sql: string,
+): Promise<readonly HelperTablePolicy[]> {
+  let nodes: Awaited<ReturnType<typeof parseSqlFile>>;
+  try {
+    nodes = await parseSqlFile(sql);
+  } catch (error) {
+    if (error instanceof SqlSyntaxError) {
+      return [];
+    }
+    throw error;
+  }
   const found: HelperTablePolicy[] = [];
-  for (const [, name = "", target = "", body = ""] of text.matchAll(
-    CREATE_POLICY,
-  )) {
-    const table = helperTable(target);
+  for (const node of nodes) {
+    const policy = readPolicy(node);
+    const table =
+      policy === undefined
+        ? undefined
+        : helperTable(`${policy.schema}.${policy.table}`);
+    if (policy === undefined || table === undefined) {
+      continue;
+    }
+    const body = `${await deparsed(policy.using)} ${await deparsed(policy.check)}`;
     const keys = helperCallKeys(body, true);
-    if (table !== undefined && keys.length > 0) {
-      found.push({ table, name: name.replaceAll('"', ""), keys });
+    if (keys.length > 0) {
+      found.push({ table, name: policy.name, keys });
     }
   }
   return found;

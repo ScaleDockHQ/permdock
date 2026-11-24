@@ -263,7 +263,7 @@ export function createPermDock<
     const tenant = query?.tenant ?? (await resolveFallbackTenant());
     const intent = query?.intent ?? "read";
     const known =
-      intent === "read"
+      intent === "read" || intent === "database-write"
         ? (knownVersion(query?.version) ?? (await resolveVersion()))
         : undefined;
     return instantiate(tenant ?? "", intent, known);

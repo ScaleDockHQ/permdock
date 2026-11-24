@@ -2,7 +2,11 @@ import type { Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { ClientBundle, Snapshot } from "../core/snapshot-types.ts";
+import type {
+  ClientBundle,
+  Snapshot,
+  SnapshotTypeLevel,
+} from "../core/snapshot-types.ts";
 import type { CacheEntry } from "./batch.ts";
 import type { RefreshTrigger } from "./refresh-on.ts";
 import type { StoreHeaders } from "./request.ts";
@@ -15,6 +19,7 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
+import { snapshotHeader } from "../core/snapshot-compact.ts";
 import { emptySnapshot } from "../core/snapshot-empty.ts";
 import { snapshotClaim } from "../core/snapshot-sign.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
@@ -509,24 +514,40 @@ export function createStore(
         readonly endpoint: ReadonlySet<string>;
       }
     | undefined;
+  // Bit sets need the bundle; a snapshot the bundle cannot read has no table.
+  const typeLevelOf = (): SnapshotTypeLevel | undefined => {
+    try {
+      return snapshotHeader(snapshot, compact({ bundle: options.bundle }))
+        .typeLevel;
+    } catch {
+      return undefined;
+    }
+  };
 
   const quick = (permission: Permission): PermissionOutcome | undefined => {
     if (tenant !== undefined && tenant !== snapshot.subject.principal?.tenant) {
       return undefined;
     }
-    const table = snapshot.typeLevel;
-    if (table === undefined) {
-      return snapshot.grants.length === 0
+    const active = snapshot.subject.principal?.tenant;
+    if (active !== undefined && snapshot.truncated?.includes(active) === true) {
+      return undefined;
+    }
+    if (snapshot.typeLevel === undefined) {
+      return snapshot.grants.length === 0 && snapshot.static === undefined
         ? { allowed: false, status: localStatus(), outcome: "denied" }
         : undefined;
     }
     if (tableFor !== snapshot) {
       tableFor = snapshot;
-      tableSets = {
-        granted: new Set(table.granted),
-        approval: new Set(table.approval),
-        endpoint: new Set(table.endpoint),
-      };
+      const table = typeLevelOf();
+      tableSets =
+        table === undefined
+          ? undefined
+          : {
+              granted: new Set(table.granted),
+              approval: new Set(table.approval),
+              endpoint: new Set(table.endpoint),
+            };
     }
     if (tableSets === undefined || tableSets.endpoint.has(permission.key)) {
       return undefined;

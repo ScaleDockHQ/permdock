@@ -343,6 +343,19 @@ end;
 $$;
 revoke execute on function "permdock".permdock_trusted_role_permissions(text, text, text, text) from public, anon, authenticated;
 
+-- every grant key a permission key reaches per scope and effect; conditioned marks a grant with a row condition
+create or replace view "permdock".permission_keys with (security_invoker = true) as
+  select v.permission, v.scope, v.effect, v.grant_key, v.conditioned
+  from (values
+    ('organizations.manage', 'global', 'allow', 'organizations.manage', false),
+    ('projects.delete', 'organization', 'allow', 'projects.delete', false),
+    ('projects.list', 'organization', 'allow', 'projects.list', false),
+    ('projects.read', 'organization', 'allow', 'projects.read', false),
+    ('projects.update', 'organization', 'allow', 'projects.update', false)
+  ) v(permission, scope, effect, grant_key, conditioned);
+revoke all on table "permdock".permission_keys from anon, authenticated, public;
+grant select on table "permdock".permission_keys to authenticated;
+
 -- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function "permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')
 returns setof text
@@ -352,11 +365,12 @@ set search_path = ''
 as $$
 begin
   return query
-  select g.grant_key
-  from pg_catalog.jsonb_array_elements_text(coalesce(
-    '{"global":{"organizations.manage":{"allow":["organizations.manage"],"deny":[]}},"organization":{"projects.delete":{"allow":["projects.delete"],"deny":[]},"projects.list":{"allow":["projects.list"],"deny":[]},"projects.read":{"allow":["projects.read"],"deny":[]},"projects.update":{"allow":["projects.update"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
-    '[]'::jsonb
-  )) g(grant_key);
+  select k.grant_key
+  from "permdock".permission_keys k
+  where k.scope = p_scope
+    and k.permission = p_permission
+    and k.effect = pg_catalog.replace(p_effect, 'conditioned-', '')
+    and k.conditioned = (p_effect in ('conditioned-allow', 'conditioned-deny'));
 end;
 $$;
 revoke execute on function "permdock".grant_keys(text, text, text) from public, anon;
@@ -439,12 +453,9 @@ declare
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
-    values
-      ('organizations.manage', 'global', 'allow', 'organizations.manage'),
-      ('projects.delete', 'organization', 'allow', 'projects.delete'),
-      ('projects.list', 'organization', 'allow', 'projects.list'),
-      ('projects.read', 'organization', 'allow', 'projects.read'),
-      ('projects.update', 'organization', 'allow', 'projects.update')
+    select k.permission, k.scope, k.effect, k.grant_key
+    from "permdock".permission_keys k
+    where not k.conditioned and k.scope in ('global', 'organization')
   ),
   pdk_w as (
     select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
@@ -510,12 +521,9 @@ declare
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
-    values
-      ('organizations.manage', 'global', 'allow', 'organizations.manage'),
-      ('projects.delete', 'organization', 'allow', 'projects.delete'),
-      ('projects.list', 'organization', 'allow', 'projects.list'),
-      ('projects.read', 'organization', 'allow', 'projects.read'),
-      ('projects.update', 'organization', 'allow', 'projects.update')
+    select k.permission, k.scope, k.effect, k.grant_key
+    from "permdock".permission_keys k
+    where not k.conditioned and k.scope in ('global', 'organization')
   ),
   pdk_w as (
     select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
@@ -742,12 +750,9 @@ declare
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
-    values
-      ('organizations.manage', 'global', 'allow', 'organizations.manage'),
-      ('projects.delete', 'organization', 'allow', 'projects.delete'),
-      ('projects.list', 'organization', 'allow', 'projects.list'),
-      ('projects.read', 'organization', 'allow', 'projects.read'),
-      ('projects.update', 'organization', 'allow', 'projects.update')
+    select k.permission, k.scope, k.effect, k.grant_key
+    from "permdock".permission_keys k
+    where not k.conditioned and k.scope in ('global', 'organization')
   ),
   pdk_w as (
     select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
@@ -811,12 +816,9 @@ declare
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
-    values
-      ('organizations.manage', 'global', 'allow', 'organizations.manage'),
-      ('projects.delete', 'organization', 'allow', 'projects.delete'),
-      ('projects.list', 'organization', 'allow', 'projects.list'),
-      ('projects.read', 'organization', 'allow', 'projects.read'),
-      ('projects.update', 'organization', 'allow', 'projects.update')
+    select k.permission, k.scope, k.effect, k.grant_key
+    from "permdock".permission_keys k
+    where not k.conditioned and k.scope in ('global', 'organization')
   ),
   pdk_w as (
     select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
@@ -885,12 +887,15 @@ as $$
   ),
   pdk_p(n) as (
     select k.n from "permdock".permitted_organization_permission_keys(null::text) h(key) join pdk_k k on k.key = h.key
-    where k.key = any(array['organizations.manage']::text[])
+    where exists (
+      select 1 from "permdock".permission_keys v
+      where v.permission = k.key and v.scope = 'global' and v.effect = 'allow' and not v.conditioned
+    )
   )
   select jsonb_strip_nulls(jsonb_build_object(
     'apiVersion', 1,
     'form', 'compact',
-    'keys', to_jsonb(array['organizations.manage', 'projects.delete', 'projects.list', 'projects.read', 'projects.update']::text[]),
+    'keys', coalesce((select jsonb_agg(k.key order by k.n) from pdk_k k), '[]'::jsonb),
     'tenants', coalesce((
       select jsonb_object_agg(t.id::text, (select translate(encode(coalesce(decode(string_agg(lpad(to_hex(coalesce(b.v, 0)), 2, '0'), '' order by g.i), 'hex'), ''::bytea), 'base64'), '+/=' || chr(10), '-_')
       from generate_series(0, 0) g(i)
@@ -1510,6 +1515,44 @@ as $$
 $$;
 revoke execute on function "permdock".permdock_managed_user_ids(text) from public, anon;
 grant execute on function "permdock".permdock_managed_user_ids(text) to authenticated;
+
+-- approval managers: who may decide a request of p_requester, the managers up the chain and their active covers
+create or replace function "permdock".permdock_request_approver_ids(p_requester uuid, p_tenant text)
+returns setof uuid
+language sql
+stable
+security definer
+cost 1000
+rows 10
+parallel safe
+set search_path = ''
+as $$
+  with recursive up (id, depth, path) as (
+    select m."manager_id", 1, array[p_requester, m."manager_id"]
+    from "public"."reporting_lines" m
+    where m."user_id" = p_requester
+      and m."manager_id" is not null
+      and m."organization_id" = p_tenant
+    union all
+    select m."manager_id", u.depth + 1, u.path || m."manager_id"
+    from up u
+    join "public"."reporting_lines" m on m."user_id" = u.id
+    where u.depth < 8
+      and m."manager_id" is not null
+      and not (m."manager_id" = any (u.path))
+      and m."organization_id" = p_tenant
+  )
+  select id from up where id <> p_requester
+  union
+  select d.delegate
+  from "permdock".approval_delegations d
+  join up u on u.id = d.delegator
+  where d."from" <= now()
+    and d."until" > now()
+    and d.delegate <> p_requester
+$$;
+revoke execute on function "permdock".permdock_request_approver_ids(uuid, text) from public, anon;
+grant execute on function "permdock".permdock_request_approver_ids(uuid, text) to authenticated;
 
 -- who may assign: a held role whose assigns lists p_role, in instance p_scope_id (its scope or an ancestor's); a null p_scope_id assigns a global role, which only global assigners may
 create or replace function "permdock".permdock_can_assign(p_role text, p_scope_id text)

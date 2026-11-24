@@ -220,8 +220,8 @@ describe(fetchAdapter, () => {
     const adapter = adapterFor();
     const own = await adapter.getSnapshot(eventFor());
     const named = await adapter.getSnapshot(eventFor(), { tenant: "o2" });
-    expect(own.v).toBe(1);
-    expect(named.v).toBe(1);
+    expect(own.v).toBe(2);
+    expect(named.v).toBe(2);
   });
 
   it("opens a connection and builds an instance per request", async () => {

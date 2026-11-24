@@ -128,7 +128,7 @@ describe("rls realtime storage", () => {
 
     it("calls only the permission-key forms, so doctor PD037 never flags them", async () => {
       const { sql } = await generate({ realtime, storage });
-      expect(helperTablePolicies(sql)).toStrictEqual([]);
+      expect(await helperTablePolicies(sql)).toStrictEqual([]);
       expect(helperCallKeys(sql)).toStrictEqual(
         expect.arrayContaining(["asset.read", "asset.update"]),
       );

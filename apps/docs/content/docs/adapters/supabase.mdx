@@ -190,6 +190,24 @@ export default {
 - `ctx.jwtClaims` is typed structurally as `SupabaseJwtClaims` (`sub`, `role`, `app_metadata`, index signature), so `@supabase/server`'s `JWTClaims` satisfies it without a peer dependency, and so does any other entry that contributes the same key. A `null` (no token, `publishable` or `secret` mode) reaches `subjectFromSupabase` and becomes the anonymous subject; an invalid token never reaches PermDock because `withClaims` answers `401` first.
 - `with*` is the pipeline's naming convention (`withClaims`, `withPostgresClient`), adopted here so the entry reads like its neighbours. No other PermDock entry uses it ([naming](/docs/getting-started/naming)).
 
+### Tenant from the URL path
+
+`tenantFromPath({ path, param, resolve })` is a `tenant` option for a tenant named by a slug in the request path, such as `/orgs/acme/mcp`:
+
+```ts
+import { createPermDock, tenantFromPath } from "permdock/supabase/middleware";
+
+export const { withPermDock } = createPermDock(app, {
+  tenant: tenantFromPath({
+    path: "/orgs/:org",
+    param: "org",
+    resolve: async (slug) => (await orgs.bySlug(slug))?.id,
+  }),
+});
+```
+
+A request path that starts with the segments of `path` is a tenant route, and `resolve` turns its `param` segment into a tenant id once per request. The id becomes the active tenant only when the subject holds a live membership there. A slug that `resolve` answers with `null`, a value that is not an id or a throw asks for a tenant no membership holds: the instance has no tenant, never the token's `tenant_id`, and tenant-scoped checks deny with `no-membership`. A path outside the template leaves the tenant to the subject. It is the same function as `tenantFromPath` in [`permdock/server`](/docs/adapters/server-kernel#tenant-from-the-url-path), called with `(ctx, request)`.
+
 ### With `@supabase/server`
 
 [`@supabase/server`](https://github.com/supabase/server) is Supabase's stateless server toolkit: header-based authentication for Edge Functions, Workers, Hono, Elysia, NestJS and H3, no cookies. Its core `withSupabase(config, handler)` verifies the bearer token against the project JWKS (asymmetric keys only; HS256 legacy tokens are rejected) and hands the handler a context with `jwtClaims` (the verified payload or `null`), `supabase` (an RLS-scoped client carrying the caller's token), `supabaseAdmin` (the bypass client, built lazily) and `authMode` (`user`, `publishable`, `secret`, `none`). Every one of those shapes is an input to `subjectFromSupabase`:
@@ -816,11 +834,17 @@ export default defineConfig({
 
 It takes the options of `rls()` except `dialect`, plus `hook` (`false` skips the hook SQL, an object sets `out`, `schema`, `activeFrom` and `budget`) and `manifest` (a file name, or `false`). Listing `supabase()` next to `rls()` or `supabaseHook()` is an error. `betterSupabase()` orders after it. `tests/cli/supabase-plugin.test.ts` compares its output byte for byte with the three separate steps.
 
+## Database URL and Supabase tokens
+
+The CLI connects with a database URL and never with a Supabase token. `--db-url-stdin` reads one from stdin, and `--local` reads `DB_URL` from `supabase status` of the project's local stack, so each git worktree finds its own stack ([doctor](/docs/cli/doctor#usage)). PermDock supports Supabase CLI 3.2.0 and later (doctor PD136).
+
+A CI job that runs `supabase link` before `permdock rls verify --local` needs a Supabase personal access token for the link step. A scoped token needs read access to Project Settings, API Keys and API Key Secrets.
+
 ## Example app
 
 `apps/examples/supabase-rls`: a Hono server on `127.0.0.1:3469`. `GET /health`, `GET /rls/authorize` checks that generated SQL never contains `service_role`, and `PATCH /posts/:id` uses `subjectFromSupabase` with fixed JWT-shaped claims. No live Supabase project.
 
-`apps/examples/supabase-middleware`: a `@supabase/middleware` pipeline on `127.0.0.1:3477`. `withClaims` from `@supabase/server` verifies a real ES256 bearer token against an in-process JWKS, `withPermDock()` contributes `ctx.permdock` for `PATCH /posts/:id`, `withPermDock({ protect })` guards `POST /posts/:id/publish` with Problem Details, and `POST /api/permdock` mounts `permdockHandler()`. `GET /posts/review-queue` gates on `post.review` with `withFeatureFlag`, and `GET /flags` resolves OpenFeature flags targeted at the resolved subject ([feature flags](#feature-flags)). `GET /dev/token/member` and `GET /dev/token/admin` mint development tokens; a deployment points `withClaims` at the project JWKS instead. No live Supabase project.
+`apps/examples/supabase-middleware`: a `@supabase/middleware` pipeline on `127.0.0.1:3477`. `withClaims` from `@supabase/server` verifies a real ES256 bearer token against an in-process JWKS, `withPermDock()` contributes `ctx.permdock` for `PATCH /posts/:id`, `withPermDock({ protect })` guards `POST /posts/:id/publish` with Problem Details, `POST /api/permdock` mounts `permdockHandler()`, and `POST /orgs/:org/mcp` answers MCP `tools/list` and `tools/call` for the organisation its slug names, through `tenantFromPath` and behind `withOAuthProtectedResource` ([tenant from the URL path](#tenant-from-the-url-path)). `GET /posts/review-queue` gates on `post.review` with `withFeatureFlag`, and `GET /flags` resolves OpenFeature flags targeted at the resolved subject ([feature flags](#feature-flags)). `GET /dev/token/member` and `GET /dev/token/admin` mint development tokens; a deployment points `withClaims` at the project JWKS instead. No live Supabase project.
 
 `apps/examples/next-better-supabase` runs the same claims and helpers under better-supabase ([better-supabase](/docs/adapters/better-supabase#example-app)).
 

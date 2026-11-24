@@ -1,0 +1,104 @@
+---
+title: Shared cache
+description: Share one better-supabase cache entry between callers who hold the same grants, and skip the live version read for writes that Postgres checks again.
+---
+
+`authorizationHooks` sets `shareKey`, the hook better-supabase calls to key a `share: "tenant"` cache entry. Callers in one tenant whose grants for the entry's permissions are equal get the same key and read one entry. The entry is still filled through the caller's own client under RLS.
+
+## Grant fingerprint
+
+`grantFingerprint(permdock, permissions)` from `permdock/better-supabase` returns `gf1:` and a SHA-256 digest of what the instance grants for `permissions` in its tenant. It leaves out the user id and the names of the roles, so an editor and an admin that grant `quote.read` under the same terms get the same digest.
+
+It returns `null`, and the entry stays per user, for:
+
+- a permission the policy does not declare, or an empty list;
+- an instance without a principal or a tenant, or a delegated or simulated one;
+- a grant whose condition is `opaque`, a `sqlFunction`, a `liveSession` check or not portable;
+- an instance that grants none of the permissions.
+
+The hook adds three cases: a token marked truncated (`memberships_truncated`, `team_ids_truncated`, `permissions_truncated`), a token whose `authz_ver` is behind the version in `runtime.versions`, and a subject that is not a user.
+
+## Provider tables
+
+`authorizationProvider({ manifest, catalog, tables: true })` fills better-supabase's `tables`. For each resource the manifest maps to a table it lists the keys of the `read`, `list` and `get` permissions and marks the table `tenant` only when every one of them is held at the tenant scope alone, carries no row condition and has a grant. A resource with a restriction, a field mask or a grant at another scope is `row`. Without `tables: true` the provider sets none, and every entry stays per user. Doctor BS428 checks each entry against the generated select policies.
+
+When `permdock.manifest.json` has `rls.tableReads`, the provider answers from it instead, keyed by the qualified table (`public.orders`). `permdock supabase inspect` writes `rls.tableReads` from the select policies the schema files, migrations and `rls.out` leave defined, so hand-written policies count too. A table is `tenant` only when:
+
+- row level security is on and the table has no field view;
+- every permissive select policy for `authenticated` is `<column> in (select <schema>.permitted_<root>_ids_by_permission('<key>'))` on one column, written by hand or rendered from an `@bsb access` tag;
+- every restrictive select policy reads no column of the row, such as one that checks the session.
+
+Every other table is `row`, with the rules it breaks:
+
+| Rule                     | The table has                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `form`                   | a policy on the plain `permitted_<root>_ids(key)`; `permdock codemod bsb-access-tags` moves it to a tag |
+| `follows`, `via`, `walk` | a policy that calls a `follows`, `via` or walk helper                                                   |
+| `owner`                  | a policy that compares a column with `auth.uid()` or `permdock_user_id()`                               |
+| `condition`              | another select expression, or tenant policies on two columns                                            |
+| `restrictive`            | a restrictive select policy that reads a column                                                         |
+| `fields`                 | a field view                                                                                            |
+| `unknown`                | row level security off, or no permissive select policy                                                  |
+
+Tables in the helpers' schema, `better_supabase` and the platform schemas are left out. The manifest is read from the files on disk, so run `permdock supabase inspect --out` after `permdock generate` changes a select policy. [Doctor PD128](/docs/cli/doctor#pd128-a-tenant-table-that-reads-by-row) fails when the committed manifest marks a table `tenant` that the files now make `row`.
+
+A table shares per tenant only when its select policy filters by permission and not by row. Prove it per entry with `expectTenantShare` from `better-supabase/testing`: two callers with the same grant get the same key and read the same rows, and a member without the grant gets no key.
+
+## Writes that RLS checks again
+
+better-supabase sets `context.enforcement` to `rls` on a write that Postgres checks on current data. `authorizer` maps such a write to the `database-write` intent: `claimsFirst` takes the authorization version from the shared cache, as for a read. A role change inside the cache window can therefore let PermDock admit a write that RLS then refuses, and it cannot admit a write RLS would also accept on stale data. A write with `enforcement: "definer"`, or without it, reads the version live.
+
+```ts
+authorizer({ policy, memberships, versions });
+```
+
+## Version store
+
+`memoryVersionCache({ shared })` takes a `VersionStore` with better-supabase's shape: `get(id)` answers `{ version, at }`, `set(id, version, at)` writes the time of the database read, and `delete(id)` forgets. `maxStaleMs` counts from `at` on every instance, so a store that never expires cannot keep a version past it. A stored entry dated in the future counts as read now, and one older than `maxStaleMs` is a miss.
+
+| Store                                         | Use it when                                                                                         |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `runtimeCacheVersionStore(getCache())`        | The app runs on Vercel; entries expire after 60 s.                                                  |
+| `postgresCacheVersionStore(pool, "schema.t")` | The app has no runtime cache; the table is `(user_id text primary key, version bigint, at bigint)`. |
+
+`testVersionStore` from `permdock/testing` checks a store against that shape.
+
+## Timings
+
+`node scripts/authz-latency.ts` measures these against the local Supabase stack of `apps/examples/next-better-supabase` and writes `scripts/authz-latency.json`. The numbers below are from 24 November 2026 on an Apple M5 Max (18 cores, 64 GB), Darwin 25.6.0 arm64, Node.js 26.13.1, Postgres 17.11 and `permdock` 0.30.0. The database holds the example's seed data: 4 users and 2 organisations.
+
+Each cell is the mean, with the p95 in brackets. Version reads and helpers ran 200 times, cold instances 30 times in a fresh `node` process each, and the fingerprint and the hook 10,000 times on a built instance. Before is the generated helper where a variant ran against it; a dash means there is one measurement.
+
+| Measurement                                                               | Before                      | After or today              | Source                                          |
+| ------------------------------------------------------------------------- | --------------------------- | --------------------------- | ----------------------------------------------- |
+| `authz_version_for`, round trip over `pg`                                 | -                           | 0.101 ms (0.204)            | `versionRead.authzVersionFor.pgRoundTrip`       |
+| `authz_version_for`, server time                                          | -                           | 0.010 ms (0.019), 4 buffers | `versionRead.authzVersionFor.server`            |
+| `custom_roles_version_for`, round trip over `pg`                          | -                           | 0.103 ms (0.157)            | `versionRead.customRolesVersionFor.pgRoundTrip` |
+| `custom_roles_version_for`, server time                                   | -                           | 0.022 ms (0.045), 5 buffers | `versionRead.customRolesVersionFor.server`      |
+| PostgREST round trip of a one-row read as `anon`                          | -                           | 1.331 ms (1.752)            | `versionRead.postgrestRpcFloor`                 |
+| Cold instance, `generate-perf` fixture: `definePolicy` to first `can`     | -                           | 17.30 ms (18.36)            | `coldInstance.fixture.cold`                     |
+| Cold instance, example policy: `definePolicy` to first `can`              | -                           | 6.44 ms (6.89)              | `coldInstance.example.cold`                     |
+| Policy imported in `register()`, fixture: first `getPermDock`             | -                           | 1.03 ms (1.30)              | `coldInstance.fixture.warm`                     |
+| Policy imported in `register()`, fixture: first `can`                     | -                           | 1.34 ms (1.55)              | `coldInstance.fixture.warm`                     |
+| `grantFingerprint`, example, 2 keys                                       | -                           | 0.039 ms (0.052)            | `grantFingerprint.example`                      |
+| `grantFingerprint`, fixture admin, 1 key                                  | -                           | 0.966 ms (1.213)            | `grantFingerprint.fixtureOneKey`                |
+| `grantFingerprint`, fixture admin, 39 keys                                | -                           | 3.452 ms (4.315)            | `grantFingerprint.fixtureAllReads`              |
+| `shareKey` hook through `permdockFor`, 2 keys                             | -                           | 0.049 ms (0.054)            | `shareKey.instances`                            |
+| `permitted_organization_ids`, server time (variant B after)               | 0.403 ms (0.484), 9 buffers | 0.385 ms (0.454), 7 buffers | `helpers.today.ids`, `helpers.variantB.ids`     |
+| `permitted_organization_ids_by_permission`, server time (variant B after) | 0.430 ms (0.503), 9 buffers | 0.416 ms (0.492), 7 buffers | `helpers.today.byPermission`                    |
+
+The cold instance is above the 3 ms threshold of a compiled policy index: on the fixture's 273 keys and 1,790 grants, `definePolicy` takes 14.9 ms, the first `getPermDock` 1.0 ms and the first `can` 1.4 ms. Importing the policy in `register()` moves `definePolicy` out of the first request, which then pays 2.4 ms.
+
+At 17.30 ms the fixture is over the 3 ms at which a compiled `policy-index` kind would ship, and the example, at 6.44 ms, is too. PermDock 0.32 does not ship it: the profile puts most of `definePolicy` in the SHA-256 digest of the canonical policy string, and a check of the grant count and key order cannot tell a stale digest from a current one. Import the policy in `register()` instead.
+
+`grantFingerprint` made no source call on a built instance, and the hook read no membership. Without a version cache, `permdockFor` read `version` once per hook call; with `versions: memoryVersionCache()` it read it once in 10,201 calls.
+
+Variant B stores `permdock_token_current()` once per transaction and cuts the helpers' mean by 4.5% (0.403 to 0.385 ms) and 3.3% (0.430 to 0.416 ms), under the fifth a variant needs to ship, so the generated helpers stay as they are. Buffers are shared hits per statement.
+
+Not measured:
+
+- `authz_version_for` over PostgREST: the example sets no `supabase.hook.api`, so no `public` wrapper exposes the function. The one-row read above is the round trip a wrapper would add.
+- Variant C: the example's helpers join no suspension table, so the claims branch has no join to drop.
+- The Server Action and the shared `bsb.kept` entry: both need the example's Next.js app running with a signed-in session, and it was not running.
+
+An earlier run on the same machine, with other processes busy, gave round trips up to 3.5 times higher. Compare numbers from one run.

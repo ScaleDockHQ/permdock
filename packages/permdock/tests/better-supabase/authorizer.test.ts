@@ -531,6 +531,42 @@ describe(authorizer, () => {
       );
       expect(live).toStrictEqual([false]);
     });
+
+    it("reads a write that RLS checks again from the version cache, and any other write live", async () => {
+      const { live, versions } = tracked();
+      const evaluate = evaluateOf(authorizer({ policy, memberships: source }));
+      for (const enforcement of ["rls", "definer", undefined] as const) {
+        await evaluate(
+          authorizationRequest({
+            action: quote.update,
+            claims: versioned,
+            resource: { type: "quotes", properties: row },
+            context: {
+              tenant: ORG,
+              intent: "write",
+              ...(enforcement === undefined ? {} : { enforcement }),
+            },
+          }),
+          { versions },
+        );
+      }
+      expect(live).toStrictEqual([false, true, true]);
+    });
+
+    it("keeps a denial a denial when the write is marked rls", async () => {
+      const { versions } = tracked();
+      const evaluate = evaluateOf(authorizer({ policy, memberships: source }));
+      const outsider = await evaluate(
+        authorizationRequest({
+          action: quote.update,
+          claims: { ...versioned, memberships: [] },
+          resource: { type: "quotes", properties: row },
+          context: { tenant: "other-org", intent: "write", enforcement: "rls" },
+        }),
+        { versions },
+      );
+      expect(outsider.outcome).not.toBe("granted");
+    });
   });
 
   describe("resource source and change", () => {

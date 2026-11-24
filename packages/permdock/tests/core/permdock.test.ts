@@ -174,11 +174,11 @@ describe(getPermDockSync, () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected json snapshot");
     }
-    expect(snapshot.v).toBe(1);
+    expect(snapshot.v).toBe(2);
     expect(
       snapshot.grants.every((grant) => grant.permission.startsWith("post")),
     ).toBe(true);
-    expect(parseSnapshot(JSON.stringify(snapshot)).v).toBe(1);
+    expect(parseSnapshot(JSON.stringify(snapshot)).v).toBe(2);
   });
 
   it("signs snapshots when a signer is passed", async () => {
@@ -194,7 +194,7 @@ describe(getPermDockSync, () => {
     });
     expect(await signed).toBe("signed.jws");
     const plain = permdock.snapshot();
-    expect(plain.v).toBe(1);
+    expect(plain.v).toBe(2);
     const client = fromSnapshot(plain);
     expect(client.snapshot()).toBe(plain);
     expect(

@@ -1,4 +1,5 @@
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -168,8 +169,8 @@ create policy notes_delete on notes for delete using (true);
         ["posts", "INSERT", false, ["anon", "authenticated"]],
         ["posts", "UPDATE", false, ["anon", "authenticated"]],
         ["posts", "DELETE", false, ["anon", "authenticated"]],
-        ["posts", "INSERT", true, ["PUBLIC"]],
-        ["notes", "DELETE", true, ["PUBLIC"]],
+        ["posts", "INSERT", true, ["public"]],
+        ["notes", "DELETE", true, ["public"]],
       ]);
       expect(catalog[4]?.condition).toStrictEqual({
         op: "eq",
@@ -184,7 +185,7 @@ create policy notes_delete on notes for delete using (true);
       expect(module).toMatch(/notes[\s\S]*actions: \["delete"\]/u);
     });
 
-    it("falls back to the raw text when the dump does not parse, and reads a create-only table", async () => {
+    it("stops on a dump libpg_query rejects instead of reading it as text", async () => {
       const cwd = project({
         "dump.sql": `create policy jobs_insert on jobs for insert to authenticated with check (true);
 create policy jobs_read on jobs using (note = 'for delete to anon');
@@ -198,17 +199,10 @@ this is not sql;`,
         schema: "valibot",
         io,
       });
-      expect(result.code).toBe(0);
-      expect(
-        catalogOf(cwd, "gen.ts")
-          .slice(0, 2)
-          .map((entry) => [entry.table, entry.cmd, entry.roles]),
-      ).toStrictEqual([
-        ["jobs", "INSERT", ["authenticated"]],
-        ["jobs", "SELECT", ["authenticated"]],
-      ]);
-      const module = readFileSync(path.join(cwd, "gen.ts"), "utf8");
-      expect(module).toContain("from 'valibot'");
+      expect(result).toMatchObject({ code: 2 });
+      expect(result.output).toContain("dump.sql: ");
+      expect(result.output).toContain("(line 3, column 1)");
+      expect(existsSync(path.join(cwd, "gen.ts"))).toBe(false);
     });
 
     it("reads a create-only table as read plus create", async () => {

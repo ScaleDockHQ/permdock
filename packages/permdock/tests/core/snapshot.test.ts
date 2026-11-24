@@ -24,10 +24,13 @@ describe(parseSnapshot, () => {
   });
 
   it("accepts the snapshot fixture and rejects unknown majors and unsafe keys", () => {
-    expect(parseSnapshot(fixture).v).toBe(1);
-    expect(parseSnapshot(JSON.stringify(fixture)).v).toBe(1);
+    expect(parseSnapshot(fixture).v).toBe(2);
+    expect(parseSnapshot(JSON.stringify(fixture)).v).toBe(2);
     expect(() => parseSnapshot({ v: 9 })).toThrow(
       /unsupported snapshot version/u,
+    );
+    expect(() => parseSnapshot({ ...parseSnapshot(fixture), v: 1 })).toThrow(
+      /unsupported snapshot version '1'/u,
     );
     expect(() => parseSnapshot({ v: 1, constructor: {} })).toThrow(
       /unsafe snapshot key/u,

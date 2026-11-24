@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  operationsModule,
   routePath,
   routesFromSource,
-} from "../../src/openapi/annotate-routes.ts";
+} from "../../src/cli/openapi/route-handlers.ts";
+import { operationsModule } from "../../src/openapi/annotate-routes.ts";
 
 describe("route annotation", () => {
   it("reads @permission, @permissionCheck and @oauthScopes", () => {

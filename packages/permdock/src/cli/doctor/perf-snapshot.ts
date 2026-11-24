@@ -1,6 +1,7 @@
 import type { Project } from "../project/project.ts";
 import type { DoctorFinding } from "../shared/doctor-types.ts";
 
+import { snapshotProbeOptions } from "../budgets/budgets.ts";
 import {
   mostPrivilegedRole,
   snapshotSize,
@@ -10,13 +11,21 @@ import {
 /** Memberships of the probe subject: a tenant admin with a handful of tenants. */
 const PROBE_TENANTS = 3;
 
+/** Parts PD112 names beside the largest, since no option leaves them out. */
+const NAMED_PARTS: ReadonlySet<string> = new Set([
+  "typeLevel",
+  "scopes",
+  "requires",
+]);
+
 /**
  * PD112: the compact snapshot of the most privileged role is over 64 KB of
  * JSON. A Next.js page that renders `PermDockProvider` serialises it into the
- * Flight stream once per provider, so the size is paid on every navigation.
+ * Flight stream once per provider, so the size is paid on every navigation. The
+ * probe uses `omitStatic` when the project generates the `bundle` kind.
  */
 export async function pd112(
-  project: Pick<Project, "policy">,
+  project: Pick<Project, "policy" | "config">,
 ): Promise<readonly DoctorFinding[]> {
   const policy = await project.policy();
   if (policy === undefined) {
@@ -26,11 +35,13 @@ export async function pd112(
   if (role === undefined) {
     return [];
   }
+  const options = snapshotProbeOptions(project.config);
   const report = snapshotSize({
     policy,
     role,
     tenants: PROBE_TENANTS,
     omitAssignable: false,
+    ...options,
   });
   if (
     typeof report === "string" ||
@@ -38,13 +49,18 @@ export async function pd112(
   ) {
     return [];
   }
+  const named = report.parts
+    .filter((part) => NAMED_PARTS.has(part.part))
+    .map((part) => `${part.part} ${String(part.bytes)}`);
   return [
     {
       code: "PD112",
       severity: "warning",
       target: role,
-      message: `the snapshot of role '${role}' is ${String(report.total.bytes)} bytes (${String(report.total.gzip)} gzip), over ${String(SNAPSHOT_BUDGET_BYTES)}; the largest part is ${report.largest}`,
-      fix: "pass omitStatic with the generated bundle (`permdock gen --kind bundle`), omitAssignable when the page has no role editor, or narrow the role's grants; `permdock snapshot size` lists the parts",
+      message: `the snapshot of role '${role}'${options.omitStatic ? " with omitStatic" : ""} is ${String(report.total.bytes)} bytes (${String(report.total.gzip)} gzip), over ${String(SNAPSHOT_BUDGET_BYTES)}; the largest part is ${report.largest}${named.length === 0 ? "" : `; ${named.join(", ")} bytes`}`,
+      fix: options.omitStatic
+        ? "pass omitAssignable when the page has no role editor, or narrow the role's grants; `permdock snapshot size --omit-static` lists the parts"
+        : "pass omitStatic with the generated bundle (`permdock gen --kind bundle`), omitAssignable when the page has no role editor, or narrow the role's grants; `permdock snapshot size` lists the parts",
     },
   ];
 }

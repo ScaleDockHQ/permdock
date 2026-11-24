@@ -210,15 +210,25 @@ export type {
   SubjectRecord,
 } from "./core/subject-cache.ts";
 export { memoryVersionCache } from "./core/version-cache.ts";
+export {
+  postgresCacheVersionStore,
+  runtimeCacheVersionStore,
+} from "./core/version-stores.ts";
+export type { QueryableLike, RuntimeCacheLike } from "./core/version-stores.ts";
 export type {
   MemoryVersionCacheOptions,
   VersionCache,
   VersionCacheStats,
   VersionStore,
+  VersionStoreEntry,
 } from "./core/version-cache.ts";
 export type {
   ClientBundle,
+  ExpandedSnapshot,
+  SnapshotGrantRef,
+  SnapshotListRef,
   SnapshotStatic,
+  SnapshotWireAssignable,
   LocalCustomRoleTable,
   LocalMembershipRows,
   LocalRowColumn,
@@ -257,6 +267,7 @@ export type {
 } from "./core/arazzo.ts";
 export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
 export { clientBundle } from "./core/client-bundle.ts";
+export { readSnapshot } from "./core/snapshot-compact.ts";
 export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { parseLocalSnapshotManifest } from "./core/parse-local-manifest.ts";
 export {
@@ -284,6 +295,8 @@ export {
   resolveCustomRole,
   validateCustomRole,
 } from "./core/custom-roles.ts";
+export { decideCustomRole } from "./core/decide-custom-role.ts";
+export type { CustomRoleDecision } from "./core/decide-custom-role.ts";
 export { customRoleSource } from "./core/custom-role-source.ts";
 export type {
   CustomRoleReader,

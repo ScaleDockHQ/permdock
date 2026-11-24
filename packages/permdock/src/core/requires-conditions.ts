@@ -2,20 +2,18 @@ import type { Condition } from "../conditions/ast.ts";
 import type { CustomGrant } from "./custom-roles.ts";
 import type { ResourceNode } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
+import type { Scope } from "./scopes.ts";
+import type { KeyHolding } from "./snapshot-requires.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
-import { sole } from "./compact.ts";
 import { holdsCustomRole, holdsGlobalCustomRole } from "./custom-roles.ts";
-import { freezeDeep } from "./freeze.ts";
-import { combineWhere } from "./grantee-match.ts";
 import { flattenGrantee } from "./grantee.ts";
 import { declaredRoleNames } from "./policy.ts";
 import { expandRoleNames } from "./role-loading.ts";
 import { keepsPermission, scopeList, tenantOf } from "./scopes.ts";
+import { placeRequirements } from "./snapshot-requires.ts";
 import { isMembershipExpired, partitionsOf, scopeField } from "./tenancy.ts";
 import { isActive } from "./validity.ts";
-
-const NEVER: Condition = freezeDeep({ op: "or", conditions: [] });
 
 function isUnconditionedAllow(grant: Grant, now: number): boolean {
   return (
@@ -47,36 +45,27 @@ export function requirementCondition(
   customRoles: readonly CustomRole[],
   customGrants: readonly CustomGrant[],
 ): Condition | undefined {
-  let where: Condition | undefined;
-  for (const key of keys) {
-    where = combineWhere(
-      where,
-      keyRequirement(
-        policy,
-        subject,
-        key,
-        resource,
-        now,
-        customRoles,
-        customGrants,
-      ),
-    );
-  }
-  return where;
+  return placeRequirements(
+    keys,
+    requirementFields(resource, scopeList(policy.scopes)),
+    (key) => keyHolding(policy, subject, key, now, customRoles, customGrants),
+  );
 }
 
-function keyRequirement(
+/** `keyHolding` for a subject without a principal: nowhere. */
+const NOWHERE: KeyHolding = new Map<string, ReadonlySet<string>>();
+
+export function keyHolding(
   policy: Policy,
   subject: Subject,
   key: string,
-  resource: ResourceNode | undefined,
   now: number,
   customRoles: readonly CustomRole[],
   customGrants: readonly CustomGrant[],
-): Condition | undefined {
+): KeyHolding {
   const principal = subject.principal;
   if (principal === null) {
-    return NEVER;
+    return NOWHERE;
   }
   const scopes = scopeList(policy.scopes);
   const declared = declaredRoleNames(policy);
@@ -178,20 +167,32 @@ function keyRequirement(
     }
   }
   if (globalAllow && !globalDeny) {
-    return undefined;
+    return true;
   }
-  const parts: Condition[] = [];
-  for (const name of resource === undefined
-    ? []
-    : partitionsOf(resource, scopes)) {
+  const holding = new Map<string, ReadonlySet<string>>();
+  for (const [scope, ids] of allowed) {
+    const deniedIds = denied.get(scope);
+    holding.set(
+      scope,
+      new Set([...ids].filter((id) => deniedIds?.has(id) !== true)),
+    );
+  }
+  return holding;
+}
+
+/**
+ * The `[scope, field]` pairs a requirement on `resource` filters, in partition
+ * order.
+ */
+export function requirementFields(
+  resource: ResourceNode | undefined,
+  scopes: readonly Scope[],
+): readonly (readonly [scope: string, field: string])[] {
+  if (resource === undefined) {
+    return [];
+  }
+  return partitionsOf(resource, scopes).flatMap((name) => {
     const field = scopeField(resource, name, scopes);
-    const deniedIds = denied.get(name);
-    const ids = [...(allowed.get(name) ?? [])]
-      .filter((id) => deniedIds?.has(id) !== true)
-      .toSorted();
-    if (field !== undefined && ids.length > 0) {
-      parts.push({ op: "in", field, value: ids });
-    }
-  }
-  return sole(parts) ?? { op: "or", conditions: parts };
+    return field === undefined ? [] : [[name, field] as const];
+  });
 }

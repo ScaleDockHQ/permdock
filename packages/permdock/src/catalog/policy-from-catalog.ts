@@ -77,7 +77,13 @@ function actionsOf(
 ): Record<string, ActionMeta> | undefined {
   const entries = permissions
     .filter((leaf) => leaf.arity === arity)
-    .map((leaf): [string, ActionMeta] => [leaf.action, { ...leaf.meta }]);
+    .map((leaf): [string, ActionMeta] => [
+      leaf.action,
+      {
+        ...leaf.meta,
+        ...(leaf.answers === undefined ? {} : { answers: leaf.answers }),
+      },
+    ]);
   return entries.length === 0 ? undefined : Object.fromEntries(entries);
 }
 

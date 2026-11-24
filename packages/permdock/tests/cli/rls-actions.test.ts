@@ -190,8 +190,16 @@ describe("rls.actions", () => {
         roles: [role(roles.admin, [allow(permissions.quote.archive)])],
       },
     );
-    expect(() => compileGrants(solo, base, undefined, [], false)).toThrow(
-      /'archive', 'view' verbs have no rls.actions entry and do not infer a SQL command. Verbs that infer: read, list and get select/u,
+    expect(
+      compileGrants(solo, base, undefined, [], false).rolePermissions,
+    ).toStrictEqual(
+      compileGrants(
+        solo,
+        { ...base, actions: { view: "none", archive: "none" } },
+        undefined,
+        [],
+        false,
+      ).rolePermissions,
     );
     const warnings: string[] = [];
     const compiled = compileGrants(

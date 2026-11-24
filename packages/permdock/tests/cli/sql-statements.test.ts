@@ -21,6 +21,65 @@ describe(sqlStatements, () => {
   });
 });
 
+describe("sqlStatements lexing", () => {
+  const texts = (sql: string): readonly string[] =>
+    sqlStatements(sql).map((statement) => statement.text);
+
+  it("keeps `--` inside a string literal", () => {
+    expect(texts("select 'a--b';\nselect 2")).toStrictEqual([
+      "select 'a--b'",
+      "select 2",
+    ]);
+  });
+
+  it("does not split a quoted identifier that holds a semicolon", () => {
+    expect(texts('select "a;b" from t; select 2')).toStrictEqual([
+      'select "a;b" from t',
+      "select 2",
+    ]);
+  });
+
+  it("reads a backslash escape inside an E string", () => {
+    expect(texts("select E'it\\'s;x'; select 2")).toStrictEqual([
+      "select E'it\\'s;x'",
+      "select 2",
+    ]);
+  });
+
+  it("does not take a backslash as an escape in a plain string", () => {
+    expect(texts("select 'a\\'; select 2")).toStrictEqual([
+      "select 'a\\'",
+      "select 2",
+    ]);
+  });
+
+  it("reads a dollar tag with digits and ignores a parameter", () => {
+    expect(
+      texts(
+        "create function f() returns int as $a1$ select 1; $a1$; select $1",
+      ),
+    ).toStrictEqual([
+      "create function f() returns int as $a1$ select 1; $a1$",
+      "select $1",
+    ]);
+  });
+
+  it("nests block comments and blanks them", () => {
+    expect(
+      texts("select /* a /* b; */ c; */ 1;").map((text) =>
+        text.replaceAll(/\s+/gu, " "),
+      ),
+    ).toStrictEqual(["select 1"]);
+  });
+
+  it("keeps the line of a statement after non-ASCII text", () => {
+    expect(sqlStatements("-- é 😀\nselect 1;\nselect 2")).toStrictEqual([
+      { line: 2, text: "select 1" },
+      { line: 3, text: "select 2" },
+    ]);
+  });
+});
+
 describe(group, () => {
   it("reads an optional group that took no part as empty", () => {
     const match = /^(a)(b)?$/u.exec("a");
@@ -66,5 +125,21 @@ describe(splitUndiffed, () => {
         "",
       ].join("\n"),
     );
+  });
+
+  it("moves a statement with a trailing or inner comment once", () => {
+    const sql = [
+      "create schema app;",
+      "grant usage on schema app to authenticated; -- the data api reads it",
+      "grant execute on function app.f(text) -- the helper",
+      "  to authenticated;",
+      "",
+    ].join("\n");
+    const { kept, moved } = splitUndiffed(sql);
+    expect(moved).toStrictEqual([
+      "grant usage on schema app to authenticated;",
+      "grant execute on function app.f(text) -- the helper\n  to authenticated;",
+    ]);
+    expect(kept).toBe("create schema app;\n");
   });
 });

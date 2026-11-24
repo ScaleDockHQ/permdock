@@ -80,7 +80,7 @@ describe("doctor report", () => {
     it("matches a group name case-insensitively and by code", async () => {
       const cwd = project({
         "src/a.ts": `export const o = { tenant: 'hd' }\n`,
-        "src/b.ts": `algorithms: ['none', 'EdDSA']\n`,
+        "src/b.ts": `export const o = { algorithms: ['none', 'EdDSA'] };\n`,
       });
       const result = await doctor(
         cwd,
@@ -119,14 +119,14 @@ describe("doctor report", () => {
 `,
       );
       const failing = await doctor(
-        project({ "src/a.ts": `algorithms: ['none']\n` }),
+        project({ "src/a.ts": `export const o = { algorithms: ['none'] };\n` }),
         {},
         { only: ["algorithms"], color: true },
       );
       expect(stripVTControlCharacters(failing.output)).toContain("✖ PD013");
       expect(failing.output).toContain("1 error, 0 warnings");
       const plain = await doctor(
-        project({ "src/a.ts": `algorithms: ['none']\n` }),
+        project({ "src/a.ts": `export const o = { algorithms: ['none'] };\n` }),
         {},
         { only: ["algorithms"] },
       );

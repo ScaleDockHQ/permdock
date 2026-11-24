@@ -353,7 +353,7 @@ describe(snapshotFixture, () => {
       orgId: "o1",
       roles: ["member"],
     });
-    expect(snapshot.v).toBe(1);
+    expect(snapshot.v).toBe(2);
     expect(snapshot.roles).toContain("member");
   });
 
@@ -368,7 +368,7 @@ describe(snapshotFixture, () => {
         tenant: "o1",
       },
     );
-    expect(snapshot.v).toBe(1);
+    expect(snapshot.v).toBe(2);
     expect(snapshot.simulated).toBe(true);
   });
 });
@@ -580,7 +580,7 @@ describe("conformance runners", () => {
   testSnapshotSource({
     get: () =>
       compactSnapshot({
-        v: 1,
+        v: 2,
         issuedAt: "1970-01-01T00:00:01Z",
         subject: { principal: null, context: {} },
         roles: [],
@@ -592,7 +592,7 @@ describe("conformance runners", () => {
   testSnapshotSource({
     get: () =>
       compactSnapshot({
-        v: 1,
+        v: 2,
         issuedAt: "1970-01-01T00:00:01Z",
         subject: { principal: null, context: {} },
         roles: [],

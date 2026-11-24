@@ -1,5 +1,6 @@
 import type { SplitPart } from "../core/output-files.ts";
 import type { SqlConnect } from "../pg.ts";
+import type { SchemaWrite } from "../sql/schema-writes.ts";
 import type {
   CliIo,
   PermDockConfig,
@@ -49,6 +50,11 @@ export type RlsGenerateInput = {
   readonly split?: string;
   /** `--schemas`; default from `resolveSchemas`. */
   readonly schemas?: SupabaseSchemas;
+  /**
+   * With `helpersOnly` and `rls.readOnlyActors`: the tables whose schema files
+   * hold a permissive client write policy, which get a read-only actor guard.
+   */
+  readonly schemaWrites?: readonly SchemaWrite[];
   /**
    * migra only: the privileges `supabase db diff` drops go here (`-` prints
    * them); needs the `helpers` or `hook` part.

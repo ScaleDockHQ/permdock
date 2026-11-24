@@ -4,78 +4,81 @@ Each file records one place where this repository differs from the ScaleDockHQ r
 
 Copy `0000-template.md`, take the next number, and add a row below. When a decision changes, set its status to superseded and add a new record.
 
-| Record                                                            | Decision                                                                                                       |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| [0001](./0001-skills-in-agents-folder.md)                         | Withdrawn: the standard now commits lock-tracked skills                                                        |
-| [0002](./0002-no-typescript-catalog-override.md)                  | No global `typescript` override                                                                                |
-| [0003](./0003-schema-libraries.md)                                | Zod, ArkType and agent SDKs where PermDock supports them                                                       |
-| [0004](./0004-node-engines.md)                                    | `permdock` keeps `engines.node: ">=24"`                                                                        |
-| [0005](./0005-extra-workspaces-and-scripts.md)                    | Extra workspace globs and root scripts                                                                         |
-| [0006](./0006-vendored-ui-tsconfig.md)                            | Relaxed tsconfig for vendored UI code                                                                          |
-| [0007](./0007-permdock-tests-not-type-checked.md)                 | Withdrawn: the tests are type-checked                                                                          |
-| [0008](./0008-turbo-query-affected.md)                            | `turbo query affected` instead of `turbo-ignore`                                                               |
-| [0009](./0009-boundaries-limits.md)                               | Boundary rules Turborepo cannot express, and the `ui` denylist                                                 |
-| [0010](./0010-vercel-corepack-bootstrap.md)                       | `vercel.json` bootstraps pnpm through Corepack                                                                 |
-| [0011](./0011-docs-robots.md)                                     | The docs app has no `robots.ts`                                                                                |
-| [0012](./0012-cross-zone-links.md)                                | Cross-zone links are plain anchors                                                                             |
-| [0013](./0013-no-fumadocs-openapi.md)                             | No `fumadocs-openapi` pages                                                                                    |
-| [0014](./0014-no-fumadocs-twoslash.md)                            | Withdrawn: no page uses Twoslash, which the standard now allows                                                |
-| [0015](./0015-ask-ai-input.md)                                    | Ask AI input built from `InputGroup`                                                                           |
-| [0016](./0016-portless-names.md)                                  | Portless names under `permdock.localhost`                                                                      |
-| [0017](./0017-permdock-skill-prefix.md)                           | Consumer skills are named `permdock` or `permdock-<topic>`                                                     |
-| [0018](./0018-blocked-majors.md)                                  | Majors that stay on the previous line until a blocker clears                                                   |
-| [0019](./0019-adapter-suffix-and-no-dollar-members.md)            | Adapter types are `<Adapter>PermDock`, and no public object has `$` members                                    |
-| [0020](./0020-cli-inside-the-package.md)                          | The CLI ships inside `permdock`, not as `@scaledockhq/cli`                                                     |
-| [0021](./0021-build-over-transit.md)                              | Checks depend on `^build`, not `transit`                                                                       |
-| [0022](./0022-status-line-for-unbuilt-features.md)                | Unbuilt features carry a `Status:` line, not a callout                                                         |
-| [0023](./0023-code-fence-titles.md)                               | Code fences need a language, not a title                                                                       |
-| [0024](./0024-version-packages-order.md)                          | The root changelog runs before `changeset version`                                                             |
-| [0025](./0025-vercel-json-over-vercel-ts.md)                      | `vercel.json` instead of `vercel.ts`                                                                           |
-| [0026](./0026-commit-header-length.md)                            | Commit headers without a length limit                                                                          |
-| [0027](./0027-dependabot-cooldown.md)                             | Dependabot waits 7 days                                                                                        |
-| [0028](./0028-ox-config-over-ultracite.md)                        | Withdrawn: lint and format run on Ultracite                                                                    |
-| [0029](./0029-no-turbopack-build-cache-in-ci.md)                  | No Turbopack build cache on GitHub runners                                                                     |
-| [0030](./0030-vary-on-markdown-only.md)                           | `Vary: Accept` only on the Markdown response                                                                   |
-| [0031](./0031-tests-outside-root-vitest-projects.md)              | `tests/*` stays outside the root Vitest `projects`                                                             |
-| [0032](./0032-no-actions-lock-yet.md)                             | No `actions.lock` until workflow lockfiles are generally available                                             |
-| [0033](./0033-next-tsconfig-react-jsx.md)                         | `next.json` sets `jsx: "react-jsx"`                                                                            |
-| [0034](./0034-structural-instant-over-temporal.md)                | The runtime takes a structural `Instant`, not `Temporal`                                                       |
-| [0035](./0035-better-supabase-from-a-tarball.md)                  | Superseded by 0038: better-supabase installed from a tarball of the sibling checkout                           |
-| [0036](./0036-org-and-row-access-on-one-resource.md)              | Org-level and per-row access on one resource, not two; PD075 reports a split                                   |
-| [0037](./0037-cli-contract-shared-with-better-supabase.md)        | The CLI contract shared with better-supabase: agent mode, own resolver; output per 0068                        |
-| [0038](./0038-better-supabase-0-9-0-release-age-exclude.md)       | better-supabase 0.9.0 skips the one-day release age                                                            |
-| [0039](./0039-better-supabase-0-10-0-release-age-exclude.md)      | better-supabase 0.10.0 skips the one-day release age                                                           |
-| [0040](./0040-better-supabase-0-11-0-floor-and-release-age.md)    | better-supabase 0.11.0 is the peer floor, with no upper bound, and skips the one-day release age               |
-| [0041](./0041-better-supabase-0-12-0-release-age-exclude.md)      | better-supabase 0.12.0 skips the one-day release age                                                           |
-| [0042](./0042-two-cli-runtime-dependencies.md)                    | The CLI inlines its dependencies except `oxc-parser` and `jiti`                                                |
-| [0043](./0043-better-supabase-peer-upper-bound.md)                | The better-supabase peer range ends below the minor after the newest tested release                            |
-| [0044](./0044-lint-rules-kept-off.md)                             | Lint rules kept off by design, and the remaining backlogs                                                      |
-| [0045](./0045-open-peer-ranges-and-better-supabase-0-13-floor.md) | Peer ranges are open floors; better-supabase 0.13.0 is the floor and skips the release age                     |
-| [0046](./0046-better-supabase-0-15-1-release-age.md)              | better-supabase 0.15.1 is the catalog pin and skips the release age; the example stack runs on it only         |
-| [0047](./0047-better-supabase-0-16-0-release-age.md)              | better-supabase 0.16.0 is the catalog pin and skips the release age                                            |
-| [0048](./0048-better-supabase-0-18-0-release-age.md)              | better-supabase 0.18.0 is the catalog pin and skips the release age                                            |
-| [0049](./0049-affected-hook-gate.md)                              | Affected lint and typecheck on commit, no tests in hooks, `CI` not hashed                                      |
-| [0050](./0050-better-supabase-0-25-0-release-age.md)              | better-supabase 0.25.0 catalog pin, release age exception and three-version compatibility CI                   |
-| [0051](./0051-better-supabase-0-29-0-floor-and-release-age.md)    | better-supabase 0.29.0 is the peer floor and catalog pin, and skips the release age                            |
-| [0052](./0052-ultracite-presets-and-kept-off-rules.md)            | Ultracite `core` and `anti-slop` only, house presets in the root config, kept-off rules with counts            |
-| [0053](./0053-better-supabase-0-33-0-floor-and-release-age.md)    | better-supabase 0.33.0 is the peer floor and catalog pin, and skips the release age                            |
-| [0054](./0054-better-supabase-0-39-0-floor-and-release-age.md)    | better-supabase 0.39.0 is the peer floor and catalog pin, and skips the release age                            |
-| [0059](./0059-better-supabase-0-53-0-floor-and-release-age.md)    | better-supabase 0.53.0 is the peer floor and catalog pin, and skips the release age                            |
-| [0056](./0056-define-permdock-entry.md)                           | `permdock/app` is a server-only entry and `definePermDock` replaces `defineApp`                                |
-| [0057](./0057-optional-cli-peers.md)                              | `oxc-parser` and `jiti` are optional peers of the CLI, loaded on first use                                     |
-| [0058](./0058-react-evaluator-split.md)                           | `permdock/react` loads its evaluator on demand                                                                 |
-| [0060](./0060-no-recursive-scopes.md)                             | Scopes are flat tenancy; hierarchies are self-parented resources                                               |
-| [0062](./0062-next-baseline-file-lint-suppressions.md)            | File-level lint suppressions in `scripts/next-baseline.ts`                                                     |
-| [0063](./0063-perf-gates-machine-and-docker.md)                   | The runtime and `rls-bench` gates: timings on one machine, Docker in the perf job                              |
-| [0064](./0064-authorizer-claims-key-per-scope.md)                 | The better-supabase authorizer serialises a claims object once per request scope                               |
-| [0065](./0065-release-after-ci.md)                                | Release runs after CI, without a second verify                                                                 |
-| [0066](./0066-pnpm-store-saved-once.md)                           | The pnpm store is saved from the static job only                                                               |
-| [0067](./0067-better-supabase-0-58-0-floor-and-release-age.md)    | better-supabase 0.58.0 is the peer floor, 0.58.3 the catalog pin, and both skip the release age                |
-| [0068](./0068-cli-contract-3.md)                                  | PermDock moves to better-supabase's CLI contract 3                                                             |
-| [0069](./0069-staged-lint-on-commit.md)                           | Staged lint on commit, the affected gate on push                                                               |
-| [0070](./0070-turbo-2-11-11-release-age.md)                       | turbo 2.11.11 skips the release age                                                                            |
-| [0071](./0071-better-supabase-0-63-2-floor-and-release-age.md)    | better-supabase 0.63.2 is the peer floor and catalog pin, and skips the release age                            |
-| [0072](./0072-selected-tests-on-pull-requests.md)                 | Pull requests run selected tests; main runs everything                                                         |
-| [0073](./0073-eve-1-2-0-ai-chat-floors-and-release-age.md)        | eve 1.2.0, ai and chat 4.45.0 are peer floors; eve 1.2.0 skips the release age; workflow stays 5.4.0           |
-| [0074](./0074-better-supabase-0-81-0-floor-and-release-age.md)    | better-supabase 0.81.0 is the peer floor and catalog pin; it and the packages it peers on skip the release age |
-| [0075](./0075-better-supabase-0-84-0-pin-and-release-age.md)      | better-supabase 0.84.0 is the catalog pin and skips the release age; the peer floor stays 0.81.0               |
+| Record                                                            | Decision                                                                                                                             |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| [0001](./0001-skills-in-agents-folder.md)                         | Withdrawn: the standard now commits lock-tracked skills                                                                              |
+| [0002](./0002-no-typescript-catalog-override.md)                  | No global `typescript` override                                                                                                      |
+| [0003](./0003-schema-libraries.md)                                | Zod, ArkType and agent SDKs where PermDock supports them                                                                             |
+| [0004](./0004-node-engines.md)                                    | `permdock` keeps `engines.node: ">=26"`                                                                                              |
+| [0005](./0005-extra-workspaces-and-scripts.md)                    | Extra workspace globs and root scripts                                                                                               |
+| [0006](./0006-vendored-ui-tsconfig.md)                            | Relaxed tsconfig for vendored UI code                                                                                                |
+| [0007](./0007-permdock-tests-not-type-checked.md)                 | Withdrawn: the tests are type-checked                                                                                                |
+| [0008](./0008-turbo-query-affected.md)                            | `turbo query affected` instead of `turbo-ignore`                                                                                     |
+| [0009](./0009-boundaries-limits.md)                               | Boundary rules Turborepo cannot express, and the `ui` denylist                                                                       |
+| [0010](./0010-vercel-corepack-bootstrap.md)                       | `vercel.json` bootstraps pnpm through Corepack                                                                                       |
+| [0011](./0011-docs-robots.md)                                     | The docs app has no `robots.ts`                                                                                                      |
+| [0012](./0012-cross-zone-links.md)                                | Cross-zone links are plain anchors                                                                                                   |
+| [0013](./0013-no-fumadocs-openapi.md)                             | No `fumadocs-openapi` pages                                                                                                          |
+| [0014](./0014-no-fumadocs-twoslash.md)                            | Withdrawn: no page uses Twoslash, which the standard now allows                                                                      |
+| [0015](./0015-ask-ai-input.md)                                    | Ask AI input built from `InputGroup`                                                                                                 |
+| [0016](./0016-portless-names.md)                                  | Portless names under `permdock.localhost`                                                                                            |
+| [0017](./0017-permdock-skill-prefix.md)                           | Consumer skills are named `permdock` or `permdock-<topic>`                                                                           |
+| [0018](./0018-blocked-majors.md)                                  | Majors that stay on the previous line until a blocker clears                                                                         |
+| [0019](./0019-adapter-suffix-and-no-dollar-members.md)            | Adapter types are `<Adapter>PermDock`, and no public object has `$` members                                                          |
+| [0020](./0020-cli-inside-the-package.md)                          | The CLI ships inside `permdock`, not as `@scaledockhq/cli`                                                                           |
+| [0021](./0021-build-over-transit.md)                              | Checks depend on `^build`, not `transit`                                                                                             |
+| [0022](./0022-status-line-for-unbuilt-features.md)                | Unbuilt features carry a `Status:` line, not a callout                                                                               |
+| [0023](./0023-code-fence-titles.md)                               | Code fences need a language, not a title                                                                                             |
+| [0024](./0024-version-packages-order.md)                          | The root changelog runs before `changeset version`                                                                                   |
+| [0025](./0025-vercel-json-over-vercel-ts.md)                      | `vercel.json` instead of `vercel.ts`                                                                                                 |
+| [0026](./0026-commit-header-length.md)                            | Commit headers without a length limit                                                                                                |
+| [0027](./0027-dependabot-cooldown.md)                             | Dependabot waits 7 days                                                                                                              |
+| [0028](./0028-ox-config-over-ultracite.md)                        | Withdrawn: lint and format run on Ultracite                                                                                          |
+| [0029](./0029-no-turbopack-build-cache-in-ci.md)                  | No Turbopack build cache on GitHub runners                                                                                           |
+| [0030](./0030-vary-on-markdown-only.md)                           | `Vary: Accept` only on the Markdown response                                                                                         |
+| [0031](./0031-tests-outside-root-vitest-projects.md)              | `tests/*` stays outside the root Vitest `projects`                                                                                   |
+| [0032](./0032-no-actions-lock-yet.md)                             | No `actions.lock` until workflow lockfiles are generally available                                                                   |
+| [0033](./0033-next-tsconfig-react-jsx.md)                         | `next.json` sets `jsx: "react-jsx"`                                                                                                  |
+| [0034](./0034-structural-instant-over-temporal.md)                | The runtime takes a structural `Instant`, not `Temporal`                                                                             |
+| [0035](./0035-better-supabase-from-a-tarball.md)                  | Superseded by 0038: better-supabase installed from a tarball of the sibling checkout                                                 |
+| [0036](./0036-org-and-row-access-on-one-resource.md)              | Org-level and per-row access on one resource, not two; PD075 reports a split                                                         |
+| [0037](./0037-cli-contract-shared-with-better-supabase.md)        | The CLI contract shared with better-supabase: agent mode, own resolver; output per 0068                                              |
+| [0038](./0038-better-supabase-0-9-0-release-age-exclude.md)       | better-supabase 0.9.0 skips the one-day release age                                                                                  |
+| [0039](./0039-better-supabase-0-10-0-release-age-exclude.md)      | better-supabase 0.10.0 skips the one-day release age                                                                                 |
+| [0040](./0040-better-supabase-0-11-0-floor-and-release-age.md)    | better-supabase 0.11.0 is the peer floor, with no upper bound, and skips the one-day release age                                     |
+| [0041](./0041-better-supabase-0-12-0-release-age-exclude.md)      | better-supabase 0.12.0 skips the one-day release age                                                                                 |
+| [0042](./0042-two-cli-runtime-dependencies.md)                    | The CLI inlines its dependencies except `oxc-parser` and `jiti`                                                                      |
+| [0043](./0043-better-supabase-peer-upper-bound.md)                | The better-supabase peer range ends below the minor after the newest tested release                                                  |
+| [0044](./0044-lint-rules-kept-off.md)                             | Lint rules kept off by design, and the remaining backlogs                                                                            |
+| [0045](./0045-open-peer-ranges-and-better-supabase-0-13-floor.md) | Peer ranges are open floors; better-supabase 0.13.0 is the floor and skips the release age                                           |
+| [0046](./0046-better-supabase-0-15-1-release-age.md)              | better-supabase 0.15.1 is the catalog pin and skips the release age; the example stack runs on it only                               |
+| [0047](./0047-better-supabase-0-16-0-release-age.md)              | better-supabase 0.16.0 is the catalog pin and skips the release age                                                                  |
+| [0048](./0048-better-supabase-0-18-0-release-age.md)              | better-supabase 0.18.0 is the catalog pin and skips the release age                                                                  |
+| [0049](./0049-affected-hook-gate.md)                              | Affected lint and typecheck on commit, no tests in hooks, `CI` not hashed                                                            |
+| [0050](./0050-better-supabase-0-25-0-release-age.md)              | better-supabase 0.25.0 catalog pin, release age exception and three-version compatibility CI                                         |
+| [0051](./0051-better-supabase-0-29-0-floor-and-release-age.md)    | better-supabase 0.29.0 is the peer floor and catalog pin, and skips the release age                                                  |
+| [0052](./0052-ultracite-presets-and-kept-off-rules.md)            | Ultracite `core` and `anti-slop` only, house presets in the root config, kept-off rules with counts                                  |
+| [0053](./0053-better-supabase-0-33-0-floor-and-release-age.md)    | better-supabase 0.33.0 is the peer floor and catalog pin, and skips the release age                                                  |
+| [0054](./0054-better-supabase-0-39-0-floor-and-release-age.md)    | better-supabase 0.39.0 is the peer floor and catalog pin, and skips the release age                                                  |
+| [0059](./0059-better-supabase-0-53-0-floor-and-release-age.md)    | better-supabase 0.53.0 is the peer floor and catalog pin, and skips the release age                                                  |
+| [0056](./0056-define-permdock-entry.md)                           | `permdock/app` is a server-only entry and `definePermDock` replaces `defineApp`                                                      |
+| [0057](./0057-optional-cli-peers.md)                              | `oxc-parser` and `jiti` are optional peers of the CLI, loaded on first use                                                           |
+| [0058](./0058-react-evaluator-split.md)                           | `permdock/react` loads its evaluator on demand                                                                                       |
+| [0060](./0060-no-recursive-scopes.md)                             | Scopes are flat tenancy; hierarchies are self-parented resources                                                                     |
+| [0062](./0062-next-baseline-file-lint-suppressions.md)            | File-level lint suppressions in `scripts/next-baseline.ts`                                                                           |
+| [0063](./0063-perf-gates-machine-and-docker.md)                   | The runtime and `rls-bench` gates: timings on one machine, Docker in the perf job                                                    |
+| [0064](./0064-authorizer-claims-key-per-scope.md)                 | The better-supabase authorizer serialises a claims object once per request scope                                                     |
+| [0065](./0065-release-after-ci.md)                                | Release runs after CI, without a second verify                                                                                       |
+| [0066](./0066-pnpm-store-saved-once.md)                           | The pnpm store is saved from the static job only                                                                                     |
+| [0067](./0067-better-supabase-0-58-0-floor-and-release-age.md)    | better-supabase 0.58.0 is the peer floor, 0.58.3 the catalog pin, and both skip the release age                                      |
+| [0068](./0068-cli-contract-3.md)                                  | PermDock moves to better-supabase's CLI contract 3                                                                                   |
+| [0069](./0069-staged-lint-on-commit.md)                           | Staged lint on commit, the affected gate on push                                                                                     |
+| [0070](./0070-turbo-2-11-11-release-age.md)                       | turbo 2.11.11 skips the release age                                                                                                  |
+| [0071](./0071-better-supabase-0-63-2-floor-and-release-age.md)    | better-supabase 0.63.2 is the peer floor and catalog pin, and skips the release age                                                  |
+| [0072](./0072-selected-tests-on-pull-requests.md)                 | Pull requests run selected tests; main runs everything                                                                               |
+| [0073](./0073-eve-1-2-0-ai-chat-floors-and-release-age.md)        | eve 1.2.0, ai and chat 4.45.0 are peer floors; eve 1.2.0 skips the release age; workflow stays 5.4.0                                 |
+| [0074](./0074-better-supabase-0-81-0-floor-and-release-age.md)    | better-supabase 0.81.0 is the peer floor and catalog pin; it and the packages it peers on skip the release age                       |
+| [0075](./0075-better-supabase-0-84-0-pin-and-release-age.md)      | better-supabase 0.84.0 is the catalog pin and skips the release age; the peer floor stays 0.81.0                                     |
+| [0076](./0076-better-supabase-main-tarball.md)                    | better-supabase installs from a tarball of a pinned `main` commit until 0.85.0 is published                                          |
+| [0077](./0077-cli-parsers-as-dependencies.md)                     | `oxc-parser`, `pgsql-parser` and `libpg-query` are exact-pinned dependencies of the CLI; pg-delta and pg-topo peers stop below 1.0.0 |
+| [0078](./0078-supabase-cli-floor-without-a-ci-job.md)             | Supabase CLI 3.2.0 is the supported floor; CI runs the 3.3.0 pin only                                                                |

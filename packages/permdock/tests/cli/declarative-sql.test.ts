@@ -37,4 +37,16 @@ describe(declarativeSql, () => {
     expect(out).not.toContain("or replace constraint");
     expect(out).not.toContain("drop trigger");
   });
+
+  it("keeps the pg-topo annotation above the statement it orders", () => {
+    const sql =
+      "-- pg-topo:requires table:public.jobs\ncreate function app.f() returns int language sql as $$ select 1 $$;\n";
+    expect(
+      declarativeSql(
+        `drop function if exists app.f();\n-- pg-topo:requires table:public.jobs\ncreate trigger "t" after insert on public.jobs;\n${sql}`,
+      ),
+    ).toBe(
+      `-- pg-topo:requires table:public.jobs\ncreate or replace trigger "t" after insert on public.jobs;\n${sql}`,
+    );
+  });
 });

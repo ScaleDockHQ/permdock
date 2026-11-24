@@ -152,7 +152,12 @@ export default {
         'revoke execute on function "permdock".permdock_bump_authz_version() from public, anon, authenticated;',
       );
       expect(grants).toContain('revoke all on schema "permdock" from public;');
-      expect(grants).not.toContain("on table");
+      expect(
+        grants
+          .split("\n")
+          .filter((line) => line.includes(" on table "))
+          .filter((line) => !line.includes('"permdock".permission_keys ')),
+      ).toStrictEqual([]);
       expect(grants).not.toContain("create policy");
       expect(`${helpers}${policies}${hook}${grants}`).not.toMatch(
         /service_role/iu,
@@ -215,7 +220,15 @@ export default {
         .filter(
           (line) =>
             UNDIFFED.test(line) ||
-            line.startsWith('revoke all on table "permdock".permdock_ceiling '),
+            line.startsWith(
+              'revoke all on table "permdock".permdock_ceiling ',
+            ) ||
+            line.startsWith(
+              'revoke all on table "permdock".permission_keys ',
+            ) ||
+            line.startsWith(
+              'grant select on table "permdock".permission_keys ',
+            ),
         );
       expect(moved).toContain(
         'grant execute on function "permdock".permdock_has(text) to authenticated;',
@@ -226,10 +239,20 @@ export default {
       const authAdmin = (line: string): boolean =>
         line.endsWith(" to supabase_auth_admin;");
       const plain = moved.filter((line) => !authAdmin(line));
-      expect(grants.split("\n").slice(2)).toStrictEqual([
-        ...plain.slice(0, 5),
+      const views = [
         'alter view "permdock".permdock_ceiling set (security_invoker = true);',
-        ...plain.slice(5),
+        'alter view "permdock".permission_keys set (security_invoker = true);',
+      ];
+      expect(
+        grants.split("\n").filter((line) => views.includes(line)),
+      ).toStrictEqual(views);
+      expect(
+        grants
+          .split("\n")
+          .slice(2)
+          .filter((line) => !views.includes(line)),
+      ).toStrictEqual([
+        ...plain,
         "do $permdock$ begin",
         "  if exists (select 1 from pg_catalog.pg_roles where rolname = 'supabase_auth_admin') then",
         ...moved.filter(authAdmin).map((line) => `    ${line}`),
@@ -528,6 +551,36 @@ export default {
       expect(hook).not.toContain("supabase db diff");
       expect(read(cwd, "supabase/schemas/permdock/helpers.sql")).toContain(
         'grant execute on function "permdock".permdock_has(text) to authenticated;',
+      );
+    });
+
+    it("writes the read-only actor guards to permdock/read_only_actors.sql", async () => {
+      const cwd = project(
+        true,
+        ", helpersOnly: true, readOnlyActors: true",
+        null,
+      );
+      pgDelta(cwd);
+      mkdirSync(join(cwd, "supabase/schemas/public"), { recursive: true });
+      writeFileSync(
+        join(cwd, "supabase/schemas/public/notes.sql"),
+        "create table public.notes (id uuid primary key);\ncreate policy notes_insert on public.notes for insert to authenticated with check (true);\n",
+      );
+      const result = await rlsGenerate(
+        ["--split", "helpers,seeds", "--seeds-out", SEEDS],
+        { cwd },
+      );
+      expect(result.code).toBe(0);
+      const guards = read(
+        cwd,
+        "supabase/schemas/permdock/read_only_actors.sql",
+      );
+      expect(guards).toContain(
+        'create policy "public_notes_insert_read_only_actors"',
+      );
+      expect(guards).not.toContain("drop policy");
+      expect(read(cwd, "supabase/schemas/permdock/helpers.sql")).not.toContain(
+        "_read_only_actors",
       );
     });
 
@@ -957,17 +1010,11 @@ export default {
       );
     });
 
-    it("PD068: pg-delta files in a project whose config.toml does not turn pg-delta on", async () => {
+    it("PD068: pg-delta files in a project whose config turns pg-delta off", async () => {
       const cwd = project(true, "", null);
       expect((await rlsGenerate(["--split", "indexes"], { cwd })).code).toBe(0);
       expect(await findings(cwd, "PD068")).toStrictEqual([]);
       put(cwd, "supabase/config.toml", "[auth]\nenabled = true\n");
-      const off = await findings(cwd, "PD068");
-      expect(off).toHaveLength(1);
-      expect(off[0]?.message).toBe(
-        "supabase/schemas/permdock/indexes.sql is written for pg-delta, but supabase/config.toml does not set [experimental.pgdelta] enabled = true, so the Supabase CLI diffs it with migra and drops the hook and helper grants",
-      );
-      pgDelta(cwd);
       expect(await findings(cwd, "PD068")).toStrictEqual([]);
       pgDelta(cwd, "", "false");
       expect(await findings(cwd, "PD068")).toStrictEqual([]);

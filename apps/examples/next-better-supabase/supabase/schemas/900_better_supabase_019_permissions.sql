@@ -1,6 +1,6 @@
 -- better-supabase module: permissions
 -- @bsb-block permissions@1 managed
--- @bsb-hash sha256:36adc08e1dde3476f5b4262d658298741bb8edd4ff03f4af95c082213e12ab60
+-- @bsb-hash sha256:eed77c2f6ab20b3ba1abf51e8eed8031b4569bdcb58d1c9ecc318c5f9406661a
 -- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.permissions.model).
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -35,15 +35,14 @@ revoke execute on function better_supabase.user_disabled(uuid) from public, anon
 grant execute on function better_supabase.tenant_disabled(uuid) to service_role, supabase_auth_admin;
 grant execute on function better_supabase.user_disabled(uuid) to service_role, supabase_auth_admin;
 
--- `*` grants every key and `prefix.*` every key under prefix.
+-- A granted key matches only itself; the provider honours no wildcards.
 create or replace function better_supabase.permission_matches(granted text, wanted text)
 returns boolean
 language sql
 immutable
 set search_path = ''
 as $$
-  select granted = '*' or granted = wanted
-    or (right(granted, 2) = '.*' and starts_with(wanted, left(granted, -1)))
+  select granted = wanted
 $$;
 
 -- True for a user's own session and for no token at all. False for an API
@@ -388,6 +387,35 @@ as $$
     ), '{}'::text[])
   end
 $$;
+
+-- The records the caller reaches as a guest for action (read, comment or
+-- upload). A guest is not a member: can() stays false for them, and policies
+-- add this set through ctx.scope.guest.
+create or replace function better_supabase.portal_subjects(action text)
+returns table (tenant text, subject_type text, subject_id text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select g.tenant::text, g.subject_type::text, g.subject_id::text from (select m.organization_id::text, 'customer', m.customer_id::text from public.contacts m where m.customer_id in (select permdock.member_customer_ids()) and m.customer_id in (select permdock.permitted_customer_ids_by_permission('customer.' || portal_subjects.action))) as g(tenant, subject_type, subject_id)
+$$;
+revoke execute on function better_supabase.portal_subjects(text) from public, anon;
+grant execute on function better_supabase.portal_subjects(text) to authenticated, service_role;
+
+-- The parties (a company, a person) the caller acts for as a guest, for
+-- portal reads such as a customer's own invoices.
+create or replace function better_supabase.portal_parties()
+returns table (tenant text, party_type text, party_id text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select g.tenant::text, g.party_type::text, g.party_id::text from (select m.organization_id::text, 'customer', m.customer_id::text from public.contacts m where m.customer_id in (select permdock.member_customer_ids())) as g(tenant, party_type, party_id)
+$$;
+revoke execute on function better_supabase.portal_parties() from public, anon;
+grant execute on function better_supabase.portal_parties() to authenticated, service_role;
 
 revoke execute on function better_supabase.permission_matches(text, text) from public;
 grant execute on function better_supabase.permission_matches(text, text) to anon, authenticated, service_role;

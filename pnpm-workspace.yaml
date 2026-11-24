@@ -53,6 +53,7 @@ catalog:
   "@standard-schema/spec": 1.1.0
   "@supabase/middleware": 1.0.0
   "@supabase/server": 1.9.2
+  "@supabase/ssr": 0.12.7
   "@supabase/supabase-js": 2.119.2
   "@testcontainers/postgresql": 12.2.1
   "@trpc/server": 11.19.0
@@ -108,7 +109,7 @@ catalog:
   next: 16.4.6
   next-themes: 0.4.6
   ajv: 8.20.0
-  oxc-parser: 0.156.0
+  oxc-parser: 0.159.0
   eslint-plugin-turbo: 2.11.11
   oxlint-plugin-react-doctor: 0.9.21
   "@shadcn/lint": 0.2.3
@@ -116,7 +117,8 @@ catalog:
   oxlint: 1.93.0
   oxlint-tsgolint: 7.0.2006
   ultracite: 8.1.0
-  pgsql-parser: 18.3.2
+  pgsql-parser: 18.4.2
+  libpg-query: 18.2.4
   pg: 8.23.1
   postcss: 8.5.32
   publint: 0.3.25
@@ -148,6 +150,7 @@ catalog:
   vite: 8.3.5
   vite-plugin-solid: 2.11.15
   vitest: 5.1.0
+  fast-check: 4.11.0
   zod: 4.6.7
   motion: 14.9.0
   sonner: 2.0.8
@@ -159,10 +162,10 @@ catalog:
   "@ai-sdk/otel": 1.0.179
   dotenv-cli: 11.1.0
   portless: 0.17.0
-  better-supabase: 0.84.0
+  better-supabase: file:.better-supabase/better-supabase.tgz
   better-result: 3.0.1
   "@supabase/postgrest-typegen": 0.8.1
-  supabase: 3.2.0
+  supabase: 3.3.0
   server-only: 0.0.1
   # The root pins debug's optional supports-color peer so every importer shares one @nestjs/common and @nestjs/core variant.
   supports-color: 11.0.0
@@ -178,6 +181,7 @@ catalog:
   "@pgkit/client": 0.6.1
   "@pgkit/migra": 0.6.1
   "@supabase/pg-delta": 1.0.0-alpha.61
+  "@supabase/pg-parser": 0.1.7
   "@openfeature/server-sdk": 1.23.0
   "@supabase-labs/middleware-openfeature": 0.2.0
   "@next/playwright": 16.4.6
@@ -222,6 +226,9 @@ catalogs:
     "@opentelemetry/api": ">=1"
     "@orpc/server": ">=2.0.0-0"
     "@supabase/middleware": ">=1"
+    # An alpha changes the plan and the load order, so these two stop below 1.0.0 (decision 0077).
+    "@supabase/pg-delta": ">=1.0.0-alpha.61 <1.0.0"
+    "@supabase/pg-topo": ">=1.0.0-alpha.8 <1.0.0"
     "@trpc/server": ">=11"
     "@solidjs/start": ">=2"
     "@sveltejs/kit": ">=2"
@@ -239,9 +246,7 @@ catalogs:
     jose: ">=6"
     kysely: ">=0.27"
     next: ">=16.3"
-    oxc-parser: ">=0.154"
     pg: ">=8"
-    pgsql-parser: ">=18"
     react: ">=19"
     reflect-metadata: ">=0.1"
     resend: ">=6"
@@ -270,7 +275,6 @@ minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   # Adopted the day they shipped; drop each entry after its date (decisions 0070 and 0071).
   # Drop after 2026-11-24 16:57 UTC (decision 0075).
-  - better-supabase@0.84.0
   # Drop after 2026-11-12 18:38 UTC.
   - turbo@2.11.11
   - eslint-plugin-turbo@2.11.11
@@ -300,6 +304,9 @@ trustPolicyExclude:
 trustPolicyExcludePrune: true
 
 peerDependencyRules:
+  # A `file:` tarball has no version to match; scripts/publish.ts refuses to publish while the catalog points at one (decision 0076).
+  allowAny:
+    - better-supabase
   allowedVersions:
     # expo-router's optional peer resolves to 4.6.0 until 4.7.1 (0.86 - 0.88) clears minimumReleaseAge; the example runs web only.
     "react-native-reanimated>react-native": "0.88"

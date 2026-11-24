@@ -6,8 +6,11 @@ Flags
   --only <code>              Check codes or groups to run (repeatable)
   --ignore <id>              Finding ids to accept for this run, as code:target (repeatable)
   --fix                      Apply safe fixes: install skills, regenerate the catalog
-  --fail-on <error|warning>  Lowest finding severity that exits 1 (default error)
+  --update-baseline          Rewrite doctor.baseline to accept this run's errors and warnings, keeping each reason
+  --fail-on <error|warning>  Lowest finding severity that exits 1 (default doctor.failOn, else error)
   --db-url-stdin             Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
+  --local                    Connect to the local Supabase stack: DB_URL from supabase status in this project
+  --stack <name>             With --local, the named stack of this worktree
 
 Global flags
   --cwd --config --json --format --yes --effects-digest --agent --debug --color --help; see permdock --help

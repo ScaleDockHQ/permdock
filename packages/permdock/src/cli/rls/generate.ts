@@ -10,6 +10,8 @@ import { renamedKeys } from "../../core/permission-registry.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { listPermissions } from "../../index.ts";
 import { describeError, exitCodeOfError } from "../core/errors.ts";
+import { withSchemaDefaults } from "../sql/schema-tables.ts";
+import { schemaWrites } from "../sql/schema-writes.ts";
 import { tableNames } from "../sql/tables.ts";
 import {
   bindingNotes,
@@ -29,6 +31,7 @@ import {
   withoutServedTargets,
 } from "./index-scan.ts";
 import { pruneIndexTargets, readTableIndexFacts } from "./indexes.ts";
+import { readOnlyActorKinds } from "./policies.ts";
 import { levelKeys } from "./rows.ts";
 import { triggerNotes } from "./trigger-notes.ts";
 
@@ -74,17 +77,27 @@ function refused(output: string): GenerateOutcome {
 }
 
 export async function runRlsGenerate(
-  input: RlsGenerateInput,
+  given: RlsGenerateInput,
 ): Promise<GenerateOutcome> {
-  const options = generateOptions(input);
+  const options = generateOptions(given);
   if (isRefusal(options)) {
     return refused(options.refusal);
   }
-  const loaded = await loadGeneratePolicy(input);
+  const loaded = await loadGeneratePolicy(given);
   if (isPolicyLoadFailure(loaded)) {
     return loaded;
   }
   const policy = loaded;
+  const guardsSchema =
+    (given.helpersOnly === true || given.config.rls?.helpersOnly === true) &&
+    readOnlyActorKinds(given.config.rls?.readOnlyActors) !== undefined;
+  const input = {
+    ...given,
+    config: await withSchemaDefaults(given.cwd, given.config, policy),
+    ...(guardsSchema && given.schemaWrites === undefined
+      ? { schemaWrites: await schemaWrites(given.cwd) }
+      : {}),
+  };
   const built = buildContext(input, policy, options);
   if (isRefusal(built)) {
     return refused(built.refusal);
@@ -110,8 +123,13 @@ export async function runRlsGenerate(
     warnings.push(`run select ${built.schema}.seed(); after each deploy`);
   }
   if (input.db === undefined) {
-    indexes = withoutServedTargets(indexes, indexKeysFromProject(input.cwd));
-    warnings.push(...unknownTableNotes(bindings, tablesFromProject(input.cwd)));
+    indexes = withoutServedTargets(
+      indexes,
+      await indexKeysFromProject(input.cwd),
+    );
+    warnings.push(
+      ...unknownTableNotes(bindings, await tablesFromProject(input.cwd)),
+    );
   }
   if (input.db !== undefined) {
     try {

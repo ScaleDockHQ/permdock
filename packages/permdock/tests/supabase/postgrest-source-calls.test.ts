@@ -50,6 +50,33 @@ describe("postgrestSources onSourceCall", () => {
     expect(calls.every((call) => call.durationMs >= 0)).toBe(true);
   });
 
+  it("reports the intent, whether the read was live and why it reached the source", async () => {
+    const calls: SourceCall[] = [];
+    const sources = postgrestSources(client, {
+      onSourceCall: (call) => {
+        calls.push(call);
+      },
+    });
+    await sources.memberships.version?.({ id: "u1" }, { intent: "write" });
+    await sources.memberships.version?.({ id: "u1" }, { intent: "read" });
+    await sources.memberships.version?.(
+      { id: "u1" },
+      { intent: "database-write" },
+    );
+    await sources.memberships.membershipsFor(
+      { id: "u1" },
+      { reason: "truncated" },
+    );
+    expect(
+      calls.map(({ intent, live, reason }) => [intent, live, reason]),
+    ).toStrictEqual([
+      ["write", true, "live"],
+      ["read", false, "stale"],
+      ["database-write", false, "stale"],
+      [undefined, undefined, "truncated"],
+    ]);
+  });
+
   it("ignores a hook that throws", async () => {
     const sources = postgrestSources(client, {
       onSourceCall: () => {
@@ -68,9 +95,16 @@ describe("postgrestSources onSourceCall", () => {
       const sources = postgrestSources(client);
       await sources.memberships.version?.({ id: "u1" }, { memo: sourceMemo() });
       expect(warn).not.toHaveBeenCalled();
-      await sources.memberships.version?.({ id: "u1" }, { memo: sourceMemo() });
+      await sources.memberships.version?.(
+        { id: "u1" },
+        { memo: sourceMemo(), intent: "write" },
+      );
       await sources.memberships.version?.({ id: "u1" }, { memo: sourceMemo() });
       expect(warn).toHaveBeenCalledOnce();
+      const message = String(warn.mock.calls[0]?.[0]);
+      expect(message).toContain("First read:");
+      expect(message).toContain("Second read:");
+      expect(message).toContain("intent write, live");
     });
 
     it("stay silent outside development and for a memo hit", async () => {

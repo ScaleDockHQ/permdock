@@ -43,8 +43,6 @@ export type SignatureChange = {
 };
 
 /** One version's rename map: what the codemod rewrites and what it only reports. */
-export const SCRIPT_BLOCK: RegExp = /<script\b([^>]*)>([\s\S]*?)<\/script>/gu;
-
 export type RenameSet = {
   readonly renames: readonly Rename[];
   readonly signatures: readonly SignatureChange[];
@@ -64,8 +62,15 @@ export type RenameSet = {
     readonly source: string;
     readonly changes: readonly CodemodChange[];
     readonly followUps: readonly CodemodFollowUp[];
+    readonly files?: readonly CodemodFile[];
   };
 };
+
+/**
+ * A file a rewrite creates next to the one it edits, by absolute path. The
+ * codemod writes it with the edited file, or neither on `--dry-run`.
+ */
+export type CodemodFile = { readonly path: string; readonly text: string };
 
 /** One rewritten span. */
 export type CodemodChange = {

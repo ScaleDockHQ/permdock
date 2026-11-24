@@ -50,14 +50,28 @@ export type VersionCache = {
   stats: () => VersionCacheStats;
 };
 
+/** A version in a `VersionStore` and when the database was read for it. */
+export type VersionStoreEntry = {
+  readonly version: number;
+  /** Epoch milliseconds of the database read, not of the store write. */
+  readonly at: number;
+};
+
 /**
  * A store shared by every process, such as Redis or a runtime cache, behind
- * `memoryVersionCache({ shared })`. A rejected or thrown call counts as a
- * miss.
+ * `memoryVersionCache({ shared })`. It keeps the read time next to the version
+ * (the shape of better-supabase's `VersionStore`), so `maxStaleMs` counts from
+ * the database read on every instance whatever the store's own expiry. A
+ * rejected or thrown call counts as a miss.
  */
 export type VersionStore = {
-  get: (id: string) => number | undefined | PromiseLike<number | undefined>;
-  set: (id: string, version: number) => void | PromiseLike<void>;
+  get: (
+    id: string,
+  ) =>
+    | VersionStoreEntry
+    | undefined
+    | PromiseLike<VersionStoreEntry | undefined>;
+  set: (id: string, version: number, at: number) => void | PromiseLike<void>;
   delete: (id: string) => void | PromiseLike<void>;
 };
 
@@ -113,25 +127,33 @@ export function memoryVersionCache(
       }
     }
   };
-  const remember = (id: string, version: number): void => {
+  const remember = (id: string, version: number, at: number): void => {
     if (remote === undefined) {
       return;
     }
     try {
-      Promise.resolve(remote.set(id, version)).catch(() => undefined);
+      Promise.resolve(remote.set(id, version, at)).catch(() => undefined);
     } catch {
       // A store that fails is a miss; the next instance reads the version.
     }
   };
   const fromStore = async (
     id: string,
+    at: number,
     read: () => number | undefined | Promise<number | undefined>,
+    dated: (at: number) => void,
   ): Promise<number | undefined> => {
     try {
       const known = await remote?.get(id);
-      if (typeof known === "number" && Number.isFinite(known)) {
+      if (
+        known !== undefined &&
+        Number.isFinite(known.version) &&
+        Number.isFinite(known.at) &&
+        at - Math.min(known.at, at) <= maxStaleMs
+      ) {
         counts.storeHits += 1;
-        return known;
+        dated(Math.min(known.at, at));
+        return known.version;
       }
     } catch {
       // A store that fails is a miss.
@@ -145,17 +167,24 @@ export function memoryVersionCache(
     at: number,
     useStore: boolean,
   ): number | undefined | Promise<number | undefined> => {
+    let readAt = at;
     const keep = (version: number | undefined): number | undefined => {
       if (typeof version === "number" && Number.isFinite(version)) {
         const entry = entries.get(id);
         const highest = Math.max(version, entry?.version ?? version);
-        store(id, { version: highest, at });
-        remember(id, highest);
+        store(id, { version: highest, at: readAt });
+        remember(id, highest, readAt);
       }
       return version;
     };
     if (useStore && remote !== undefined) {
-      return settled(id, fromStore(id, read), keep);
+      return settled(
+        id,
+        fromStore(id, at, read, (known) => {
+          readAt = known;
+        }),
+        keep,
+      );
     }
     counts.reads += 1;
     const answer = read();
@@ -215,7 +244,7 @@ export function memoryVersionCache(
       if (entry === undefined) {
         if (current - dated <= maxStaleMs) {
           store(principal, { version, at: dated });
-          remember(principal, version);
+          remember(principal, version, dated);
         }
         return;
       }
@@ -224,7 +253,7 @@ export function memoryVersionCache(
         (version === entry.version && dated > entry.at)
       ) {
         store(principal, { version, at: Math.max(entry.at, dated) });
-        remember(principal, version);
+        remember(principal, version, Math.max(entry.at, dated));
       }
     },
     evict(principal) {

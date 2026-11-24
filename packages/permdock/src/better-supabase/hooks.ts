@@ -30,6 +30,7 @@ import {
   flattenApprovers,
 } from "../core/approvers.ts";
 import { compact, isRecord } from "../core/compact.ts";
+import { grantFingerprint } from "../core/grant-fingerprint.ts";
 import { scopesReaching } from "../core/oauth-scopes.ts";
 import {
   findPermission,
@@ -46,6 +47,16 @@ type RequestContext = NonNullable<Awaited<ReturnType<TicketSubject>>>;
 
 /** better-supabase's claim that caps a context to the permission keys it lists. */
 const PERMISSION_CAP_CLAIM = "bsb_permission_cap";
+
+/** The token's authorization version claim. */
+const AUTHZ_VERSION_CLAIM = "authz_ver";
+
+/** Claims better-supabase sets when a token's lists were cut to fit. */
+const TRUNCATED_CLAIMS = [
+  "memberships_truncated",
+  "team_ids_truncated",
+  "permissions_truncated",
+] as const;
 
 type DelegationHook = {
   readonly permissions?: (
@@ -152,6 +163,12 @@ export type AuthorizationHooksOptions<
  * Whether `permdock` is granted `key` with no row; an unknown key and
  * `approval-required` are `false`.
  */
+type VersionReader = { readonly get: (userId: string) => unknown };
+
+function readsVersions(value: unknown): value is VersionReader {
+  return isRecord(value) && typeof value["get"] === "function";
+}
+
 function grants(permdock: PermDock, key: string): boolean {
   const permission = findPermission(permdock.permissions, key);
   return (
@@ -258,6 +275,41 @@ export function authorizationHooks<
       tenant === null || tenant === undefined ? {} : { tenant },
     );
     return isRecord(claims) && claims["sub"] === userId ? claims : null;
+  };
+
+  const shareKey: NonNullable<AuthorizationHooks["shareKey"]> = async (
+    _authorizer,
+    keys,
+    { subject, context, runtime },
+  ) => {
+    try {
+      const claims = subject.properties?.["claims"];
+      const tenant = context.tenant;
+      if (
+        typeof tenant !== "string" ||
+        subject.type !== "user" ||
+        !isRecord(claims) ||
+        claims["sub"] !== subject.id ||
+        TRUNCATED_CLAIMS.some((name) => claims[name] === true)
+      ) {
+        return null;
+      }
+      const versions = runtime?.versions;
+      if (readsVersions(versions)) {
+        const live: unknown = await versions.get(subject.id);
+        const token = claims[AUTHZ_VERSION_CLAIM];
+        if (
+          typeof live === "number" &&
+          (typeof token !== "number" || token < live)
+        ) {
+          return null;
+        }
+      }
+      const permdock = await instance(claims, tenant);
+      return permdock === null ? null : grantFingerprint(permdock, keys);
+    } catch {
+      return null;
+    }
   };
 
   const automation: NonNullable<AuthorizationHooks["automation"]> = {
@@ -387,6 +439,7 @@ export function authorizationHooks<
     apiVersion: 1,
     name: "PermDock",
     sessionTags: (userId: string): readonly string[] => [snapshotTag(userId)],
+    shareKey,
     ...(loadClaims === undefined
       ? {}
       : { automation: Object.freeze(automation) }),

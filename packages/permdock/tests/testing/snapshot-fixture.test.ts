@@ -53,7 +53,7 @@ describe(snapshotFixture, () => {
       tenant: "o1",
       simulated: true,
     });
-    expect(snapshot.v).toBe(1);
+    expect(snapshot.v).toBe(2);
   });
 
   it("snapshots an anonymous subject with no grants", async () => {

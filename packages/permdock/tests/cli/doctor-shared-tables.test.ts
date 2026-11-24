@@ -52,14 +52,14 @@ export const permissions = definePermissions({
           severity: "error",
           message:
             "rls.tables maps chat and thread to public.chat_threads, so the same rows carry two sets of keys and helpers",
-          fix: "merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes public.chat_threads policies",
+          fix: "merge them into one resource, retiring each key with permdock keys rename <from> <to> (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes public.chat_threads policies",
         },
         {
           code: "PD075",
           severity: "error",
           message:
             "rls.tables maps file and fileNode to public.file_nodes, so the same rows carry two sets of keys and helpers",
-          fix: "merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes public.file_nodes policies",
+          fix: "merge them into one resource, retiring each key with permdock keys rename <from> <to> (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes public.file_nodes policies",
         },
       ]);
     });

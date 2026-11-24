@@ -38,6 +38,12 @@ export type SupabaseHookManifest = {
      * 0.10.
      */
     readonly activeFrom?: SupabaseManifestActiveFrom;
+    /**
+     * `"request"` when the app resolves the active tenant per request
+     * (`supabase.hook.activeTenant`), so better-supabase reads it as
+     * `activeOrganizationFrom: "resolver"`.
+     */
+    readonly activeTenant?: "request";
   };
   readonly helpers: {
     readonly schema: string;
@@ -308,6 +314,17 @@ export type SupabaseManifestRls = {
    * table. A role source's `where` treats a non-null value as a custom role.
    */
   readonly customRoleTenant?: string;
+  /**
+   * `rls.customRoleWrites.roles` with a `scope` column: the custom-role table,
+   * that column and, with `globalScope`, the value of a platform role's row.
+   * `authorizationProvider` reads it for the `where` of `roleSources` and
+   * `platformRoles`.
+   */
+  readonly customRoleScope?: {
+    readonly table: string;
+    readonly column: string;
+    readonly global?: string;
+  };
   /** The global-roles table the hook and the `database` mode helpers read. */
   readonly roles?: {
     readonly table: string;
@@ -334,6 +351,12 @@ export type SupabaseManifestRls = {
    * claim through `permdock_token_scope_allows`.
    */
   readonly tokenScopes?: boolean;
+  /**
+   * Whether every holder of a table's select permissions in a tenant reads the
+   * same rows, read from the select policies the schema files, migrations and
+   * `rls.out` leave defined. Absent from a manifest written before 0.32.
+   */
+  readonly tableReads?: readonly SupabaseManifestTableRead[];
   readonly apiKeys?: {
     readonly claim: string;
     readonly scopes: string;
@@ -341,6 +364,33 @@ export type SupabaseManifestRls = {
     readonly roles: string;
     readonly serviceRoles: readonly string[];
   };
+};
+
+/** One entry of `rls.tableReads`. */
+export type SupabaseManifestTableRead = {
+  /** `schema.table`. */
+  readonly table: string;
+  /**
+   * `tenant` when every permissive select policy filters by tenant through
+   * `permitted_<root>_ids_by_permission` alone; `row` otherwise.
+   */
+  readonly share: "tenant" | "row";
+  /** The tenant column, for a `tenant` table. */
+  readonly column?: string;
+  /** The keys the select policies pass to `permitted_<root>_ids_by_permission`. */
+  readonly permissions?: readonly string[];
+  /** Why the table is `row`. */
+  readonly rules?: readonly (
+    | "follows"
+    | "via"
+    | "walk"
+    | "owner"
+    | "condition"
+    | "restrictive"
+    | "fields"
+    | "form"
+    | "unknown"
+  )[];
 };
 
 /**

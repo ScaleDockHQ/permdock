@@ -102,6 +102,10 @@ export function buildCatalog(
             ? (true as const)
             : undefined,
         hostable: hostable.has(leaf.key) ? (true as const) : undefined,
+        answers:
+          leaf.meta.answers === undefined || leaf.meta.answers.length === 0
+            ? undefined
+            : [...new Set(leaf.meta.answers)].toSorted(byCodePoint),
         rowConditions: rowConditions?.has(leaf.key) ?? true,
         approvals: approvals.get(leaf.key),
         breakGlass: breakGlass.get(leaf.key),
@@ -480,7 +484,8 @@ function nonEmpty(
 }
 
 function metaRecord(meta: ActionMeta): Readonly<Record<string, unknown>> {
-  return { ...meta };
+  const { answers: _answers, ...rest } = meta;
+  return rest;
 }
 
 export function jsonSchemaOf(node: ResourceNode): unknown {

@@ -387,7 +387,6 @@ function preambleSql(
           listPermissions(policy.permissions)
             .map((leaf) => leaf.key)
             .toSorted(),
-          grants,
         )
       : undefined,
     nonEmptyOr(permissionHoldersSql(ctx), undefined),
@@ -674,12 +673,12 @@ export function generateSql(
         ? {}
         : { storagePolicies: dialectRoles(storagePolicies, ctx.dialect) }),
       helpers: dialectRoles(
-        withHelperTables(
-          emitSql([], preamble, false, helpersOnly ? views : []),
-          actorGuards,
-        ),
+        emitSql([], preamble, false, helpersOnly ? views : []),
         ctx.dialect,
       ),
+      ...(actorGuards === undefined
+        ? {}
+        : { readOnlyActors: dialectRoles(actorGuards, ctx.dialect) }),
       seeds: `${SEEDS_MARKER} schema=${built.schema}\n${seedsBody(
         ctx,
         built.schema,

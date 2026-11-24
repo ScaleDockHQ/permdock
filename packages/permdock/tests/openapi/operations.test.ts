@@ -313,6 +313,35 @@ describe("x-authorization and x-oauth-scopes", () => {
     ]);
   });
 
+  it("reads x-authorization: handler as a handler check, scope-only when scopes are declared", () => {
+    const skipped: OperationSkipCause[] = [];
+    const operations = operationPermissionsFromOpenApi(
+      {
+        paths: {
+          "/posts": {
+            get: { "x-authorization": "handler" },
+            post: {
+              "x-authorization": "handler",
+              "x-oauth-scopes": ["posts:write"],
+            },
+          },
+        },
+      },
+      permissions,
+      {
+        onSkip: (_operation, cause) => {
+          skipped.push(cause);
+        },
+      },
+    );
+    expect(skipped).toStrictEqual(["handler"]);
+    expect(operations.entries()).toHaveLength(1);
+    expect(operations.entries()[0]?.enforcement).toBe("handler");
+    expect(operations.oauthScopesForRequest("POST", "/posts")).toStrictEqual([
+      "posts:write",
+    ]);
+  });
+
   it("skips an x-oauth-scopes value that is not a list of strings", () => {
     const skipped: OperationSkipCause[] = [];
     operationPermissionsFromOpenApi(

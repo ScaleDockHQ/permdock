@@ -284,4 +284,43 @@ create policy "posts_list" on post for select to authenticated using (
       expect(generated).toContain('"owner"');
     });
   });
+
+  describe("policies read through the SQL layer", () => {
+    it("takes the table, not the schema, of a qualified name and keeps quoted semicolons", async () => {
+      const cwd = miniAppCopy();
+      writeFileSync(
+        join(cwd, "dump.sql"),
+        [
+          `create policy orders_read on public.orders for select to authenticated using (note <> ';' and owner_id = auth.uid());`,
+          `create policy "notes;read" on "app".notes for update to authenticated using (id in (select id from app.notes for update));`,
+        ].join("\n"),
+      );
+      const imported = await run(
+        ["rls", "import", "--sql", "dump.sql", "--out", "out.ts"],
+        { cwd },
+      );
+      expect(imported.code).toBe(0);
+      const generated = readFileSync(join(cwd, "out.ts"), "utf8");
+      expect(generated).toContain('"table": "orders"');
+      expect(generated).toContain('"table": "notes"');
+      expect(generated).not.toContain('"table": "public"');
+      expect(generated).toContain(`note <> ';'`);
+      expect(generated.match(/"cmd": "UPDATE"/gu)).toHaveLength(1);
+    });
+
+    it("reports a dump libpg_query rejects with its line", async () => {
+      const cwd = miniAppCopy();
+      writeFileSync(
+        join(cwd, "dump.sql"),
+        `select 1;\ncreate policy p on public.t for select using (;`,
+      );
+      const imported = await run(
+        ["rls", "import", "--sql", "dump.sql", "--out", "out.ts"],
+        { cwd },
+      );
+      expect(imported.code).toBe(2);
+      expect(imported.stderr).toContain("dump.sql: ");
+      expect(imported.stderr).toContain("(line 2, column 47)");
+    });
+  });
 });

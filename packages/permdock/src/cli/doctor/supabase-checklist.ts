@@ -2,14 +2,9 @@ import { join } from "node:path";
 
 import type { DoctorFiles, DoctorFinding } from "../shared/doctor-types.ts";
 
+import { parseSqlLenient, readPolicy } from "../sql/ast.ts";
+
 const SQL_ROOTS = ["supabase/schemas", "supabase/migrations"] as const;
-
-const POLICY =
-  /create\s+policy\s+(?:"[^"]+"|\w+)\s+on\s+((?:"[^"]+"|\w+)(?:\s*\.\s*(?:"[^"]+"|\w+))?)([^;]*);/giu;
-
-function tableOf(raw: string): string {
-  return raw.replaceAll(/[\s"]/gu, "").toLowerCase();
-}
 
 function sqlTexts(cwd: string, files: DoctorFiles): readonly string[] {
   const found: string[] = [];
@@ -37,20 +32,20 @@ function sqlTexts(cwd: string, files: DoctorFiles): readonly string[] {
  * the row before it updates it, so the update matches nothing and returns zero
  * rows without an error.
  */
-export function pd099(
+export async function pd099(
   cwd: string,
   files: DoctorFiles,
-): readonly DoctorFinding[] {
+): Promise<readonly DoctorFinding[]> {
   const commands = new Map<string, Set<string>>();
   for (const text of sqlTexts(cwd, files)) {
-    for (const match of text.matchAll(POLICY)) {
-      const table = tableOf(match[1] ?? "");
-      const clause = match[2] ?? "";
-      const command = /\bfor\s+(select|insert|update|delete|all)\b/iu.exec(
-        clause,
-      )?.[1];
+    for (const statement of await parseSqlLenient(text)) {
+      const policy = readPolicy(statement);
+      if (policy === undefined) {
+        continue;
+      }
+      const table = `${policy.schema}.${policy.table}`.toLowerCase();
       const set = commands.get(table) ?? new Set<string>();
-      set.add((command ?? "all").toLowerCase());
+      set.add(policy.command);
       commands.set(table, set);
     }
   }

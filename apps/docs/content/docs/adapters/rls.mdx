@@ -245,6 +245,8 @@ Both forms answer what the caller forms answer when `p_user` is the caller, with
 
 A status filter on an enum column does not use the status column of a composite `(<tenant column>, status, ...)` index when the query runs as the signed-in user. Postgres evaluates a policy qual before any user-supplied qual that is not `LEAKPROOF`, and `enum_eq` is not: `select proleakproof from pg_proc where proname = 'enum_eq'` answers `false`. The status comparison then runs after the policy filter, and the plan reads every row of the tenant through the `<tenant column>` prefix. The behaviour is Postgres's, not a defect of the generated helpers, and it holds for every status-lane board over a table with a policy (see [Postgres RLS](/docs/standards/postgres-rls)).
 
+better-supabase doctor BS642 reports an index that leads with an enum column. `permdock rls report` is planned to list the indexed columns whose `=` is not leakproof.
+
 A `security definer` function that checks the permission explicitly runs without the policy, so the planner can use the status column. That moves the access check into the function, so review each such function as policy code.
 
 ### Ownership rules

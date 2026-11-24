@@ -116,6 +116,9 @@ function authorizationValue(raw: unknown): {
   readonly mode: OperationEnforcement | undefined;
   readonly invalid: boolean;
 } {
+  if (raw === "handler") {
+    return { keys: undefined, mode: "handler", invalid: false };
+  }
   if (typeof raw === "string") {
     return { keys: [raw], mode: undefined, invalid: false };
   }
@@ -179,7 +182,8 @@ export type OperationSkipCause =
   | "several-permissions"
   | "unknown-permission"
   | "invalid-extension"
-  | "public";
+  | "public"
+  | "handler";
 
 /** Every skip cause, for a table or an exhaustive switch. */
 export const OPERATION_SKIP_CAUSES: readonly OperationSkipCause[] = [
@@ -188,6 +192,7 @@ export const OPERATION_SKIP_CAUSES: readonly OperationSkipCause[] = [
   "unknown-permission",
   "invalid-extension",
   "public",
+  "handler",
 ];
 
 type Route = {
@@ -474,7 +479,10 @@ export function operationPermissionsFromOpenApi(
       if (keys === undefined) {
         if (scopes.length === 0) {
           const open = Array.isArray(security) && security.length === 0;
-          options.onSkip?.(ref, open ? "public" : "no-permission");
+          options.onSkip?.(
+            ref,
+            open ? "public" : mode === "handler" ? "handler" : "no-permission",
+          );
           continue;
         }
       } else {

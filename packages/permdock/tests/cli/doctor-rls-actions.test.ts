@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { RlsActions } from "../../src/cli/types.ts";
 
 import { runDoctor } from "../../src/cli/doctor/doctor.ts";
-import { pd071, pd076 } from "../../src/cli/doctor/rls.ts";
+import { pd071, pd076, pd122 } from "../../src/cli/doctor/rls.ts";
 import {
   NOW,
   policyModule,
@@ -39,6 +39,29 @@ export const permissions = definePermissions({
       dialect: "supabase" as const,
       ...(actions === undefined ? {} : { actions }),
     },
+  });
+
+  describe("PD122", () => {
+    it("lists the verbs that compile to 'none' without an entry", async () => {
+      expect(await pd122({ cwd: invoices(), config: config() })).toStrictEqual([
+        expect.objectContaining({
+          code: "PD122",
+          severity: "info",
+          message: expect.stringMatching(
+            /^export, market have no rls\.actions entry/u,
+          ),
+        }),
+      ]);
+    });
+
+    it("is silent once every such verb has an entry", async () => {
+      expect(
+        await pd122({
+          cwd: invoices(),
+          config: config({ export: "none", market: "none" }),
+        }),
+      ).toStrictEqual([]);
+    });
   });
 
   describe("PD071", () => {

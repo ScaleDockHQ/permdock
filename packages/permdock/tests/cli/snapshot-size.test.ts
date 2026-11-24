@@ -124,22 +124,37 @@ describe("PD112 snapshot size", () => {
   it("passes a small policy", async () => {
     const policy = policyOf(2);
     expect(
-      await pd112({ policy: () => Promise.resolve(policy) }),
+      await pd112({ policy: () => Promise.resolve(policy), config: {} }),
     ).toStrictEqual([]);
   });
 
   it("skips a project with no policy", async () => {
     expect(
-      await pd112({ policy: () => Promise.resolve(undefined) }),
+      await pd112({ policy: () => Promise.resolve(undefined), config: {} }),
     ).toStrictEqual([]);
   });
 
   it("warns for the role with the most grants once it exceeds 64 KB", async () => {
     const policy = policyOf(600);
-    const findings = await pd112({ policy: () => Promise.resolve(policy) });
+    const findings = await pd112({
+      policy: () => Promise.resolve(policy),
+      config: {},
+    });
     expect(findings).toHaveLength(1);
     expect(findings[0]?.code).toBe("PD112");
     expect(findings[0]?.message).toContain("the largest part is");
+    expect(findings[0]?.message).toMatch(/typeLevel \d+/u);
+  });
+
+  it("probes with omitStatic when the project generates the bundle", async () => {
+    const policy = policyOf(1200);
+    const findings = await pd112({
+      policy: () => Promise.resolve(policy),
+      config: { gen: { kinds: ["bundle"] } },
+    });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.message).toContain("with omitStatic");
+    expect(findings[0]?.fix).not.toContain("pass omitStatic");
   });
 });
 

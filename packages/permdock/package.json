@@ -382,7 +382,10 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
-    "@standard-schema/spec": "catalog:"
+    "@standard-schema/spec": "catalog:",
+    "libpg-query": "catalog:",
+    "oxc-parser": "catalog:",
+    "pgsql-parser": "catalog:"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
@@ -400,6 +403,8 @@
     "@permdock/typescript-config": "workspace:*",
     "@solidjs/start": "catalog:",
     "@supabase/middleware": "catalog:",
+    "@supabase/pg-parser": "catalog:",
+    "@supabase/ssr": "catalog:",
     "@supabase/supabase-js": "catalog:",
     "@sveltejs/kit": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",
@@ -424,6 +429,7 @@
     "elysia": "catalog:",
     "eve": "catalog:",
     "express": "catalog:",
+    "fast-check": "catalog:",
     "fastest-levenshtein": "catalog:",
     "fastify": "catalog:",
     "h3": "catalog:",
@@ -433,12 +439,10 @@
     "jose": "catalog:",
     "kysely": "catalog:",
     "next": "catalog:",
-    "oxc-parser": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "package-manager-detector": "catalog:",
     "pg": "catalog:",
-    "pgsql-parser": "catalog:",
     "publint": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -471,6 +475,8 @@
     "@orpc/server": "catalog:peers",
     "@solidjs/start": "catalog:peers",
     "@supabase/middleware": "catalog:peers",
+    "@supabase/pg-delta": "catalog:peers",
+    "@supabase/pg-topo": "catalog:peers",
     "@sveltejs/kit": "catalog:peers",
     "@tanstack/react-start": "catalog:peers",
     "@trpc/server": "catalog:peers",
@@ -489,9 +495,7 @@
     "jose": "catalog:peers",
     "kysely": "catalog:peers",
     "next": "catalog:peers",
-    "oxc-parser": "catalog:peers",
     "pg": "catalog:peers",
-    "pgsql-parser": "catalog:peers",
     "react": "catalog:peers",
     "reflect-metadata": "catalog:peers",
     "resend": "catalog:peers",
@@ -535,6 +539,12 @@
       "optional": true
     },
     "@supabase/middleware": {
+      "optional": true
+    },
+    "@supabase/pg-delta": {
+      "optional": true
+    },
+    "@supabase/pg-topo": {
       "optional": true
     },
     "@sveltejs/kit": {
@@ -591,13 +601,7 @@
     "next": {
       "optional": true
     },
-    "oxc-parser": {
-      "optional": true
-    },
     "pg": {
-      "optional": true
-    },
-    "pgsql-parser": {
       "optional": true
     },
     "react": {
@@ -632,6 +636,6 @@
     }
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=26"
   }
 }

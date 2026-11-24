@@ -159,6 +159,8 @@ const SHAPE_DEFAULTS: ShapeValues = {
   shims: false,
   schemas: undefined,
   "db-url-stdin": false,
+  local: false,
+  stack: undefined,
 };
 
 /**
@@ -360,6 +362,12 @@ export const verify: Leaf = defineLeaf({
       type: "boolean",
       description: "Compare against the live database",
     },
+    shadow: {
+      type: "string",
+      description:
+        "Load the schema directory into this empty database with pg-delta and compare PermDock's objects with the live database; stack creates one on the database's cluster",
+      valueHint: "url|stack",
+    },
     advisors: {
       type: "boolean",
       description: "Run the Supabase security and performance advisors",
@@ -380,7 +388,8 @@ export const verify: Leaf = defineLeaf({
   async run(ctx, { flags }) {
     return runRls({
       ...(await rlsInput(ctx, "verify", flags, {
-        dbRequired: flags.introspect || flags.tree,
+        dbRequired:
+          flags.introspect || flags.tree || flags.shadow !== undefined,
       })),
       out: fileOut("rls verify", flags.out),
       fixtures: given(flags.fixtures),
@@ -388,6 +397,7 @@ export const verify: Leaf = defineLeaf({
       personas: flags.personas,
       tree: flags.tree,
       introspect: flags.introspect,
+      shadow: given(flags.shadow),
       advisors: flags.advisors,
       grantCalls: flags["grant-calls"],
       ignore: flags.ignore,
@@ -399,6 +409,25 @@ export const explain: Leaf = defineLeaf({
   flags: { ...shapeFlags },
   async run(ctx, { flags }) {
     return runRls(await rlsInput(ctx, "explain", flags));
+  },
+});
+
+export const report: Leaf = defineLeaf({
+  flags: { ...dbUrlFlags },
+  async run(ctx, { flags }) {
+    const db = await dbUrl(ctx, flags);
+    // Lazy: the report and the pg peer load only when this command runs.
+    const [{ runRlsReport }, { pgConnector }] = await Promise.all([
+      import("../rls/report.ts"),
+      import("../pg.ts"),
+    ]);
+    return runRlsReport({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      ...(db === undefined
+        ? {}
+        : { db, connect: pgConnector("permdock rls report", ctx.cwd) }),
+    });
   },
 });
 

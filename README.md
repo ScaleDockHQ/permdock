@@ -5,7 +5,7 @@ Typed permissions for TypeScript apps, APIs, databases and AI agents: one defini
 [![npm](https://img.shields.io/npm/v/permdock?label=permdock)](https://www.npmjs.com/package/permdock)
 [![CI](https://img.shields.io/github/actions/workflow/status/ScaleDockHQ/PermDock/ci.yml?label=CI)](https://github.com/ScaleDockHQ/PermDock/actions)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-5fa04e.svg)
+![Node.js 26+](https://img.shields.io/badge/Node.js-26%2B-5fa04e.svg)
 ![TypeScript 7](https://img.shields.io/badge/TypeScript-7-3178c6.svg)
 ![pnpm 12](https://img.shields.io/badge/pnpm-12.18.0-f69220.svg)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./CODE_OF_CONDUCT.md)
@@ -81,7 +81,7 @@ Every entry has a page under [`apps/docs/content/docs/adapters`](./apps/docs/con
 
 ### Prerequisites
 
-- Node.js 24 or later (`.node-version` pins 24, which CI runs).
+- Node.js 26 or later (`.node-version` pins 26, which CI runs).
 - pnpm 12.18.0 exactly: `devEngines` fails any other version.
 - Docker, only for `pnpm test:integration` and `pnpm rls-bench`.
 - Bun on `PATH`, only for `pnpm test:runtimes`.
