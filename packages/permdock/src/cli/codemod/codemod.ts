@@ -167,7 +167,9 @@ export function codemod(options: CodemodOptions): CodemodReport {
           withLiterals(file, transformSource(file, source, set), set),
           set,
         )
-      : cliResult(file, source);
+      : extname(file) === ".sql"
+        ? sqlResult(file, source, set)
+        : cliResult(file, source);
     if (result.error !== undefined) {
       followUps.push({
         file: name,
@@ -219,6 +221,39 @@ function withLiterals(
     source: rewritten.source,
     changes: [...result.changes, ...rewritten.changes],
     followUps: [...result.followUps, ...rewritten.followUps],
+  };
+}
+
+/** Directories of versioned migrations, which are history and never edited. */
+const MIGRATION_SEGMENTS: ReadonlySet<string> = new Set([
+  "migrations",
+  "drizzle",
+]);
+
+function sqlResult(
+  file: string,
+  source: string,
+  set: RenameSet,
+): ReturnType<typeof transformSource> {
+  if (set.literals === undefined) {
+    return { source, changes: [], followUps: [] };
+  }
+  const rewritten = set.literals(file, source);
+  if (
+    rewritten.changes.length === 0 ||
+    !file.split(/[\\/]/u).some((segment) => MIGRATION_SEGMENTS.has(segment))
+  ) {
+    return rewritten;
+  }
+  return {
+    source,
+    changes: [],
+    followUps: rewritten.changes.map((item) => ({
+      line: item.line,
+      column: item.column,
+      name: "migration",
+      message: `a versioned migration is not edited: write a new migration for ${item.from} → ${item.to === "" ? "removed" : item.to}`,
+    })),
   };
 }
 
@@ -292,7 +327,7 @@ function sourceFiles(
   cwd: string,
   paths: readonly string[],
   cli: boolean,
-  catalogs: boolean,
+  v026: boolean,
 ): readonly string[] {
   const out = new Set<string>();
   for (const path of paths) {
@@ -304,7 +339,7 @@ function sourceFiles(
     if (stats.isFile()) {
       out.add(root);
     } else {
-      walkDir(root, out, cli, catalogs);
+      walkDir(root, out, cli, v026);
     }
   }
   return [...out].toSorted();
@@ -314,7 +349,7 @@ function walkDir(
   dir: string,
   out: Set<string>,
   cli: boolean,
-  catalogs: boolean,
+  v026: boolean,
 ): void {
   for (const name of readdirSync(dir)) {
     if (SKIP_DIRS.has(name)) {
@@ -323,11 +358,11 @@ function walkDir(
     const full = join(dir, name);
     const stats = statSync(full);
     if (stats.isDirectory()) {
-      walkDir(full, out, cli, catalogs);
+      walkDir(full, out, cli, v026);
     } else if (
       EXTENSIONS.has(extname(name)) ||
       (cli && isCliFile(name)) ||
-      (catalogs && extname(name) === ".json")
+      (v026 && (extname(name) === ".json" || extname(name) === ".sql"))
     ) {
       out.add(full);
     }

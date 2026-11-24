@@ -121,6 +121,12 @@ The client `RolesOptions` lost `team` in 0.8. Every `useRoles` call (`permdock/r
 
 A membership literal counts only when it has `roles`, `tenant` or `team` holds a string expression, and every key is a membership field (`via`, `expiresAt`, `grantedBy`, `reason`, `member`, `managedBy`, `entitlements`, `keep`, `eligible`, `x`). A credential, an event or a principal that carries `tenant` and `roles` stays as it is. A `distinct` that is not a literal and every `ApprovalMode` type reference are follow-ups: `ApprovalMode` is now `'confirm' | 'authorize'`, and the stage combinator type is `ApprovalCombine`.
 
+## Rewrites in 0.26
+
+`permdock codemod 0.26` also reads `.sql` files and the string and template literals of each source file. There, `permitted_<resource>_row(` becomes `can_<resource>(`, `::text` around a helper call goes and `own_subject()` is deleted; the same text in code outside a literal stays. A `.sql` file under a `migrations` or `drizzle` directory is history, so each rewrite there is a follow-up to write a new migration.
+
+In a config object, the one `defineConfig` from `permdock` receives or a `permdock.config.*` file exports, `{ tableOf: "owner" }` entries move onto the owner's `also` list, and an `rls.actions` entry equal to the command PermDock infers from the action name is removed with its comment lines. Imports of the 0.25 generated files move to the new names: `permdock.generated.ts` is `constants.ts`, `permdock.schemas.ts` is `standard-schema.ts`.
+
 ## What it reports
 
 These sites go under `Manual follow-ups` and are never rewritten:

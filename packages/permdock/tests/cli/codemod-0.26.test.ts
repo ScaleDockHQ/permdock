@@ -1,10 +1,26 @@
-import { readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 
+import { codemod } from "../../src/cli/codemod/codemod.ts";
 import { rewrite026 } from "../../src/cli/codemod/rewrite-0.26.ts";
 
+const TMP = join(import.meta.dirname, "../../tmp");
+const temps: string[] = [];
+
 describe("codemod 0.26", () => {
+  afterAll(() => {
+    for (const dir of temps.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("renames the row helper, drops ::text and own_subject()", () => {
     const source = `
 select id::text in (select permitted_doc_rows('doc.read'));
@@ -243,5 +259,102 @@ import { x } from "./svelte.ts";
 `);
     expect(rewritten.changes).toHaveLength(6);
     expect(rewritten.followUps.map((item) => item.name)).toContain("gen");
+  });
+
+  it("leaves an actions object outside the config's rls block alone", () => {
+    const source = `import { definePolicy } from "permdock";
+const menu = {
+  actions: {
+    read: "select",
+    create: "insert",
+  },
+};
+export default definePolicy({});
+`;
+    const rewritten = rewrite026("app.ts", source);
+    expect(rewritten.source).toBe(source);
+    expect(rewritten.changes).toStrictEqual([]);
+  });
+
+  it("reads an actions block past a comment and a template literal with a brace", () => {
+    const rewritten = rewrite026(
+      "permdock.config.ts",
+      'export default {\n  rls: {\n    actions: {\n      // a } in a comment\n      note: `${1}}`,\n      read: "select",\n    },\n  },\n};\n',
+    );
+    expect(rewritten.source).not.toContain('read: "select"');
+    expect(rewritten.source).toContain("// a } in a comment");
+    expect(rewritten.source).toContain("note: `${1}}`,");
+  });
+
+  it("rewrites only the owner and child it read, not identical lines elsewhere", () => {
+    const source = `export default {
+  seeds: {
+    file: "public.files",
+  },
+  rls: {
+    tables: {
+      file: "public.files",
+      fileNode: { tableOf: "file" },
+      fileTag: { tableOf: "file" },
+    },
+  },
+  copy: {
+    fileNode: { tableOf: "file" },
+  },
+};
+`;
+    const rewritten = rewrite026("permdock.config.ts", source);
+    expect(rewritten.source).toContain(
+      `  seeds: {\n    file: "public.files",\n  },`,
+    );
+    expect(rewritten.source).toContain(
+      'file: { table: "public.files", also: ["fileNode", "fileTag"] },',
+    );
+    expect(rewritten.followUps.map((item) => item.name)).toStrictEqual([
+      "tableOf",
+    ]);
+  });
+
+  it("rewrites SQL only inside string and template literals", () => {
+    const source = `import { sql } from "permdock/sql";
+const own_subject = (): number => 1;
+export const value = own_subject();
+export const query = sql\`select permitted_doc_row(d) where own_subject() = 1\`;
+export const text = "select permitted_doc_row(d)";
+`;
+    const rewritten = rewrite026("app.ts", source);
+    expect(rewritten.source).toContain("export const value = own_subject();");
+    expect(rewritten.source).toContain("sql`select can_doc(d) where  = 1`");
+    expect(rewritten.source).toContain('"select can_doc(d)"');
+  });
+
+  it("rewrites a .sql file the codemod walks", () => {
+    const dir = mkdtempSync(join(TMP, "codemod-026-sql-"));
+    temps.push(dir);
+    mkdirSync(join(dir, "supabase", "migrations"), { recursive: true });
+    const sql =
+      "create policy p on public.docs using (permdock.permitted_doc_row(docs));\n";
+    writeFileSync(join(dir, "supabase", "policies.sql"), sql);
+    writeFileSync(join(dir, "supabase", "migrations", "1_init.sql"), sql);
+    const report = codemod({
+      cwd: dir,
+      version: "0.26",
+      paths: [],
+      dryRun: false,
+      force: true,
+      json: true,
+    });
+    expect(report.files.map((file) => file.file)).toStrictEqual([
+      "supabase/policies.sql",
+    ]);
+    expect(readFileSync(join(dir, "supabase", "policies.sql"), "utf8")).toBe(
+      "create policy p on public.docs using (permdock.can_doc(docs));\n",
+    );
+    expect(
+      readFileSync(join(dir, "supabase", "migrations", "1_init.sql"), "utf8"),
+    ).toBe(sql);
+    expect(
+      report.followUps.map((item) => [item.file, item.name]),
+    ).toStrictEqual([["supabase/migrations/1_init.sql", "migration"]]);
   });
 });
