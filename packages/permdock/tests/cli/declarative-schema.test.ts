@@ -1010,17 +1010,11 @@ export default {
       );
     });
 
-    it("PD068: pg-delta files in a project whose config.toml does not turn pg-delta on", async () => {
+    it("PD068: pg-delta files in a project whose config turns pg-delta off", async () => {
       const cwd = project(true, "", null);
       expect((await rlsGenerate(["--split", "indexes"], { cwd })).code).toBe(0);
       expect(await findings(cwd, "PD068")).toStrictEqual([]);
       put(cwd, "supabase/config.toml", "[auth]\nenabled = true\n");
-      const off = await findings(cwd, "PD068");
-      expect(off).toHaveLength(1);
-      expect(off[0]?.message).toBe(
-        "supabase/schemas/permdock/indexes.sql is written for pg-delta, but supabase/config.toml does not set [experimental.pgdelta] enabled = true, so the Supabase CLI diffs it with migra and drops the hook and helper grants",
-      );
-      pgDelta(cwd);
       expect(await findings(cwd, "PD068")).toStrictEqual([]);
       pgDelta(cwd, "", "false");
       expect(await findings(cwd, "PD068")).toStrictEqual([]);

@@ -131,6 +131,27 @@ describe("rls seeds directory", () => {
       expect(nextMigrationVersion([], now)).toBe("20300101000000");
     });
 
+    it("stamps past every file of a multi-file pg-delta sync", () => {
+      expect(
+        nextMigrationVersion(
+          [
+            "20301231235958_declarative_sync_1.sql",
+            "20301231235959_declarative_sync_2.sql",
+          ],
+          new Date("2030-01-01T00:00:00Z"),
+        ),
+      ).toBe("20310101000000");
+      expect(
+        nextMigrationVersion(
+          [
+            "20301231235959_declarative_sync_1.sql",
+            "20301231235959_declarative_sync_2.sql",
+          ],
+          new Date("2030-01-01T00:00:00Z"),
+        ),
+      ).toBe("20310101000000");
+    });
+
     it("names a migration by its UTC version", () => {
       expect(migrationVersion(new Date("2026-10-05T21:04:09.123Z"))).toBe(
         "20261005210409",

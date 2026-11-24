@@ -1,7 +1,9 @@
 import type { CliContext } from "./context.ts";
+import type { SupabaseRunner } from "./local-stack.ts";
 
 import { secretInput } from "./credentials.ts";
 import { CliError } from "./errors.ts";
+import { localDbUrl } from "./local-stack.ts";
 
 /** The flag vocabulary shared with better-supabase: one spelling per meaning. */
 
@@ -10,6 +12,16 @@ export const dbUrlFlags = {
     type: "boolean",
     description:
       "Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)",
+  },
+  local: {
+    type: "boolean",
+    description:
+      "Connect to the local Supabase stack: DB_URL from supabase status in this project",
+  },
+  stack: {
+    type: "string",
+    description: "With --local, the named stack of this worktree",
+    valueHint: "name",
   },
 } as const;
 
@@ -104,14 +116,41 @@ export const validatorFlag = {
 } as const;
 
 /**
- * The connection string from `--db-url-stdin`, or, when the leaf needs one,
- * `DATABASE_URL` then `SUPABASE_DB_URL`: the order better-supabase reads them.
+ * The connection string from `--db-url-stdin`, from `--local` (the local
+ * Supabase stack), or, when the leaf needs one, `DATABASE_URL` then
+ * `SUPABASE_DB_URL`: the order better-supabase reads them.
  */
 export async function dbUrl(
   ctx: CliContext,
-  flags: { readonly "db-url-stdin": boolean },
-  options?: { readonly required?: boolean },
+  flags: {
+    readonly "db-url-stdin": boolean;
+    readonly local?: boolean | undefined;
+    readonly stack?: string | undefined;
+  },
+  options?: { readonly required?: boolean; readonly run?: SupabaseRunner },
 ): Promise<string | undefined> {
+  const stack = given(flags.stack);
+  if (stack !== undefined && flags.local !== true) {
+    throw new CliError("usage", "PermDock CLI: --stack needs --local.", {
+      code: "invalid_value",
+      extensions: { flag: "--stack" },
+    });
+  }
+  if (flags.local === true) {
+    if (flags["db-url-stdin"]) {
+      throw new CliError(
+        "usage",
+        "PermDock CLI: pass --local or --db-url-stdin, not both.",
+        { code: "invalid_value", extensions: { flag: "--local" } },
+      );
+    }
+    const url = await localDbUrl(ctx.cwd, {
+      ...(stack === undefined ? {} : { stack }),
+      ...(options?.run === undefined ? {} : { run: options.run }),
+    });
+    ctx.addSecret(url);
+    return url;
+  }
   const piped = await secretInput(ctx, {
     flag: "db-url",
     stdin: flags["db-url-stdin"],

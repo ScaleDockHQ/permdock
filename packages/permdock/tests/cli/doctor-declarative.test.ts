@@ -117,7 +117,7 @@ describe("doctor declarative", () => {
   describe("PD068 and PD069 outside their case", () => {
     const generated = `${HOOK_MARKER} schema=public\n${CREATE}`;
 
-    it("PD068 is silent without config.toml, with pg-delta on, under migra, or with no PermDock file", () => {
+    it("PD068 is silent without a config, with pg-delta on or by default, under migra, or with no PermDock file", () => {
       const off = "[experimental.pgdelta]\nenabled = false\n";
       expect(
         pd068(project({ "supabase/schemas/hook.sql": generated }), {}),
@@ -156,6 +156,15 @@ describe("doctor declarative", () => {
             "supabase/config.toml": "[auth]\nenabled = true\n",
           }),
           {},
+        ),
+      ).toStrictEqual([]);
+      expect(
+        pd068(
+          project({
+            "supabase/schemas/hook.sql": generated,
+            "supabase/config.toml": off,
+          }),
+          { supabase: { schemas: "pg-delta" } },
         ).map((item) => item.code),
       ).toStrictEqual(["PD068"]);
     });

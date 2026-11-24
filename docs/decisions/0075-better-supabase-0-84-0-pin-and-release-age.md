@@ -12,7 +12,7 @@ better-supabase 0.84.0 reached npm at 16:56 UTC on 2026-11-23; 0.83.0 was never 
 
 ## Decision
 
-- The catalog pins better-supabase 0.84.0, `@supabase/pg-delta` 1.0.0-alpha.61 (the version 0.84.0 pins) and Supabase CLI 3.2.0. The peer floor stays `>=0.81.0` and `better-supabase-floor` stays 0.81.0.
+- The catalog pins better-supabase 0.84.0, `@supabase/pg-delta` 1.0.0-alpha.61 (the version 0.84.0 pins) and Supabase CLI 3.2.0, which moved to 3.3.0 once it cleared the release age on 2026-11-24; 3.2.0 stays the supported floor (doctor PD136). The peer floor stays `>=0.81.0` and `better-supabase-floor` stays 0.81.0.
 - `minimumReleaseAgeExclude` lists `better-supabase@0.84.0` only. The 0.81.0, eve, ai and `@ai-sdk/*` entries of 0074 leave the list. `minimumReleaseAge` stays at 1440 and `trustPolicy` is unchanged.
 - `authorizationProvider` no longer sets `functions.approverFor`. better-supabase reads it as the users who may decide a request, and `permdock_approver_for_ids()` returns the caller and the users the caller covers for, so filling `{tenant}` would let every caller decide every request.
 - The example ignores better-supabase doctor BS721, BS722 and BS723 on `permdock/helpers.sql`: pg-topo 1.0.0-alpha.8 reads a `%type` column reference as a type and takes overloads for one function.

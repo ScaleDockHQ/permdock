@@ -60,18 +60,27 @@ jobs:
         run: pnpm --filter permdock build
         working-directory: .
 
+      - name: Supabase config is valid
+        run: pnpm exec supabase config validate
+
       - name: Generated SQL, manifest, blocks and types are current
         run: pnpm run gen:check
 
       - wait: stack
 
       # pg-delta replays the migrations, then diffs them against supabase/schemas;
-      # --strict-coverage fails on an object pg-delta cannot manage.
+      # --strict-coverage fails on an object pg-delta cannot manage and
+      # --fail-on-destructive on a dropped table or column. A sync with no
+      # difference writes no migration file.
       - name: Declarative schemas match the migrations
         run: |
-          pnpm run supabase:diff drift_check --strict-coverage 2>&1 | tee sync.log
-          grep -q 'No schema changes found' sync.log
-          test -z "$(git status --porcelain -- supabase/migrations)"
+          pnpm run supabase:diff drift_check --strict-coverage --fail-on-destructive
+          drift="$(git status --porcelain -- supabase/migrations)"
+          if [ -n "$drift" ]; then
+            echo "::error::supabase/schemas differ from the migrations: $drift"
+            git diff --no-index /dev/null supabase/migrations/*drift_check*.sql || true
+            exit 1
+          fi
 
       # db lint, db advisors and both doctors; before pgTAP, whose test helpers stay installed.
       - name: Lint, advisors and doctors

@@ -6,7 +6,11 @@ import type { PermDockConfig } from "../types.ts";
 import { rel, sqlFiles } from "../files.ts";
 import { nodeFiles } from "../shared/doctor-files.ts";
 import { HOOK_MARKER } from "../sql/markers.ts";
-import { readSupabaseConfig, supabaseConfig } from "../supabase-config.ts";
+import {
+  readSupabaseConfig,
+  supabaseConfig,
+  supabaseConfigName,
+} from "../supabase-config.ts";
 import { resolveSchemas } from "../supabase-schemas.ts";
 
 const SCHEMAS = "supabase/schemas";
@@ -105,11 +109,11 @@ function generatedSchemaFiles(
 }
 
 /**
- * PD068: PermDock generates for pg-delta (the default), but
- * `supabase/config.toml` does not set `[experimental.pgdelta] enabled = true`,
- * so Supabase CLI 2.x diffs the schema files with migra. migra drops the hook's
- * `supabase_auth_admin` grants and the helpers' privileges, and PermDock wrote
- * no `--grants-out` file to restore them.
+ * PD068: PermDock generates for pg-delta, but the Supabase project config sets
+ * `[experimental.pgdelta] enabled = false`, so Supabase CLI 3.x diffs the
+ * schema files with migra instead of its default pg-delta. migra drops the
+ * hook's `supabase_auth_admin` grants and the helpers' privileges, and PermDock
+ * wrote no `--grants-out` file to restore them.
  */
 export function pd068(
   cwd: string,
@@ -117,7 +121,7 @@ export function pd068(
   files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
   const read = readSupabaseConfig(cwd);
-  if (read?.ok !== true || read.config.pgDelta?.enabled === true) {
+  if (read?.ok !== true || read.config.pgDelta?.enabled !== false) {
     return [];
   }
   const schemas = resolveSchemas(cwd, config);
@@ -132,8 +136,8 @@ export function pd068(
     {
       code: "PD068",
       severity: "error",
-      message: `${rel(cwd, first)} is written for pg-delta, but supabase/config.toml does not set [experimental.pgdelta] enabled = true, so the Supabase CLI diffs it with migra and drops the hook and helper grants`,
-      fix: "add [experimental.pgdelta] with enabled = true to supabase/config.toml (Supabase CLI 2.119 or later), or set supabase.schemas: 'migra' in permdock.config.ts and regenerate with --grants-out",
+      message: `${rel(cwd, first)} is written for pg-delta, but ${read.file} sets [experimental.pgdelta] enabled = false, so the Supabase CLI diffs it with migra and drops the hook and helper grants`,
+      fix: `remove enabled = false from [experimental.pgdelta] in ${read.file} (pg-delta is the default of Supabase CLI 3.x), or set supabase.schemas: 'migra' in permdock.config.ts and regenerate with --grants-out`,
     },
   ];
 }
@@ -158,9 +162,8 @@ export function pd069(
     findings.push({
       code: "PD069",
       severity: "warning",
-      message:
-        "supabase/config.toml sets [db.migrations] schema_paths, which pg-delta does not need: it orders the schema files by their dependencies",
-      fix: "remove schema_paths from [db.migrations] in supabase/config.toml",
+      message: `${supabaseConfigName(cwd)} sets [db.migrations] schema_paths, which pg-delta does not need: it orders the schema files by their dependencies`,
+      fix: `remove schema_paths from [db.migrations] in ${supabaseConfigName(cwd)}`,
     });
   }
   const root = join(cwd, schemas.schemaDir);
@@ -233,7 +236,7 @@ export function pd043(
           {
             code: "PD043",
             severity: "warning",
-            message: `${rel(cwd, defined)} defines the PermDock helpers, but schema_paths in supabase/config.toml does not list it, so supabase db diff never applies it`,
+            message: `${rel(cwd, defined)} defines the PermDock helpers, but schema_paths in ${supabaseConfigName(cwd)} does not list it, so supabase db diff never applies it`,
             fix: `add it to [db.migrations] schema_paths before every file that calls permdock_has, permitted_<scope>_ids or member_<scope>_ids`,
           },
         ];

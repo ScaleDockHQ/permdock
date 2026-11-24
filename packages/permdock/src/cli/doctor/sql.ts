@@ -16,7 +16,7 @@ import { nodeFiles } from "../shared/doctor-files.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
 import { supautilsRejections } from "../sql/supautils.ts";
-import { supabaseConfig } from "../supabase-config.ts";
+import { supabaseConfig, supabaseConfigName } from "../supabase-config.ts";
 
 /** One statement of a migration: comments blanked, its file and first line. */
 type SqlStatement = {
@@ -79,7 +79,7 @@ export function pd046(
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  if (!files.exists(join(cwd, "supabase/config.toml"))) {
+  if (!files.exists(join(cwd, supabaseConfigName(cwd)))) {
     return [];
   }
   const schema =
@@ -92,7 +92,7 @@ export function pd046(
     {
       code: "PD046",
       severity: "warning",
-      message: `the PermDock helper schema ${schema} is in [api] schemas in supabase/config.toml, so the Data API serves its security definer helpers as RPCs`,
+      message: `the PermDock helper schema ${schema} is in [api] schemas in ${supabaseConfigName(cwd)}, so the Data API serves its security definer helpers as RPCs`,
       fix:
         schema === "public"
           ? `drop rls.schema: 'public' so the helpers move to the private ${PERMDOCK_SCHEMA} schema, regenerate with permdock rls generate, and keep ${PERMDOCK_SCHEMA} out of [api] schemas`

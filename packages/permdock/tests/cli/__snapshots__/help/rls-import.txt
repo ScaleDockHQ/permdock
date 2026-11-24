@@ -5,6 +5,8 @@ Usage  permdock rls import [flags]
 Flags
   --sql <path>                       SQL file or folder to read
   --db-url-stdin                     Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
+  --local                            Connect to the local Supabase stack: DB_URL from supabase status in this project
+  --stack <name>                     With --local, the named stack of this worktree
   --out <file>                       File to write
   --validator <zod|valibot|arktype>  Schema library for the generated resources (default zod)
   --memberships <table>              Membership table as <table>:tenant,user,role

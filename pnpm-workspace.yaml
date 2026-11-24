@@ -163,7 +163,7 @@ catalog:
   better-supabase: file:.better-supabase/better-supabase.tgz
   better-result: 3.0.1
   "@supabase/postgrest-typegen": 0.8.1
-  supabase: 3.2.0
+  supabase: 3.3.0
   server-only: 0.0.1
   # The root pins debug's optional supports-color peer so every importer shares one @nestjs/common and @nestjs/core variant.
   supports-color: 11.0.0

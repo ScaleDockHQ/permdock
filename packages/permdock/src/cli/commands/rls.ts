@@ -159,6 +159,8 @@ const SHAPE_DEFAULTS: ShapeValues = {
   shims: false,
   schemas: undefined,
   "db-url-stdin": false,
+  local: false,
+  stack: undefined,
 };
 
 /**

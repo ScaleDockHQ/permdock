@@ -816,6 +816,12 @@ export default defineConfig({
 
 It takes the options of `rls()` except `dialect`, plus `hook` (`false` skips the hook SQL, an object sets `out`, `schema`, `activeFrom` and `budget`) and `manifest` (a file name, or `false`). Listing `supabase()` next to `rls()` or `supabaseHook()` is an error. `betterSupabase()` orders after it. `tests/cli/supabase-plugin.test.ts` compares its output byte for byte with the three separate steps.
 
+## Database URL and Supabase tokens
+
+The CLI connects with a database URL and never with a Supabase token. `--db-url-stdin` reads one from stdin, and `--local` reads `DB_URL` from `supabase status` of the project's local stack, so each git worktree finds its own stack ([doctor](/docs/cli/doctor#usage)). PermDock supports Supabase CLI 3.2.0 and later (doctor PD136).
+
+A CI job that runs `supabase link` before `permdock rls verify --local` needs a Supabase personal access token for the link step. A scoped token needs read access to Project Settings, API Keys and API Key Secrets.
+
 ## Example app
 
 `apps/examples/supabase-rls`: a Hono server on `127.0.0.1:3469`. `GET /health`, `GET /rls/authorize` checks that generated SQL never contains `service_role`, and `PATCH /posts/:id` uses `subjectFromSupabase` with fixed JWT-shaped claims. No live Supabase project.

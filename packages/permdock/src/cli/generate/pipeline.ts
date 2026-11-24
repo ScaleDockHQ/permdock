@@ -173,7 +173,11 @@ export async function runGenerate(input: {
         ].join("|");
       }),
       optionsKey(configWithoutPlugins),
-      ...inputsKey(input.cwd, ["supabase/config.toml"]),
+      ...inputsKey(input.cwd, [
+        "supabase/config.json",
+        "supabase/config.jsonc",
+        "supabase/config.toml",
+      ]),
       canonicalJson(model),
       ...(input.importGraph ?? []),
     ].join("\n"),

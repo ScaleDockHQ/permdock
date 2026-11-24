@@ -27,6 +27,8 @@ permdock generate --dry-run
 | `--concurrency <n>` | How many tasks run at once. `1` runs them one at a time.                               |
 | `--watch`           | Generate again when a policy, config or plugin input changes. Ctrl-C exits 130.        |
 | `--db-url-stdin`    | Read the Postgres URL from stdin. RLS index suggestions and hook helper checks use it. |
+| `--local`           | Use the local Supabase stack's `DB_URL` from `supabase status` in place of stdin.      |
+| `--stack <name>`    | With `--local`, the named stack of this worktree.                                      |
 
 When a new seeds or defaults migration is due, the command prints `seeds: +N rows, -M rows against the newest seeds migration (<file>)` on stderr, counted by value row against the newest migration that carries the marker. The helpers carry a `sha-256:` digest on their first line ([PD115](/docs/cli/doctor#pd115-a-migration-behind-the-schema-file)).
 

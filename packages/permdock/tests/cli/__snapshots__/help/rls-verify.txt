@@ -25,6 +25,8 @@ Flags
   --shims                                Wrap each rls.migrate helper under its legacy name
   --schemas <pg-delta|migra|migrations>  Schema workflow (default supabase.schemas, else pg-delta)
   --db-url-stdin                         Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
+  --local                                Connect to the local Supabase stack: DB_URL from supabase status in this project
+  --stack <name>                         With --local, the named stack of this worktree
   --fixtures <file>                      Fixtures file
   --kind <node|pgtap>                    Run the fixtures in Node or write a pgTAP file
   --personas <roles>                     With --kind pgtap, write one persona per role the fixtures hold

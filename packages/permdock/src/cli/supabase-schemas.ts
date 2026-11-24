@@ -36,9 +36,9 @@ export function schemasRefusal(
 }
 
 /**
- * `--schemas`, else `supabase.schemas`, else `migra` when `config.toml` sets
- * `[experimental.pgdelta] enabled = false`, else `pg-delta`: the default of new
- * Supabase projects and of the next Supabase CLI major.
+ * `--schemas`, else `supabase.schemas`, else `migra` when the Supabase config
+ * sets `[experimental.pgdelta] enabled = false`, else `pg-delta`: the default
+ * of Supabase CLI 3.x.
  */
 export function resolveSchemas(
   cwd: string,
