@@ -22,3 +22,5 @@ better-supabase `main` builds on Node.js 26, which this branch requires. Before 
 
 - Wait for 0.85.0: blocks every section that reads the new names.
 - Pack the sibling checkout: it holds uncommitted work, and the lockfile pins the tarball's integrity.
+
+The example's `supabase:check` and the provider-only integration test pass `--ignore BS607` to `better-supabase doctor`: BS607 compares the installed tarball with the 0.81.0 floor alias in the lockfile. The final pin removes both.

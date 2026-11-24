@@ -232,7 +232,8 @@ describe("a better-supabase app that takes every authorization slot from the pro
 
   it("passes better-supabase doctor --fail-on warning", () => {
     const result = betterSupabase(
-      ["doctor", "--fail-on", "warning", "--db-url-stdin"],
+      // BS607 reads the 0.81.0 floor alias from the lockfile; the tarball (decision 0076) is the installed copy.
+      ["doctor", "--fail-on", "warning", "--ignore", "BS607", "--db-url-stdin"],
       defined(database).url,
     );
     expect(result).toMatchObject({
