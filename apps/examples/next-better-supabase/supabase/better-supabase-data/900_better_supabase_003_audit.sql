@@ -1,6 +1,6 @@
 -- better-supabase module: audit
 -- @bsb-block-data audit
--- @bsb-hash sha256:d1d4441f9619602c4d48c61465a096d9491caa93d3aca83e6a29c0c29a54dc92
+-- @bsb-hash sha256:79a114dcb2c45509875f241d59f0f0115eac3e6acaa8e8f56876c92f2b7313f2
 -- Rows and settings a schema diff doesn't capture. Run `better-supabase add --adopt`
 -- after the schema migration to put them in a migration.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
@@ -16,6 +16,6 @@ delete from "better_supabase"."audited_tables" a
 where not exists (select 1 from pg_catalog.pg_class c where c.oid = a."target"::oid);
 
 insert into better_supabase.blocks (name, version, mode)
-values ('audit', 15, 'managed')
+values ('audit', 16, 'managed')
 on conflict (name) do update
   set version = excluded.version, mode = excluded.mode, updated_at = now();
