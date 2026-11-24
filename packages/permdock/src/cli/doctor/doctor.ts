@@ -31,7 +31,7 @@ import {
 import { pd039 } from "../supabase-setup.ts";
 import { pd123 } from "./action-keys.ts";
 import { pd064 } from "./assignments.ts";
-import { applyDoctorIgnores, reported } from "./baseline.ts";
+import { reported, settleBaseline } from "./baseline.ts";
 import { pd078, pd079, pd082, pd087, pd094, pd100 } from "./better-supabase.ts";
 import { pd132, pd133 } from "./budgets.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
@@ -141,7 +141,7 @@ export type DoctorReport = {
   /** What `--fix` changed before the checks ran; empty without `--fix`. */
   readonly fixed: readonly string[];
   readonly findings: readonly ReportedFinding[];
-  /** Findings `doctor.ignore` or `--ignore` accepted, with their reasons. */
+  /** Findings `doctor.baseline` or `--ignore` accepted, with their reasons. */
   readonly ignored: readonly IgnoredFinding[];
   readonly errors: number;
   readonly warnings: number;
@@ -155,6 +155,8 @@ export type DoctorCheck = {
   readonly code: `PD${string}`;
   readonly groups: readonly string[];
   readonly when?: (config: PermDockConfig) => boolean;
+  /** Reports only with a database URL, so without one it judges nothing. */
+  readonly database?: true;
   readonly run: (
     project: Project,
   ) => readonly DoctorFinding[] | Promise<readonly DoctorFinding[]>;
@@ -421,6 +423,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   {
     code: "PD085",
+    database: true,
     groups: ["supabase", "hook"],
     when: (config) => config.supabase?.hook !== undefined,
     run: pd085,
@@ -519,6 +522,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   {
     code: "PD110",
+    database: true,
     groups: ["supabase", "hook", "performance"],
     when: (config) => config.supabase?.hook !== undefined,
     run: (project) => pd110(project, eventsOf(project)),
@@ -567,7 +571,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   { code: "PD131", groups: ["rls", "supabase", "performance"], run: pd131 },
   { code: "PD128", groups: ["rls", "supabase"], run: pd128 },
   { code: "PD125", groups: ["supabase", "sql"], run: pd125 },
-  { code: "PD124", groups: ["supabase", "rls"], run: pd124 },
+  { code: "PD124", database: true, groups: ["supabase", "rls"], run: pd124 },
   {
     code: "PD120",
     groups: ["project"],
@@ -604,6 +608,8 @@ export async function runDoctor(input: {
   readonly config: PermDockConfig;
   readonly only: readonly string[];
   readonly ignore?: readonly string[];
+  /** Rewrite `doctor.baseline` to accept this run's errors and warnings. */
+  readonly updateBaseline?: boolean;
   readonly json: boolean;
   readonly fix: boolean;
   readonly strict: boolean;
@@ -650,19 +656,29 @@ export async function runDoctor(input: {
     check.groups.some((group) => wanted.has(group));
 
   const collected: DoctorFinding[] = [];
+  const judged = new Set<string>();
   for (const check of DOCTOR_CHECKS) {
     if (check.when !== undefined && !check.when(input.config)) {
       continue;
     }
     if (selected(check)) {
+      if (check.database === undefined || input.db !== undefined) {
+        judged.add(check.code);
+      }
       collected.push(...dedupe(await check.run(project)));
     }
   }
-  const { findings, ignored } = applyDoctorIgnores(
-    collected.map(reported),
-    input.config,
-    input.ignore ?? [],
-  );
+  const { findings, ignored, wrote } = settleBaseline({
+    cwd: input.cwd,
+    config: input.config,
+    findings: collected.map(reported),
+    judged: (code) => judged.has(code),
+    ignore: input.ignore ?? [],
+    update: input.updateBaseline === true,
+  });
+  if (wrote !== undefined) {
+    fixed.push(`baseline: ${wrote}`);
+  }
 
   const errors = findings.filter((item) => item.severity === "error").length;
   const warnings = findings.filter(

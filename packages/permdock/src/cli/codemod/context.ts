@@ -62,8 +62,15 @@ export type RenameSet = {
     readonly source: string;
     readonly changes: readonly CodemodChange[];
     readonly followUps: readonly CodemodFollowUp[];
+    readonly files?: readonly CodemodFile[];
   };
 };
+
+/**
+ * A file a rewrite creates next to the one it edits, by absolute path. The
+ * codemod writes it with the edited file, or neither on `--dry-run`.
+ */
+export type CodemodFile = { readonly path: string; readonly text: string };
 
 /** One rewritten span. */
 export type CodemodChange = {

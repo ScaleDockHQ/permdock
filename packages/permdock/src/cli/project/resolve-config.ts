@@ -90,6 +90,7 @@ const CONFIG_DEFAULTS: readonly ConfigDefault[] = Object.freeze([
     path: ["doctor", "sensitiveActions"],
     value: DEFAULT_SENSITIVE_ACTIONS,
   },
+  { section: "doctor", path: ["doctor", "failOn"], value: "error" },
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {

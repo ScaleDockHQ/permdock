@@ -25,7 +25,7 @@ The positional arguments after the version are files or directories; the default
 
 The codemod rewrites files in place, so in [agent mode](/docs/cli/agent-mode) a run without `--dry-run` first asks for the person's confirmation (`rewrite`).
 
-The version is `0.17` or `0.26` (`0.17.0` and `v0.17` are read the same way). Any other version is a usage error that names the supported ones, exit `2`. The 0.5 and 0.8 rename tables are history on the [Naming](/docs/getting-started/naming) page.
+The version is `0.17`, `0.26` or `0.32` (`0.17.0` and `v0.17` are read the same way). Any other version is a usage error that names the supported ones, exit `2`. The 0.5 and 0.8 rename tables are history on the [Naming](/docs/getting-started/naming) page.
 
 ## Prune the config
 
@@ -140,6 +140,17 @@ A membership literal counts only when it has `roles`, `tenant` or `team` holds a
 `permdock codemod 0.26` also reads `.sql` files and the string and template literals of each source file. There, `permitted_<resource>_row(` becomes `can_<resource>(`, `::text` around a helper call goes and `own_subject()` is deleted; the same text in code outside a literal stays. A `.sql` file under a `migrations` or `drizzle` directory is history, so each rewrite there is a follow-up to write a new migration.
 
 In a config object, the one `defineConfig` from `permdock` receives or a `permdock.config.*` file exports, `{ tableOf: "owner" }` entries move onto the owner's `also` list, and an `rls.actions` entry equal to the command PermDock infers from the action name is removed with its comment lines. Imports of the 0.25 generated files move to the new names: `permdock.generated.ts` is `constants.ts`, `permdock.schemas.ts` is `standard-schema.ts`.
+
+## Rewrites in 0.32
+
+`permdock codemod 0.32` rewrites the config object, the one `defineConfig` from `permdock` receives or a `permdock.config.*` file exports.
+
+| Source                                               | Result                                                                               |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `doctor.waivers: [{ code: "PD017", key, reason }]`   | `{ "code": "PD017", "reason": ..., "targets": [key] }` in the `doctor.baseline` file |
+| `doctor.ignore: [{ id: "<code>:<target>", reason }]` | `{ "code": ..., "reason": ..., "targets": [target] }` in the `doctor.baseline` file  |
+
+Without `doctor.baseline`, the config gains `baseline: "doctor-baseline.json"` and the codemod writes that file next to the config. With it, the entries merge into the file it names. The file is written with the config, so `--dry-run` writes neither and lists both. A list the config computes, a `doctor.baseline` that is not a string literal, or a baseline file that does not parse is a follow-up, and the config stays as it is ([accept a finding](/docs/cli/doctor#accept-a-finding)).
 
 ## What it reports
 

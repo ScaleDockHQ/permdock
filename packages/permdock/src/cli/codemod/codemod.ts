@@ -187,6 +187,13 @@ export function codemod(options: CodemodOptions): CodemodReport {
     if (result.changes.length > 0 && result.source !== source) {
       changed.push({ file: name, changes: result.changes });
       writes.push({ path: file, text: result.source });
+      for (const created of result.files ?? []) {
+        changed.push({
+          file: rel(options.cwd, created.path),
+          changes: [{ line: 1, column: 1, from: name, to: "created" }],
+        });
+        writes.push(created);
+      }
     }
     for (const followUp of result.followUps) {
       followUps.push({ file: name, ...followUp });
@@ -224,6 +231,7 @@ function withLiterals(
     source: rewritten.source,
     changes: [...result.changes, ...rewritten.changes],
     followUps: [...result.followUps, ...rewritten.followUps],
+    ...(rewritten.files === undefined ? {} : { files: rewritten.files }),
   };
 }
 
@@ -270,6 +278,7 @@ function withConfigMoves(
   }
   const moved = moveConfigKeys(file, result.source, set.configMoves);
   return {
+    ...result,
     source: moved.source,
     changes: [...result.changes, ...moved.changes],
     followUps: [...result.followUps, ...moved.followUps],

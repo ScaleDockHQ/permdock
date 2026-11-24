@@ -1,9 +1,18 @@
-import type { Ignore } from "../core/ignores.ts";
+import { resolve } from "node:path";
+
 import type { DoctorFinding, ReportedFinding } from "../shared/doctor-types.ts";
 import type { PermDockConfig } from "../types.ts";
+import type { AcceptedFinding, BaselineEntry } from "./baseline-file.ts";
 
-import { isRecord } from "../../core/compact.ts";
-import { parseIgnores, splitIgnored } from "../core/ignores.ts";
+import { CliError } from "../core/errors.ts";
+import { applyFiles } from "../core/files.ts";
+import { splitIgnored } from "../core/ignores.ts";
+import {
+  applyBaseline,
+  baselineText,
+  readBaseline,
+  updatedBaseline,
+} from "./baseline-file.ts";
 
 const LOCATION = /^([^\s:]+\.[A-Za-z0-9]+):(\d+)\b/u;
 
@@ -29,77 +38,92 @@ export function reported(finding: DoctorFinding): ReportedFinding {
   return { ...finding, target, id: `${finding.code}:${target}` };
 }
 
-export type IgnoredFinding = Ignore & { readonly message: string };
+export type IgnoredFinding = AcceptedFinding;
 
 /**
- * PD017 waivers, keyed by finding id. A waiver that matches nothing stays a
- * finding.
+ * Applies `doctor.baseline` and `--ignore` to one run. With `update` it first
+ * rewrites the baseline to accept this run's errors and warnings, and `wrote`
+ * names the file.
  */
-function waiverReasons(config: PermDockConfig): ReadonlyMap<string, string> {
-  const reasons = new Map<string, string>();
-  const entries: unknown = config.doctor?.waivers ?? [];
-  if (!Array.isArray(entries)) {
-    return reasons;
-  }
-  for (const entry of entries) {
-    if (
-      isRecord(entry) &&
-      entry["code"] === "PD017" &&
-      typeof entry["key"] === "string" &&
-      typeof entry["reason"] === "string" &&
-      entry["reason"].trim() !== ""
-    ) {
-      reasons.set(`PD017:${entry["key"]}`, entry["reason"]);
+export function settleBaseline(input: {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+  readonly findings: readonly ReportedFinding[];
+  readonly judged: (code: string) => boolean;
+  readonly ignore: readonly string[];
+  readonly update: boolean;
+}): {
+  readonly findings: readonly ReportedFinding[];
+  readonly ignored: readonly IgnoredFinding[];
+  readonly wrote?: string;
+} {
+  const path = input.config.doctor?.baseline;
+  if (path === undefined) {
+    if (input.update) {
+      throw new CliError(
+        "usage",
+        "--update-baseline rewrites doctor.baseline; set it to a file such as doctor-baseline.json first",
+      );
     }
+    return applyDoctorBaseline(
+      input.findings,
+      { path: "doctor.baseline", entries: [] },
+      input.judged,
+      input.ignore,
+    );
   }
-  return reasons;
+  let entries = readBaseline(input.cwd, path);
+  if (input.update) {
+    entries = updatedBaseline(input.findings, entries, input.judged);
+    applyFiles(input.cwd, [
+      { path: resolve(input.cwd, path), text: baselineText(entries) },
+    ]);
+  }
+  const applied = applyDoctorBaseline(
+    input.findings,
+    { path, entries },
+    input.judged,
+    input.ignore,
+  );
+  return input.update ? { ...applied, wrote: path } : applied;
 }
 
 /**
- * Splits `findings` by `doctor.ignore` and `--ignore`. An entry that matches no
- * finding comes back as an `ignore-stale` warning so the baseline can shrink.
+ * Splits `findings` by the `doctor.baseline` entries, then by `--ignore` for
+ * this run. A stale or unexplained baseline entry comes back as an error.
  */
-export function applyDoctorIgnores(
+export function applyDoctorBaseline(
   findings: readonly ReportedFinding[],
-  config: PermDockConfig,
+  baseline: {
+    readonly path: string;
+    readonly entries: readonly BaselineEntry[];
+  },
+  judged: (code: string) => boolean,
   flags: readonly string[],
 ): {
   readonly findings: readonly ReportedFinding[];
   readonly ignored: readonly IgnoredFinding[];
 } {
-  const ignores = parseIgnores(config.doctor?.ignore, "doctor.ignore", flags);
-  const split = splitIgnored(findings, (item) => item.id, ignores);
-  const waivers = waiverReasons(config);
-  const kept: ReportedFinding[] = [];
-  const waived: IgnoredFinding[] = [];
-  for (const item of split.kept) {
-    const reason = waivers.get(item.id);
-    if (item.code === "PD017" && reason !== undefined) {
-      waived.push({ id: item.id, reason, message: item.message });
-    } else {
-      kept.push(item);
-    }
-  }
-  const stale = split.stale
-    .filter((entry) => entry.reason !== "--ignore")
-    .map((entry) =>
-      reported({
-        code: "ignore-stale",
-        severity: "warning",
-        target: entry.id,
-        message: `ignore entry ${entry.id} matches no finding`,
-        fix: "remove it from doctor.ignore",
-      }),
-    );
+  const applied = applyBaseline(
+    findings,
+    baseline.entries,
+    judged,
+    baseline.path,
+  );
+  const split = splitIgnored(
+    applied.findings,
+    (item) => item.id,
+    flags.map((id) => ({ id, reason: "--ignore" })),
+  );
   return {
-    findings: [...kept, ...stale],
+    findings: split.kept,
     ignored: [
+      ...applied.accepted,
       ...split.ignored.map((entry) => ({
         id: entry.id,
         reason: entry.reason,
         message: entry.item.message,
       })),
-      ...waived,
     ],
   };
 }

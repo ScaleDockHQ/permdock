@@ -1,6 +1,7 @@
 import type { Edit, Estree } from "./ast.ts";
 import type {
   CodemodChange,
+  CodemodFile,
   CodemodFollowUp,
   Context,
   ImportBinding,
@@ -47,12 +48,18 @@ import {
   visitDurations,
 } from "./shapes.ts";
 
-export type { CodemodChange, CodemodFollowUp, RenameSet } from "./context.ts";
+export type {
+  CodemodChange,
+  CodemodFile,
+  CodemodFollowUp,
+  RenameSet,
+} from "./context.ts";
 
 export type TransformResult = {
   readonly source: string;
   readonly changes: readonly CodemodChange[];
   readonly followUps: readonly CodemodFollowUp[];
+  readonly files?: readonly CodemodFile[];
   /** Set when a script could not be parsed; the file is then left as it was. */
   readonly error?: string;
 };

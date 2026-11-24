@@ -13,6 +13,7 @@ permdock doctor --json         # report with $schema, for agents
 permdock doctor --only imports,references
 permdock doctor --fix          # apply safe fixes (install skills, regenerate the catalog)
 permdock doctor --ignore PD017:post.delete   # accept one finding for this run
+permdock doctor --update-baseline   # accept this run's findings in doctor.baseline
 printf %s "$DATABASE_URL" | permdock doctor --db-url-stdin   # also run the checks that query the database (PD085, PD110)
 permdock doctor --local                # the same, against the local Supabase stack
 permdock doctor --local --stack feature-a   # a named stack of this worktree
@@ -20,23 +21,38 @@ permdock doctor --local --stack feature-a   # a named stack of this worktree
 
 `--local` runs `supabase status --output-format json` in the project and connects to its `DB_URL`, so each git worktree finds its own stack without assumed ports. `--stack <name>` picks a named stack and needs `--local`. `--local` and `--db-url-stdin` exclude each other. `doctor`, `generate`, `supabase hook generate`, every `rls` command that reads a database and `powersync verify` take both flags.
 
-Exit code `1` on any error, `0` otherwise; warnings only fail with `--fail-on warning`. A finding is an `error`, a `warning` or an `info` hint. `info` never fails the run, renders as `::notice` with `--format github` and as a SARIF `note`, and the summary counts it as a note.
+Exit code `1` on any error, `0` otherwise; warnings only fail with `--fail-on warning` or `doctor.failOn: "warning"`. A finding is an `error`, a `warning` or an `info` hint. `info` never fails the run, renders as `::notice` with `--format github` and as a SARIF `note`, and the summary counts it as a note.
 
 Without `--fix`, doctor only reads: it never writes the catalog or any other file. On a terminal, `--fix` asks before it writes; answering no prints the report without fixing, and cancelling exits `130`. In CI, in a pipe or with `--json` it fixes without asking. The report lists each fix it applied first, as `fixed` in the JSON report. An `--only` value that names no check code or group exits `2` with the nearest match.
 
-### Ignore a finding
+### Accept a finding
 
 Every finding has a `target` (a permission key, a `file:line`, a table) and an `id` of `<code>:<target>`. The text report prints the id after the fix line, and the JSON report carries both fields. A check that sets no target gets the `file:line` its message opens with, or the message's first word when it is a path or a key, else `project`.
 
-`doctor.ignore` accepts findings on purpose, in the form of `rls.verify.ignore`:
+`doctor.baseline` names a JSON file of accepted findings, relative to the project root, in better-supabase's grouped format:
 
-```ts
-doctor: {
-  ignore: [{ id: "PD017:post.delete", reason: "clerks delete drafts only" }],
-}
+```ts title="permdock.config.ts"
+doctor: { baseline: "doctor-baseline.json", failOn: "warning" }
 ```
 
-An ignored finding leaves `findings`, no longer counts as an error or warning, and appears under `ignored` in the JSON report with its reason. An entry without a reason is a config error. An entry that matches no finding is reported as an `ignore-stale` warning, so the list shrinks when the cause goes away. `--ignore <id>` (repeatable) accepts a finding for one run without a reason.
+```json title="doctor-baseline.json"
+[
+  {
+    "code": "PD017",
+    "reason": "Only the current owner may transfer, from their own session",
+    "targets": ["organization.transferOwnership"]
+  }
+]
+```
+
+- **Accepted.** A finding whose code and target an entry lists leaves `findings`, no longer counts as an error or warning, and appears under `ignored` in the JSON report with its reason. A `{ code, target, reason }` entry is read too, so one file serves both libraries.
+- **Reason.** An entry without a reason is reported as a `baseline-reason` error.
+- **Stale.** An entry that matches no finding is reported as a `baseline-stale` error, so the file shrinks when the cause goes away. An entry is only judged when its check ran: `--only` and a check that needs `--db-url-stdin` leave the others alone.
+- **Update.** `permdock doctor --update-baseline` rewrites the file to accept this run's errors and warnings. An entry keeps its reason, a new entry takes the reason of another entry with its code, and the rest get an empty reason to fill in. Without `doctor.baseline` it exits `2`.
+
+`doctor.failOn: "warning"` exits `1` on a warning as well as an error; `--fail-on` overrides it for one run. `--ignore <id>` (repeatable) accepts a finding for one run without a reason.
+
+When better-supabase runs `permdock doctor --json` through its `authorization.doctor.command` (BS705), its own `tooling.doctor.baseline` accepts PermDock's findings as BS705 entries whose target starts with the PermDock code. Both files use the same format. `doctor.waivers` and `doctor.ignore` were removed in 0.32; `permdock codemod 0.32` moves both into the baseline file ([codemod](/docs/cli/codemod#rewrites-in-032)).
 
 ### Where doctor reads source files
 
@@ -287,7 +303,7 @@ The Unicode markers are replaced with `error` / `warn` under `--no-color` or whe
 
 Loads the policy and warns on each `allow` whose action is in the sensitive list and that carries neither `approval` nor a `deny` on the same leaf. Override the list with `doctor.sensitiveActions` in `permdock.config.ts`. The fix text points at `approval: { by }`.
 
-To accept one leaf, list it in `doctor.waivers`: `[{ code: "PD017", key: "post.delete", reason: "clerks delete drafts only" }]`. `code` is `PD017`, `key` is the permission key and `reason` must not be empty. A waiver that matches no unapproved sensitive allow is reported as a PD017 warning with the target `waiver:<key>`.
+To accept one leaf, list its permission key under `PD017` in the [baseline](#accept-a-finding): `{ "code": "PD017", "reason": "clerks delete drafts only", "targets": ["post.delete"] }`.
 
 ### PD018: static separation of duty
 

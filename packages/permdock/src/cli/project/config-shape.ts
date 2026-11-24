@@ -140,8 +140,8 @@ const DOCTOR = {
   claims: STRING,
   srcPath: ARRAY,
   cacheHelpers: ARRAY,
-  ignore: ARRAY,
-  waivers: ARRAY,
+  baseline: STRING,
+  failOn: STRING,
   policies: OBJECT,
 } as const satisfies Record<keyof DoctorConfig, KeyShape>;
 

@@ -47,24 +47,19 @@ export type DoctorConfig = {
    */
   readonly cacheHelpers?: readonly string[];
   /**
-   * Findings accepted on purpose, by `<code>:<target>` id (printed after each
-   * finding). An entry that matches no finding is reported as stale.
+   * A JSON file of accepted findings, relative to the project root, in
+   * better-supabase's grouped form `[{ code, reason, targets }]`. Every entry
+   * needs a reason, an entry that matches no finding is an error, and `permdock
+   * doctor --update-baseline` rewrites it.
    */
-  readonly ignore?: readonly { readonly id: string; readonly reason: string }[];
-  /** PD017 findings accepted for one permission key. */
-  readonly waivers?: readonly DoctorWaiver[];
+  readonly baseline?: string;
+  /** The lowest severity that exits 1; default `error`. `--fail-on` wins. */
+  readonly failOn?: "error" | "warning";
   /**
    * PD131 reports a table with more than `max` policies for one command and
    * `authenticated`; default 4, better-supabase's `doctor.policies.max`.
    */
   readonly policies?: { readonly max?: number };
-};
-
-export type DoctorWaiver = {
-  readonly code: "PD017";
-  /** The permission key the sensitive allow is for. */
-  readonly key: string;
-  readonly reason: string;
 };
 
 /**
