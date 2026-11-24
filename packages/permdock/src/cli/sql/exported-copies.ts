@@ -17,7 +17,7 @@ import {
  * Root folders of a pg-delta export PermDock never writes into or rewrites:
  * `_custom` holds hand-written SQL and `_cluster` the cluster-level objects.
  */
-export const RESERVED_EXPORT_DIRS: ReadonlySet<string> = new Set([
+const RESERVED_EXPORT_DIRS: ReadonlySet<string> = new Set([
   "_custom",
   "_cluster",
 ]);
