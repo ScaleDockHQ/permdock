@@ -179,6 +179,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD135` | A pg-delta project writes the `role_permissions` rows as a data migration; `rls.seeds: 'view'` keeps them declarative (information)                                                                                                                                                                                                  |
 | `PD130` | The project calls `permdockFor` and builds another instance with `getPermDock` or `createPermDock` and its own `memberships`, `customRoles`, `versions` or `instances`                                                                                                                                                               |
 | `PD136` | The project installs a Supabase CLI older than 3.2.0                                                                                                                                                                                                                                                                                 | warning         |
+| `PD126` | The app lists `oxc-parser` or `pgsql-parser` and installs another version than `permdock` pins                                                                                                                                                                                                                                       | info            |
 | `PD131` | A table has more than `doctor.policies.max` (default 4) policies for one command and `authenticated`                                                                                                                                                                                                                                 | warning         |
 
 ### PD001: server-only imports in client entries
@@ -806,6 +807,10 @@ With pg-delta turned on explicitly (`enabled = true` under `[experimental.pgdelt
 ### PD130: repeated version reads
 
 A request that builds one instance through `permdockFor` and another with its own `memberships`, `customRoles`, `versions` or `instances` reads the authorization version twice: the second instance never finds the `instanceCache` entry or the version cache that `permdockFor` shares. PD130 reads the project's sources and warns at each such `getPermDock` or `createPermDock` call when the project also calls `permdockFor`. Spread `permdockFor.sources()` into the options or resolve the instance through `permdockFor`. In development, `postgrestSources` also warns when one user's version is read twice within a second and names both reads with their intent and whether each was live; `onSourceCall` reports `intent`, `live` and `reason` (`live`, `stale` or `truncated`) in production.
+
+### PD126: a second parser copy
+
+`permdock` depends on `oxc-parser` and `pgsql-parser` at exact versions, because codemod edits and doctor findings depend on the parser version. PD126 reads the app's `package.json` and, for each of the two it lists, the version the app resolves; when that differs from the version `permdock` resolves, the project holds two copies. Remove the package from `package.json`; `permdock` installs its own. `--only project` runs PD126.
 
 ### PD131: many policies for one command
 

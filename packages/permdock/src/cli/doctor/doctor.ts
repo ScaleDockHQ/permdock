@@ -41,6 +41,7 @@ import { pd092 } from "./lockfile.ts";
 import { pd121InProject } from "./membership-facts.ts";
 import { pd044, pd065 } from "./next.ts";
 import { pd091, pd091Applies } from "./openapi.ts";
+import { pd126 } from "./parser-pins.ts";
 import { pd080, pd081 } from "./per-request.ts";
 import { pd115 } from "./perf-drift.ts";
 import { pd111 } from "./perf-limit.ts";
@@ -438,6 +439,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   { code: "PD091", groups: ["openapi"], when: pd091Applies, run: pd091 },
   { code: "PD092", groups: ["project"], run: pd092 },
+  {
+    code: "PD126",
+    groups: ["project"],
+    run: (project) => pd126(project.cwd, project.files),
+  },
   { code: "PD094", groups: ["better-supabase"], run: pd094 },
   {
     code: "PD095",
