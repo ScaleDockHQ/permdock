@@ -60,7 +60,7 @@ function started(): Postgres {
 async function as<T extends Record<string, unknown>>(
   user: string,
   sql: string,
-  values: readonly unknown[] = [],
+  values: unknown[] = [],
 ): Promise<readonly T[]> {
   const target = started();
   return target.as(
