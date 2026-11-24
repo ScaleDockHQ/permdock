@@ -417,6 +417,8 @@ export function providerFunctions(
   const portal = portalFunctionsOf({
     manifest,
     tenantScope,
+    subjects: options.portalSubjects === true,
+    parties: options.portalParties !== false,
     requires,
     problems,
   });
