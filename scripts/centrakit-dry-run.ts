@@ -16,19 +16,23 @@ import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
+import { runStack } from "./centrakit-stack.ts";
+
 /**
  * The 0.31 acceptance dry run: `node scripts/centrakit-dry-run.ts [--shadow
- * <url|stack>] [--centrakit <dir>] [--keep]`. It copies `../CentraKit` to a
- * temp directory, never writing to the original, and links the copy's
- * `permdock` and `better-supabase` to this checkout's build and installed copy.
- * It runs `codemod 0.31`, `codemod config --prune`, `codemod bsb-access-tags`
- * and `codemod bsb-action-keys` on the copy and writes
+ * <url|stack>] [--stack] [--centrakit <dir>] [--keep]`. It copies
+ * `../CentraKit` to a temp directory, never writing to the original, and links
+ * the copy's `permdock` and `better-supabase` to this checkout's build and
+ * installed copy. It runs `codemod 0.31`, `codemod config --prune`, `codemod
+ * bsb-access-tags` and `codemod bsb-action-keys` on the copy and writes
  * `scripts/centrakit-dry-run.json`: config lines per section, the generated SQL
  * diff, `rls report` totals, `rls.tableReads` counts per rule with the table
  * list and the reason of each `form` table, PD128 and better-supabase BS409,
- * BS428 and BS429, each before and after. Build `permdock` first. Without
- * CentraKit it reads `tests/integration/fixtures/centrakit` and says so in
- * `source`.
+ * BS428 and BS429, each before and after. `--stack` starts the copy's Supabase
+ * stack, loads its schema files and adds `rls verify --shadow` and the doctors
+ * BS409, BS428, BS429 and BS430 against it (`scripts/centrakit-stack.ts`).
+ * Build `permdock` first. Without CentraKit it reads
+ * `tests/integration/fixtures/centrakit` and says so in `source`.
  */
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGE = join(ROOT, "packages", "permdock");
@@ -68,6 +72,7 @@ const { values } = parseArgs({
   options: {
     centrakit: { type: "string" },
     shadow: { type: "string" },
+    stack: { type: "boolean", default: false },
     keep: { type: "boolean", default: false },
   },
 });
@@ -330,7 +335,49 @@ function fixtureOnly(source: string): void {
   process.exitCode = 1;
 }
 
-function dryRun(source: string, root: string): void {
+/** `tables: true` and `sharedFunctions: true`, the 0.31 provider options. */
+function enableProviderOptions(root: string): void {
+  const file = join(root, "better-supabase.config.ts");
+  const text = readFileSync(file, "utf8");
+  if (text.includes("sharedFunctions: true")) return;
+  writeFileSync(
+    file,
+    text.replace(
+      "authorizationProvider({",
+      "authorizationProvider({\n      tables: true,\n      sharedFunctions: true,",
+    ),
+  );
+}
+
+/** `shadow` and `stack` of the result: the database half, when asked for. */
+async function databaseReport(
+  root: string,
+  identity: string,
+): Promise<{ readonly shadow: unknown; readonly stack: unknown }> {
+  if (values.stack) {
+    return {
+      shadow: "see stack.shadow",
+      stack: await runStack({
+        root,
+        identity,
+        permdockBin: BIN,
+        betterSupabaseBin: join(BSB, "bin", "better-supabase.js"),
+      }),
+    };
+  }
+  return {
+    shadow:
+      values.shadow === undefined
+        ? "not run: pass --shadow <url|stack> with a Supabase stack running"
+        : permdock(
+            ["rls", "verify", "--shadow", values.shadow, "--json"],
+            identity,
+          ).code,
+    stack: "not run: pass --stack with Docker running",
+  };
+}
+
+async function dryRun(source: string, root: string): Promise<void> {
   copy(source, root);
   const identity = join(root, IDENTITY);
   const committed = readSql(join(root, GENERATED_SQL));
@@ -341,16 +388,11 @@ function dryRun(source: string, root: string): void {
 
   for (const codemod of CODEMODS) permdock([...codemod, "--force"], identity);
   permdock(["generate"], identity);
+  enableProviderOptions(root);
   const after = measure(root, identity);
   const codemodded = readSql(join(root, GENERATED_SQL));
 
-  const shadow =
-    values.shadow === undefined
-      ? "not run: pass --shadow <url|stack> with a Supabase stack running"
-      : permdock(
-          ["rls", "verify", "--shadow", values.shadow, "--json"],
-          identity,
-        ).code;
+  const database = await databaseReport(root, identity);
 
   const result = {
     source: "centrakit",
@@ -360,7 +402,7 @@ function dryRun(source: string, root: string): void {
       committedToBranch: diff(committed, generated),
       codemods: diff(generated, codemodded),
     },
-    shadow,
+    ...database,
     steps,
   };
   writeFileSync(OUT, `${JSON.stringify(result, null, 2)}\n`);
@@ -377,7 +419,7 @@ const source = values.centrakit ?? join(ROOT, "..", "CentraKit");
 if (existsSync(join(source, IDENTITY, "permdock.config.ts"))) {
   const work = mkdtempSync(join(tmpdir(), "centrakit-dry-run-"));
   try {
-    dryRun(source, join(work, "centrakit"));
+    await dryRun(source, join(work, "centrakit"));
   } finally {
     if (!values.keep) rmSync(work, { recursive: true, force: true });
   }

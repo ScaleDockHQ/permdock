@@ -97,17 +97,17 @@
     },
     "tableReads": {
       "tenant": 28,
-      "row": 256,
+      "row": 228,
       "byRule": {
-        "form": 75,
+        "form": 65,
         "follows": 0,
         "via": 0,
         "walk": 0,
-        "owner": 58,
-        "condition": 103,
+        "owner": 54,
+        "condition": 90,
         "restrictive": 6,
         "fields": 0,
-        "unknown": 17
+        "unknown": 16
       },
       "tenantTables": [
         "public.asset_identifiers",
@@ -165,10 +165,6 @@
         },
         {
           "table": "public.agenda_calendar_connections",
-          "rules": ["owner"]
-        },
-        {
-          "table": "public.agenda_calendar_feeds",
           "rules": ["owner"]
         },
         {
@@ -295,14 +291,6 @@
           "rules": ["condition"]
         },
         {
-          "table": "public.approval_delegations",
-          "rules": ["condition"]
-        },
-        {
-          "table": "public.approval_events",
-          "rules": ["condition"]
-        },
-        {
           "table": "public.approval_policies",
           "rules": ["form"],
           "reason": "key organization.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
@@ -312,21 +300,9 @@
           "rules": ["owner"]
         },
         {
-          "table": "public.asset_custom_attributes",
-          "rules": ["condition"]
-        },
-        {
           "table": "public.asset_images",
           "rules": ["form"],
           "reason": "policy asset_images_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
-        },
-        {
-          "table": "public.asset_kind_inspection_types",
-          "rules": ["condition"]
-        },
-        {
-          "table": "public.asset_kinds",
-          "rules": ["condition"]
         },
         {
           "table": "public.attendance_records",
@@ -424,10 +400,6 @@
           "rules": ["condition"]
         },
         {
-          "table": "public.chat_thread_share_links",
-          "rules": ["owner"]
-        },
-        {
           "table": "public.chat_threads",
           "rules": ["owner"]
         },
@@ -441,10 +413,6 @@
         },
         {
           "table": "public.currencies",
-          "rules": ["condition"]
-        },
-        {
-          "table": "public.customer_asset_files",
           "rules": ["condition"]
         },
         {
@@ -570,10 +538,6 @@
           "rules": ["owner"]
         },
         {
-          "table": "public.file_comments",
-          "rules": ["condition"]
-        },
-        {
           "table": "public.file_copy_operation_items",
           "rules": ["owner"]
         },
@@ -607,10 +571,6 @@
         },
         {
           "table": "public.file_nodes",
-          "rules": ["condition"]
-        },
-        {
-          "table": "public.file_share_links",
           "rules": ["condition"]
         },
         {
@@ -776,24 +736,8 @@
           "rules": ["owner"]
         },
         {
-          "table": "public.inventory_allocations",
-          "rules": ["condition"]
-        },
-        {
           "table": "public.inventory_level_signals",
           "rules": ["unknown"]
-        },
-        {
-          "table": "public.inventory_locations",
-          "rules": ["condition"]
-        },
-        {
-          "table": "public.inventory_movements",
-          "rules": ["condition"]
-        },
-        {
-          "table": "public.inventory_stock_records",
-          "rules": ["condition"]
         },
         {
           "table": "public.invoices",
@@ -901,10 +845,6 @@
           "rules": ["owner"]
         },
         {
-          "table": "public.organization_vat_rates",
-          "rules": ["owner"]
-        },
-        {
           "table": "public.organizations",
           "rules": ["owner"]
         },
@@ -917,10 +857,6 @@
           "table": "public.payroll_periods",
           "rules": ["form"],
           "reason": "policy payroll_periods_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
-        },
-        {
-          "table": "public.permission_area_moves",
-          "rules": ["unknown"]
         },
         {
           "table": "public.platform_fee_invoice_lines",
@@ -1048,19 +984,9 @@
           "rules": ["condition"]
         },
         {
-          "table": "public.suppliers",
-          "rules": ["form"],
-          "reason": "key supplier.read: the policy declares no grant of it"
-        },
-        {
           "table": "public.task_assignees",
           "rules": ["form"],
           "reason": "policy task_assignees_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
-        },
-        {
-          "table": "public.task_files",
-          "rules": ["form"],
-          "reason": "key task.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
         },
         {
           "table": "public.task_materials",
@@ -1071,10 +997,6 @@
           "table": "public.task_required_skills",
           "rules": ["form"],
           "reason": "policy task_required_skills_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
-        },
-        {
-          "table": "public.task_specification_lines",
-          "rules": ["condition"]
         },
         {
           "table": "public.task_tags",
@@ -1102,46 +1024,6 @@
           "reason": "policy template_automations_select is still defined in ../../supabase/migrations/20261113131226_templates_block.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
         },
         {
-          "table": "public.template_invoice_lines",
-          "rules": ["form"],
-          "reason": "key template.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
-        },
-        {
-          "table": "public.template_onboarding_items",
-          "rules": ["form"],
-          "reason": "key onboarding.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
-        },
-        {
-          "table": "public.template_quote_lines",
-          "rules": ["form"],
-          "reason": "key template.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
-        },
-        {
-          "table": "public.template_task_assignees",
-          "rules": ["form"],
-          "reason": "key template.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
-        },
-        {
-          "table": "public.template_task_settings",
-          "rules": ["form"],
-          "reason": "key template.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
-        },
-        {
-          "table": "public.template_task_subtasks",
-          "rules": ["form"],
-          "reason": "key template.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
-        },
-        {
-          "table": "public.template_task_tags",
-          "rules": ["form"],
-          "reason": "key template.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
-        },
-        {
-          "table": "public.template_workflows",
-          "rules": ["form"],
-          "reason": "key template.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
-        },
-        {
           "table": "public.templates",
           "rules": ["form"],
           "reason": "key onboarding.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it; key template.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
@@ -1157,10 +1039,6 @@
         {
           "table": "public.time_off_blackout_periods",
           "rules": ["condition"]
-        },
-        {
-          "table": "public.time_off_feeds",
-          "rules": ["owner"]
         },
         {
           "table": "public.time_off_ledger",
@@ -1254,12 +1132,157 @@
     "committedToBranch": {},
     "codemods": {
       "helpers.sql": {
-        "added": 4665,
-        "removed": 1185
+        "added": 4154,
+        "removed": 1335
+      },
+      "hook.sql": {
+        "added": 16,
+        "removed": 56
       }
     }
   },
-  "shadow": "not run: pass --shadow <url|stack> with a Supabase stack running",
+  "shadow": "see stack.shadow",
+  "stack": {
+    "shadow": {
+      "code": 0,
+      "report": {
+        "findings": [],
+        "ignored": [],
+        "stale": []
+      }
+    },
+    "doctor": {
+      "counts": {
+        "BS409": 3,
+        "BS428": 97,
+        "BS429": 0,
+        "BS430": 0
+      },
+      "tenantTables": {
+        "total": 28,
+        "failingBS428": [
+          {
+            "table": "public.asset_identifiers",
+            "message": "the authorization provider (PermDock) declares public.asset_identifiers with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_inspection_types",
+            "message": "the authorization provider (PermDock) declares public.asset_inspection_types with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_inspections",
+            "message": "the authorization provider (PermDock) declares public.asset_inspections with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_meter_readings",
+            "message": "the authorization provider (PermDock) declares public.asset_meter_readings with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_service_plans",
+            "message": "the authorization provider (PermDock) declares public.asset_service_plans with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_tags",
+            "message": "the authorization provider (PermDock) declares public.asset_tags with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_trade_cards",
+            "message": "the authorization provider (PermDock) declares public.asset_trade_cards with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.customer_assets",
+            "message": "the authorization provider (PermDock) declares public.customer_assets with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.inventory_reorder_rules",
+            "message": "the authorization provider (PermDock) declares public.inventory_reorder_rules with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_charges",
+            "message": "the authorization provider (PermDock) declares public.invoice_charges with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_lines",
+            "message": "the authorization provider (PermDock) declares public.invoice_lines with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_payments",
+            "message": "the authorization provider (PermDock) declares public.invoice_payments with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_reminder_sends",
+            "message": "the authorization provider (PermDock) declares public.invoice_reminder_sends with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_status_history",
+            "message": "the authorization provider (PermDock) declares public.invoice_status_history with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_tasks",
+            "message": "the authorization provider (PermDock) declares public.invoice_tasks with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_digital_grants",
+            "message": "the authorization provider (PermDock) declares public.order_digital_grants with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_lines",
+            "message": "the authorization provider (PermDock) declares public.order_lines with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_status_history",
+            "message": "the authorization provider (PermDock) declares public.order_status_history with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_tasks",
+            "message": "the authorization provider (PermDock) declares public.order_tasks with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_accepted_optional_lines",
+            "message": "the authorization provider (PermDock) declares public.quote_accepted_optional_lines with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_assets",
+            "message": "the authorization provider (PermDock) declares public.quote_assets with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_change_requests",
+            "message": "the authorization provider (PermDock) declares public.quote_change_requests with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_lines",
+            "message": "the authorization provider (PermDock) declares public.quote_lines with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_status_history",
+            "message": "the authorization provider (PermDock) declares public.quote_status_history with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_tasks",
+            "message": "the authorization provider (PermDock) declares public.quote_tasks with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_version_lines",
+            "message": "the authorization provider (PermDock) declares public.quote_version_lines with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_versions",
+            "message": "the authorization provider (PermDock) declares public.quote_versions with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.warranty_claims",
+            "message": "the authorization provider (PermDock) declares public.warranty_claims with permissions [task.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          }
+        ]
+      },
+      "otherBS428": 69
+    },
+    "tenantTablesWithTheCastRemoved": {
+      "total": 28,
+      "passing": 28,
+      "failing": []
+    }
+  },
   "steps": [
     {
       "command": "permdock rls report --json --yes --agent no",

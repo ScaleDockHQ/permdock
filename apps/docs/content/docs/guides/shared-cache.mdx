@@ -96,6 +96,22 @@ These helpers are left out, and the guide says why:
 
 A function can call a listed helper only if better-supabase's BS430 accepts the call and adds the key to the share key. It does not today: BS430 refuses every call into the helpers' schema. The request is in [better-supabase requests](https://github.com/ScaleDockHQ/permdock/blob/main/docs/agents/better-supabase-requests.md).
 
+## CentraKit dry run
+
+`node scripts/centrakit-dry-run.ts --stack` copies CentraKit, runs the 0.31 codemods and `generate`, sets `tables: true` and `sharedFunctions: true`, starts the copy's local Supabase stack, loads its schema files with `supabase db schema declarative sync` and runs `permdock rls verify --shadow` and better-supabase's doctor against it. The report is `scripts/centrakit-dry-run.json`. It ran on 24 November 2026 with better-supabase 0.85.0 and Supabase CLI 3.3.0.
+
+| Check                                                            | Result                                                                                             |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Tables in `rls.tableReads`                                       | 256: 28 `tenant`, 228 `row` (65 `form`, 54 `owner`, 90 `condition`, 6 `restrictive`, 16 `unknown`) |
+| `rls verify --shadow`                                            | no findings: the schema files and the database agree on policies, functions and grants             |
+| BS430 on the 4 functions of `rls.sharedFunctions`                | 0 findings                                                                                         |
+| BS429                                                            | 0 findings                                                                                         |
+| BS409                                                            | 3 warnings about `blocks.permissions.activeTenant` and `disabled`, which are CentraKit config      |
+| BS428 on the 28 `tenant` tables                                  | 28 findings, `its select policies check []`                                                        |
+| The same 28 tables with `::text` removed from `pg_policies.qual` | 28 of 28 check exactly their `permissions`                                                         |
+
+The 28 findings are not a table fault. better-supabase 0.85.0 matches the provider's `permitted_{scope}_ids_by_permission({permission})` template against `pg_policies.qual`, which Postgres stores as `permitted_organization_ids_by_permission('asset.read'::text)`; the pattern expects `)` after the literal and finds `::text`. The release therefore does not state that the 28 tables pass BS428: they pass once better-supabase reads the cast ([request](https://github.com/ScaleDockHQ/permdock/blob/main/docs/agents/better-supabase-requests.md)). The dry run found two PermDock faults and fixed them: `rls.tableReads` kept a table a later migration drops or renames (27 stale entries, which BS428 reported as `the database has no such table`), and `permdock rls verify --shadow` looked for `supabase/schemas` in the package directory, so it found no file in a monorepo whose `supabase/` sits at the root.
+
 ## Writes that RLS checks again
 
 better-supabase sets `context.enforcement` to `rls` on a write that Postgres checks on current data. `authorizer` maps such a write to the `database-write` intent: `claimsFirst` takes the authorization version from the shared cache, as for a read. A role change inside the cache window can therefore let PermDock admit a write that RLS then refuses, and it cannot admit a write RLS would also accept on stale data. A write with `enforcement: "definer"`, or without it, reads the version live.

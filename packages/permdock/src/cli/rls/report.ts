@@ -91,7 +91,7 @@ export type TableReadsReport = {
 };
 
 /** The counts of `reads` per share and per rule. */
-export function summariseTableReads(
+function summariseTableReads(
   reads: readonly SupabaseManifestTableRead[],
 ): TableReadsReport {
   // SAFETY: one entry per name in TABLE_READ_RULES.

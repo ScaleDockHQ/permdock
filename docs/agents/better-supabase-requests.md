@@ -2,6 +2,18 @@
 
 Requests for the better-supabase repository that a PermDock change waits on. Each entry is written to be pasted as an agent prompt in that repository.
 
+## BS428 and BS429 read the policies the database stores
+
+Needs: nothing from PermDock. Found by `node scripts/centrakit-dry-run.ts --stack` on the CentraKit copy with better-supabase 0.85.0: BS428 reports `its select policies check []` for all 28 `tenant` tables, though `pg_policies.qual` holds `permdock.permitted_organization_ids_by_permission('asset.read'::text)`.
+
+```text
+Doctor BS428 (table-shares.ts) and anything else that calls providerCalls() match the provider's `idsWith` template against `pg_policies.qual`. Postgres stores a text literal passed to a text parameter as `'asset.read'::text`, so `templatePattern` for `permdock.permitted_{scope}_ids_by_permission({permission})` never matches a live policy: after `'asset.read'` the pattern expects `)`, and finds `::text`.
+
+Fix providerCalls so `{permission}` accepts an optional `::text` (also `::pg_catalog.text` and `::character varying`) after the closing quote, and a doubled-paren form `(('asset.read'::text))`. Add a test that introspects a policy created as `using (organization_id in (select permdock.permitted_organization_ids_by_permission('asset.read')))` through pg_policies and expects checked = [asset.read].
+
+Doctor BS428 then reports no `tenant` table of CentraKit: with the cast removed, all 28 match their `permissions`.
+```
+
 ## BS430 accepts a call to a tenant-pure helper
 
 Needs: `permdock` 0.31 `rls.tenantPureHelpers`.
