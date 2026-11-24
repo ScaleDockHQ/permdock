@@ -26,6 +26,7 @@ import {
 import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import { requirePolicy } from "../project/load.ts";
+import { tryKeyReasons } from "../rls/key-reasons.ts";
 import { hookUri } from "../rls/rbac.ts";
 import { withTableReads } from "../rls/table-reads.ts";
 import { declarativeSql } from "../sql/declarative.ts";
@@ -286,6 +287,7 @@ export async function runSupabase(input: {
   if (area === "inspect" && action === undefined) {
     const policy = await loadHookPolicy(input.cwd, input.config);
     const config = await withSchemaDefaults(input.cwd, input.config, policy);
+    const reasons = tryKeyReasons(input.config, policy, input.cwd);
     if (hooklessDatabase(input.config)) {
       const bare = await withTableReads(
         input.cwd,
@@ -296,6 +298,7 @@ export async function runSupabase(input: {
           overrides,
           policy,
         ),
+        reasons,
       );
       if (input.out !== undefined || input.check) {
         return manifestFile(
@@ -326,6 +329,7 @@ export async function runSupabase(input: {
         },
         policy,
       ),
+      reasons,
     );
     const api = managementApi(input.cwd, manifest);
     if (input.out !== undefined || input.check) {

@@ -42,7 +42,75 @@ Every other table is `row`, with the rules it breaks:
 
 Tables in the helpers' schema, `better_supabase` and the platform schemas are left out. The manifest is read from the files on disk, so run `permdock supabase inspect --out` after `permdock generate` changes a select policy. [Doctor PD128](/docs/cli/doctor#pd128-a-tenant-table-that-reads-by-row) fails when the committed manifest marks a table `tenant` that the files now make `row`.
 
+## Make a `form` table tenant
+
+A `form` table has a select policy on `permitted_<root>_ids('<key>')`. `permdock codemod bsb-access-tags` moves it to a tag, and the table becomes `tenant`, when every grant of the key is an allow of that key with no condition and no deny. When it leaves the policy, `permdock codemod bsb-access-tags --check`, `permdock rls report` and `permdock rls explain` name the first grant that decides it, and `rls.tableReads[].reason` in the manifest holds the same sentence.
+
+| Reason                                                      | What the app changes to make the table `tenant`                                                                                                                                       | When it must not                                                                                                  |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `role R on S denies it`                                     | Remove the deny and leave the permission out of the role that should not read; or give the deny's roles a permission of their own and check that in the policy.                       | The deny hides rows from some holders only. Another holder's cached rows would reach them.                        |
+| `grants it under a condition (grant key k#n)`               | Drop the condition when it restates the tenant scope. Otherwise split the permission: `k` unconditional for the tenant list, `k.own` with the condition for rows.                     | The condition reads the row or the caller (`ownerId`, a level such as `k@own`, a status). Rows differ per holder. |
+| `grants it through another key (grant key g)`               | Check the key the role holds in the policy, `g`, or grant `k` itself.                                                                                                                 | Two roles hold different keys that the policy treats as one. The policy answers per role.                         |
+| `under a row condition or a validity window`                | Remove the window or the `requires`; a window changes the answer with the clock, so keep it off a shared table.                                                                       | The grant expires per member.                                                                                     |
+| `every grant of it is unconditional` and still kept         | Read the codemod's `kept` line: another policy for the command, a tenant column that differs from the table's other policies, or a role other than `authenticated`.                   | The second policy filters by row.                                                                                 |
+| `policy P is still defined in F next to an @bsb access tag` | Write the migration that drops `P` (`supabase db diff`). The tag renders the replacement policy; until a migration drops `P`, the database holds both, and the table reads as `form`. | Never: the table is already `tenant` in the schema files.                                                         |
+
+After the change run `permdock generate`, `permdock codemod bsb-access-tags`, `permdock supabase inspect --out` and both doctors. Doctor BS428 then checks that the tag and the policy agree. A table that reads one row per member (`owner`) or per condition stays `row`, however many members hold the key: sharing it would serve one member's rows to another.
+
 A table shares per tenant only when its select policy filters by permission and not by row. Prove it per entry with `expectTenantShare` from `better-supabase/testing`: two callers with the same grant get the same key and read the same rows, and a member without the grant gets no key.
+
+## Shared functions
+
+`authorizationProvider({ manifest, catalog, tables: true, sharedFunctions: true })` fills better-supabase's `sharedFunctions`: the functions a `share: "tenant"` fill may call. `permdock supabase inspect` writes `rls.sharedFunctions` into the manifest, one entry `{ function, tables, permissions }` for each function the schema files, migrations and `rls.out` define that passes better-supabase's BS430:
+
+- `language sql`, `security invoker`, `stable` or `immutable` (a function that states no volatility is `volatile` and is left out);
+- no `auth.*`, `current_user`, `session_user`, `current_setting` or helper of the helpers' schema;
+- every function it calls is itself listed, or a built-in;
+- every relation it reads is a `tenant` table in `rls.tableReads`, resolved through `[<function schema>, public]` like better-supabase does.
+
+`permissions` is the union of the keys those tables check. A function that reads one `row` table is not listed. An overloaded name is listed when every overload qualifies. `sharedFunctions: true` needs `tables: true` and a manifest from `inspect` 0.31 or later; the provider names either gap in `problems`.
+
+[Doctor PD137](/docs/cli/doctor#pd137-a-shared-function-that-reads-a-row-table) fails when the committed manifest lists a function that the files now make read a `row` table or the caller. better-supabase's BS430 checks the same properties on the database.
+
+## Helpers that answer the same for equal grants
+
+Two callers with an equal `grantFingerprint` for a key hold the same grants of that key in the tenant. A helper gives them the same answer only when its result depends on nothing else. `permdock supabase inspect` writes the helpers that do into `rls.tenantPureHelpers`, with the argument that holds the key and the argument that holds the tenant:
+
+| Helper                                                               | Key argument | Tenant argument | Why it is the same for equal grants                        |
+| -------------------------------------------------------------------- | ------------ | --------------- | ---------------------------------------------------------- |
+| `permdock_<root>_has(p_grant, p_tenant)`                             | `p_grant`    | `p_tenant`      | It tests one grant key in one tenant.                      |
+| `permitted_<root>_permission_keys(p_id, p_keys)` (`p_keys` overload) | `p_keys`     | `p_id`          | It lists which of `p_keys` the caller holds on one tenant. |
+
+The answer is the same only when the tenant argument is the entry's tenant and the key argument is one of the entry's `permissions`. A call with another tenant reads grants the fingerprint does not cover.
+
+These helpers are left out, and the guide says why:
+
+| Helper                                                                                    | Why callers with an equal fingerprint differ                                                                            |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `permitted_<root>_ids_by_permission`, `permitted_<root>_ids`, `permitted_<root>_id_array` | They list every tenant the caller holds the key in. A caller who is also a member of another tenant gets a longer list. |
+| `permdock_has`, `permdock_has_permission`                                                 | They answer for the global scope, not for the tenant.                                                                   |
+| `permitted_<resource>_rows`, `permitted_<resource>_ids`                                   | They decide per row, through restrictions, instance grants and row conditions the fingerprint does not cover.           |
+| `permdock_subject`, `permdock_bootstrap_permissions`, `permdock_user_id`                  | They read the caller.                                                                                                   |
+
+`tests/integration/src/tenant-pure-helpers.test.ts` checks both lists on PGlite: callers with an equal fingerprint get one answer from each listed helper, and `permitted_<root>_ids_by_permission` returns `acme` for one and `acme, beta, delta` for another. `permdock_<root>_has` takes the grant key, which equals the permission key for an unconditional allow.
+
+A function can call a listed helper only if better-supabase's BS430 accepts the call and adds the key to the share key. It does not today: BS430 refuses every call into the helpers' schema. The request is in [better-supabase requests](https://github.com/ScaleDockHQ/permdock/blob/main/docs/agents/better-supabase-requests.md).
+
+## CentraKit dry run
+
+`node scripts/centrakit-dry-run.ts --stack` copies CentraKit, runs the 0.31 codemods and `generate`, sets `tables: true` and `sharedFunctions: true`, starts the copy's local Supabase stack, loads its schema files with `supabase db schema declarative sync` and runs `permdock rls verify --shadow` and better-supabase's doctor against it. The report is `scripts/centrakit-dry-run.json`. It ran on 24 November 2026 with better-supabase 0.85.0 and Supabase CLI 3.3.0.
+
+| Check                                                            | Result                                                                                             |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Tables in `rls.tableReads`                                       | 256: 28 `tenant`, 228 `row` (65 `form`, 54 `owner`, 90 `condition`, 6 `restrictive`, 16 `unknown`) |
+| `rls verify --shadow`                                            | no findings: the schema files and the database agree on policies, functions and grants             |
+| BS430 on the 4 functions of `rls.sharedFunctions`                | 0 findings                                                                                         |
+| BS429                                                            | 0 findings                                                                                         |
+| BS409                                                            | 3 warnings about `blocks.permissions.activeTenant` and `disabled`, which are CentraKit config      |
+| BS428 on the 28 `tenant` tables                                  | 28 findings, `its select policies check []`                                                        |
+| The same 28 tables with `::text` removed from `pg_policies.qual` | 28 of 28 check exactly their `permissions`                                                         |
+
+The 28 findings are not a table fault. better-supabase 0.85.0 matches the provider's `permitted_{scope}_ids_by_permission({permission})` template against `pg_policies.qual`, which Postgres stores as `permitted_organization_ids_by_permission('asset.read'::text)`; the pattern expects `)` after the literal and finds `::text`. The release therefore does not state that the 28 tables pass BS428: they pass once better-supabase reads the cast ([request](https://github.com/ScaleDockHQ/permdock/blob/main/docs/agents/better-supabase-requests.md)). The dry run found two PermDock faults and fixed them: `rls.tableReads` kept a table a later migration drops or renames (27 stale entries, which BS428 reported as `the database has no such table`), and `permdock rls verify --shadow` looked for `supabase/schemas` in the package directory, so it found no file in a monorepo whose `supabase/` sits at the root.
 
 ## Writes that RLS checks again
 
@@ -63,7 +131,17 @@ authorizer({ policy, memberships, versions });
 
 `testVersionStore` from `permdock/testing` checks a store against that shape.
 
-## Timings
+## Warm the first request
+
+`authorizationHooks(...).warm()`, `authorizer(...).warm()` and `warm(policy)` from `permdock/next` build one anonymous instance and run one `can`. They never reject: a failure answers `{ ok: false, ms }`. Call one in `instrumentation.ts` after the policy import, so the first request does not pay for the instance.
+
+```ts title="instrumentation.ts"
+export async function register() {
+  const { warm } = await import("permdock/next");
+  const { policy } = await import("./src/policy");
+  await warm(policy);
+}
+```
 
 `node scripts/authz-latency.ts` measures these against the local Supabase stack of `apps/examples/next-better-supabase` and writes `scripts/authz-latency.json`. The numbers below are from 24 November 2026 on an Apple M5 Max (18 cores, 64 GB), Darwin 25.6.0 arm64, Node.js 26.13.1, Postgres 17.11 and `permdock` 0.30.0. The database holds the example's seed data: 4 users and 2 organisations.
 
@@ -89,16 +167,37 @@ Each cell is the mean, with the p95 in brackets. Version reads and helpers ran 2
 
 The cold instance is above the 3 ms threshold of a compiled policy index: on the fixture's 273 keys and 1,790 grants, `definePolicy` takes 14.9 ms, the first `getPermDock` 1.0 ms and the first `can` 1.4 ms. Importing the policy in `register()` moves `definePolicy` out of the first request, which then pays 2.4 ms.
 
-At 17.30 ms the fixture is over the 3 ms at which a compiled `policy-index` kind would ship, and the example, at 6.44 ms, is too. PermDock 0.32 does not ship it: the profile puts most of `definePolicy` in the SHA-256 digest of the canonical policy string, and a check of the grant count and key order cannot tell a stale digest from a current one. Import the policy in `register()` instead.
+At 17.30 ms the fixture is over the 3 ms at which a compiled `policy-index` kind would ship, and the example, at 6.44 ms, is too. PermDock 0.31 does not ship it: the profile puts most of `definePolicy` in the SHA-256 digest of the canonical policy string, and a check of the grant count and key order cannot tell a stale digest from a current one. Import the policy in `register()` instead.
 
 `grantFingerprint` made no source call on a built instance, and the hook read no membership. Without a version cache, `permdockFor` read `version` once per hook call; with `versions: memoryVersionCache()` it read it once in 10,201 calls.
 
 Variant B stores `permdock_token_current()` once per transaction and cuts the helpers' mean by 4.5% (0.403 to 0.385 ms) and 3.3% (0.430 to 0.416 ms), under the fifth a variant needs to ship, so the generated helpers stay as they are. Buffers are shared hits per statement.
 
+## CentraKit fixture timings
+
+`node scripts/centrakit-latency.ts` measures the 0.31 request costs on `tests/integration/fixtures/centrakit` and writes `scripts/centrakit-latency.json`. It starts no database. A version read waits for 1.331 ms, the PostgREST round trip of `versionRead.postgrestRpcFloor` in `scripts/authz-latency.json`, so the call counts are exact and the milliseconds are that wait times the calls plus the work in process. Same machine and versions as above; cold instances ran 30 times in a fresh process each, the Server Action 200 times after the first, and `shareKey` 10,000 times.
+
+| Measurement                                                        | Before                          | After                             | Source                                       |
+| ------------------------------------------------------------------ | ------------------------------- | --------------------------------- | -------------------------------------------- |
+| Server Action (`quotes.read`, `quotes.update` twice): first run    | 3 version reads, 8.73 ms        | 1 version read, 1.66 ms           | `serverAction.before/after.firstActionMs`    |
+| Server Action: every later run within the window                   | 2 version reads, 2.76 ms (2.84) | 0 version reads, 0.063 ms (0.089) | `serverAction.before/after.laterActions`     |
+| Shared `bsb.kept` entry, two members with equal grants             | 2 fills                         | 1 fill                            | `sharedEntry.fillsForTwoMembers*`            |
+| `shareKey` for one page of 3 keys                                  | -                               | 0.024 ms (0.033)                  | `sharedEntry.shareKeyOnePage`                |
+| First request of a process, `runtimeCacheVersionStore` filled      | 1 version read, 1.43 ms         | 0 version reads, 0.012 ms         | `runtimeCacheVersionStore`                   |
+| Cold instance, CentraKit fixture: policy module (with `zod`)       | -                               | 35.73 ms (37.11)                  | `coldInstance.policyModule`                  |
+| Cold instance, CentraKit fixture: first `getPermDock`              | -                               | 0.88 ms (1.03)                    | `coldInstance.getPermDock`                   |
+| Cold instance, CentraKit fixture: first `can`                      | -                               | 1.11 ms (1.36)                    | `coldInstance.firstCan`                      |
+| First request after the policy import: `getPermDock` and one `can` | 1.95 ms (2.06)                  | 1.17 ms (1.31), `warm()` 1.24 ms  | `firstRequest.withoutWarm/withWarm/warmCost` |
+
+The Server Action asks `database-write` for its update instead of `write`: RLS checks the row again on current data, so the cached version cannot grant the row change itself, and a role change shows within the 5 second window for reads and at once for a write that RLS does not check again (`definer` or no enforcement stays `write`).
+
+The two members share a `bsb.kept` entry only through the key. The fingerprint covers grants, not the tenant id: admins of two organisations get the same string, so a key for tenant data adds the tenant.
+
+The 8 keys and 6 roles of the fixture are CentraKit's target model, not its 0.28 policy; the policy module's 35.73 ms is the `zod` import plus `definePolicy`. `warm()` moves `getPermDock` and the first `can` out of the first request and costs the same 1.24 ms at boot.
+
 Not measured:
 
-- `authz_version_for` over PostgREST: the example sets no `supabase.hook.api`, so no `public` wrapper exposes the function. The one-row read above is the round trip a wrapper would add.
-- Variant C: the example's helpers join no suspension table, so the claims branch has no join to drop.
-- The Server Action and the shared `bsb.kept` entry: both need the example's Next.js app running with a signed-in session, and it was not running.
+- `permdock_authz_version_for` over PostgREST and variant C of the helper with its `pg_stat_statements` rank: both need CentraKit's database with its suspension table and a `supabase.hook.api` wrapper. Neither is in this repository; the fixture has no schema. The one-row PostgREST read above is the round trip the wrapper adds.
+- A signed-in Server Action in CentraKit's Next.js app: the app is a separate repository, so the Server Action row models the version reads of its checks.
 
 An earlier run on the same machine, with other processes busy, gave round trips up to 3.5 times higher. Compare numbers from one run.

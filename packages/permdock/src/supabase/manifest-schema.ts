@@ -244,7 +244,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
         tokenScopes: { type: "boolean" },
         tableReads: {
           description:
-            "Whether every holder of a table's select permissions in a tenant reads the same rows, from the select policies the schema files, migrations and rls.out leave defined. Absent from a manifest written before 0.32.",
+            "Whether every holder of a table's select permissions in a tenant reads the same rows, from the select policies the schema files, migrations and rls.out leave defined. Absent from a manifest written before 0.31.",
           type: "array",
           items: {
             type: "object",
@@ -271,6 +271,37 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
                   ],
                 },
               },
+              reason: { type: "string" },
+            },
+          },
+        },
+        sharedFunctions: {
+          description:
+            "Functions better-supabase doctor BS430 accepts in a tenant fill: language sql, security invoker, stable or immutable, no caller identity, reading tenant tables only. Absent from a manifest written before 0.31.",
+          type: "array",
+          items: {
+            type: "object",
+            required: ["function", "tables", "permissions"],
+            additionalProperties: false,
+            properties: {
+              function: { type: "string" },
+              tables: { type: "array", items: { type: "string" } },
+              permissions: { type: "array", items: { type: "string" } },
+            },
+          },
+        },
+        tenantPureHelpers: {
+          description:
+            "Generated helpers whose answer for one tenant and key depends only on the caller's grants of that key in the tenant. Absent from a manifest written before 0.31.",
+          type: "array",
+          items: {
+            type: "object",
+            required: ["name", "keyArgument", "tenantArgument"],
+            additionalProperties: false,
+            properties: {
+              name: { type: "string" },
+              keyArgument: { type: "string" },
+              tenantArgument: { type: "string" },
             },
           },
         },

@@ -9,6 +9,8 @@ export type {
   SnapshotHeaders,
   SnapshotHeadersOptions,
 } from "../core/snapshot-cache.ts";
+export { warm } from "../core/warm.ts";
+export type { WarmReport } from "../core/warm.ts";
 export { createPermDock } from "./create.ts";
 export { tenantFromPath } from "./tenant-from-path.ts";
 export type {

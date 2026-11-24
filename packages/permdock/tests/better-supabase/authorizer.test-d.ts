@@ -8,13 +8,14 @@ import { describe, expectTypeOf, it } from "vitest";
 import type { authorizer } from "../../src/better-supabase/index.ts";
 import type { AnyVersionCache } from "../../src/better-supabase/version-cache.ts";
 import type { Permission } from "../../src/core/permission-types.ts";
+import type { Warmable } from "../../src/core/warm.ts";
 
 type PermDockAuthorizer = ReturnType<typeof authorizer>;
 
 describe("authorizer with better-supabase's servers", () => {
   it("is an Authorizer of PermDock permissions", () => {
     expectTypeOf<PermDockAuthorizer>().toEqualTypeOf<
-      Authorizer<Permission, AnyVersionCache>
+      Authorizer<Permission, AnyVersionCache> & Warmable
     >();
     expectTypeOf<PermDockAuthorizer>().toExtend<
       AnyAuthorizer<AnyVersionCache>

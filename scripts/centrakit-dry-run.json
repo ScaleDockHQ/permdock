@@ -91,13 +91,1033 @@
       "totals": {
         "policies": 3661,
         "library": 1043,
-        "provider": 2141,
-        "app": 477
+        "provider": 2144,
+        "app": 474
       }
     },
     "tableReads": {
       "tenant": 28,
-      "row": 256
+      "row": 228,
+      "byRule": {
+        "form": 65,
+        "follows": 0,
+        "via": 0,
+        "walk": 0,
+        "owner": 54,
+        "condition": 90,
+        "restrictive": 6,
+        "fields": 0,
+        "unknown": 16
+      },
+      "tenantTables": [
+        "public.asset_identifiers",
+        "public.asset_inspection_types",
+        "public.asset_inspections",
+        "public.asset_meter_readings",
+        "public.asset_service_plans",
+        "public.asset_tags",
+        "public.asset_trade_cards",
+        "public.customer_assets",
+        "public.inventory_reorder_rules",
+        "public.invoice_charges",
+        "public.invoice_lines",
+        "public.invoice_payments",
+        "public.invoice_reminder_sends",
+        "public.invoice_status_history",
+        "public.invoice_tasks",
+        "public.order_digital_grants",
+        "public.order_lines",
+        "public.order_status_history",
+        "public.order_tasks",
+        "public.quote_accepted_optional_lines",
+        "public.quote_assets",
+        "public.quote_change_requests",
+        "public.quote_lines",
+        "public.quote_status_history",
+        "public.quote_tasks",
+        "public.quote_version_lines",
+        "public.quote_versions",
+        "public.warranty_claims"
+      ],
+      "tables": [
+        {
+          "table": "private.organization_dashboard_counts",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.accounting_sync_connections",
+          "rules": ["form"],
+          "reason": "policy accounting_sync_connections_select is still defined in ../../supabase/migrations/20261113232142_accounting_sync_2.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.accounting_sync_mappings",
+          "rules": ["form"],
+          "reason": "policy accounting_sync_mappings_select is still defined in ../../supabase/migrations/20261113232142_accounting_sync_2.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.accounting_sync_records",
+          "rules": ["form"],
+          "reason": "policy accounting_sync_records_select is still defined in ../../supabase/migrations/20261113232142_accounting_sync_2.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.agenda_calendar_connection_secrets",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_calendar_connections",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_collection_grants",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.agenda_collection_notification_preferences",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_collection_notification_reminders",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_collection_preferences",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_collections",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.agenda_external_calendars",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_external_event_mappings",
+          "rules": ["form"],
+          "reason": "policy agenda_external_event_mappings_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.agenda_item_attendees",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_item_links",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_item_recurrence_dates",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_item_recurrence_rules",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_item_reminders",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_item_users",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_items",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_suggestion_decisions",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.agenda_task_projections",
+          "rules": ["form"],
+          "reason": "key agenda.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it; key task.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        },
+        {
+          "table": "public.agenda_time_off_projections",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.ai_agent_delegations",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.ai_agent_run_events",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.ai_agent_run_handoffs",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.ai_agent_run_steps",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.ai_agent_runs",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.ai_contextual_artifact_events",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.ai_contextual_artifacts",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.ai_function_settings",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.ai_memory_items",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.ai_model_settings",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.ai_model_use_defaults",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.ai_telemetry_events",
+          "rules": ["form"],
+          "reason": "key billing.manage: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it; key integration.manage: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        },
+        {
+          "table": "public.approval_decisions",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.approval_policies",
+          "rules": ["form"],
+          "reason": "key organization.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        },
+        {
+          "table": "public.approval_requests",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.asset_images",
+          "rules": ["form"],
+          "reason": "policy asset_images_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.attendance_records",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.audit_log_export_jobs",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.audit_log_restricted_details",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.audit_logs",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.billing_credit_rollover_periods",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.billing_plan_credit_packages",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.billing_plan_features",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.billing_plan_prices",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.billing_plan_usage_limits",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.billing_plans",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.billing_usage_meters",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.brand_images",
+          "rules": ["form"],
+          "reason": "policy brand_images_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.brand_tags",
+          "rules": ["form"],
+          "reason": "policy brand_tags_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.brands",
+          "rules": ["form"],
+          "reason": "policy brands_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.chat_message_feedback",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.chat_messages",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.chat_state_cache",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.chat_state_lists",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.chat_state_locks",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.chat_state_queues",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.chat_state_subscriptions",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.chat_suggestion_snapshots",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.chat_thread_participants",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.chat_threads",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.contact_methods",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.contact_profiles",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.currencies",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.customer_assignees",
+          "rules": ["form"],
+          "reason": "policy customer_assignees_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.customer_contacts",
+          "rules": ["form"],
+          "reason": "policy customer_contacts_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.customer_locations",
+          "rules": ["form"],
+          "reason": "policy customer_locations_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.customer_portal_invitations",
+          "rules": ["form"],
+          "reason": "policy customer_portal_invitations_select is still defined in ../../supabase/migrations/20261119221705_order_to_cash_4.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.customer_tags",
+          "rules": ["form"],
+          "reason": "policy customer_tags_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.customers",
+          "rules": ["form"],
+          "reason": "policy customers_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.document_parties",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.document_views",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.email_deliveries",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.employee_availability_days",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.employee_contract_bonuses",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.employee_contracts",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.employee_documents",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.employee_journey_items",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.employee_journeys",
+          "rules": ["condition", "restrictive"]
+        },
+        {
+          "table": "public.employee_private_details",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.employee_roster_days",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.employee_skills",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.employee_time_off_policies",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.employee_work_schedules",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.employees",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.equipment_assignments",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.equipment_items",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.expense_capture_addresses",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.expense_categories",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.expense_flags",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.expense_policies",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.expense_trips",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.expenses",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.file_copy_operation_items",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.file_copy_operations",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.file_drive_connection_secrets",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.file_drive_connections",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.file_drive_grants",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.file_drives",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.file_node_grants",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.file_node_user_state",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.file_nodes",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.file_storage_settings",
+          "rules": ["form"],
+          "reason": "policy file_storage_settings_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.file_upload_reservations",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.file_versions",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.file_zip_export_items",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.file_zip_exports",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.hiring_applications",
+          "rules": ["form"],
+          "reason": "policy hiring_applications_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.hiring_candidates",
+          "rules": ["form"],
+          "reason": "policy hiring_candidates_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.hiring_email_templates",
+          "rules": ["form"],
+          "reason": "policy hiring_email_templates_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.hiring_interview_interviewers",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.hiring_interviews",
+          "rules": ["form"],
+          "reason": "policy hiring_interviews_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.hiring_jobs",
+          "rules": ["form"],
+          "reason": "policy hiring_jobs_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.hiring_scorecard_scores",
+          "rules": ["form"],
+          "reason": "policy hiring_scorecard_scores_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.hiring_scorecards",
+          "rules": ["form"],
+          "reason": "policy hiring_scorecards_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.hiring_stage_criteria",
+          "rules": ["form"],
+          "reason": "policy hiring_stage_criteria_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.hiring_stages",
+          "rules": ["form"],
+          "reason": "policy hiring_stages_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.hr_default_schedule",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.hr_settings",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.import_chunks",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.import_conflicts",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.import_plan",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.import_run_heartbeats",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.inbox_connection_members",
+          "rules": ["form"],
+          "reason": "policy inbox_connection_members_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.inbox_connection_secrets",
+          "rules": ["form"],
+          "reason": "policy inbox_connection_secrets_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.inbox_connections",
+          "rules": ["form"],
+          "reason": "key chat.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it; key integration.manage: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        },
+        {
+          "table": "public.inbox_deliveries",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.inbox_delivery_attempts",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.inbox_draft_suggestions",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.inbox_endpoints",
+          "rules": ["form"],
+          "reason": "key chat.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it; key integration.manage: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        },
+        {
+          "table": "public.inbox_thread_states",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.inbox_threads",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.integration_categories",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.integration_definition_categories",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.integration_definitions",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.integration_installation_secrets",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.integration_installations",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.integration_requests",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.integration_user_authorizations",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.inventory_level_signals",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.invoices",
+          "rules": ["restrictive"]
+        },
+        {
+          "table": "public.knowledge_chunks",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.knowledge_collection_grants",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.knowledge_collections",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.knowledge_files",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.notification_deliveries",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.notification_events",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.notification_preferences",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.notification_recipients",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.notification_subscriptions",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.orders",
+          "rules": ["restrictive"]
+        },
+        {
+          "table": "public.organization_ai_action_policies",
+          "rules": ["form"],
+          "reason": "policy organization_ai_action_policies_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.organization_ai_policies",
+          "rules": ["form"],
+          "reason": "policy organization_ai_policies_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.organization_bank_accounts",
+          "rules": ["form"],
+          "reason": "policy organization_bank_accounts_select is still defined in ../../supabase/migrations/20261107154922_organization_bank_accounts.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.organization_billing_top_ups",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.organization_brand_images",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.organization_invitations",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.organization_invoice_recipients",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.organization_number_sequences",
+          "rules": ["form"],
+          "reason": "policy organization_number_sequences_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.organization_payment_accounts",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.organization_payment_fee_overrides",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.organization_social_links",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.organization_subscription_history",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.organization_tags",
+          "rules": ["form"],
+          "reason": "policy organization_tags_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.organization_users",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.organizations",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.party_bank_accounts",
+          "rules": ["form"],
+          "reason": "policy party_bank_accounts_select is still defined in ../../supabase/migrations/20261105185019_contacts_cutover_columns_3.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.payroll_periods",
+          "rules": ["form"],
+          "reason": "policy payroll_periods_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.platform_fee_invoice_lines",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.platform_fee_invoices",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.product_categories",
+          "rules": ["form"],
+          "reason": "policy product_categories_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.product_category_assignments",
+          "rules": ["form"],
+          "reason": "policy product_category_assignments_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.product_digital_files",
+          "rules": ["form"],
+          "reason": "policy product_digital_files_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.product_license_keys",
+          "rules": ["form"],
+          "reason": "policy product_license_keys_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.product_option_values",
+          "rules": ["form"],
+          "reason": "policy product_option_values_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.product_options",
+          "rules": ["form"],
+          "reason": "policy product_options_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.product_scan_requests",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.product_supplier_links",
+          "rules": ["form"],
+          "reason": "policy product_supplier_links_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.product_tour_progress",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.product_variant_option_values",
+          "rules": ["form"],
+          "reason": "policy product_variant_option_values_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.product_variants",
+          "rules": ["form"],
+          "reason": "policy product_variants_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.products",
+          "rules": ["form"],
+          "reason": "policy products_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.profiles",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.promotion_eligibility",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.promotion_redemptions",
+          "rules": ["form"],
+          "reason": "policy promotion_redemptions_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.promotion_targets",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.promotions",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.public_holidays",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.purchase_order_lines",
+          "rules": ["form"],
+          "reason": "policy purchase_order_lines_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.purchase_orders",
+          "rules": ["form", "restrictive"],
+          "reason": "key purchaseOrder.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        },
+        {
+          "table": "public.quotes",
+          "rules": ["restrictive"]
+        },
+        {
+          "table": "public.roles",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.shipment_lines",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.shipments",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.sick_leave_cases",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.skills",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.task_assignees",
+          "rules": ["form"],
+          "reason": "policy task_assignees_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.task_materials",
+          "rules": ["form"],
+          "reason": "policy task_materials_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.task_required_skills",
+          "rules": ["form"],
+          "reason": "policy task_required_skills_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.task_tags",
+          "rules": ["form"],
+          "reason": "policy task_tags_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.tasks",
+          "rules": ["form", "restrictive"],
+          "reason": "key task.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        },
+        {
+          "table": "public.team_members",
+          "rules": ["form"],
+          "reason": "policy team_members_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.teams",
+          "rules": ["form"],
+          "reason": "policy teams_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.template_automations",
+          "rules": ["form"],
+          "reason": "policy template_automations_select is still defined in ../../supabase/migrations/20261113131226_templates_block.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.templates",
+          "rules": ["form"],
+          "reason": "key onboarding.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it; key template.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        },
+        {
+          "table": "public.time_entries",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.time_entry_dismissals",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.time_off_blackout_periods",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.time_off_ledger",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.time_off_policies",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.time_off_requests",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.time_off_types",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.timesheets",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.user_preferences",
+          "rules": ["owner"]
+        },
+        {
+          "table": "public.user_roles",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.webhook_deliveries",
+          "rules": ["form"],
+          "reason": "policy webhook_deliveries_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.webhook_destination_secrets",
+          "rules": ["unknown"]
+        },
+        {
+          "table": "public.webhook_destinations",
+          "rules": ["form"],
+          "reason": "policy webhook_destinations_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.workflow_definitions",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.workflow_events",
+          "rules": ["form"],
+          "reason": "key workflows.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        },
+        {
+          "table": "public.workflow_grants",
+          "rules": ["form"],
+          "reason": "key workflows.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        },
+        {
+          "table": "public.workflow_lifecycle_events",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.workflow_lifecycles",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.workflow_opt_outs",
+          "rules": ["form"],
+          "reason": "policy workflow_opt_outs_select is still defined in ../../supabase/migrations/20261103224920_permdock_0201_rls_memo.sql next to an @bsb access tag that renders the table's policy: write a migration that drops it"
+        },
+        {
+          "table": "public.workflow_run_steps",
+          "rules": ["condition"]
+        },
+        {
+          "table": "public.workflow_runs",
+          "rules": ["condition"]
+        }
+      ]
     },
     "pd128": {
       "PD128": []
@@ -112,28 +1132,173 @@
     "committedToBranch": {},
     "codemods": {
       "helpers.sql": {
-        "added": 4665,
-        "removed": 1185
+        "added": 4154,
+        "removed": 1335
+      },
+      "hook.sql": {
+        "added": 16,
+        "removed": 56
       }
     }
   },
-  "shadow": "not run: pass --shadow <url|stack> with a Supabase stack running",
+  "shadow": "see stack.shadow",
+  "stack": {
+    "shadow": {
+      "code": 0,
+      "report": {
+        "findings": [],
+        "ignored": [],
+        "stale": []
+      }
+    },
+    "doctor": {
+      "counts": {
+        "BS409": 3,
+        "BS428": 97,
+        "BS429": 0,
+        "BS430": 0
+      },
+      "tenantTables": {
+        "total": 28,
+        "failingBS428": [
+          {
+            "table": "public.asset_identifiers",
+            "message": "the authorization provider (PermDock) declares public.asset_identifiers with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_inspection_types",
+            "message": "the authorization provider (PermDock) declares public.asset_inspection_types with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_inspections",
+            "message": "the authorization provider (PermDock) declares public.asset_inspections with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_meter_readings",
+            "message": "the authorization provider (PermDock) declares public.asset_meter_readings with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_service_plans",
+            "message": "the authorization provider (PermDock) declares public.asset_service_plans with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_tags",
+            "message": "the authorization provider (PermDock) declares public.asset_tags with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_trade_cards",
+            "message": "the authorization provider (PermDock) declares public.asset_trade_cards with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.customer_assets",
+            "message": "the authorization provider (PermDock) declares public.customer_assets with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.inventory_reorder_rules",
+            "message": "the authorization provider (PermDock) declares public.inventory_reorder_rules with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_charges",
+            "message": "the authorization provider (PermDock) declares public.invoice_charges with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_lines",
+            "message": "the authorization provider (PermDock) declares public.invoice_lines with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_payments",
+            "message": "the authorization provider (PermDock) declares public.invoice_payments with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_reminder_sends",
+            "message": "the authorization provider (PermDock) declares public.invoice_reminder_sends with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_status_history",
+            "message": "the authorization provider (PermDock) declares public.invoice_status_history with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_tasks",
+            "message": "the authorization provider (PermDock) declares public.invoice_tasks with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_digital_grants",
+            "message": "the authorization provider (PermDock) declares public.order_digital_grants with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_lines",
+            "message": "the authorization provider (PermDock) declares public.order_lines with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_status_history",
+            "message": "the authorization provider (PermDock) declares public.order_status_history with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_tasks",
+            "message": "the authorization provider (PermDock) declares public.order_tasks with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_accepted_optional_lines",
+            "message": "the authorization provider (PermDock) declares public.quote_accepted_optional_lines with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_assets",
+            "message": "the authorization provider (PermDock) declares public.quote_assets with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_change_requests",
+            "message": "the authorization provider (PermDock) declares public.quote_change_requests with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_lines",
+            "message": "the authorization provider (PermDock) declares public.quote_lines with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_status_history",
+            "message": "the authorization provider (PermDock) declares public.quote_status_history with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_tasks",
+            "message": "the authorization provider (PermDock) declares public.quote_tasks with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_version_lines",
+            "message": "the authorization provider (PermDock) declares public.quote_version_lines with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_versions",
+            "message": "the authorization provider (PermDock) declares public.quote_versions with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.warranty_claims",
+            "message": "the authorization provider (PermDock) declares public.warranty_claims with permissions [task.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          }
+        ]
+      },
+      "otherBS428": 69
+    },
+    "tenantTablesWithTheCastRemoved": {
+      "total": 28,
+      "passing": 28,
+      "failing": []
+    }
+  },
   "steps": [
     {
       "command": "permdock rls report --json --yes --agent no",
       "code": 2,
-      "stderr": "{\"$schema\":\"https://permdock.com/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.32; run permdock codemod 0.32\",\"type\":\"https://permdock.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{},\"userActionRequired\":false,\"retryable\":false}\n"
+      "stderr": "{\"$schema\":\"https://permdock.com/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.31; run permdock codemod 0.31\",\"type\":\"https://permdock.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{},\"userActionRequired\":false,\"retryable\":false}\n"
     },
     {
       "command": "permdock supabase inspect --out --json --yes --agent no",
       "code": 2,
-      "stderr": "{\"$schema\":\"https://permdock.com/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.32; run permdock codemod 0.32\",\"type\":\"https://permdock.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{},\"userActionRequired\":false,\"retryable\":false}\n"
+      "stderr": "{\"$schema\":\"https://permdock.com/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.31; run permdock codemod 0.31\",\"type\":\"https://permdock.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{},\"userActionRequired\":false,\"retryable\":false}\n"
     },
     {
       "command": "permdock doctor --json --only PD128 --yes --agent no",
       "code": 2,
       "findings": true,
-      "stderr": "{\"$schema\":\"https://permdock.com/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.32; run permdock codemod 0.32\",\"type\":\"https://permdock.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{},\"userActionRequired\":false,\"retryable\":false}\n"
+      "stderr": "{\"$schema\":\"https://permdock.com/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.31; run permdock codemod 0.31\",\"type\":\"https://permdock.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{},\"userActionRequired\":false,\"retryable\":false}\n"
     },
     {
       "command": "better-supabase doctor --json --only BS409,BS428,BS429 --fail-on never --agent no",
@@ -144,10 +1309,10 @@
     {
       "command": "permdock generate --yes --agent no",
       "code": 2,
-      "stderr": "PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.32; run permdock codemod 0.32\n"
+      "stderr": "PermDock CLI: permdock.config.ts: doctor.waivers moved into the doctor.baseline file in 0.31; run permdock codemod 0.31\n"
     },
     {
-      "command": "permdock codemod 0.32 --force --yes --agent no",
+      "command": "permdock codemod 0.31 --force --yes --agent no",
       "code": 0
     },
     {

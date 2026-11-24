@@ -1,12 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { Policy } from "../../index.ts";
 import type { PlannedFile } from "../core/files.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { SqlNode } from "../sql/ast.ts";
 import type { BsbSql, BsbTag } from "../sql/bsb-access.ts";
-import type { PermDockConfig } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { scopeList } from "../../core/scopes.ts";
@@ -15,16 +13,13 @@ import { applyFiles, refuseDirty } from "../core/files.ts";
 import { rel } from "../files.ts";
 import { readConfig } from "../project/config.ts";
 import { requirePolicy } from "../project/load.ts";
-import { buildContext } from "../rls/generate-context.ts";
-import { generateOptions, isRefusal } from "../rls/generate-options.ts";
+import { keyReason, keyReasons } from "../rls/key-reasons.ts";
 import { parseSqlFile, removeStatements } from "../sql/ast.ts";
 import {
   bsbSqlMissing,
   loadBsbSql,
   schemaSqlFiles,
 } from "../sql/bsb-access.ts";
-import { compileGrants } from "../sql/compile.ts";
-import { tableNames } from "../sql/tables.ts";
 import { svals, tenantCheck } from "../sql/tenant-check.ts";
 import { supabaseDir } from "../supabase-dir.ts";
 
@@ -219,53 +214,6 @@ function plainPolicy(
   };
 }
 
-/**
- * The keys whose `permitted_<scope>_ids_by_permission(k)` answers what
- * `permitted_<scope>_ids(k)` answers: every grant of `k` is an allow under the
- * grant key `k`, so one condition group, no row condition and no deny.
- */
-function swappableKeys(
-  config: PermDockConfig,
-  policy: Policy,
-  cwd: string,
-): ReadonlySet<string> {
-  const generate = {
-    cwd,
-    config,
-    target: "sql",
-    dialect: config.rls?.dialect ?? "supabase",
-    rbac: false,
-    check: false,
-    skipClosures: true,
-    inlineFunctions: false,
-    io: { stdout: () => undefined, stderr: () => undefined },
-  } as const;
-  const options = generateOptions(generate);
-  if (isRefusal(options)) {
-    throw new CliError("usage", options.refusal, { code: "invalid_value" });
-  }
-  const built = buildContext(generate, policy, options);
-  if (isRefusal(built)) {
-    throw new CliError("usage", built.refusal, { code: "invalid_value" });
-  }
-  const compiled = compileGrants(
-    policy,
-    built.ctx,
-    tableNames(config.rls?.tables),
-    [],
-    true,
-  );
-  const byKey = new Map<string, boolean>();
-  for (const row of compiled.rolePermissions) {
-    const plain =
-      row.effect === "allow" &&
-      row.grantKey === row.permission &&
-      !compiled.conditionedKeys.has(row.grantKey);
-    byKey.set(row.permission, (byKey.get(row.permission) ?? true) && plain);
-  }
-  return new Set([...byKey].filter(([, plain]) => plain).map(([key]) => key));
-}
-
 function quoted(table: string): string {
   return table
     .split(".")
@@ -315,9 +263,15 @@ export async function runAccessTags(options: {
   readonly cwd: string;
   readonly schemas?: string;
   readonly dryRun: boolean;
+  /**
+   * Write nothing, list what would move and why the rest stays, exit 1 when a
+   * table would move.
+   */
+  readonly check?: boolean;
   readonly force: boolean;
   readonly json: boolean;
 }): Promise<CommandResult> {
+  const dryRun = options.dryRun || options.check === true;
   const { config } = await readConfig(options.cwd);
   const policy = await requirePolicy(
     options.cwd,
@@ -334,7 +288,7 @@ export async function runAccessTags(options: {
   }
   const schema = config.rls?.schema ?? "permdock";
   const helper = `${schema}.permitted_${root}_ids`;
-  const keys = swappableKeys(config, policy, options.cwd);
+  const keys = keyReasons(config, policy, options.cwd);
   const bsb = await bsbSql(options.cwd);
   const canIn = `{tenant} in (select ${schema}.permitted_${root}_ids_by_permission({permission}))`;
   const kept: { table: string; policy: string; reason: string }[] = [];
@@ -382,13 +336,13 @@ export async function runAccessTags(options: {
         const shared =
           counts.get(item.operation) !== 1 ||
           others.get(table)?.has(item.operation) === true;
-        const reason = keys.has(item.key)
+        const reason = keys.swappable.has(item.key)
           ? shared
             ? `${table} has another policy for ${item.operation}`
             : item.column === policies[0]?.column
               ? undefined
               : "a tenant column that differs from the table's other policies"
-          : `key ${item.key} has a row condition, a second condition group or a deny, so permitted_${root}_ids_by_permission answers differently`;
+          : `key ${item.key}: ${keyReason(keys, item.key)}, so permitted_${root}_ids_by_permission answers differently`;
         if (reason === undefined) {
           operations[item.operation] = item.key;
           chosen.push(item);
@@ -455,7 +409,7 @@ export async function runAccessTags(options: {
       planned.push({ path: file, text: next });
     }
   }
-  if (!options.dryRun) {
+  if (!dryRun) {
     refuseDirty({
       command: "codemod",
       invocation: "codemod bsb-access-tags",
@@ -470,13 +424,14 @@ export async function runAccessTags(options: {
     kept,
     files: planned.map((file) => rel(options.cwd, file.path)),
   };
+  const code = options.check === true && moved.length > 0 ? 1 : 0;
   if (options.json) {
-    return { code: 0, output: JSON.stringify(report, null, 2), data: report };
+    return { code, output: JSON.stringify(report, null, 2), data: report };
   }
   return {
-    code: 0,
+    code,
     output: [
-      `permdock codemod bsb-access-tags: ${options.dryRun ? "would move" : "moved"} ${String(moved.length)} ${moved.length === 1 ? "table" : "tables"} to @bsb access tags`,
+      `permdock codemod bsb-access-tags: ${dryRun ? "would move" : "moved"} ${String(moved.length)} ${moved.length === 1 ? "table" : "tables"} to @bsb access tags`,
       ...moved.map(
         (entry) =>
           `  ${entry.table}: ${Object.entries(entry.operations)

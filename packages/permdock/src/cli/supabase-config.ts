@@ -10,7 +10,7 @@ import type { PermDockConfig } from "./types.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { describeError } from "./core/errors.ts";
 import { hookUri } from "./rls/rbac.ts";
-import { supabaseConfigFile } from "./supabase-dir.ts";
+import { supabaseConfigFile, supabaseDir } from "./supabase-dir.ts";
 
 /** The formats the Supabase CLI reads its project config from. */
 export type { SupabaseConfigFormat } from "./supabase-dir.ts";
@@ -244,7 +244,7 @@ export function readSupabaseConfig(
         : {
             pgDelta: {
               ...(typeof enabled === "boolean" ? { enabled } : {}),
-              schemaDir: declarativeSchemaDir(schemaPath),
+              schemaDir: declarativeSchemaDir(schemaPath, cwd),
             },
           }),
       ...(unresolved.length === 0 ? {} : { unresolvedEnv: unresolved }),
@@ -253,12 +253,19 @@ export function readSupabaseConfig(
 }
 
 /**
- * `supabase/` joined with `declarative_schema_path`, which defaults to
- * `schemas`.
+ * The Supabase directory joined with `declarative_schema_path`, which defaults
+ * to `schemas`, relative to `cwd`. The directory is the nearest `supabase/`
+ * above `cwd` (`supabaseDir`), so a package of a monorepo finds the root one.
  */
-export function declarativeSchemaDir(schemaPath?: unknown): string {
+export function declarativeSchemaDir(
+  schemaPath?: unknown,
+  cwd?: string,
+): string {
   return posix
-    .join("supabase", typeof schemaPath === "string" ? schemaPath : "schemas")
+    .join(
+      cwd === undefined ? "supabase" : supabaseDir(cwd),
+      typeof schemaPath === "string" ? schemaPath : "schemas",
+    )
     .replace(/\/$/u, "");
 }
 

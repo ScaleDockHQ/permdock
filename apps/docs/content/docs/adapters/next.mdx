@@ -274,6 +274,20 @@ The `next.config.ts` plugin (`createPermDockPlugin`) exists only as a build hook
 - Types flow from the returned object, not from module augmentation. Two policies, or a test double, can coexist.
 - Same shape in Vite, Expo and Hono: one file, one `createPermDock`. See [Next.js plugin](/docs/cli/next-plugin).
 
+### warm
+
+`warm(policy)` builds one anonymous instance, runs one `can` and answers `{ ok, ms }`; it never rejects. Call it in `instrumentation.ts` after importing the policy, so the first request pays neither. See [Shared cache](/docs/guides/shared-cache#warm-the-first-request).
+
+```ts title="instrumentation.ts"
+import { warm } from "permdock/next";
+
+import { policy } from "./src/policy";
+
+export async function register() {
+  await warm(policy);
+}
+```
+
 ## Request lifecycle
 
 1. A request or RSC render starts. The first call to `getPermDock`, `getPermission` or `PermDockProvider` runs the `subject` resolver inside `React.cache`; the result is memoised for the rest of the render. Server Actions and Route Handlers get their own instance per invocation.

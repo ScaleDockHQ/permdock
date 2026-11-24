@@ -128,7 +128,7 @@ type Found = {
 };
 
 /**
- * 0.32: `doctor.waivers` and `doctor.ignore` fold into the `doctor.baseline`
+ * 0.31: `doctor.waivers` and `doctor.ignore` fold into the `doctor.baseline`
  * file. The config loses both keys and gains `baseline` when it has none, and
  * the entries land in the file it names, merged with what the file holds. A
  * list the config computes, or a baseline path that is not a literal, is a

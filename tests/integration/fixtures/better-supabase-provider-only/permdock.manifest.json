@@ -284,12 +284,26 @@
       {
         "table": "public.projects",
         "share": "row",
-        "rules": ["form"]
+        "rules": ["form"],
+        "reason": "key projects.list: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it; key projects.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
       },
       {
         "table": "public.reporting_lines",
         "share": "row",
         "rules": ["unknown"]
+      }
+    ],
+    "sharedFunctions": [],
+    "tenantPureHelpers": [
+      {
+        "name": "permdock.permdock_organization_has",
+        "keyArgument": "p_grant",
+        "tenantArgument": "p_tenant"
+      },
+      {
+        "name": "permdock.permitted_organization_permission_keys",
+        "keyArgument": "p_keys",
+        "tenantArgument": "p_id"
       }
     ]
   },

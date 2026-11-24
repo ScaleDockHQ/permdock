@@ -26,6 +26,7 @@ import {
 } from "./introspect.ts";
 import { readOnlyActorKinds } from "./policies.ts";
 import { parseRbacAuthorize } from "./rbac.ts";
+import { configuredTableReads } from "./table-reads.ts";
 import { verifyIgnores, verifyResult } from "./verify-findings.ts";
 import { verifyShadow } from "./verify-shadow.ts";
 import { runRlsVerify } from "./verify.ts";
@@ -231,6 +232,16 @@ async function explain(input: RlsRunInput): Promise<CommandResult> {
             tenantColumn: policy.tenantColumn,
           })),
         };
+  const rowTables = (await configuredTableReads(input.cwd, input.config))
+    .filter((read) => read.share === "row")
+    .map((read) => ({
+      table: read.table,
+      rules: read.rules ?? [],
+      ...(read.reason === undefined ? {} : { reason: read.reason }),
+    }));
+  if (rowTables.length > 0) {
+    report = { ...report, rowTables };
+  }
   if (input.db !== undefined) {
     try {
       const facts = await readTableIndexFacts(

@@ -16,6 +16,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
 import type { Principal } from "../core/subject.ts";
+import type { WarmReport, Warmable } from "../core/warm.ts";
 import type { ProviderApprovers } from "./approvers.ts";
 import type { PermDockFor } from "./permdock-for.ts";
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
@@ -37,6 +38,7 @@ import {
   listPermissions,
 } from "../core/permission-registry.ts";
 import { snapshotTag } from "../core/snapshot-cache.ts";
+import { warmUp } from "../core/warm.ts";
 import { resolverOf } from "./permdock-for.ts";
 import { subscriberPolicy } from "./subscribers.ts";
 import { supportPolicy } from "./support.ts";
@@ -236,7 +238,7 @@ function matches(
  */
 export function authorizationHooks<
   V extends PolicyVocabulary = PolicyVocabulary,
->(options: AuthorizationHooksOptions<V>): AuthorizationHooks {
+>(options: AuthorizationHooksOptions<V>): AuthorizationHooks & Warmable {
   const { policy } = options;
   const resolve = resolverOf(options, "authorizationHooks");
   const instance = async (
@@ -438,6 +440,8 @@ export function authorizationHooks<
   return Object.freeze({
     apiVersion: 1,
     name: "PermDock",
+    warm: (): Promise<WarmReport> =>
+      warmUp(policy, () => resolve(null, { tenant: null, intent: "read" })),
     sessionTags: (userId: string): readonly string[] => [snapshotTag(userId)],
     shareKey,
     ...(loadClaims === undefined

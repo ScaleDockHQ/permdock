@@ -10,8 +10,11 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { authorizationProvider } from "../../src/better-supabase/provider.ts";
 import { run } from "../../src/cli/core/run.ts";
-import { pd128 } from "../../src/cli/doctor/table-reads.ts";
-import { tableReads } from "../../src/cli/rls/table-reads.ts";
+import { pd128, pd137 } from "../../src/cli/doctor/table-reads.ts";
+import {
+  configuredTableReads,
+  tableReads,
+} from "../../src/cli/rls/table-reads.ts";
 import { parseSupabaseManifest } from "../../src/supabase/manifest.ts";
 
 const TMP = join(import.meta.dirname, "../../tmp");
@@ -120,6 +123,70 @@ describe(tableReads, () => {
     ]);
   });
 
+  it("drops a table a later migration drops and follows a rename", async () => {
+    const cwd = project();
+    mkdirSync(join(cwd, "supabase/migrations"), { recursive: true });
+    writeFileSync(
+      join(cwd, "supabase/migrations/20260101000000_old.sql"),
+      `create table public.gone (id uuid primary key, organization_id uuid not null);
+create table public.before_rename (id uuid primary key, organization_id uuid not null);
+alter table public.before_rename enable row level security;
+create policy br_read on public.before_rename for select to authenticated
+  using (organization_id in (select permdock.permitted_organization_ids_by_permission('invoice.read')));
+`,
+    );
+    writeFileSync(
+      join(cwd, "supabase/migrations/20260102000000_later.sql"),
+      `drop table public.gone;
+alter table public.before_rename rename to after_rename;
+`,
+    );
+    const tables = (await reads(cwd)).map((read) => read.table);
+    expect(tables).not.toContain("public.gone");
+    expect(tables).not.toContain("public.before_rename");
+    expect(tables).toContain("public.after_rename");
+  });
+
+  it("says which grant keeps a form table off the tag, in the codemod, the report and explain", async () => {
+    const cwd = project();
+    writeFileSync(
+      join(cwd, "policy.ts"),
+      POLICY.replace(
+        "allow, definePermissions",
+        "allow, deny, definePermissions",
+      ).replace(
+        "  ],\n});",
+        '    role("blocked", [deny(permissions.note.read)], { on: "organization" }),\n  ],\n});',
+      ),
+    );
+    const reason = "key note.read: role blocked on organization denies it";
+    const read = (
+      await configuredTableReads(cwd, {
+        policy: "./policy.ts",
+        rls: { dialect: "supabase" },
+      })
+    ).find((item) => item.table === "public.notes");
+    expect(read).toMatchObject({
+      rules: ["form"],
+      reason: expect.stringContaining(reason),
+    });
+    const check = await run(["codemod", "bsb-access-tags", "--check"], { cwd });
+    expect(check.code).toBe(0);
+    expect(check.stdout).toContain(`kept public.notes notes_read: ${reason}`);
+    const report = await run(["rls", "report", "--json"], { cwd });
+    const counted = JSON.parse(report.stdout).data.tableReads;
+    expect(counted).toMatchObject({
+      tenant: 1,
+      row: 4,
+      byRule: { form: 1, owner: 1, restrictive: 1, unknown: 1 },
+    });
+    const text = await run(["rls", "report"], { cwd });
+    expect(text.stdout).toContain("table reads: 1 tenant, 4 row (form 1,");
+    expect(text.stdout).toContain(`public.notes: form; ${reason}`);
+    const explain = await run(["rls", "explain"], { cwd });
+    expect(explain.stdout).toContain(`public.notes: form; ${reason}`);
+  });
+
   it("moves a plain-form table to tenant after codemod bsb-access-tags", async () => {
     const cwd = project();
     const moved = await run(["codemod", "bsb-access-tags", "--force"], { cwd });
@@ -142,7 +209,9 @@ describe(tableReads, () => {
     const manifest = parseSupabaseManifest(
       JSON.parse(readFileSync(path, "utf8")),
     );
-    expect(manifest.rls.tableReads).toStrictEqual(await reads(cwd));
+    expect(
+      manifest.rls.tableReads?.map(({ reason: _reason, ...read }) => read),
+    ).toStrictEqual(await reads(cwd));
     expect(
       authorizationProvider({
         manifest,
@@ -177,6 +246,61 @@ describe(tableReads, () => {
         severity: "error",
         message:
           "permdock.manifest.json marks public.notes share: 'tenant', but its select policies are row-scoped (form)",
+      }),
+    ]);
+  });
+
+  it("writes sharedFunctions and tenantPureHelpers into the manifest and lets PD137 catch a function over a row table", async () => {
+    const cwd = project();
+    writeFileSync(
+      join(cwd, "supabase/schemas/fn.sql"),
+      `create function public.invoice_total() returns numeric language sql stable as $$ select count(*) from public.invoices $$;
+create function public.note_total() returns numeric language sql stable as $$ select count(*) from public.notes $$;
+`,
+    );
+    expect((await run(["supabase", "inspect", "--out"], { cwd })).code).toBe(0);
+    const path = join(cwd, "permdock.manifest.json");
+    const manifest = parseSupabaseManifest(
+      JSON.parse(readFileSync(path, "utf8")),
+    );
+    expect(manifest.rls.sharedFunctions).toStrictEqual([
+      {
+        function: "public.invoice_total",
+        tables: ["public.invoices"],
+        permissions: ["invoice.read"],
+      },
+    ]);
+    expect(
+      manifest.rls.tenantPureHelpers?.map((helper) => helper.name),
+    ).toStrictEqual([
+      "permdock.permdock_organization_has",
+      "permdock.permitted_organization_permission_keys",
+    ]);
+    expect(await pd137({ cwd, config: {} })).toStrictEqual([]);
+
+    writeFileSync(
+      path,
+      JSON.stringify({
+        ...manifest,
+        rls: {
+          ...manifest.rls,
+          sharedFunctions: [
+            ...(manifest.rls.sharedFunctions ?? []),
+            {
+              function: "public.note_total",
+              tables: ["public.notes"],
+              permissions: ["note.read"],
+            },
+          ],
+        },
+      }),
+    );
+    expect(await pd137({ cwd, config: {} })).toStrictEqual([
+      expect.objectContaining({
+        code: "PD137",
+        severity: "error",
+        message:
+          "permdock.manifest.json lists public.note_total in rls.sharedFunctions, but it reads public.notes, which is not a tenant table",
       }),
     ]);
   });

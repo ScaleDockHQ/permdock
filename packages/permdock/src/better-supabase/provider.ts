@@ -91,6 +91,14 @@ export type AuthorizationProviderOptions<P = undefined> = {
    */
   readonly tables?: boolean;
   /**
+   * Fill better-supabase's `sharedFunctions` from the manifest's
+   * `rls.sharedFunctions`, which `permdock supabase inspect` writes: the
+   * functions that pass BS430 and read only `tenant` tables. Needs `tables:
+   * true` and a manifest from `inspect` 0.31 or later; each entry's tables are
+   * `tenant` entries of `tables`, and doctor BS430 checks the functions.
+   */
+  readonly sharedFunctions?: boolean;
+  /**
    * Fill better-supabase's `roleIn` with `permdock_role_in`, which the manifest
    * lists with `rls.customRoles` in `database` mode, so the `membership_roles`
    * trigger refuses another tenant's custom role. Needs better-supabase 0.77.0
@@ -368,6 +376,28 @@ export function authorizationProvider<P = undefined>(
     options.tables === true && catalog !== undefined
       ? tablesOf(manifest, catalog, tenantScope)
       : undefined;
+  if (options.sharedFunctions === true && options.tables !== true) {
+    problems.push(
+      "sharedFunctions: true needs tables: true, because each listed table must be a `tenant` entry of `tables`.",
+    );
+  }
+  if (options.sharedFunctions === true && rls.sharedFunctions === undefined) {
+    problems.push(
+      "sharedFunctions: true needs `rls.sharedFunctions` in the manifest. Run `permdock supabase inspect --out`.",
+    );
+  }
+  const sharedFunctions =
+    options.sharedFunctions === true &&
+    options.tables === true &&
+    rls.sharedFunctions !== undefined &&
+    rls.sharedFunctions.length > 0
+      ? Object.fromEntries(
+          rls.sharedFunctions.map((entry) => [
+            entry.function,
+            { tables: entry.tables, permissions: entry.permissions },
+          ]),
+        )
+      : undefined;
   const scopeNames = rls.scopes.map((scope) => scope.name);
   const schema = sqlIdent(rls.schema);
   const rootTenant =
@@ -467,6 +497,7 @@ export function authorizationProvider<P = undefined>(
     ...(versions === undefined ? {} : { versions: versions.versions }),
     ...(wildcards === undefined ? {} : { wildcards }),
     ...(tables === undefined ? {} : { tables }),
+    ...(sharedFunctions === undefined ? {} : { sharedFunctions }),
     ...(Object.keys(delegated).length > 0 || interactiveOnly.length > 0
       ? {
           delegation: {

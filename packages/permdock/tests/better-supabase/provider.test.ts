@@ -2154,3 +2154,67 @@ describe("authorizationProvider tables", () => {
     expect(provider.problems?.join(" ")).toContain("tables: true");
   });
 });
+
+describe("authorizationProvider sharedFunctions", () => {
+  const withFunctions = (): ReturnType<typeof parseSupabaseManifest> => {
+    const manifest = parseSupabaseManifest(exampleManifest);
+    return {
+      ...manifest,
+      rls: {
+        ...manifest.rls,
+        tableReads: [
+          {
+            table: "public.orders",
+            share: "tenant",
+            column: "organization_id",
+            permissions: ["orders.read"],
+          },
+        ],
+        sharedFunctions: [
+          {
+            function: "public.page_payload",
+            tables: ["public.orders"],
+            permissions: ["orders.read"],
+          },
+        ],
+      },
+    };
+  };
+
+  it("sets none unless asked", () => {
+    const provider = authorizationProvider({
+      manifest: withFunctions(),
+      catalog: exampleCatalog,
+      tables: true,
+    });
+    expect(provider.sharedFunctions).toBeUndefined();
+  });
+
+  it("copies rls.sharedFunctions behind the option", () => {
+    const provider = authorizationProvider({
+      manifest: withFunctions(),
+      catalog: exampleCatalog,
+      tables: true,
+      sharedFunctions: true,
+    });
+    expect(provider.sharedFunctions).toStrictEqual({
+      "public.page_payload": {
+        tables: ["public.orders"],
+        permissions: ["orders.read"],
+      },
+    });
+  });
+
+  it("names the missing tables option and the missing manifest list", () => {
+    const manifest = parseSupabaseManifest(exampleManifest);
+    const { sharedFunctions: _list, ...rls } = manifest.rls;
+    const provider = authorizationProvider({
+      manifest: { ...manifest, rls },
+      catalog: exampleCatalog,
+      sharedFunctions: true,
+    });
+    expect(provider.sharedFunctions).toBeUndefined();
+    expect(provider.problems?.join(" ")).toContain("needs tables: true");
+    expect(provider.problems?.join(" ")).toContain("rls.sharedFunctions");
+  });
+});

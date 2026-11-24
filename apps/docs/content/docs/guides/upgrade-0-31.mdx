@@ -1,0 +1,136 @@
+---
+title: Upgrade to 0.31
+description: The breaking changes in permdock 0.29 to 0.31, one ordered checklist from 0.28.0 with better-supabase 0.82.0 to 0.85.0, and each change with its old and new form.
+---
+
+This guide is about the `permdock` package at 0.31.0. The tables name the version that dropped the old form: "0.30" is what `permdock` 0.30.0 does, "0.31" what 0.31.0 does. 0.29.0, 0.30.0 and 0.31.0 each carry a breaking change. Codemod `0.31` is also accepted as `0.32`, the name an earlier draft of this guide used.
+
+## From 0.28 to 0.31
+
+Follow these steps in order for an app that moves from `permdock` 0.28.0 to 0.31.0 together with better-supabase 0.82.0 to 0.85.0. The right column names the step of better-supabase's [0.82 to 0.85 checklist](https://bettersupabase.com/docs/migration/0.82-to-0.85) that the step comes before or after.
+
+| #   | Step                                                                                                                                                                                          | Position in better-supabase's checklist                                         |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1   | Peers: Node.js 26, `eve` 1.2.0, `ai` 7.0.177, `chat` 4.45.0, `better-supabase` 0.85.0, `permdock` 0.31.0; remove `oxc-parser` and `pgsql-parser` from your own `package.json`; `pnpm install` | Together with step 1 (bump the package), one install                            |
+| 2   | `permdock codemod 0.31`                                                                                                                                                                       | After step 2 (0.83 codemods), before step 3                                     |
+| 3   | `permdock codemod config --prune --check`, then `permdock codemod config --prune`                                                                                                             | After step 2, which prunes `better-supabase.config.ts`; before step 3           |
+| 4   | `permdock codemod bsb-access-tags`                                                                                                                                                            | After step 2, whose `table-tags` codemod writes the tag comments; before step 4 |
+| 5   | `permdock codemod bsb-action-keys`                                                                                                                                                            | After step 2; before step 3, which moves the keys it writes onto the provider   |
+| 6   | `permdock codemod manager-chain`                                                                                                                                                              | After step 2; before step 4                                                     |
+| 7   | `permdock generate`                                                                                                                                                                           | Before step 4: `better-supabase gen` reads the helpers and policies it writes   |
+| 8   | `permdock supabase inspect --out`                                                                                                                                                             | After step 7, before step 4: the provider reads the manifest                    |
+| 9   | `tables: true` on `authorizationProvider`, and `sharedFunctions: true` when pages load through one function                                                                                   | Part of step 3 (provider fields)                                                |
+| 10  | `permdock doctor`                                                                                                                                                                             | Before step 5                                                                   |
+| 11  | `better-supabase doctor`                                                                                                                                                                      | Is step 5; it reports PermDock's findings as BS705                              |
+
+Then go on with steps 6 to 9 of better-supabase's checklist (data changes, `bsb.kept()`, warm the instance, request stats). The sections below list each change.
+
+| Release | Breaking change                                                                                                             | Section                                               |
+| ------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 0.29.0  | `rls generate` writes `permdock_role_in` with `rls.customRoles` in `database` mode; regenerate the helpers and the manifest | [better-supabase provider](#better-supabase-provider) |
+| 0.30.0  | `permdock/eve` needs eve 1.2.0, `ai` 7.0.177 and `chat` 4.45.0; `EveResponseContext` and the approval decision change       | [eve](#eve)                                           |
+| 0.31.0  | Node.js 26, the doctor baseline, snapshot wire v2, `VersionStore`, derived RLS facts, `better-supabase` 0.85.0              | The rest of this page                                 |
+
+## Node.js 26
+
+| 0.30                  | 0.31                  |
+| --------------------- | --------------------- |
+| `engines.node: >=24`  | `engines.node: >=26`  |
+| Vercel runtime `24.x` | Vercel runtime `26.x` |
+
+## Parser dependencies
+
+`oxc-parser`, `pgsql-parser` and `libpg-query` are exact-pinned dependencies of `permdock`. Remove them from your own `package.json`; doctor `PD126` reports an app that lists one at another version, which installs a second copy.
+
+| 0.30                                                        | 0.31                               |
+| ----------------------------------------------------------- | ---------------------------------- |
+| `oxc-parser` and `pgsql-parser` in the app's `dependencies` | not listed; `permdock` brings them |
+
+## Doctor baseline
+
+`doctor.waivers` and `doctor.ignore` are removed. Accepted findings live in the file `doctor.baseline` names, in better-supabase's grouped format ([accept a finding](/docs/cli/doctor#accept-a-finding)). `permdock codemod 0.31` moves both lists.
+
+| 0.30                                                | 0.31                                                                             |
+| --------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `doctor.waivers: [{ code: "PD017", key, reason }]`  | `{ "code": "PD017", "reason": ..., "targets": [key] }` in `doctor-baseline.json` |
+| `doctor.ignore: [{ id: "PD078:<target>", reason }]` | `{ "code": "PD078", "reason": ..., "targets": [target] }`                        |
+| an entry without a reason                           | an error                                                                         |
+| an entry that matches no finding                    | an error; `permdock doctor --update-baseline` rewrites the file                  |
+
+## Snapshot wire v2
+
+Snapshots are `v: 2` (`schemas/snapshot-v2.json`). `parseSnapshot`, `fromSnapshot`, `snapshotFromClaims` and the React Native storage refuse `v: 1`, so a client drops a cached v1 snapshot and fetches a new one. Deploy the server before the clients ([snapshots](/docs/concepts/snapshots)).
+
+| 0.30                                                           | 0.31                                                       |
+| -------------------------------------------------------------- | ---------------------------------------------------------- |
+| `v: 1`                                                         | `v: 2`                                                     |
+| vocabulary, scopes and shared grants inline                    | read from the client bundle (`bundle`, `static.shared`)    |
+| each `requires` holding repeated per grant                     | written once in the `requires` table                       |
+| `getSnapshot` from `permdock/better-supabase` lists one tenant | lists every membership                                     |
+| flat snapshot fields                                           | `readSnapshot(snapshot, { bundle })` returns the flat form |
+
+## `VersionStore`
+
+A custom `VersionStore` stores the database read time, so `maxStaleMs` counts from the read on every instance. `runtimeCacheVersionStore` and `postgresCacheVersionStore` are new ([extension interfaces](/docs/concepts/extension-interfaces)).
+
+| 0.30                                    | 0.31                                             |
+| --------------------------------------- | ------------------------------------------------ |
+| `get(id)` answers `number \| undefined` | `get(id)` answers `{ version, at } \| undefined` |
+| `set(id, version)`                      | `set(id, version, at)`                           |
+
+## Derived RLS facts
+
+`rls.memberships` and `rls.suspension` are derived from `supabase.hook.memberships` and `supabase.hook.suspension` when unset. Doctor `PD121` reports a written entry that disagrees with or restates its source; the prune removes a restated one.
+
+| 0.30                                                         | 0.31                                                                        |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `rls.memberships` written beside `supabase.hook.memberships` | derived; junction sources get claims-first helpers                          |
+| a verb without an `rls.actions` entry fails `rls generate`   | compiles to `none`; doctor `PD122` lists it                                 |
+| `rls.actions: { archive: "none" }`                           | not needed                                                                  |
+| `rls.tables: { teamMember: "team_members" }`                 | not needed when the schema files create `team_members` and not `teamMember` |
+| `rls.scopeTypes: { organization: "uuid" }`                   | read from the scope table's `id` column                                     |
+
+The schema files are read from the nearest Supabase project at or above the config, in the same git checkout. A config in `packages/identity` reads the repository's `supabase/`. With `rls.readOnlyActors`, `generate` then writes a read-only actor guard for every hand-written write policy in that project, not only for the tables `rls.tables` names.
+
+## Active tenant
+
+| 0.30                                                                       | 0.31                                                                                       |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| doctor `PD078` waived for an app that picks the tenant per request         | `supabase.hook.activeTenant: "request"`                                                    |
+| `blocks.permissions.activeTenant` in `better-supabase.config.ts` for BS409 | not needed; the provider states `tokenHook.activeOrganizationFrom: "resolver"`             |
+| a tenant slug resolved by hand in middleware                               | `tenantFromPath` from `permdock/server`, `permdock/supabase/middleware` or `permdock/next` |
+
+## better-supabase provider
+
+`authorizationProvider` from `permdock/better-supabase` supplies more of better-supabase's config. Doctor `PD094` reports a key in `better-supabase.config.ts` that now restates the provider.
+
+| 0.30                                                                                 | 0.31                                                                                             |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `blocks.<block>.permissions` keys in `better-supabase.config.ts`                     | `meta.answers` on the permission; `permdock codemod bsb-action-keys` moves them                  |
+| `functions.approverFor` set by the provider                                          | not set; `permdock_approver_for_ids()` answers the users the caller decides for                  |
+| `blocks.memberships.options.roleThrough`, `blocks.invitations.options.platformRoles` | derived from the provider's `roleSources` and `platformRoles`                                    |
+| `doctor` findings run separately                                                     | `doctor.command` runs `permdock doctor --format findings`; better-supabase reports them as BS705 |
+
+## Permission key renames
+
+`permdock keys rename <from> <to>` moves the action in the permissions module and adds `"from": "to"` to `definePermissions(..., { renamed })`. With custom roles stored in the database it also writes a data migration that moves the stored grants ([keys](/docs/cli/keys)).
+
+## eve
+
+| 0.30                                            | 0.31                                                                                                     |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `subjectFromEve` reads `session.auth.initiator` | reads the turn's caller, `session.auth.current`, then the initiator                                      |
+| `actorFromEve` varies with the session          | always `{ id: "eve:app", kind: "eve" }`                                                                  |
+| `EveResponseContext` has `request.requestId`    | `request.interactionId` and `request.principal`; the decision is `"approve" \| "deny"`, with no `cancel` |
+| the session reads `id` and the caller           | reads `id` and `initiator`; a response on another instance recomputes the token with `request.principal` |
+
+## OpenAPI
+
+| 0.30                                               | 0.31                                                    |
+| -------------------------------------------------- | ------------------------------------------------------- |
+| `x-authorization: "handler"` names a key `handler` | marks an operation the handler checks                   |
+| a file header `@permission` on the first handler   | only the JSDoc block directly above each handler counts |
+
+## Session cookies
+
+PermDock's claims stay within `supabase.hook.budget`. Most of a Supabase session cookie is the `user` object. better-supabase 0.85 writes `cookies.encode: "tokens-only"` for a new app and reports an app whose cookie still carries the object as BS644. Set it in your better-supabase client; PermDock needs no change.

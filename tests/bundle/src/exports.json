@@ -353,7 +353,8 @@
     "snapshotHeaders",
     "snapshotKey",
     "snapshotTag",
-    "tenantFromPath"
+    "tenantFromPath",
+    "warm"
   ],
   "./server": [
     "InvalidSignatureError",

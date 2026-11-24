@@ -669,7 +669,7 @@ describe("the codemod module", () => {
       expect(jsonError(result.stderr)).toMatchObject({
         reason: "usage",
         type: "https://permdock.com/docs/cli/errors#usage",
-        message: "unknown codemod version '0.4'. Supported: 0.17, 0.26, 0.32.",
+        message: "unknown codemod version '0.4'. Supported: 0.17, 0.26, 0.31.",
       });
       expect(() =>
         codemod({
@@ -680,8 +680,15 @@ describe("the codemod module", () => {
           json: true,
         }),
       ).toThrow(
-        "codemod needs a version: permdock codemod <version>. Supported: 0.17, 0.26, 0.32.",
+        "codemod needs a version: permdock codemod <version>. Supported: 0.17, 0.26, 0.31.",
       );
+    });
+
+    it("reads 0.32 as the 0.31 codemod", async () => {
+      const dir = project({});
+      const result = await run(["codemod", "0.32", "--dry-run", "--cwd", dir]);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("permdock codemod 0.31:");
     });
 
     it("names a version string it cannot read as it was given", async () => {

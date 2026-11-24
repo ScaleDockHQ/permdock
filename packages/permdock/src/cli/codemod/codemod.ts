@@ -10,7 +10,7 @@ import { applyFiles, refuseDirty } from "../core/files.ts";
 import { rel } from "../files.ts";
 import { rewriteStoredCatalog } from "./catalog-0.26.ts";
 import { rewriteCliCalls } from "./cli-calls.ts";
-import { CODEMOD_0_32 } from "./codemod-0.32.ts";
+import { CODEMOD_0_31 } from "./codemod-0.31.ts";
 import { moveConfigKeys } from "./config-moves.ts";
 import { rewrite026 } from "./rewrite-0.26.ts";
 import { rewriteLiterals017 } from "./shapes-0.17.ts";
@@ -33,7 +33,7 @@ export const CODEMOD_0_26: RenameSet = Object.freeze({
 const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
   "0.17": CODEMOD_0_17,
   "0.26": CODEMOD_0_26,
-  "0.32": CODEMOD_0_32,
+  "0.31": CODEMOD_0_31,
 });
 
 export function codemodVersions(): readonly string[] {
@@ -285,6 +285,11 @@ function withConfigMoves(
   };
 }
 
+/** Names an earlier build of this release used for a codemod. */
+const CODEMOD_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  "0.32": "0.31",
+});
+
 function normaliseVersion(version: string | undefined): string {
   if (version === undefined) {
     throw new CliError(
@@ -293,7 +298,10 @@ function normaliseVersion(version: string | undefined): string {
     );
   }
   const match = /^v?(\d+\.\d+)(?:\.\d+)?$/u.exec(version);
-  return match?.[1] ?? version;
+  const name = match?.[1] ?? version;
+  return Object.hasOwn(CODEMOD_ALIASES, name)
+    ? (CODEMOD_ALIASES[name] ?? name)
+    : name;
 }
 
 function isCodeFile(file: string): boolean {

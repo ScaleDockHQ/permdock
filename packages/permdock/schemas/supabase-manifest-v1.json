@@ -51,16 +51,26 @@
               "type": "object",
               "required": ["appMetadata"],
               "additionalProperties": false,
-              "properties": { "appMetadata": { "type": "string" } }
+              "properties": {
+                "appMetadata": {
+                  "type": "string"
+                }
+              }
             },
             {
               "type": "object",
               "required": ["table", "column", "id"],
               "additionalProperties": false,
               "properties": {
-                "table": { "type": "string" },
-                "column": { "type": "string" },
-                "id": { "type": "string" }
+                "table": {
+                  "type": "string"
+                },
+                "column": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                }
               }
             }
           ]
@@ -133,8 +143,12 @@
         "jwt_exp"
       ],
       "properties": {
-        "hook_custom_access_token_enabled": { "const": true },
-        "hook_custom_access_token_uri": { "type": "string" },
+        "hook_custom_access_token_enabled": {
+          "const": true
+        },
+        "hook_custom_access_token_uri": {
+          "type": "string"
+        },
         "jwt_exp": {
           "description": "The access token lifetime in seconds: `[auth] jwt_expiry` of `supabase/config.toml`, or 3600 when it is unset.",
           "type": "integer"
@@ -328,17 +342,28 @@
           "type": "boolean"
         },
         "tableReads": {
-          "description": "Whether every holder of a table's select permissions in a tenant reads the same rows, from the select policies the schema files, migrations and rls.out leave defined. Absent from a manifest written before 0.32.",
+          "description": "Whether every holder of a table's select permissions in a tenant reads the same rows, from the select policies the schema files, migrations and rls.out leave defined. Absent from a manifest written before 0.31.",
           "type": "array",
           "items": {
             "type": "object",
             "required": ["table", "share"],
             "additionalProperties": false,
             "properties": {
-              "table": { "type": "string" },
-              "share": { "enum": ["tenant", "row"] },
-              "column": { "type": "string" },
-              "permissions": { "type": "array", "items": { "type": "string" } },
+              "table": {
+                "type": "string"
+              },
+              "share": {
+                "enum": ["tenant", "row"]
+              },
+              "column": {
+                "type": "string"
+              },
+              "permissions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "rules": {
                 "type": "array",
                 "items": {
@@ -354,6 +379,55 @@
                     "unknown"
                   ]
                 }
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "sharedFunctions": {
+          "description": "Functions better-supabase doctor BS430 accepts in a tenant fill: language sql, security invoker, stable or immutable, no caller identity, reading tenant tables only. Absent from a manifest written before 0.31.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["function", "tables", "permissions"],
+            "additionalProperties": false,
+            "properties": {
+              "function": {
+                "type": "string"
+              },
+              "tables": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "permissions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tenantPureHelpers": {
+          "description": "Generated helpers whose answer for one tenant and key depends only on the caller's grants of that key in the tenant. Absent from a manifest written before 0.31.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "keyArgument", "tenantArgument"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "keyArgument": {
+                "type": "string"
+              },
+              "tenantArgument": {
+                "type": "string"
               }
             }
           }
@@ -409,22 +483,34 @@
       "type": "object",
       "required": ["schema", "gucPrefix", "claims", "scopes", "resources"],
       "properties": {
-        "schema": { "type": "string" },
-        "gucPrefix": { "type": "string" },
+        "schema": {
+          "type": "string"
+        },
+        "gucPrefix": {
+          "type": "string"
+        },
         "claims": {
           "type": "object",
           "required": ["tenant", "role"],
           "properties": {
-            "tenant": { "type": "string" },
-            "role": { "type": "string" }
+            "tenant": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            }
           }
         },
-        "teamScope": { "type": "string" },
+        "teamScope": {
+          "type": "string"
+        },
         "scopes": {
           "type": "object",
           "additionalProperties": {
             "type": "object",
-            "additionalProperties": { "type": "string" }
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         },
         "resources": {
@@ -437,7 +523,9 @@
                 "type": "string"
               }
             },
-            "additionalProperties": { "type": "string" }
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       }
@@ -466,7 +554,9 @@
       "description": "The role keys the defineSeeds fixtures give a member, sorted; without fixture memberships, every role at the root scope and every global role. The better-supabase provider writes one fixtureRoles entry for each.",
       "type": "array",
       "uniqueItems": true,
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     }
   },
   "$defs": {

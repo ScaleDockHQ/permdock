@@ -336,11 +336,6 @@
         "rules": ["owner"]
       },
       {
-        "table": "public.memberships",
-        "share": "row",
-        "rules": ["unknown"]
-      },
-      {
         "table": "public.organization_features",
         "share": "row",
         "rules": ["unknown"]
@@ -374,7 +369,21 @@
       {
         "table": "public.staff",
         "share": "row",
-        "rules": ["form"]
+        "rules": ["form"],
+        "reason": "key staff.list: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it; key staff.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+      }
+    ],
+    "sharedFunctions": [],
+    "tenantPureHelpers": [
+      {
+        "name": "permdock.permdock_organization_has",
+        "keyArgument": "p_grant",
+        "tenantArgument": "p_tenant"
+      },
+      {
+        "name": "permdock.permitted_organization_permission_keys",
+        "keyArgument": "p_keys",
+        "tenantArgument": "p_id"
       }
     ]
   },

@@ -36,7 +36,8 @@ export const codemod: Leaf = defineLeaf({
     },
     check: {
       type: "boolean",
-      description: "With config --prune: exit 1 when a key would be removed",
+      description:
+        "With config --prune: exit 1 when a key would be removed. With bsb-access-tags: write nothing, exit 1 when a table would move",
     },
   },
   async run(ctx, { flags, args, rest }) {
@@ -61,6 +62,7 @@ export const codemod: Leaf = defineLeaf({
         cwd: ctx.cwd,
         ...(rest[0] === undefined ? {} : { schemas: rest[0] }),
         dryRun: flags["dry-run"],
+        check: flags.check,
         force: flags.force,
         json: ctx.json,
       });
