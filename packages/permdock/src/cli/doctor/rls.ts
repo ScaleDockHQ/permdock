@@ -446,7 +446,7 @@ export async function pd037(
     input.cwd,
     input.config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    for (const found of helperTablePolicies(files.read(file))) {
+    for (const found of await helperTablePolicies(files.read(file))) {
       const keys = found.keys.filter((key) => conditioned.has(key));
       if (keys.length > 0) {
         findings.push({

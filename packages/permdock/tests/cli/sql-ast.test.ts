@@ -51,6 +51,9 @@ describe(parseSqlFile, () => {
     await expect(
       parseSqlFile("select 1;\nselect from from;"),
     ).rejects.toMatchObject({ line: 2 });
+    await expect(
+      parseSqlFile("-- é\nselect 1;\nthis is not sql;"),
+    ).rejects.toMatchObject({ line: 3, column: 1 });
   });
 
   it("splits a $a1$ body once and keeps `E'it\\'s;x'` in one statement", async () => {

@@ -48,7 +48,7 @@ describe(callsHelper, () => {
 });
 
 describe(helperTablePolicies, () => {
-  it("finds helper calls in storage and realtime policies, skipping comments and other tables", () => {
+  it("finds helper calls in storage and realtime policies, skipping comments and other tables", async () => {
     const sql = `
 -- create policy "commented" on storage.objects using (permdock_has('x.read'));
 /* create policy hidden on storage.objects using (permdock_has('y.read')); */
@@ -56,8 +56,22 @@ create policy "Read ""files""" on "storage"."objects" for select using (permdock
 create policy topic_read on realtime.messages for select using (true);
 create policy other on public.posts using (permdock_has('post.read'));
 `;
-    expect(helperTablePolicies(sql)).toStrictEqual([
-      { table: "storage.objects", name: "Read files", keys: ["file.read"] },
+    expect(await helperTablePolicies(sql)).toStrictEqual([
+      { table: "storage.objects", name: 'Read "files"', keys: ["file.read"] },
+    ]);
+  });
+
+  it("keeps the key of a policy whose expression holds a quoted semicolon", async () => {
+    const sql = `create policy files on storage.objects for select using (name <> ';' and permdock_has('file.read'));`;
+    expect(await helperTablePolicies(sql)).toStrictEqual([
+      { table: "storage.objects", name: "files", keys: ["file.read"] },
+    ]);
+  });
+
+  it("reads a quoted schema as the schema", async () => {
+    const sql = `create policy files on "storage".objects for select using (permdock_has('file.read'));`;
+    expect(await helperTablePolicies(sql)).toStrictEqual([
+      { table: "storage.objects", name: "files", keys: ["file.read"] },
     ]);
   });
 });

@@ -124,6 +124,119 @@ export async function parseSqlFile(text: string): Promise<readonly SqlNode[]> {
   return nodes;
 }
 
+/** The command a `create policy` names; `all` when it names none. */
+export type PolicyCommand = "all" | "select" | "insert" | "update" | "delete";
+
+/** A `create policy` statement as its parse node states it. */
+export interface SqlPolicy {
+  readonly name: string;
+  /** `public` when the statement names no schema. */
+  readonly schema: string;
+  readonly table: string;
+  readonly command: PolicyCommand;
+  readonly permissive: boolean;
+  /** Role names, `public` for `to public` or none. */
+  readonly roles: readonly string[];
+  /** The `using` expression node, when the policy has one. */
+  readonly using?: unknown;
+  /** The `with check` expression node, when the policy has one. */
+  readonly check?: unknown;
+}
+
+const POLICY_COMMANDS: ReadonlySet<string> = new Set([
+  "all",
+  "select",
+  "insert",
+  "update",
+  "delete",
+]);
+
+function isPolicyCommand(value: unknown): value is PolicyCommand {
+  return typeof value === "string" && POLICY_COMMANDS.has(value);
+}
+
+/** The policy a `CreatePolicyStmt` declares, or `undefined` for another node. */
+export function readPolicy(statement: SqlNode): SqlPolicy | undefined {
+  if (statement.kind !== "CreatePolicyStmt") {
+    return undefined;
+  }
+  const { node } = statement;
+  const relation = node["table"];
+  if (!isRecord(relation) || typeof relation["relname"] !== "string") {
+    return undefined;
+  }
+  const roles = (Array.isArray(node["roles"]) ? node["roles"] : []).flatMap(
+    (role: unknown) => {
+      const spec: unknown = isRecord(role) ? role["RoleSpec"] : undefined;
+      if (!isRecord(spec)) {
+        return [];
+      }
+      return typeof spec["rolename"] === "string"
+        ? [spec["rolename"]]
+        : spec["roletype"] === "ROLESPEC_PUBLIC"
+          ? ["public"]
+          : [];
+    },
+  );
+  return {
+    name: typeof node["policy_name"] === "string" ? node["policy_name"] : "",
+    schema:
+      typeof relation["schemaname"] === "string"
+        ? relation["schemaname"]
+        : "public",
+    table: relation["relname"],
+    command: isPolicyCommand(node["cmd_name"]) ? node["cmd_name"] : "all",
+    permissive: node["permissive"] === true,
+    roles: roles.length === 0 ? ["public"] : roles,
+    ...(node["qual"] === undefined ? {} : { using: node["qual"] }),
+    ...(node["with_check"] === undefined ? {} : { check: node["with_check"] }),
+  };
+}
+
+/** A function call inside an expression node. */
+export interface SqlCall {
+  /** The qualified name parts, lower case: `["auth", "uid"]`. */
+  readonly name: readonly string[];
+  /** The `FuncCall` node. */
+  readonly node: Readonly<Record<string, unknown>>;
+  /** Whether a scalar subquery or `in (select ...)` holds the call. */
+  readonly inSubquery: boolean;
+}
+
+/** Every `FuncCall` under `expr`, in source order. */
+export function sqlCalls(expr: unknown): readonly SqlCall[] {
+  const out: SqlCall[] = [];
+  const visit = (value: unknown, inSubquery: boolean): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        visit(item, inSubquery);
+      }
+      return;
+    }
+    if (!isRecord(value)) {
+      return;
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (key === "FuncCall" && isRecord(child)) {
+        const parts = Array.isArray(child["funcname"]) ? child["funcname"] : [];
+        out.push({
+          name: parts.flatMap((part: unknown) => {
+            const string: unknown = isRecord(part) ? part["String"] : undefined;
+            return isRecord(string) && typeof string["sval"] === "string"
+              ? [string["sval"].toLowerCase()]
+              : [];
+          }),
+          node: child,
+          inSubquery,
+        });
+      }
+      visit(child, inSubquery || key === "SubLink");
+    }
+  };
+  visit(expr, false);
+  return out;
+}
+
 /** A parse failure with the position libpg_query reported. */
 export class SqlSyntaxError extends Error {
   public readonly line: number;
@@ -143,8 +256,9 @@ function syntaxError(text: string, error: unknown): SqlSyntaxError {
     isRecord(details) && typeof details["cursorPosition"] === "number"
       ? details["cursorPosition"]
       : 0;
-  // `cursorPosition` is 1-based in characters of the query.
-  const before = text.slice(0, Math.max(0, cursor - 1));
+  // `cursorPosition` is a 0-based character offset, unlike the byte offsets of
+  // statement locations.
+  const before = text.slice(0, cursor);
   const line = before.split("\n").length;
   const column = before.length - before.lastIndexOf("\n");
   const message =

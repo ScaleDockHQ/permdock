@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { deparse } from "pgsql-parser";
 
 import type { CommandResult } from "../core/result.ts";
 import type { SqlConnect } from "../pg.ts";
@@ -16,10 +17,11 @@ import {
   isSchemaKind,
 } from "../generate.ts";
 import { pgConnector } from "../pg.ts";
+import { SqlSyntaxError, parseSqlFile, readPolicy } from "../sql/ast.ts";
 import { parseMembershipsFlag } from "../sql/context.ts";
 import { conditionFromAst, helperGrants } from "./import-ast.ts";
 import { mapRoleValues } from "./import-membership.ts";
-import { canonicalDump, fingerprintSql } from "./import-nodes.ts";
+import { fingerprintSql } from "./import-nodes.ts";
 import { seedFromRow, seedsFromSql } from "./import-seeds.ts";
 import { fieldViewsFromSql, viewsSqlFromDb } from "./import-views.ts";
 
@@ -48,59 +50,36 @@ type CatalogEntry = {
   readonly grants?: readonly ImportedGrant[];
 };
 
-const POLICY_RE =
-  /create\s+policy\s+"?([A-Za-z0-9_]+)"?\s+on\s+"?([A-Za-z0-9_]+)"?([\s\S]*?);/giu;
-
-function extractParenClause(sql: string, keyword: string): string | undefined {
-  const match = new RegExp(`\\b${keyword}\\s*\\(`, "iu").exec(sql);
-  if (match?.index === undefined) {
+async function deparseExpr(expr: unknown): Promise<string | undefined> {
+  if (expr === undefined) {
     return undefined;
   }
-  const start = match.index + match[0].length;
-  let depth = 1;
-  for (let i = start; i < sql.length; i += 1) {
-    const ch = sql[i];
-    if (ch === "(") {
-      depth += 1;
-    } else if (ch === ")") {
-      depth -= 1;
-      if (depth === 0) {
-        return sql.slice(start, i).trim();
-      }
-    }
-  }
-  return undefined;
+  // SAFETY: readPolicy takes expr from pgsql-parser's own parse tree, which deparse accepts.
+  const text = await deparse(expr as Parameters<typeof deparse>[0]);
+  return text;
 }
 
-function splitPolicies(sql: string): ImportedPolicy[] {
+/** The `create policy` statements of a SQL dump, one per command they name. */
+async function splitPolicies(sql: string): Promise<ImportedPolicy[]> {
   const out: ImportedPolicy[] = [];
-  for (const match of sql.matchAll(POLICY_RE)) {
-    const name = match[1] ?? "policy";
-    const table = match[2] ?? "table";
-    const body = match[3] ?? "";
-    const clauses = body.search(/\b(?:using|with\s+check)\s*\(/iu);
-    const header = clauses === -1 ? body : body.slice(0, clauses);
-    const asRestrictive = /\bas\s+restrictive\b/iu.test(header);
-    const cmdMatch = /\bfor\s+(all|select|insert|update|delete)\b/iu.exec(
-      header,
-    );
-    const toMatch = /\bto\s+([^\n]+)/iu.exec(header);
-    const using = extractParenClause(body, "using");
-    const check = extractParenClause(body, "with\\s+check");
-    const roles = (toMatch?.[1] ?? "authenticated")
-      .split(",")
-      .map((item) => item.trim())
-      .filter((item) => item !== "");
-    const cmd = (cmdMatch?.[1] ?? "all").toUpperCase();
+  for (const node of await parseSqlFile(sql)) {
+    const policy = readPolicy(node);
+    if (policy === undefined) {
+      continue;
+    }
+    const using = await deparseExpr(policy.using);
+    const check = await deparseExpr(policy.check);
     const commands =
-      cmd === "ALL" ? ["SELECT", "INSERT", "UPDATE", "DELETE"] : [cmd];
+      policy.command === "all"
+        ? ["SELECT", "INSERT", "UPDATE", "DELETE"]
+        : [policy.command.toUpperCase()];
     for (const command of commands) {
       out.push({
-        name,
-        table,
+        name: policy.name,
+        table: policy.table,
         cmd: command,
-        permissive: !asRestrictive,
-        roles,
+        permissive: policy.permissive,
+        roles: policy.roles,
         ...(using === undefined ? {} : { using }),
         ...(check === undefined ? {} : { check }),
       });
@@ -291,10 +270,16 @@ export async function runRlsImport(input: {
     assertNoServiceRole(sql);
     viewsSql = sql;
     seeds = await seedsFromSql(sql);
-    const canonical = await canonicalDump(sql);
-    policies = splitPolicies(canonical ?? sql);
-    if (policies.length === 0) {
-      policies = splitPolicies(sql);
+    try {
+      policies = await splitPolicies(sql);
+    } catch (error) {
+      if (error instanceof SqlSyntaxError) {
+        return {
+          code: 2,
+          output: `PermDock CLI: ${input.sql}: ${error.message}; rls import reads SQL with the Postgres 18 grammar`,
+        };
+      }
+      throw error;
     }
   } else if (input.db === undefined) {
     return {

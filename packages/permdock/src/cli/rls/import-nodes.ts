@@ -307,14 +307,6 @@ export function argFromNode(value: unknown): SqlFunctionArg | undefined {
   return constValue(value);
 }
 
-export async function canonicalDump(sql: string): Promise<string | undefined> {
-  try {
-    return await deparse(await parse(sql));
-  } catch {
-    return undefined;
-  }
-}
-
 export function asStmts(parsed: unknown): readonly unknown[] {
   if (Array.isArray(parsed)) {
     return parsed;

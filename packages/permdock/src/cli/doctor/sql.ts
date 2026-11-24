@@ -1,6 +1,7 @@
 import { join } from "node:path";
 
 import type { DoctorFiles, DoctorFinding } from "../shared/doctor-types.ts";
+import type { SqlPolicy } from "../sql/ast.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
@@ -13,6 +14,12 @@ import {
 } from "../rls/retire.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { nodeFiles } from "../shared/doctor-files.ts";
+import {
+  SqlSyntaxError,
+  parseSqlFile,
+  readPolicy,
+  sqlCalls,
+} from "../sql/ast.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
 import { supautilsRejections } from "../sql/supautils.ts";
@@ -59,6 +66,64 @@ function migrationStatements(
         Object.assign({ file: rel(cwd, file) }, statement),
       ),
   );
+}
+
+/** A `create policy` statement of a SQL file, with its file and line. */
+type FilePolicy = SqlPolicy & {
+  readonly file: string;
+  readonly line: number;
+  readonly text: string;
+};
+
+/**
+ * The `create policy` statements of `paths`, read through the SQL layer. A file
+ * libpg_query rejects adds none; PD045 and the schema readers report it.
+ */
+async function filePolicies(
+  files: DoctorFiles,
+  cwd: string,
+  paths: readonly string[],
+): Promise<readonly FilePolicy[]> {
+  const out: FilePolicy[] = [];
+  for (const file of paths) {
+    let nodes: Awaited<ReturnType<typeof parseSqlFile>>;
+    try {
+      nodes = await parseSqlFile(files.read(file));
+    } catch (error) {
+      if (error instanceof SqlSyntaxError) {
+        continue;
+      }
+      throw error;
+    }
+    for (const node of nodes) {
+      const policy = readPolicy(node);
+      if (policy !== undefined) {
+        out.push({
+          ...policy,
+          file: rel(cwd, file),
+          line: node.line,
+          text: node.text,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function migrationPolicies(
+  files: DoctorFiles,
+  cwd: string,
+  config: PermDockConfig,
+): Promise<readonly FilePolicy[]> {
+  return filePolicies(
+    files,
+    cwd,
+    sqlFiles(cwd, config.doctor?.migrations ?? MIGRATION_DIRS),
+  );
+}
+
+function policyTable(policy: SqlPolicy): string {
+  return `${policy.schema}.${policy.table}`.toLowerCase();
 }
 
 /** The schema of a `tableKey`, which always names one. */
@@ -367,34 +432,30 @@ export function pd050(
     }));
 }
 
-const CREATE_POLICY = new RegExp(
-  String.raw`^create\s+policy\s+${IDENT}\s+on\s+${NAME}([\s\S]*)$`,
-  "iu",
-);
-const UNWRAPPED_AUTH = /(?<!\bselect\s{1,20})\bauth\.(uid|jwt)\s*\(\s*\)/giu;
-
 /**
  * PD051: a policy that calls `auth.uid()` or `auth.jwt()` bare, so Postgres
  * runs it once per row.
  */
-export function pd051(
+export async function pd051(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
-): readonly DoctorFinding[] {
+): Promise<readonly DoctorFinding[]> {
   if (!isSupabase(files, cwd, config)) {
     return [];
   }
-  return migrationStatements(files, cwd, config).flatMap((statement) => {
-    const policy = CREATE_POLICY.exec(statement.text);
-    if (policy === null) {
-      return [];
-    }
+  return (await migrationPolicies(files, cwd, config)).flatMap((policy) => {
     const calls = [
       ...new Set(
-        [...group(policy, 3).matchAll(UNWRAPPED_AUTH)].map(
-          (match) => `auth.${group(match, 1).toLowerCase()}()`,
-        ),
+        [...sqlCalls(policy.using), ...sqlCalls(policy.check)]
+          .filter(
+            ({ name, inSubquery }) =>
+              !inSubquery &&
+              name.length === 2 &&
+              name[0] === "auth" &&
+              (name[1] === "uid" || name[1] === "jwt"),
+          )
+          .map(({ name }) => `auth.${String(name[1])}()`),
       ),
     ];
     const [first] = calls;
@@ -404,7 +465,7 @@ export function pd051(
           {
             code: "PD051",
             severity: "warning" as const,
-            message: `${statement.file}:${String(statement.line)} policy ${unquote(group(policy, 1))} on ${tableKey(group(policy, 2))} calls ${calls.join(" and ")} once per row`,
+            message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policyTable(policy)} calls ${calls.join(" and ")} once per row`,
             fix: `wrap each call as (select ${first}) so Postgres evaluates it once per statement (Supabase advisor auth_rls_initplan)`,
           },
         ];
@@ -415,33 +476,24 @@ export function pd051(
  * PD052: an update policy without `with check`, so nothing states what a row
  * may become.
  */
-export function pd052(
+export async function pd052(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
-): readonly DoctorFinding[] {
+): Promise<readonly DoctorFinding[]> {
   if (!isSupabase(files, cwd, config)) {
     return [];
   }
-  return migrationStatements(files, cwd, config).flatMap((statement) => {
-    const policy = CREATE_POLICY.exec(statement.text);
-    const rest = policy?.[3] ?? "";
-    if (
-      policy === null ||
-      !/\bfor\s+update\b/iu.test(rest) ||
-      /\bwith\s+check\b/iu.test(rest)
-    ) {
-      return [];
-    }
-    return [
-      {
-        code: "PD052",
-        severity: "warning" as const,
-        message: `${statement.file}:${String(statement.line)} update policy ${unquote(group(policy, 1))} on ${tableKey(group(policy, 2))} has no with check, so Postgres checks the new row against using alone`,
-        fix: "add with check (...) stating what the updated row must satisfy, such as the same tenant and owner test, so an update cannot move a row out of what the user may write",
-      },
-    ];
-  });
+  return (await migrationPolicies(files, cwd, config))
+    .filter(
+      (policy) => policy.command === "update" && policy.check === undefined,
+    )
+    .map((policy) => ({
+      code: "PD052",
+      severity: "warning" as const,
+      message: `${policy.file}:${String(policy.line)} update policy ${policy.name} on ${policyTable(policy)} has no with check, so Postgres checks the new row against using alone`,
+      fix: "add with check (...) stating what the updated row must satisfy, such as the same tenant and owner test, so an update cannot move a row out of what the user may write",
+    }));
 }
 
 /** Top-level comma-separated parts of a parenthesised list. */
@@ -794,69 +846,37 @@ export function pd089(
   });
 }
 
-const POLICY_COMMAND = /\bfor\s+(all|select|insert|update|delete)\b/iu;
-const ACTOR_GUARD_CALL = /\bpermdock_actor_may_write\s*\(/iu;
 /** The expression `rls generate` inlined into the policies of 0.24 and earlier. */
 const INLINED_ACTOR_GUARD = /'act'[\s\S]*'read_only'/iu;
 
-function inlinesActorGuard(text: string): boolean {
-  return INLINED_ACTOR_GUARD.test(text.replaceAll('"', ""));
+function guarded(policy: FilePolicy): boolean {
+  return (
+    [...sqlCalls(policy.using), ...sqlCalls(policy.check)].some(
+      ({ name }) => name.at(-1) === "permdock_actor_may_write",
+    ) || INLINED_ACTOR_GUARD.test(policy.text.replaceAll('"', ""))
+  );
 }
+
 const WRITE_COMMANDS = ["insert", "update", "delete"] as const;
 
-type PolicyStatement = SqlStatement & {
-  readonly name: string;
-  readonly table: string;
-  readonly commands: readonly string[];
-  readonly guarded: boolean;
-};
-
-function policyStatements(
-  statements: readonly SqlStatement[],
-): readonly PolicyStatement[] {
-  return statements.flatMap((statement) => {
-    const match = CREATE_POLICY.exec(header(statement.text));
-    if (match === null) {
-      return [];
-    }
-    const command = POLICY_COMMAND.exec(group(match, 3))?.[1]?.toLowerCase();
-    return [
-      {
-        ...statement,
-        name: unquote(group(match, 1)),
-        table: tableKey(group(match, 2)),
-        commands:
-          command === undefined || command === "all"
-            ? WRITE_COMMANDS
-            : [command],
-        guarded:
-          ACTOR_GUARD_CALL.test(statement.text) ||
-          inlinesActorGuard(statement.text),
-      },
-    ];
-  });
+function writeCommands(policy: SqlPolicy): readonly string[] {
+  return policy.command === "all" ? WRITE_COMMANDS : [policy.command];
 }
 
 /**
- * The statements PD090 reads: the migration folders, plus the declarative
- * schemas and `rls.out`, which `doctor.migrations` does not drop.
+ * The files PD090 reads: the migration folders, plus the declarative schemas
+ * and `rls.out`, which `doctor.migrations` does not drop.
  */
-function guardStatements(
-  files: DoctorFiles,
-  cwd: string,
-  config: PermDockConfig,
-): readonly SqlStatement[] {
-  const out = config.rls?.out;
-  const entries = [
-    ...(config.doctor?.migrations ?? MIGRATION_DIRS),
-    "supabase/schemas",
-    ...outFiles(out),
-  ];
-  return [...new Set(sqlFiles(cwd, entries))].flatMap((file) =>
-    sqlStatements(files.read(file)).map((statement) =>
-      Object.assign({ file: rel(cwd, file) }, statement),
+function guardFiles(cwd: string, config: PermDockConfig): readonly string[] {
+  return [
+    ...new Set(
+      sqlFiles(cwd, [
+        ...(config.doctor?.migrations ?? MIGRATION_DIRS),
+        "supabase/schemas",
+        ...outFiles(config.rls?.out),
+      ]),
     ),
-  );
+  ];
 }
 
 /**
@@ -865,32 +885,34 @@ function guardStatements(
  * `permdock rls generate` already writes a restrictive `*_read_only_actors`
  * policy, so the guard runs twice.
  */
-export function pd090(
+export async function pd090(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
-): readonly DoctorFinding[] {
-  const policies = policyStatements(guardStatements(files, cwd, config));
+): Promise<readonly DoctorFinding[]> {
+  const policies = await filePolicies(files, cwd, guardFiles(cwd, config));
   const generated = new Set(
     policies
       .filter((policy) => policy.name.endsWith("_read_only_actors"))
       .flatMap((policy) =>
-        policy.commands.map((command) => `${policy.table}:${command}`),
+        writeCommands(policy).map(
+          (command) => `${policyTable(policy)}:${command}`,
+        ),
       ),
   );
   return policies
     .filter((policy) => !policy.name.endsWith("_read_only_actors"))
     .filter(
       (policy) =>
-        policy.guarded &&
-        policy.commands.some((command) =>
-          generated.has(`${policy.table}:${command}`),
+        guarded(policy) &&
+        writeCommands(policy).some((command) =>
+          generated.has(`${policyTable(policy)}:${command}`),
         ),
     )
     .map((policy) => ({
       code: "PD090",
       severity: "warning" as const,
-      message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policy.table} repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
+      message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policyTable(policy)} repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
       fix: "remove the permdock_actor_may_write() call from the hand-written policy; the restrictive policy applies to it already",
     }));
 }

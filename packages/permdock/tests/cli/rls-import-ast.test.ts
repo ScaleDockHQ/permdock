@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { conditionFromAst } from "../../src/cli/rls/import-ast.ts";
-import {
-  canonicalDump,
-  fingerprintSql,
-} from "../../src/cli/rls/import-nodes.ts";
+import { fingerprintSql } from "../../src/cli/rls/import-nodes.ts";
 import { sqlFunctionNames } from "../../src/cli/sql/conditions.ts";
 
 const memberships = {
@@ -138,15 +135,10 @@ describe(conditionFromAst, () => {
     expect(unmapped).toContain("unmapped_helper");
   });
 
-  it("fingerprints by deparsed AST and canonicalises dumps", async () => {
+  it("fingerprints by deparsed AST", async () => {
     const a = await fingerprintSql('(select auth.uid()) = "authorId"');
     const b = await fingerprintSql('((SELECT auth.uid())) = "authorId"');
     expect(a).toBe(b);
-    const dump = await canonicalDump(
-      'create policy "jobs_read" on job for select to authenticated using (job_permitted(id));',
-    );
-    expect(dump).toMatch(/CREATE POLICY/iu);
-    expect(dump).toContain("job_permitted");
   });
 });
 
