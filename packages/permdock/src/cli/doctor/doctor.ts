@@ -29,6 +29,7 @@ import {
   supabaseHookManifest,
 } from "../supabase-hook/supabase-hook.ts";
 import { pd039 } from "../supabase-setup.ts";
+import { pd123 } from "./action-keys.ts";
 import { pd064 } from "./assignments.ts";
 import { applyDoctorIgnores, reported } from "./baseline.ts";
 import { pd078, pd079, pd082, pd087, pd094, pd100 } from "./better-supabase.ts";
@@ -452,6 +453,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd126(project.cwd, project.files),
   },
   { code: "PD094", groups: ["better-supabase"], run: pd094 },
+  { code: "PD123", groups: ["better-supabase"], run: pd123 },
   {
     code: "PD095",
     groups: ["rls", "supabase"],

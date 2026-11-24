@@ -34,6 +34,16 @@ export async function betterSupabaseConfig(
   return (await loadBetterSupabaseConfig(input)).config;
 }
 
+/** The better-supabase config file `betterSupabaseConfig` loads, if one exists. */
+export function betterSupabaseConfigPath(input: Lookup): string | undefined {
+  const files = filesOf(input);
+  return input.path === undefined
+    ? workspaceDirs(files, input.from ?? input.cwd)
+        .flatMap((dir) => CONFIG_FILES.map((name) => resolve(dir, name)))
+        .find((file) => files.exists(file))
+    : [resolve(input.cwd, input.path)].find((file) => files.exists(file));
+}
+
 /**
  * `betterSupabaseConfig`, plus the error when the file exists but does not
  * load, for example while it reads a manifest PermDock has not written yet.
@@ -44,13 +54,7 @@ export async function loadBetterSupabaseConfig(
   readonly config?: Record<string, unknown>;
   readonly failed?: { readonly path: string; readonly error: unknown };
 }> {
-  const files = filesOf(input);
-  const path =
-    input.path === undefined
-      ? workspaceDirs(files, input.from ?? input.cwd)
-          .flatMap((dir) => CONFIG_FILES.map((name) => resolve(dir, name)))
-          .find((file) => files.exists(file))
-      : [resolve(input.cwd, input.path)].find((file) => files.exists(file));
+  const path = betterSupabaseConfigPath(input);
   if (path === undefined) {
     return {};
   }
