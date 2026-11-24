@@ -12,6 +12,7 @@ import type {
   ToolHints,
 } from "./permission-types.ts";
 
+import { checkAnswers } from "./action-answers.ts";
 import { assertAppData, parseAppData } from "./app-data.ts";
 import { LEAF_FORMER, RESOURCE_BRAND } from "./brands.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
@@ -57,6 +58,7 @@ export function metaFor(
   }
   // SAFETY: Array.isArray does not narrow a readonly array; the non-array ActionList is this map.
   const meta = (list as Record<string, ActionMeta>)[action];
+  checkAnswers(meta?.answers, action);
   if (meta?.x === undefined) {
     return freezeDeep({ ...meta });
   }

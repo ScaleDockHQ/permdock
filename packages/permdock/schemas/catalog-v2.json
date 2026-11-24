@@ -280,6 +280,12 @@
           "hostable": {
             "const": true
           },
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "rowConditions": {
             "type": "boolean"
           },

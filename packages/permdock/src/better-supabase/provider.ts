@@ -26,6 +26,7 @@ import { delegatedScopeMap } from "../core/oauth-scopes.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import { hasTokenHook, parseSupabaseManifest } from "../supabase/manifest.ts";
 import { activeTenantMismatch } from "./active-tenant.ts";
+import { actionKeysOf } from "./provider-action-keys.ts";
 import { ASSIGN_ANY, providerFunctions } from "./provider-functions.ts";
 import { tokenHookOf } from "./provider-hook.ts";
 import { fixtureRolesOf } from "./provider-personas.ts";
@@ -538,6 +539,8 @@ export function authorizationProvider<P = undefined>(
       ? undefined
       : platformRolesOf(manifest, schema, tenantScope, assignAny && canAssign);
   const operations = catalog === undefined ? {} : operationsOf(catalog);
+  const actionKeys =
+    catalog === undefined ? undefined : actionKeysOf(catalog, problems);
   const delegated = delegatedScopes(catalog);
   const interactiveOnly = (catalog?.permissions ?? [])
     .filter((permission) => permission.meta["interactiveOnly"] === true)
@@ -596,6 +599,7 @@ export function authorizationProvider<P = undefined>(
     ...(personas === undefined ? {} : { personas }),
     ...(fixtureRoles === undefined ? {} : { fixtureRoles }),
     ...(Object.keys(operations).length > 0 ? { operations } : {}),
+    ...(actionKeys === undefined ? {} : { actionKeys }),
     ...(tables === undefined ? {} : { tables }),
     ...(Object.keys(delegated).length > 0 || interactiveOnly.length > 0
       ? {
