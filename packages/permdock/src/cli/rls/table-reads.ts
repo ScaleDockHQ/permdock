@@ -20,6 +20,7 @@ import {
   parseSqlFile,
   readPolicy,
   sqlCalls,
+  stringValues,
 } from "../sql/ast.ts";
 import { taggedAccessPolicies } from "../sql/bsb-access.ts";
 import { isPlatformSchema } from "../sql/platform.ts";
@@ -56,6 +57,59 @@ function relationName(relation: unknown): string | undefined {
       ? relation["schemaname"]
       : "public";
   return `${schema}.${relation["relname"]}`.toLowerCase();
+}
+
+/** The qualified tables a `drop table` statement removes, lower case. */
+function droppedTables(node: Readonly<Record<string, unknown>>): string[] {
+  const objects = node["objects"];
+  if (node["removeType"] !== "OBJECT_TABLE" || !Array.isArray(objects)) {
+    return [];
+  }
+  return objects.flatMap((object: unknown) => {
+    const list: unknown = isRecord(object) ? object["List"] : undefined;
+    const items: unknown = isRecord(list) ? list["items"] : undefined;
+    const parts = stringValues(items);
+    const name = parts.at(-1);
+    return name === undefined
+      ? []
+      : [`${parts.length > 1 ? parts.at(-2) : "public"}.${name}`.toLowerCase()];
+  });
+}
+
+/** `alter table <from> rename to <to>`: the two qualified names, lower case. */
+function renamedTable(
+  node: Readonly<Record<string, unknown>>,
+): { readonly from: string; readonly to: string } | undefined {
+  const from = relationName(node["relation"]);
+  const name = node["newname"];
+  if (
+    node["renameType"] !== "OBJECT_TABLE" ||
+    from === undefined ||
+    typeof name !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    from,
+    to: `${from.slice(0, from.indexOf("."))}.${name.toLowerCase()}`,
+  };
+}
+
+function renameTable(
+  created: Set<string>,
+  facts: Map<string, TableFacts>,
+  renamed: { readonly from: string; readonly to: string } | undefined,
+): void {
+  if (renamed === undefined) {
+    return;
+  }
+  created.delete(renamed.from);
+  created.add(renamed.to);
+  const moved = facts.get(renamed.from);
+  facts.delete(renamed.from);
+  if (moved !== undefined) {
+    facts.set(renamed.to, moved);
+  }
 }
 
 function enablesRls(node: Readonly<Record<string, unknown>>): boolean {
@@ -282,6 +336,12 @@ export async function tableReads(input: {
             .get(`${dropped.schema}.${dropped.table}`.toLowerCase())
             ?.policies.delete(dropped.name);
         }
+        for (const table of droppedTables(node.node)) {
+          created.delete(table);
+          facts.delete(table);
+        }
+      } else if (node.kind === "RenameStmt") {
+        renameTable(created, facts, renamedTable(node.node));
       } else {
         const policy = readPolicy(node);
         if (policy !== undefined) {

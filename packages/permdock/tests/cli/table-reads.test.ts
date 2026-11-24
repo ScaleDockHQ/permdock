@@ -123,6 +123,30 @@ describe(tableReads, () => {
     ]);
   });
 
+  it("drops a table a later migration drops and follows a rename", async () => {
+    const cwd = project();
+    mkdirSync(join(cwd, "supabase/migrations"), { recursive: true });
+    writeFileSync(
+      join(cwd, "supabase/migrations/20260101000000_old.sql"),
+      `create table public.gone (id uuid primary key, organization_id uuid not null);
+create table public.before_rename (id uuid primary key, organization_id uuid not null);
+alter table public.before_rename enable row level security;
+create policy br_read on public.before_rename for select to authenticated
+  using (organization_id in (select permdock.permitted_organization_ids_by_permission('invoice.read')));
+`,
+    );
+    writeFileSync(
+      join(cwd, "supabase/migrations/20260102000000_later.sql"),
+      `drop table public.gone;
+alter table public.before_rename rename to after_rename;
+`,
+    );
+    const tables = (await reads(cwd)).map((read) => read.table);
+    expect(tables).not.toContain("public.gone");
+    expect(tables).not.toContain("public.before_rename");
+    expect(tables).toContain("public.after_rename");
+  });
+
   it("says which grant keeps a form table off the tag, in the codemod, the report and explain", async () => {
     const cwd = project();
     writeFileSync(

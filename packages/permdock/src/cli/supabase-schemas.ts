@@ -52,7 +52,10 @@ export function resolveSchemas(
     (toml?.enabled === false ? "migra" : "pg-delta");
   switch (mode) {
     case "pg-delta":
-      return { mode, schemaDir: toml?.schemaDir ?? declarativeSchemaDir() };
+      return {
+        mode,
+        schemaDir: toml?.schemaDir ?? declarativeSchemaDir(undefined, cwd),
+      };
     case "migra":
     case "migrations":
       return { mode };
