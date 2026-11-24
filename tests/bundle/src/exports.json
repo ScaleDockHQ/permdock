@@ -59,6 +59,7 @@
     "customRoleSource",
     "decideAutomation",
     "decideCredential",
+    "decideCustomRole",
     "decideRoleChange",
     "decideSupportSession",
     "defineOperations",
@@ -351,7 +352,8 @@
     "createPermDock",
     "snapshotHeaders",
     "snapshotKey",
-    "snapshotTag"
+    "snapshotTag",
+    "tenantFromPath"
   ],
   "./server": [
     "InvalidSignatureError",
@@ -388,6 +390,7 @@
     "subjectFromApiKey",
     "subjectFromRunTicket",
     "subjectFromSupportSession",
+    "tenantFromPath",
     "tenantScope",
     "validationProblem",
     "webBotAuthVerifier",
@@ -744,7 +747,7 @@
     "tableApprovalPolicySource",
     "tableMembershipSource"
   ],
-  "./supabase/middleware": ["createPermDock"],
+  "./supabase/middleware": ["createPermDock", "tenantFromPath"],
   "./supabase/client": ["supabaseRealtimeRefresh"],
   "./ssf": [
     "SSF_POLL_DELIVERY",
