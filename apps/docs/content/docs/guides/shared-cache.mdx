@@ -29,3 +29,14 @@ better-supabase sets `context.enforcement` to `rls` on a write that Postgres che
 ```ts
 authorizer({ policy, memberships, versions });
 ```
+
+## Version store
+
+`memoryVersionCache({ shared })` takes a `VersionStore` with better-supabase's shape: `get(id)` answers `{ version, at }`, `set(id, version, at)` writes the time of the database read, and `delete(id)` forgets. `maxStaleMs` counts from `at` on every instance, so a store that never expires cannot keep a version past it. A stored entry dated in the future counts as read now, and one older than `maxStaleMs` is a miss.
+
+| Store                                         | Use it when                                                                                         |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `runtimeCacheVersionStore(getCache())`        | The app runs on Vercel; entries expire after 60 s.                                                  |
+| `postgresCacheVersionStore(pool, "schema.t")` | The app has no runtime cache; the table is `(user_id text primary key, version bigint, at bigint)`. |
+
+`testVersionStore` from `permdock/testing` checks a store against that shape.

@@ -210,11 +210,17 @@ export type {
   SubjectRecord,
 } from "./core/subject-cache.ts";
 export { memoryVersionCache } from "./core/version-cache.ts";
+export {
+  postgresCacheVersionStore,
+  runtimeCacheVersionStore,
+} from "./core/version-stores.ts";
+export type { QueryableLike, RuntimeCacheLike } from "./core/version-stores.ts";
 export type {
   MemoryVersionCacheOptions,
   VersionCache,
   VersionCacheStats,
   VersionStore,
+  VersionStoreEntry,
 } from "./core/version-cache.ts";
 export type {
   ClientBundle,
