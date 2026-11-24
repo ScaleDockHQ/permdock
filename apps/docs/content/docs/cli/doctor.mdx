@@ -825,7 +825,7 @@ pg-delta orders the declarative schema directory by the dependencies `@supabase/
 - `DUPLICATE_PRODUCER`: an object two statements create. The finding names both files.
 - `UNRESOLVED_DEPENDENCY` on a table `rls.tables` names: no schema file creates it.
 
-pg-topo 1.0.0-alpha.8 cannot tell overloads of one function apart: it drops array bounds from a signature and reads `%type` as a type. PD125 leaves out a duplicate whose producers declare different argument lists, and a cycle between overloads of one function, until pg-topo tells overloads apart.
+pg-topo 1.0.0-alpha.8 cannot tell overloads of one function apart: it drops array bounds from a signature and reads `%type` as a type. PD125 leaves out a duplicate whose producers declare different argument lists, and a cycle between overloads of one function, until pg-topo tells overloads apart. It also leaves out a schema that only `create schema if not exists` statements create, such as the `create schema if not exists permdock` that the RLS helpers, the auth hook and the SCIM output each write: such statements run in any order. A plain `create schema` next to such a statement is still reported, because the repeat may run first and make it fail.
 
 PD125 resolves `@supabase/pg-topo` from the app, then from the installed `better-supabase`, which pins it and whose BS709 tells the app to remove its own entry. Without either it prints one info finding that names the package. When the better-supabase config sets `authorization.doctor.command`, better-supabase's doctor runs PermDock's under BS705 and reports cycles and duplicates as BS722 and BS723, so PD125 reports only the unresolved table. It runs only in the `pg-delta` workflow. `--only supabase` and `--only sql` run PD125.
 

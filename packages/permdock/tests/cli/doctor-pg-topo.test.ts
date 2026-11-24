@@ -111,6 +111,26 @@ console.log(JSON.stringify(await pd125({ cwd: ${JSON.stringify(cwd)}, config: {}
     ).toStrictEqual(["table:public:t:"]);
   });
 
+  it("leaves out a schema that create schema if not exists repeats", async () => {
+    const cwd = project({
+      "supabase/schemas/a.sql": 'create schema if not exists "permdock";',
+      "supabase/schemas/b.sql":
+        'create schema if not exists "permdock";\ncreate table permdock.t (id int);',
+    });
+    expect(await pd125({ cwd, config: NONE })).toStrictEqual([]);
+  });
+
+  it("still names a schema that one plain create schema and a repeat create", async () => {
+    const cwd = project({
+      "supabase/schemas/a.sql": "create schema app;",
+      "supabase/schemas/b.sql": "create schema if not exists app;",
+      "supabase/schemas/c.sql": "create schema app;",
+    });
+    expect(
+      (await pd125({ cwd, config: NONE })).map((finding) => finding.target),
+    ).toStrictEqual(["schema::app:"]);
+  });
+
   it("names both files of an object two statements create", async () => {
     const cwd = project({
       "supabase/schemas/a.sql": "create table public.t (id int);",

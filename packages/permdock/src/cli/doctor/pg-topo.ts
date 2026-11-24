@@ -116,6 +116,34 @@ async function distinctOverloads(
   );
 }
 
+/**
+ * Whether `sql` is `create schema if not exists`. Producers that all are can
+ * run in any order; next to a plain `create schema` one may run first and make
+ * it fail.
+ */
+async function repeatable(sql: string): Promise<boolean> {
+  try {
+    const [node] = await parseSqlFile(sql);
+    return (
+      node?.kind === "CreateSchemaStmt" && node.node["if_not_exists"] === true
+    );
+  } catch (error) {
+    if (error instanceof SqlSyntaxError) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function allRepeatable(producers: readonly TopoNode[]): Promise<boolean> {
+  for (const node of producers) {
+    if (!(await repeatable(node.sql))) {
+      return false;
+    }
+  }
+  return producers.length > 0;
+}
+
 function configTables(input: DoctorInput): ReadonlySet<string> {
   return new Set(
     Object.entries(input.config.rls?.tables ?? {}).flatMap(
@@ -149,7 +177,10 @@ async function duplicates(
     const producers = ordered.filter((node) =>
       node.provides.some((provided) => refKey(provided) === key),
     );
-    if (await distinctOverloads(ref, producers)) {
+    if (
+      (await distinctOverloads(ref, producers)) ||
+      (await allRepeatable(producers))
+    ) {
       continue;
     }
     const where = [
@@ -238,8 +269,9 @@ function unresolvedTables(
  * PD125: pg-topo's dependency analysis of the declarative schema directory. It
  * reports cycles, an object two statements create, and a table `rls.tables`
  * names that no schema file creates. Overloads of one function are left out:
- * pg-topo 1.0.0-alpha.8 cannot tell them apart. Under better-supabase's doctor,
- * BS722 and BS723 report cycles and duplicates.
+ * pg-topo 1.0.0-alpha.8 cannot tell them apart. So is a schema that only
+ * `create schema if not exists` statements create. Under better-supabase's
+ * doctor, BS722 and BS723 report cycles and duplicates.
  */
 export async function pd125(
   input: DoctorInput,
