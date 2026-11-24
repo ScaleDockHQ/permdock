@@ -2,7 +2,7 @@ import { group, sqlStatements } from "./statements.ts";
 
 /**
  * `supautils.reserved_roles` of supabase/postgres 17.11.0.002 (supautils
- * 3.4.4).
+ * 3.4.4), unchanged in 17.11.0.006, which Supabase CLI 3.3.0 runs.
  */
 const RESERVED_ROLES: ReadonlySet<string> = new Set([
   "supabase_admin",
