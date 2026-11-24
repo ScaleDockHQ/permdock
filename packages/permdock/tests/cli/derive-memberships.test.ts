@@ -64,6 +64,24 @@ describe(membershipsFromSources, () => {
       }),
     ).toBeUndefined();
   });
+
+  it("derives nothing when one source of several cannot be described", () => {
+    expect(
+      membershipsFromSources({
+        rls: {
+          membershipSources: [
+            ...hook.memberships,
+            tableMembershipSource({
+              table: "account_users",
+              columns: {
+                role: { column: "kind", map: { admin: "owner", user: null } },
+              },
+            }),
+          ],
+        },
+      }),
+    ).toBeUndefined();
+  });
 });
 
 describe(withSourcedRls, () => {

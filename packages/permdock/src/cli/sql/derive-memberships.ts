@@ -102,32 +102,25 @@ function tableOf(
 }
 
 /**
- * The `rls.memberships` tables the membership sources describe, one per scope
- * with exactly one source the table form can express.
+ * The `rls.memberships` tables the membership sources describe, one per scope,
+ * or `undefined` unless every source maps to its own scope in the table form:
+ * the generator reads the sources themselves otherwise, and a partial
+ * derivation would drop the rest.
  */
 export function membershipsFromSources(
   config: PermDockConfig,
 ): RlsMemberships | undefined {
-  const byScope = new Map<string, RlsMembershipTable[]>();
+  const scopes: Record<string, RlsMembershipTable> = {};
   for (const source of membershipSourcesOf(config)) {
     const found = tableOf(
       source.sql.manifest,
       source.sql.stream?.guard !== undefined,
     );
-    if (found === undefined) {
-      continue;
+    if (found === undefined || Object.hasOwn(scopes, found.scope)) {
+      return undefined;
     }
-    byScope.set(found.scope, [
-      ...(byScope.get(found.scope) ?? []),
-      found.table,
-    ]);
+    scopes[found.scope] = found.table;
   }
-  const scopes = Object.fromEntries(
-    [...byScope].flatMap(([scope, tables]) => {
-      const [only, ...rest] = tables;
-      return only === undefined || rest.length > 0 ? [] : [[scope, only]];
-    }),
-  );
   return Object.keys(scopes).length === 0 ? undefined : { scopes };
 }
 
