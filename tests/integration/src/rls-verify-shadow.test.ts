@@ -1,4 +1,5 @@
 import {
+  buildSchemaExport,
   hasBlockingDiagnostics,
   planSchemaFiles,
   rawProfile,
@@ -170,6 +171,50 @@ describe("rls verify --shadow (pg-delta)", () => {
     ]);
     expect(result.blocked).toStrictEqual([]);
     expect(result.actions).toBeGreaterThan(0);
+  }, 120_000);
+
+  it("doctor names both files of each copy a pg-delta export writes", async () => {
+    const pool = new Pool({
+      connectionString: await database([APP, generated]),
+    });
+    let exported: Awaited<ReturnType<typeof buildSchemaExport>>;
+    try {
+      exported = await buildSchemaExport(pool, { profile: rawProfile });
+    } finally {
+      await pool.end();
+    }
+    const project = mkdtempSync(join(TMP, "exported-copies-"));
+    try {
+      cpSync(FIXTURE, project, { recursive: true });
+      const schemas = join(project, "supabase/schemas");
+      for (const file of exported.files) {
+        mkdirSync(dirname(join(schemas, file.name)), { recursive: true });
+        writeFileSync(join(schemas, file.name), file.sql);
+      }
+      writeFileSync(join(schemas, "10_permdock.sql"), generated);
+      const result = await runPipingDbUrl(
+        ["doctor", "--only", "PD095", "--json"],
+        { cwd: project },
+      );
+      const copies = [
+        ...result.stdout.matchAll(
+          /(?<file>supabase\/schemas\/[^"\s]+) and supabase\/schemas\/10_permdock\.sql both create (?<object>[^"]+)"/gu,
+        ),
+      ].map(
+        (match) =>
+          `${match.groups?.["file"] ?? ""}: ${match.groups?.["object"] ?? ""}`,
+      );
+      expect(copies).toContain(
+        "supabase/schemas/public/tables/doc.sql: doc_select on public.doc",
+      );
+      expect(
+        copies.some((copy) =>
+          copy.startsWith("supabase/schemas/permdock/functions/"),
+        ),
+      ).toBe(true);
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
   }, 120_000);
 
   it("loads the powersync publication file next to a declared publication", async () => {

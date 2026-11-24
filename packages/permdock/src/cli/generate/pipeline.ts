@@ -24,6 +24,7 @@ import {
   readCache,
   writeCache,
 } from "./cache.ts";
+import { exportedCopyFiles } from "./exported-copies.ts";
 import { policyModel } from "./model.ts";
 import { orderPlugins } from "./plugin.ts";
 import { concurrencyOf, mapLimited } from "./pool.ts";
@@ -333,5 +334,8 @@ export async function emitPluginFiles(input: {
       notes.push(`${finding.code} ${finding.severity}: ${finding.message}`);
     }
   }
+  const copies = await exportedCopyFiles(input.cwd, input.config, emitted);
+  emitted.push(...copies.files);
+  notes.push(...copies.notes);
   return { emitted, notes };
 }

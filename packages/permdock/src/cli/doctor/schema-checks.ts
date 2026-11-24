@@ -16,6 +16,7 @@ import {
 } from "../sql/ast.ts";
 import { membershipColumns, tableKey } from "../sql/deciding-columns.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
+import { exportedDuplicates } from "./exported-duplicates.ts";
 
 const SCHEMA_DIR = "supabase/schemas";
 const MIGRATIONS = "supabase/migrations";
@@ -221,7 +222,8 @@ async function ownedNames(
 }
 
 /**
- * PD095: a schema file uses a shape pg-delta rejects, or a `-- permdock:`
+ * PD095: a schema file uses a shape pg-delta rejects, another schema file
+ * creates a function or policy a PermDock file creates, or a `-- permdock:`
  * migration repeats DDL or a grant the schema file already defines. The shapes
  * include `if not exists` on `create table`, `create index` and `create
  * policy`, and a `drop trigger` before a `create trigger`: pg-delta diffs the
@@ -234,7 +236,15 @@ export async function pd095(
   const schema = sqlUnder(cwd, SCHEMA_DIR, files).filter((file) =>
     permdockSchema(cwd, file),
   );
-  const findings: DoctorFinding[] = [];
+  const findings: DoctorFinding[] = [
+    ...(await exportedDuplicates(
+      SCHEMA_DIR,
+      sqlUnder(cwd, SCHEMA_DIR, files).map((file) => ({
+        path: rel(cwd, file.path),
+        text: file.text,
+      })),
+    )),
+  ];
   const owned = new Set<string>();
   for (const file of schema) {
     const label = rel(cwd, file.path);
