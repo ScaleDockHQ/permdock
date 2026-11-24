@@ -40,6 +40,23 @@ describe(ruleIndexTargets, () => {
     ]);
   });
 
+  it("indexes reportsTo and the user of a self-referencing manager table", () => {
+    expect(
+      ruleIndexTargets(policy, {
+        managers: {
+          table: "public.employees",
+          id: "id",
+          reportsTo: "manager_employee_id",
+          user: "user_id",
+          tenant: "organization_id",
+        },
+      }).map((target) => target.columns),
+    ).toStrictEqual([
+      ["user_id", "organization_id"],
+      ["manager_employee_id", "organization_id"],
+    ]);
+  });
+
   it("writes none without rules", () => {
     expect(ruleIndexTargets(policy, {})).toStrictEqual([]);
   });

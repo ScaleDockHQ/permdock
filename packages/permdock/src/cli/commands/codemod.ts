@@ -8,7 +8,8 @@ export const codemod: Leaf = defineLeaf({
   positionals: [
     {
       name: "version",
-      description: "The release to migrate to (0.5), or config with --prune",
+      description:
+        "The release to migrate to (0.5), config with --prune, or manager-chain",
       required: true,
       async complete() {
         // Lazy: oxc-parser and the rename maps load only when completion asks for them.
@@ -49,6 +50,16 @@ export const codemod: Leaf = defineLeaf({
       return (await import("../codemod/prune-config.ts")).runPruneConfig({
         cwd: ctx.cwd,
         check: flags.check,
+        dryRun: flags["dry-run"],
+        force: flags.force,
+        json: ctx.json,
+      });
+    }
+    if (args["version"] === "manager-chain") {
+      // Lazy: the SQL parser loads only when the codemod runs.
+      return (await import("../codemod/manager-chain.ts")).runManagerChain({
+        cwd: ctx.cwd,
+        ...(rest[0] === undefined ? {} : { schemas: rest[0] }),
         dryRun: flags["dry-run"],
         force: flags.force,
         json: ctx.json,

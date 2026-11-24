@@ -38,6 +38,10 @@ permdock codemod config --prune           # remove them
 
 With `--json`, `data` is `{ file, check, removed, kept, unreachable }`. `unreachable` lists keys the codemod found in the loaded config but not as an object literal key in the file, such as a value from a spread; remove those by hand.
 
+## Replace manager walks
+
+`permdock codemod manager-chain [dir]` replaces hand-written functions that walk the self-referencing `rls.approvals.managers` table with the generated helpers ([self-referencing manager tables](/docs/adapters/better-supabase#self-referencing-manager-tables)). It reads the SQL files in `dir` (default `supabase/schemas`), matches each function that walks the table with `with recursive` to a helper by its signature, rewrites every call site, in policies and in function bodies, and deletes the definition with its `grant`, `revoke` and `comment` statements. A function whose status filter differs from `active` stays. With `--json`, `data` is `{ replaced, kept, files }`.
+
 ## What it renames
 
 The 0.5.0 names are history on the [Naming](/docs/getting-started/naming#renamed-in-050) page. `permdock codemod` no longer applies that table. A row renamed an identifier only where it was imported from one of the entries the row names, so a local `memorySink` of your own stayed as it was.

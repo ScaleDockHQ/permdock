@@ -9,6 +9,7 @@ import type { ParsedConfig } from "./config-schema.ts";
 import { isRecord } from "../../core/compact.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { CliError } from "../core/errors.ts";
+import { withSourcedRls } from "../sql/derive-memberships.ts";
 import {
   betterSupabaseDefaults,
   betterSupabaseInstalled,
@@ -116,10 +117,12 @@ export async function withDerivedDefaults(
     ...parsed,
     // A config that does not load still counts, so the hook defaults do not
     // depend on whether the files it reads exist yet.
-    config: betterSupabaseDefaults(
-      withPluginOutputs(parsed.config),
-      failed === undefined ? betterSupabase.config : {},
-      betterSupabaseInstalled(lookup),
+    config: withSourcedRls(
+      betterSupabaseDefaults(
+        withPluginOutputs(parsed.config),
+        failed === undefined ? betterSupabase.config : {},
+        betterSupabaseInstalled(lookup),
+      ),
     ),
     warnings:
       failed === undefined || parsed.config.supabase?.hook === undefined

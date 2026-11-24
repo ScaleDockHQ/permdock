@@ -158,9 +158,13 @@ describe("rls.approvals approval sets", () => {
   it("filters the downward walk by tenant on the seed and every step", () => {
     const sql = withManagers([{ name: "tenant" }], "organization_id");
     expect(sql).toContain("permdock_managed_user_ids(p_tenant uuid)");
-    expect(sql.match(/m\."organization_id" = p_tenant(?!::)/gu)).toHaveLength(
-      2,
+    const managed = sql.slice(
+      sql.indexOf("permdock_managed_user_ids(p_tenant uuid)"),
+      sql.indexOf("permdock_request_approver_ids"),
     );
+    expect(
+      managed.match(/m\."organization_id" = p_tenant(?!::)/gu),
+    ).toHaveLength(2);
   });
 
   it("filters the upward walk by the request's tenant", () => {

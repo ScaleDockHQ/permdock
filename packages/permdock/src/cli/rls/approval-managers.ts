@@ -1,10 +1,15 @@
 import type { RlsSqlContext } from "../sql/context.ts";
-import type { RlsApprovalManagers } from "../types.ts";
+import type { RlsApprovalManagerRows, RlsApprovalManagers } from "../types.ts";
 
 import { MAX_MANAGER_LEVELS } from "../../core/approvers.ts";
 import { configError } from "../core/errors.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
-import { qualified, quoteIdent, quoteQualified } from "../sql/quote.ts";
+import {
+  qualified,
+  quoteIdent,
+  quoteQualified,
+  quoteLiteral,
+} from "../sql/quote.ts";
 import { subjectIdSql } from "../sql/subject.ts";
 
 /** Whether the signed-in user manages a requester; better-supabase reads it. */
@@ -22,16 +27,78 @@ function named(value: unknown): value is string {
   return typeof value === "string" && value !== "";
 }
 
-function checked(managers: unknown, ctx: RlsSqlContext): RlsApprovalManagers {
+function names(value: unknown): value is readonly string[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item) => typeof item === "string")
+  );
+}
+
+/**
+ * The manager relation the walks read, as one edge per user and manager: an
+ * edge table as written, or a self-referencing row table joined to itself.
+ */
+export type ManagerEdges = {
+  /** A relation for `from`: a quoted table or a parenthesised select. */
+  readonly from: string;
+  readonly user: string;
+  readonly manager: string;
+  readonly tenant?: string;
+};
+
+function activeRows(
+  active: unknown,
+): RlsApprovalManagerRows["active"] | undefined {
+  if (active === undefined) {
+    return undefined;
+  }
+  if (
+    typeof active !== "object" ||
+    active === null ||
+    !("status" in active && named(active.status)) ||
+    ("active" in active && !names(active.active)) ||
+    ("inactive" in active && !names(active.inactive)) ||
+    !("active" in active || "inactive" in active)
+  ) {
+    throw configError(
+      "PermDock CLI: rls.approvals.managers.active needs { status } and a non-empty `active` or `inactive` list of status values",
+    );
+  }
+  return {
+    status: active.status,
+    ...("active" in active && names(active.active)
+      ? { active: active.active }
+      : {}),
+    ...("inactive" in active && names(active.inactive)
+      ? { inactive: active.inactive }
+      : {}),
+  };
+}
+
+/** Validates `rls.approvals.managers` in either form. */
+export function checkedManagers(
+  managers: unknown,
+  ctx: Pick<RlsSqlContext, "scopes">,
+): RlsApprovalManagers {
+  const rows =
+    typeof managers === "object" &&
+    managers !== null &&
+    ("reportsTo" in managers || "id" in managers);
   if (
     typeof managers !== "object" ||
     managers === null ||
     !("table" in managers && named(managers.table)) ||
     !("user" in managers && named(managers.user)) ||
-    !("manager" in managers && named(managers.manager))
+    (rows
+      ? !("id" in managers && named(managers.id)) ||
+        !("reportsTo" in managers && named(managers.reportsTo))
+      : !("manager" in managers && named(managers.manager)))
   ) {
     throw configError(
-      "PermDock CLI: rls.approvals.managers needs { table, user, manager }: the table that names each user's manager, its user column and its manager column",
+      rows
+        ? "PermDock CLI: rls.approvals.managers needs { table, id, reportsTo, user } for a self-referencing table: its id column, the column naming the manager's row and the user column"
+        : "PermDock CLI: rls.approvals.managers needs { table, user, manager }: the table that names each user's manager, its user column and its manager column",
     );
   }
   const tenant = "tenant" in managers ? managers.tenant : undefined;
@@ -45,11 +112,98 @@ function checked(managers: unknown, ctx: RlsSqlContext): RlsApprovalManagers {
       "PermDock CLI: rls.approvals.managers needs `tenant`, the column of the manager table or view that holds each edge's tenant; without it an edge in one tenant would count in every tenant",
     );
   }
+  const withTenant = tenant === undefined ? {} : { tenant };
+  if (
+    rows &&
+    "id" in managers &&
+    named(managers.id) &&
+    "reportsTo" in managers &&
+    named(managers.reportsTo)
+  ) {
+    const active = activeRows(
+      "active" in managers ? managers.active : undefined,
+    );
+    return {
+      table: managers.table,
+      id: managers.id,
+      reportsTo: managers.reportsTo,
+      user: managers.user,
+      ...withTenant,
+      ...(active === undefined ? {} : { active }),
+    };
+  }
+  if (!("manager" in managers && named(managers.manager))) {
+    throw configError(
+      "PermDock CLI: rls.approvals.managers needs { table, user, manager }",
+    );
+  }
   return {
     table: managers.table,
     user: managers.user,
     manager: managers.manager,
-    ...(tenant === undefined ? {} : { tenant }),
+    ...withTenant,
+  };
+}
+
+export function isManagerRows(
+  managers: RlsApprovalManagers,
+): managers is RlsApprovalManagerRows {
+  return "reportsTo" in managers;
+}
+
+function literalList(values: readonly string[]): string {
+  return values.map((value) => quoteLiteral(value)).join(", ");
+}
+
+/** The row filter of `active`, over `alias`; empty when every row counts. */
+export function activeRowSql(
+  managers: RlsApprovalManagerRows,
+  alias: string,
+): string {
+  const active = managers.active;
+  if (active === undefined) {
+    return "";
+  }
+  const status = `${alias}.${quoteIdent(active.status)}`;
+  return [
+    ...(active.active === undefined
+      ? []
+      : [`${status} in (${literalList(active.active)})`]),
+    ...(active.inactive === undefined
+      ? []
+      : [
+          `(${status} is null or ${status} not in (${literalList(active.inactive)}))`,
+        ]),
+  ]
+    .map((clause) => ` and ${clause}`)
+    .join("");
+}
+
+/** `rls.approvals.managers` as one edge per user and manager. */
+export function managerEdges(managers: RlsApprovalManagers): ManagerEdges {
+  if (!isManagerRows(managers)) {
+    return {
+      from: quoteQualified(managers.table),
+      user: quoteIdent(managers.user),
+      manager: quoteIdent(managers.manager),
+      ...(managers.tenant === undefined
+        ? {}
+        : { tenant: quoteIdent(managers.tenant) }),
+    };
+  }
+  const table = quoteQualified(managers.table);
+  const user = quoteIdent(managers.user);
+  const tenant =
+    managers.tenant === undefined ? undefined : quoteIdent(managers.tenant);
+  const tenantColumn =
+    tenant === undefined ? "" : `, e.${tenant} as "tenant_id"`;
+  const sameTenant =
+    tenant === undefined ? "" : ` and b.${tenant} = e.${tenant}`;
+  return {
+    from: `(select e.${user} as "user_id", b.${user} as "manager_id"${tenantColumn} from ${table} e join ${table} b on b.${quoteIdent(managers.id)} = e.${quoteIdent(managers.reportsTo)}${sameTenant} where e.${user} is not null${activeRowSql(managers, "e")}${activeRowSql(managers, "b")})`,
+    user: '"user_id"',
+    manager: '"manager_id"',
+    ...(tenant === undefined ? {} : { tenant: '"tenant_id"' }),
   };
 }
 
@@ -72,16 +226,16 @@ export function approvalManagersSql(
   base: string,
   delegations: boolean,
 ): string {
-  const managers = checked(given, ctx);
-  const table = quoteQualified(managers.table);
-  const user = quoteIdent(managers.user);
-  const boss = quoteIdent(managers.manager);
+  const managers = checkedManagers(given, ctx);
+  const edges = managerEdges(managers);
+  const table = edges.from;
+  const user = edges.user;
+  const boss = edges.manager;
   const manages = qualified(ctx, MANAGES);
   const managesFor = qualified(ctx, MANAGES_FOR);
   const approves = qualified(ctx, APPROVES);
   const me = `${subjectIdSql(ctx)}::text`;
-  const tenant =
-    managers.tenant === undefined ? undefined : quoteIdent(managers.tenant);
+  const tenant = edges.tenant;
   const edgeTenant = (alias: string): string =>
     tenant === undefined
       ? ""

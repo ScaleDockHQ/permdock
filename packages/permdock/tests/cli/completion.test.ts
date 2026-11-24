@@ -130,17 +130,20 @@ describe("completion candidates", () => {
       "0.17",
       "0.26",
       "config",
+      "manager-chain",
     ]);
     expect(await candidates(["codemod", "--dry-run", ""])).toStrictEqual([
       "0.17",
       "0.26",
       "config",
+      "manager-chain",
     ]);
     expect(await candidates(["codemod", "0.26", ""])).toStrictEqual([]);
     expect(await candidates(["codemod", "--cwd", "app", ""])).toStrictEqual([
       "0.17",
       "0.26",
       "config",
+      "manager-chain",
     ]);
     expect(await candidates(["codemod", "--", ""])).toStrictEqual([]);
   });

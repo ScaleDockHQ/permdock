@@ -812,6 +812,40 @@ export default {
 
 `tests/integration/src/approval-managers.test.ts` runs the walk on Postgres: levels, a cycle, the requester, lists and covers.
 
+With `managers` set, `permdock rls generate` also writes `permdock_request_approver_ids(p_requester, p_tenant)`: the requester's managers up the chain, at most 8 steps, plus each delegate inside an active cover of one of them. The requester is never in the set. `authorizationProvider` fills `approverFor` from it as `permdock_request_approver_ids({requester}, {tenant})`, so the leave, expense and time-entry blocks need no `*_chain_decides` decider.
+
+#### Self-referencing manager tables
+
+An app whose employees table names each row's manager row writes that table instead of an edge table:
+
+```ts title="permdock.config.ts"
+export default {
+  rls: {
+    approvals: {
+      managers: {
+        table: "public.employees",
+        id: "id",
+        reportsTo: "manager_employee_id",
+        user: "user_id",
+        tenant: "organization_id",
+        active: { status: "status", inactive: ["ended"] },
+      },
+    },
+  },
+};
+```
+
+The walks join the table to itself through `reportsTo` and keep the rows `active` admits: a `status` in `active`, not in `inactive`, or both. A `with recursive` walk with a depth cap of 8 and a cycle guard answers each helper; no closure table is needed. Besides the user helpers this form writes four row helpers:
+
+| Helper                                      | Answers                                                                                                     |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `permdock_manages_row(p_row)`               | Whether one of the rows above `p_row` belongs to the caller                                                 |
+| `permdock_managed_row_ids_in(p_tenant)`     | The rows below the caller's rows in one tenant                                                              |
+| `permdock_managed_row_ids()`                | The rows below the caller's rows in every tenant                                                            |
+| `permdock_accessible_row_ids(p_permission)` | The caller's own rows, the rows below them, and every row in a tenant where the caller holds `p_permission` |
+
+The caller's own rows are never in a managed set, so a self-decision stays refused. The two set helpers have distinct names and no overload, which `pg-topo` needs to order them. `permdock codemod manager-chain` replaces hand-written walks of the same table: it matches each function in `supabase/schemas` to a helper by signature, rewrites every call site, in policies and in function bodies, and deletes the definition with its grants. A walk whose status filter differs from `active` stays, and the report names the difference.
+
 ## Approval delegation
 
 When both libraries are installed, PermDock owns approval delegation. Configure out-of-office covers once, in PermDock, and leave better-supabase's own delegation unused:

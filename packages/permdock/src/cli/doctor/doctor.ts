@@ -38,6 +38,7 @@ import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { eventsOf, pd085 } from "./hook-role.ts";
 import { pd092 } from "./lockfile.ts";
+import { pd121InProject } from "./membership-facts.ts";
 import { pd044, pd065 } from "./next.ts";
 import { pd091, pd091Applies } from "./openapi.ts";
 import { pd080, pd081 } from "./per-request.ts";
@@ -51,7 +52,7 @@ import { pd083 } from "./postgrest.ts";
 import { pd058, pd084, pd102 } from "./powersync.ts";
 import { pd005, pd006, pd009, pd012, pd022, pd028, pd040 } from "./project.ts";
 import { pd130 } from "./repeated-version-reads.ts";
-import { pd120 } from "./restated-defaults.ts";
+import { pd120InProject } from "./restated-defaults.ts";
 import {
   pd016,
   pd020,
@@ -533,7 +534,13 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   {
     code: "PD120",
     groups: ["project"],
-    run: (project) => pd120(project.config),
+    run: (project) => pd120InProject(project.cwd),
+  },
+  {
+    code: "PD121",
+    groups: ["rls", "supabase"],
+    when: (config) => config.rls !== undefined,
+    run: (project) => pd121InProject(project.cwd),
   },
 ];
 

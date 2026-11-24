@@ -11,10 +11,12 @@ import {
   quoteQualified,
 } from "../sql/quote.ts";
 import { subjectIdSql } from "../sql/subject.ts";
+import { approvalChainSql } from "./approval-chain.ts";
 import {
   APPROVES,
   MANAGES_FOR,
   approvalManagersSql,
+  checkedManagers,
 } from "./approval-managers.ts";
 import { approvalPoliciesSql } from "./approval-policies.ts";
 import { approvalSetsSql } from "./approval-sets.ts";
@@ -429,7 +431,14 @@ export function approvalsSql(
     approvalSetsSql(ctx, {
       delegations: delegations === true,
       ...(managers === undefined ? {} : { managers }),
-    })
+    }) +
+    (managers === undefined
+      ? ""
+      : approvalChainSql(
+          ctx,
+          checkedManagers(managers, ctx),
+          delegations === true,
+        ))
   );
 }
 

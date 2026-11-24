@@ -878,8 +878,6 @@ describe(authorizationProvider, () => {
     expect(
       resolvePersonas(provider).map((persona) => persona.name),
     ).toStrictEqual(["owner", "platform"]);
-    // permdock_approver_for_ids() holds the caller, so as better-supabase's
-    // "who may decide this request" set it would let anyone decide.
     expect(provider.functions.approverFor).toBeUndefined();
     expect(provider.functions.managedUsers).toBe(
       "permdock.permdock_managed_user_ids({tenant})",
@@ -889,6 +887,26 @@ describe(authorizationProvider, () => {
       args: "text",
       role: "authenticated",
     });
+  });
+
+  it("fills approverFor from permdock_request_approver_ids", () => {
+    const provider = authorizationProvider({
+      manifest: withRls({
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          {
+            name: "permdock_request_approver_ids",
+            args: "p_requester uuid, p_tenant uuid",
+            returns: "setof uuid",
+            execute: ["authenticated"],
+          },
+        ],
+      }),
+      catalog: emptyCatalog,
+    });
+    expect(provider.functions.approverFor).toBe(
+      "permdock.permdock_request_approver_ids({requester}, {tenant})",
+    );
   });
 
   it("leaves managedUsers out for a manager table without a tenant column", () => {

@@ -46,7 +46,11 @@ export function ruleIndexTargets(
   if (managers !== undefined) {
     const tenant = managers.tenant === undefined ? [] : [managers.tenant];
     add(managers.table, [managers.user, ...tenant]);
-    add(managers.table, [managers.manager, ...tenant]);
+    if ("reportsTo" in managers) {
+      add(managers.table, [managers.reportsTo, ...tenant]);
+    } else {
+      add(managers.table, [managers.manager, ...tenant]);
+    }
   }
   return out;
 }

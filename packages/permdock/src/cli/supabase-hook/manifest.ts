@@ -21,6 +21,7 @@ import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
 import { SUPABASE_MANIFEST_SCHEMA } from "../core/version.ts";
 import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
+import { REQUEST_APPROVER_IDS } from "../rls/approval-chain.ts";
 import { MANAGES } from "../rls/approval-managers.ts";
 import { APPROVER_FOR_IDS, MANAGED_USER_IDS } from "../rls/approval-sets.ts";
 import { IS_APPROVER } from "../rls/approvals.ts";
@@ -224,6 +225,14 @@ function trustedHelpers(
             config.rls.approvals.managers.tenant === undefined
               ? ""
               : `p_tenant ${tenantType}`,
+            "setof uuid",
+            client,
+          ),
+          helperEntry(
+            REQUEST_APPROVER_IDS,
+            config.rls.approvals.managers.tenant === undefined
+              ? "p_requester uuid"
+              : `p_requester uuid, p_tenant ${tenantType}`,
             "setof uuid",
             client,
           ),

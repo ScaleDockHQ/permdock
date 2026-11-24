@@ -14,6 +14,7 @@ export type {
 } from "./types-powersync.ts";
 export type {
   RlsApiKeys,
+  RlsApprovalManagerRows,
   RlsApprovalManagers,
   RlsApprovalPolicies,
   RlsApprovalPolicyColumns,

@@ -1,4 +1,3 @@
-/** `rls.approvals.managers`: one row per user and manager. */
 /** Column names of the table `rls.approvals.tenantPolicies` writes. */
 export type RlsApprovalPolicyColumns = {
   readonly id?: string;
@@ -31,7 +30,8 @@ export type RlsApprovalPolicies = {
   readonly path?: readonly string[];
 };
 
-export type RlsApprovalManagers = {
+/** `rls.approvals.managers` as an edge table: one row per user and manager. */
+export type RlsApprovalManagerEdges = {
   /** `table` or `schema.table`. */
   readonly table: string;
   /** The column holding the user's id. */
@@ -45,6 +45,41 @@ export type RlsApprovalManagers = {
    */
   readonly tenant?: string;
 };
+
+/**
+ * Which rows of a self-referencing manager table count. A row counts when
+ * `status` is in `active`, when it is not in `inactive`, or both.
+ */
+export type RlsApprovalManagerActive = {
+  readonly status: string;
+  readonly active?: readonly string[];
+  readonly inactive?: readonly string[];
+};
+
+/**
+ * `rls.approvals.managers` as a self-referencing table, such as `employees`:
+ * each row has its own id, the id of its manager's row and the user it belongs
+ * to. Besides the user helpers this form adds `permdock_manages_row`,
+ * `permdock_managed_row_ids_in`, `permdock_managed_row_ids` and
+ * `permdock_accessible_row_ids`, which answer in row ids.
+ */
+export type RlsApprovalManagerRows = {
+  /** `table` or `schema.table`. */
+  readonly table: string;
+  /** The row's own id column. */
+  readonly id: string;
+  /** The column holding the id of the manager's row in the same table. */
+  readonly reportsTo: string;
+  /** The column holding the row's user id. */
+  readonly user: string;
+  /** The tenant column; required when the policy has a tenant scope. */
+  readonly tenant?: string;
+  readonly active?: RlsApprovalManagerActive;
+};
+
+export type RlsApprovalManagers =
+  | RlsApprovalManagerEdges
+  | RlsApprovalManagerRows;
 
 /**
  * `rls.approvals` on a table the app already has: the store functions keep each

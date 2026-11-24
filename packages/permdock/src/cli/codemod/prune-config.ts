@@ -1,14 +1,11 @@
 import { readFileSync } from "node:fs";
-import { basename } from "node:path";
 
 import type { CommandResult } from "../core/result.ts";
 import type { ConfigDefault } from "../project/resolve-config.ts";
 import type { PermDockConfig } from "../types.ts";
-import type { Estree } from "./ast.ts";
 
 import { CliError } from "../core/errors.ts";
 import { applyFiles, refuseDirty } from "../core/files.ts";
-import { parseSync } from "../core/optional.ts";
 import { rel } from "../files.ts";
 import { genFiles } from "../gen/gen.ts";
 import { projectContext } from "../generate/context.ts";
@@ -21,13 +18,9 @@ import {
 } from "../project/config.ts";
 import { requirePolicy } from "../project/load.ts";
 import { restatedDefaults, withoutPath } from "../project/resolve-config.ts";
-import { resolveConfigRoot } from "../source/config-root.ts";
-import {
-  applyEditsStrict,
-  propertyKey,
-  removeProperty,
-} from "../source/edits.ts";
-import { child, nodes } from "./ast.ts";
+import { configProperty, writtenPaths } from "../source/config-paths.ts";
+import { applyEditsStrict, removeProperty } from "../source/edits.ts";
+import { restatedFacts } from "../sql/derive-memberships.ts";
 
 /** What `permdock codemod config --prune --json` prints. */
 export type PruneReport = {
@@ -133,28 +126,49 @@ async function provenRemovals(
   return { accepted, refused };
 }
 
-function propertyAt(
-  root: Estree,
-  path: readonly string[],
-): { readonly object: Estree; readonly property: Estree } | undefined {
-  let object = root;
-  for (const [index, key] of path.entries()) {
-    const property = nodes(object.properties).find(
-      (item) => propertyKey(item) === key,
-    );
-    if (property === undefined) {
-      return undefined;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * The paths to remove from the file: an object left empty goes with its last
+ * key, when removing the object too changes no generated file.
+ */
+async function withEmptyParents(
+  config: PermDockConfig,
+  accepted: readonly ConfigDefault[],
+  same: (config: PermDockConfig) => Promise<boolean>,
+): Promise<readonly (readonly string[])[]> {
+  const after = pruned(config, accepted);
+  const paths: (readonly string[])[] = [];
+  for (const entry of accepted) {
+    let path = entry.path;
+    while (path.length > 1) {
+      const parent = path.slice(0, -1);
+      // SAFETY: PermDockConfig is a plain object; the walk reads it as records.
+      let value: unknown = after as unknown as Record<string, unknown>;
+      for (const key of parent) {
+        value = isRecord(value) ? value[key] : undefined;
+      }
+      if (!isRecord(value) || Object.keys(value).length > 0) {
+        break;
+      }
+      const without = withoutPath(
+        // SAFETY: as above.
+        after as unknown as Record<string, unknown>,
+        parent,
+      );
+      // SAFETY: removing an optional key keeps the PermDockConfig shape.
+      if (!(await same(without as PermDockConfig))) {
+        break;
+      }
+      path = parent;
     }
-    if (index === path.length - 1) {
-      return { object, property };
+    if (!paths.some((item) => item.join(".") === path.join("."))) {
+      paths.push(path);
     }
-    const value = child(property, "value");
-    if (value?.type !== "ObjectExpression") {
-      return undefined;
-    }
-    object = value;
   }
-  return undefined;
+  return paths;
 }
 
 /** `text` with each key removed, one per parse so ranges stay current. */
@@ -166,15 +180,7 @@ function removeKeys(
   let source = text;
   const unreachable: string[] = [];
   for (const path of paths) {
-    const parsed = parseSync(file, source, { sourceType: "module" });
-    // SAFETY: Estree is an all-optional view of the Oxc program, whose nodes all carry `start` and `end`.
-    const program = parsed.program as unknown as Estree;
-    const roots = resolveConfigRoot(program, {
-      isConfigFile: basename(file).startsWith("permdock.config."),
-    }).roots;
-    const found = roots
-      .map((root) => propertyAt(root, path))
-      .find((item) => item !== undefined);
+    const found = configProperty(file, source, path);
     if (found === undefined) {
       unreachable.push(path.join("."));
       continue;
@@ -206,7 +212,25 @@ export async function pruneConfig(options: {
     );
   }
   const parsed = await readParsedConfig(options.cwd, file, { fresh: true });
-  const entries = restatedDefaults(parsed.config);
+  const text = readFileSync(file, "utf8");
+  const candidates = [
+    ...restatedDefaults(parsed.config),
+    ...restatedFacts(parsed.config).map((path) => ({
+      section: "rls" as const,
+      path,
+      value: undefined,
+    })),
+  ];
+  const written = new Set(
+    writtenPaths(
+      file,
+      text,
+      candidates.map((entry) => entry.path),
+    ).map((path) => path.join(".")),
+  );
+  const entries = candidates.filter((entry) =>
+    written.has(entry.path.join(".")),
+  );
   const baseline = await outputsOf(options.cwd, file, parsed.config);
   const { accepted, refused } = await provenRemovals(
     entries,
@@ -216,15 +240,21 @@ export async function pruneConfig(options: {
         await outputsOf(options.cwd, file, pruned(parsed.config, some)),
       ),
   );
-  const text = readFileSync(file, "utf8");
-  const edited = removeKeys(
-    file,
-    text,
-    accepted.map((entry) => entry.path),
+  const paths = await withEmptyParents(
+    parsed.config,
+    accepted,
+    async (config) =>
+      sameOutputs(baseline, await outputsOf(options.cwd, file, config)),
   );
+  const edited = removeKeys(file, text, paths);
   const removed = accepted
     .map((entry) => entry.path.join("."))
-    .filter((key) => !edited.unreachable.includes(key));
+    .filter(
+      (key) =>
+        !edited.unreachable.some(
+          (gone) => key === gone || key.startsWith(`${gone}.`),
+        ),
+    );
   if (!options.check && !options.dryRun && edited.text !== text) {
     refuseDirty({
       command: "codemod",
