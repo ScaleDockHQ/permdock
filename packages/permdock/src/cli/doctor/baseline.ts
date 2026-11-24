@@ -92,7 +92,7 @@ export function settleBaseline(input: {
  * Splits `findings` by the `doctor.baseline` entries, then by `--ignore` for
  * this run. A stale or unexplained baseline entry comes back as an error.
  */
-export function applyDoctorBaseline(
+function applyDoctorBaseline(
   findings: readonly ReportedFinding[],
   baseline: {
     readonly path: string;
