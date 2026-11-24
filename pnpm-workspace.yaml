@@ -162,7 +162,7 @@ catalog:
   "@ai-sdk/otel": 1.0.179
   dotenv-cli: 11.1.0
   portless: 0.17.0
-  better-supabase: file:.better-supabase/better-supabase.tgz
+  better-supabase: 0.85.0
   better-result: 3.0.1
   "@supabase/postgrest-typegen": 0.8.1
   supabase: 3.3.0
@@ -215,7 +215,7 @@ catalogs:
   peers:
     "@anthropic-ai/claude-agent-sdk": ">=0.2"
     # Every peer range is a floor with no upper bound (decision 0045); this floor is the first entry of the better-supabase CI matrices (decision 0071).
-    better-supabase: ">=0.81.0"
+    better-supabase: ">=0.85.0"
     chat: ">=4.45.0"
     "@modelcontextprotocol/server": ">=2"
     "@napi-rs/keyring": ">=1"
@@ -274,7 +274,8 @@ engineStrict: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   # Adopted the day they shipped; drop each entry after its date (decisions 0070 and 0071).
-  # Drop after 2026-11-24 16:57 UTC (decision 0075).
+  # Drop after 2026-11-25 16:24 UTC (decision 0079).
+  - better-supabase@0.85.0
   # Drop after 2026-11-12 18:38 UTC.
   - turbo@2.11.11
   - eslint-plugin-turbo@2.11.11
@@ -304,9 +305,6 @@ trustPolicyExclude:
 trustPolicyExcludePrune: true
 
 peerDependencyRules:
-  # A `file:` tarball has no version to match; scripts/publish.ts refuses to publish while the catalog points at one (decision 0076).
-  allowAny:
-    - better-supabase
   allowedVersions:
     # expo-router's optional peer resolves to 4.6.0 until 4.7.1 (0.86 - 0.88) clears minimumReleaseAge; the example runs web only.
     "react-native-reanimated>react-native": "0.88"
@@ -318,7 +316,7 @@ peerDependencyRules:
     "@supabase/postgrest-typegen>oxfmt": "0.78"
     # The optional typescript peer of SvelteKit 3 reads only its public types; the repository builds with TypeScript 7.
     "@sveltejs/kit>typescript": "7"
-    # workflow 5.7.1 fails trustPolicy (`@vercel/functions@3.11.3` lacks provenance), so 5.4.0 stays; better-supabase 0.81.0 asks for 5.7.1 (decision 0074).
+    # workflow 5.7.1 fails trustPolicy (`@vercel/functions@3.11.3` lacks provenance), so 5.4.0 stays; better-supabase 0.85.0 asks for 5.7.1 (decision 0074).
     "better-supabase>workflow": "5"
     # Optional peer of eve 1.3.0 for its Solid client; the repository's Solid adapters run Solid 1.
     "eve>solid-js": "1"

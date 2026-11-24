@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.81.0 or later as a peer (`>=0.81.0`). The range has no upper bound: CI tests 0.81.0 on every pull request, and a daily job tests the newest release. Coming from 0.58 to 0.80, run `better-supabase gen` and `better-supabase upgrade`, then a schema diff. Before you deploy 0.61 or later, give each API key the scopes it needs: a key holds only the permissions its scopes map to, and a key with no scopes holds none ([0.61.0 changelog](https://github.com/ScaleDockHQ/better-supabase/blob/main/packages/better-supabase/CHANGELOG.md)). An app older than 0.58 follows better-supabase's [0.57 to 0.58 guide](https://bettersupabase.com/docs/migration/0.57-to-0.58) first: run `better-supabase codemod naming` and the other codemods it lists.
+The entry needs `better-supabase` 0.85.0 or later as a peer (`>=0.85.0`). The range has no upper bound: CI tests 0.85.0 on every pull request, and a daily job tests the newest release. Coming from 0.58 to 0.84, run `better-supabase gen` and `better-supabase upgrade`, then a schema diff. Before you deploy 0.61 or later, give each API key the scopes it needs: a key holds only the permissions its scopes map to, and a key with no scopes holds none ([0.61.0 changelog](https://github.com/ScaleDockHQ/better-supabase/blob/main/packages/better-supabase/CHANGELOG.md)). An app older than 0.58 follows better-supabase's [0.57 to 0.58 guide](https://bettersupabase.com/docs/migration/0.57-to-0.58) first: run `better-supabase codemod naming` and the other codemods it lists.
 
 Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
@@ -1184,7 +1184,7 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 
 ## Compatibility
 
-Each `permdock` release fills the provider fields its better-supabase peer floor knows. The floor is 0.81.0. The better-supabase column names the release that added the field; the floor knows every field below, and `authorizationProvider` returns better-supabase's own `AuthorizationProvider` type. A field whose helper the manifest does not list stays unset.
+Each `permdock` release fills the provider fields its better-supabase peer floor knows. The floor is 0.85.0. The better-supabase column names the release that added the field; the floor knows every field below, and `authorizationProvider` returns better-supabase's own `AuthorizationProvider` type. A field whose helper the manifest does not list stays unset.
 
 | Provider option or field                                           | `permdock` | better-supabase | Notes                                                                                                                                                    |
 | ------------------------------------------------------------------ | ---------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1206,7 +1206,7 @@ Each `permdock` release fills the provider fields its better-supabase peer floor
 | `versions`                                                         | 0.32.0     | 0.84.0          | The hook's `authz_version_for` when `authzVersion` is on.                                                                                                |
 | `wildcards`                                                        | 0.32.0     | 0.84.0          | `'none'` with a catalog whose keys hold no `*`.                                                                                                          |
 | `operations[].approval`                                            | 0.32.0     | 0.84.0          | `<resource>:<action>` floors from the catalog's `approvals`.                                                                                             |
-| `doctor`                                                           | 0.32.0     | 0.84.0          | `permdock doctor --json`, with `timeoutMs` from the `doctor` option.                                                                                     |
+| `doctor`                                                           | 0.32.0     | 0.84.0          | `permdock doctor --format findings`, with `timeoutMs` from the `doctor` option.                                                                          |
 | `actionKeys`                                                       | 0.32.0     | 0.84.0          | Filled from the catalog's `answers`.                                                                                                                     |
 
 `definePermDock(...).next().getSnapshot` arrives in 0.26.0 ([one tenant's snapshot](#one-tenants-snapshot)). Pin both packages to the pair a release lists, and update the table in the same pull request as a provider change.
@@ -1224,7 +1224,7 @@ Each `permdock` release fills the provider fields its better-supabase peer floor
 
 ## Example app
 
-`apps/examples/next-better-supabase`: better-supabase on Next.js 16.4 with Cache Components. It runs on better-supabase 0.84.0.
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.4 with Cache Components. It runs on better-supabase 0.85.0.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
 - `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version, intent })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, `version` is `authzVersion({ query })`, and `intent` makes a `read`, `list` or `view` permission `read` and every other check `write`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
