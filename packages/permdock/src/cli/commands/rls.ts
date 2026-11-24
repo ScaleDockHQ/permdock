@@ -417,13 +417,16 @@ export const report: Leaf = defineLeaf({
   async run(ctx, { flags }) {
     const db = await dbUrl(ctx, flags);
     // Lazy: the report and the pg peer load only when this command runs.
-    const [{ runRlsReport }, { pgConnector }] = await Promise.all([
-      import("../rls/report.ts"),
-      import("../pg.ts"),
-    ]);
+    const [{ runRlsReport }, { pgConnector }, { configuredTableReads }] =
+      await Promise.all([
+        import("../rls/report.ts"),
+        import("../pg.ts"),
+        import("../rls/table-reads.ts"),
+      ]);
     return runRlsReport({
       cwd: ctx.cwd,
       config: ctx.config,
+      tableReads: await configuredTableReads(ctx.cwd, ctx.config),
       ...(db === undefined
         ? {}
         : { db, connect: pgConnector("permdock rls report", ctx.cwd) }),

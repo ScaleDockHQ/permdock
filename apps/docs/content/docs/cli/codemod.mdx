@@ -15,13 +15,13 @@ permdock codemod 0.17 src --json           # the report as JSON
 
 The positional arguments after the version are files or directories; the default is the working directory. The command reads `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue` and `.svelte` files and skips `node_modules`, `dist`, `.git`, `.next`, `.turbo`, `.svelte-kit` and `coverage`. In a Vue or Svelte file it rewrites each `<script>` block. A file that imports no `permdock` entry is never changed, except a `permdock.config.*` file.
 
-| Flag        | Meaning                                                                                                                |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `--dry-run` | Print the report without writing any file                                                                              |
-| `--force`   | Rewrite files with uncommitted changes too; without it, a dirty file in a git work tree exits `1` (`file_conflict`)    |
-| `--json`    | `data` in the result: `{ version, dryRun, scanned, files, followUps }`; an unknown version is a `usage` error document |
-| `--prune`   | With `config`: remove each key set to its default ([Prune the config](#prune-the-config))                              |
-| `--check`   | With `config --prune`: write nothing and exit `1` when a key would be removed                                          |
+| Flag        | Meaning                                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `--dry-run` | Print the report without writing any file                                                                                |
+| `--force`   | Rewrite files with uncommitted changes too; without it, a dirty file in a git work tree exits `1` (`file_conflict`)      |
+| `--json`    | `data` in the result: `{ version, dryRun, scanned, files, followUps }`; an unknown version is a `usage` error document   |
+| `--prune`   | With `config`: remove each key set to its default ([Prune the config](#prune-the-config))                                |
+| `--check`   | With `config --prune` or `bsb-access-tags`: write nothing and exit `1` when a key would be removed or a table would move |
 
 The codemod rewrites files in place, so in [agent mode](/docs/cli/agent-mode) a run without `--dry-run` first asks for the person's confirmation (`rewrite`).
 
@@ -46,7 +46,7 @@ With `--json`, `data` is `{ file, check, removed, kept, unreachable }`. `unreach
 
 ## Move tenant policies to access tags
 
-`permdock codemod bsb-access-tags [dir]` rewrites plain tenant policies into a better-supabase `@bsb access` tag. A policy qualifies when its parsed expression is `<column> in (select <schema>.permitted_<scope>_ids('<key>'))`, optionally followed by `and <schema>.permdock_actor_may_write()`. The codemod swaps a key only when `permitted_<scope>_ids_by_permission(key)` returns the same rows: every grant of the key is an allow of that key itself, with no condition and no deny. It then sets the tag on the table comment, renders the tag's block with better-supabase's `renderTagBlock`, and deletes the old policies. Every other policy stays and is listed with its reason. With `--json`, `data` is `{ moved, kept, files }`. The codemod needs `better-supabase` installed.
+`permdock codemod bsb-access-tags [dir]` rewrites plain tenant policies into a better-supabase `@bsb access` tag. A policy qualifies when its parsed expression is `<column> in (select <schema>.permitted_<scope>_ids('<key>'))`, optionally followed by `and <schema>.permdock_actor_may_write()`. The codemod swaps a key only when `permitted_<scope>_ids_by_permission(key)` returns the same rows: every grant of the key is an allow of that key itself, with no condition and no deny. It then sets the tag on the table comment, renders the tag's block with better-supabase's `renderTagBlock`, and deletes the old policies. Every other policy stays and is listed with its reason. For a key the helpers answer differently, the reason names the first grant that decides it: a deny (`role blocked on organization denies it`), a grant under a condition (`grant key note.read#1`) or a grant through another key. `--check` writes nothing, prints the same list and exits `1` when a table would move. With `--json`, `data` is `{ moved, kept, files }`. The codemod needs `better-supabase` installed.
 
 `rls verify --introspect`, `rls verify --shadow`, `rls explain`, `rls report` and doctor read the policies each `@bsb access` tag renders from better-supabase's `accessPolicies` and treat them as generated: `verify` does not report them as `policy-extra`, and PD090, PD103, PD104 and PD108 do not count them as hand-written. A policy is never recognised by its `bsb_access_` name prefix.
 

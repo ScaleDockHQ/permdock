@@ -11,7 +11,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { authorizationProvider } from "../../src/better-supabase/provider.ts";
 import { run } from "../../src/cli/core/run.ts";
 import { pd128 } from "../../src/cli/doctor/table-reads.ts";
-import { tableReads } from "../../src/cli/rls/table-reads.ts";
+import {
+  configuredTableReads,
+  tableReads,
+} from "../../src/cli/rls/table-reads.ts";
 import { parseSupabaseManifest } from "../../src/supabase/manifest.ts";
 
 const TMP = join(import.meta.dirname, "../../tmp");
@@ -120,6 +123,46 @@ describe(tableReads, () => {
     ]);
   });
 
+  it("says which grant keeps a form table off the tag, in the codemod, the report and explain", async () => {
+    const cwd = project();
+    writeFileSync(
+      join(cwd, "policy.ts"),
+      POLICY.replace(
+        "allow, definePermissions",
+        "allow, deny, definePermissions",
+      ).replace(
+        "  ],\n});",
+        '    role("blocked", [deny(permissions.note.read)], { on: "organization" }),\n  ],\n});',
+      ),
+    );
+    const reason = "key note.read: role blocked on organization denies it";
+    const read = (
+      await configuredTableReads(cwd, {
+        policy: "./policy.ts",
+        rls: { dialect: "supabase" },
+      })
+    ).find((item) => item.table === "public.notes");
+    expect(read).toMatchObject({
+      rules: ["form"],
+      reason: expect.stringContaining(reason),
+    });
+    const check = await run(["codemod", "bsb-access-tags", "--check"], { cwd });
+    expect(check.code).toBe(0);
+    expect(check.stdout).toContain(`kept public.notes notes_read: ${reason}`);
+    const report = await run(["rls", "report", "--json"], { cwd });
+    const counted = JSON.parse(report.stdout).data.tableReads;
+    expect(counted).toMatchObject({
+      tenant: 1,
+      row: 4,
+      byRule: { form: 1, owner: 1, restrictive: 1, unknown: 1 },
+    });
+    const text = await run(["rls", "report"], { cwd });
+    expect(text.stdout).toContain("table reads: 1 tenant, 4 row (form 1,");
+    expect(text.stdout).toContain(`public.notes: form; ${reason}`);
+    const explain = await run(["rls", "explain"], { cwd });
+    expect(explain.stdout).toContain(`public.notes: form; ${reason}`);
+  });
+
   it("moves a plain-form table to tenant after codemod bsb-access-tags", async () => {
     const cwd = project();
     const moved = await run(["codemod", "bsb-access-tags", "--force"], { cwd });
@@ -142,7 +185,9 @@ describe(tableReads, () => {
     const manifest = parseSupabaseManifest(
       JSON.parse(readFileSync(path, "utf8")),
     );
-    expect(manifest.rls.tableReads).toStrictEqual(await reads(cwd));
+    expect(
+      manifest.rls.tableReads?.map(({ reason: _reason, ...read }) => read),
+    ).toStrictEqual(await reads(cwd));
     expect(
       authorizationProvider({
         manifest,

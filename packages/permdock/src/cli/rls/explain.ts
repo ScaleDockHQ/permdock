@@ -76,6 +76,16 @@ export type RlsExplain = {
     readonly key: string;
     readonly tenantColumn: string;
   }[];
+  /**
+   * The tables better-supabase reads per user (`row`), with the rules their
+   * select policies break and, for `form`, the grant that keeps the policy off
+   * an `@bsb access` tag; absent when there are none.
+   */
+  readonly rowTables?: readonly {
+    readonly table: string;
+    readonly rules: readonly string[];
+    readonly reason?: string;
+  }[];
 };
 
 type ExplainInput = {
@@ -264,6 +274,14 @@ export function describeExplain(explain: RlsExplain): string {
     for (const policy of explain.tagged) {
       lines.push(
         `  ${policy.name} on ${policy.table} (${policy.operation}): ${policy.tenantColumn} in the ids of ${policy.key}`,
+      );
+    }
+  }
+  if (explain.rowTables !== undefined) {
+    lines.push("", "tables read per user (share: row):");
+    for (const table of explain.rowTables) {
+      lines.push(
+        `  ${table.table}: ${table.rules.join(", ")}${table.reason === undefined ? "" : `; ${table.reason}`}`,
       );
     }
   }

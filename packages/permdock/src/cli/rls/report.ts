@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { deparse } from "pgsql-parser";
 
+import type { SupabaseManifestTableRead } from "../../supabase/manifest.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { SqlConnect } from "../pg.ts";
 import type { SqlPolicy } from "../sql/ast.ts";
@@ -66,6 +67,48 @@ export type ReportedTable = {
   }[];
 };
 
+/** The rules a `row` table can break, in the order the report lists them. */
+export const TABLE_READ_RULES = [
+  "form",
+  "follows",
+  "via",
+  "walk",
+  "owner",
+  "condition",
+  "restrictive",
+  "fields",
+  "unknown",
+] as const;
+
+export type TableReadRuleName = (typeof TABLE_READ_RULES)[number];
+
+/** `rls.tableReads` counted: a table that breaks two rules counts under both. */
+export type TableReadsReport = {
+  readonly tenant: number;
+  readonly row: number;
+  readonly byRule: Readonly<Record<TableReadRuleName, number>>;
+  readonly tables: readonly SupabaseManifestTableRead[];
+};
+
+/** The counts of `reads` per share and per rule. */
+export function summariseTableReads(
+  reads: readonly SupabaseManifestTableRead[],
+): TableReadsReport {
+  // SAFETY: one entry per name in TABLE_READ_RULES.
+  const byRule = Object.fromEntries(
+    TABLE_READ_RULES.map((rule) => [
+      rule,
+      reads.filter((read) => read.rules?.includes(rule) === true).length,
+    ]),
+  ) as Record<TableReadRuleName, number>;
+  return {
+    tenant: reads.filter((read) => read.share === "tenant").length,
+    row: reads.filter((read) => read.share === "row").length,
+    byRule,
+    tables: reads,
+  };
+}
+
 /** What `permdock rls report --json` prints as `data`. */
 export type RlsReport = {
   /** `files` for the schema files and migrations, `database` for `pg_policies`. */
@@ -74,6 +117,8 @@ export type RlsReport = {
   readonly totals: Readonly<Record<PolicyOrigin, number>> & {
     readonly policies: number;
   };
+  /** Absent without a configured policy. */
+  readonly tableReads?: TableReadsReport;
 };
 
 const COMMANDS: readonly ReportCommand[] = [
@@ -444,16 +489,25 @@ export async function rlsReport(input: {
   readonly config: PermDockConfig;
   readonly db?: string;
   readonly connect?: SqlConnect;
+  /** `rls.tableReads` of the schema files, counted into the report. */
+  readonly tableReads?: readonly SupabaseManifestTableRead[];
 }): Promise<RlsReport> {
+  const reads =
+    input.tableReads === undefined || input.tableReads.length === 0
+      ? {}
+      : { tableReads: summariseTableReads(input.tableReads) };
   if (input.db !== undefined && input.connect !== undefined) {
     const { policies, leaky } = await fromDatabase(input.db, input.connect);
-    return reportOf("database", policies, leaky);
+    return { ...reportOf("database", policies, leaky), ...reads };
   }
-  return reportOf(
-    "files",
-    await policiesFromFiles(input.cwd, input.config),
-    undefined,
-  );
+  return {
+    ...reportOf(
+      "files",
+      await policiesFromFiles(input.cwd, input.config),
+      undefined,
+    ),
+    ...reads,
+  };
 }
 
 function renderTable(table: ReportedTable): readonly string[] {
@@ -482,10 +536,28 @@ function renderTable(table: ReportedTable): readonly string[] {
   return lines;
 }
 
+function renderTableReads(reads: TableReadsReport): readonly string[] {
+  const rules = TABLE_READ_RULES.map(
+    (rule) => `${rule} ${String(reads.byRule[rule])}`,
+  ).join(", ");
+  return [
+    `table reads: ${String(reads.tenant)} tenant, ${String(reads.row)} row (${rules})`,
+    ...reads.tables
+      .filter((read) => read.share === "row")
+      .map(
+        (read) =>
+          `  ${read.table}: ${(read.rules ?? []).join(", ")}${read.reason === undefined ? "" : `; ${read.reason}`}`,
+      ),
+  ];
+}
+
 function renderRlsReport(report: RlsReport): string {
   const { totals } = report;
   return [
     ...report.tables.flatMap(renderTable),
+    ...(report.tableReads === undefined
+      ? []
+      : renderTableReads(report.tableReads)),
     `${String(totals.policies)} policies on ${String(report.tables.length)} tables: ${String(totals.library)} library, ${String(totals.provider)} provider, ${String(totals.app)} app (from ${report.source === "files" ? "the schema files and migrations" : "pg_policies"})`,
   ].join("\n");
 }
@@ -495,6 +567,7 @@ export async function runRlsReport(input: {
   readonly config: PermDockConfig;
   readonly db?: string;
   readonly connect?: SqlConnect;
+  readonly tableReads?: readonly SupabaseManifestTableRead[];
 }): Promise<CommandResult> {
   try {
     const report = await rlsReport(input);

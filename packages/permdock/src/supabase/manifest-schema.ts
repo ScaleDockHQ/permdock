@@ -271,6 +271,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
                   ],
                 },
               },
+              reason: { type: "string" },
             },
           },
         },

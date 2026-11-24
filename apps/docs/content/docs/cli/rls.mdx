@@ -1143,6 +1143,15 @@ The origin uses better-supabase BS641's three words:
 
 Without a database URL, `report` reads the migration folders (`doctor.migrations`), `supabase/schemas` and `rls.out` in that order, through libpg_query: a later `create policy` replaces one of the same name on the same table, and `drop policy` removes it. A file libpg_query rejects stops the command with exit `2` and its file, line and column. With `--db-url-stdin` or `--local`, it reads `pg_policies` instead and adds each indexed column, on a table with row level security, whose btree `=` operator is not leakproof (`proleakproof` false), such as an enum `status`: Postgres applies the policies before such a filter, so the filter cannot use the index. `--json` prints the report as `data`. [Doctor PD131](/docs/cli/doctor#pd131-many-policies-for-one-command) warns on the same count.
 
+### Table reads
+
+With a configured `policy`, `report` also counts `rls.tableReads` from the schema files: the tables better-supabase shares per tenant (`tenant`) and per user (`row`), and the rules each `row` table breaks. `data.tableReads` is `{ tenant, row, byRule, tables }`; a table that breaks two rules counts under both. The rules are `form`, `follows`, `via`, `walk`, `owner`, `condition`, `restrictive`, `fields` and `unknown` ([the rules](/docs/guides/shared-cache#provider-tables)). For a `form` table, the line ends with the grant that keeps the policy off an `@bsb access` tag. `rls explain` lists the same `row` tables as `rowTables`.
+
+```text
+table reads: 28 tenant, 256 row (form 190, follows 6, ...)
+  public.notes: form; key note.read: role blocked on organization denies it
+```
+
 ## verify
 
 ```bash

@@ -24,10 +24,11 @@ import { parseArgs } from "node:util";
  * It runs `codemod 0.31`, `codemod config --prune`, `codemod bsb-access-tags`
  * and `codemod bsb-action-keys` on the copy and writes
  * `scripts/centrakit-dry-run.json`: config lines per section, the generated SQL
- * diff, `rls report` totals, `rls.tableReads` counts, PD128 and better-supabase
- * BS409, BS428 and BS429, each before and after. Build `permdock` first.
- * Without CentraKit it reads `tests/integration/fixtures/centrakit` and says so
- * in `source`.
+ * diff, `rls report` totals, `rls.tableReads` counts per rule with the table
+ * list and the reason of each `form` table, PD128 and better-supabase BS409,
+ * BS428 and BS429, each before and after. Build `permdock` first. Without
+ * CentraKit it reads `tests/integration/fixtures/centrakit` and says so in
+ * `source`.
  */
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGE = join(ROOT, "packages", "permdock");
@@ -216,6 +217,23 @@ function reportTotals(cwd: string): Json {
   return { tables: data["tables"].length, totals: data["totals"] };
 }
 
+const RULES = [
+  "form",
+  "follows",
+  "via",
+  "walk",
+  "owner",
+  "condition",
+  "restrictive",
+  "fields",
+  "unknown",
+] as const;
+
+/**
+ * `rls.tableReads` of the inspected manifest: counts per share and per rule (a
+ * table that breaks two rules counts under both), the `tenant` tables by name
+ * and every `row` table with its rules and, for `form`, the reason.
+ */
 function tableReads(cwd: string): Json {
   const inspected = permdock(["supabase", "inspect", "--out", "--json"], cwd);
   if (inspected.code !== 0) return {};
@@ -223,13 +241,30 @@ function tableReads(cwd: string): Json {
     readFileSync(join(cwd, "permdock.manifest.json"), "utf8"),
   );
   const rls = isRecord(manifest) ? manifest["rls"] : undefined;
-  const reads = isRecord(rls) ? rls["tableReads"] : undefined;
-  const counts: Record<string, number> = { tenant: 0, row: 0 };
-  for (const read of Array.isArray(reads) ? reads : []) {
-    const share = isRecord(read) ? String(read["share"]) : "unknown";
-    counts[share] = (counts[share] ?? 0) + 1;
-  }
-  return counts;
+  const reads = (
+    isRecord(rls) && Array.isArray(rls["tableReads"]) ? rls["tableReads"] : []
+  ).filter(isRecord);
+  const rows = reads.filter((read) => read["share"] === "row");
+  const rules = (read: Json): readonly unknown[] =>
+    Array.isArray(read["rules"]) ? read["rules"] : [];
+  return {
+    tenant: reads.length - rows.length,
+    row: rows.length,
+    byRule: Object.fromEntries(
+      RULES.map((rule) => [
+        rule,
+        rows.filter((read) => rules(read).includes(rule)).length,
+      ]),
+    ),
+    tenantTables: reads
+      .filter((read) => read["share"] === "tenant")
+      .map((read) => read["table"]),
+    tables: rows.map((read) => ({
+      table: read["table"],
+      rules: read["rules"],
+      ...(read["reason"] === undefined ? {} : { reason: read["reason"] }),
+    })),
+  };
 }
 
 function findings(data: unknown, codes: readonly string[]): Json {

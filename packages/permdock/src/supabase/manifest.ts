@@ -391,6 +391,11 @@ export type SupabaseManifestTableRead = {
     | "form"
     | "unknown"
   )[];
+  /**
+   * For a `form` table, the grant of each key its policies pass that keeps
+   * `permitted_<root>_ids_by_permission` from answering as the plain helper.
+   */
+  readonly reason?: string;
 };
 
 /**

@@ -354,7 +354,8 @@
                     "unknown"
                   ]
                 }
-              }
+              },
+              "reason": { "type": "string" }
             }
           }
         },

@@ -1,25 +1,7 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-
-import type { SupabaseManifest } from "../../supabase/manifest.ts";
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 
-import { parseSupabaseManifest } from "../../supabase/manifest.ts";
-import { readJsonFile } from "../files.ts";
 import { MANIFEST_FILE } from "../manifest-json.ts";
-import { manifestTableReads } from "../rls/table-reads.ts";
-
-function committed(cwd: string): SupabaseManifest | undefined {
-  const path = join(cwd, MANIFEST_FILE);
-  if (!existsSync(path)) {
-    return undefined;
-  }
-  try {
-    return parseSupabaseManifest(readJsonFile(path));
-  } catch {
-    return undefined;
-  }
-}
+import { committedManifest, manifestTableReads } from "../rls/table-reads.ts";
 
 /**
  * PD128: `permdock.manifest.json` marks a table `tenant` in `rls.tableReads`,
@@ -30,7 +12,7 @@ function committed(cwd: string): SupabaseManifest | undefined {
 export async function pd128(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
-  const manifest = committed(input.cwd);
+  const manifest = committedManifest(input.cwd);
   const recorded = manifest?.rls.tableReads;
   if (manifest === undefined || recorded === undefined) {
     return [];

@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 
 import type {
   SupabaseManifest,
@@ -6,8 +7,14 @@ import type {
 } from "../../supabase/manifest.ts";
 import type { SqlPolicy } from "../sql/ast.ts";
 import type { PermDockConfig } from "../types.ts";
+import type { KeyReasons } from "./key-reasons.ts";
 
 import { isRecord } from "../../core/compact.ts";
+import { scopeList } from "../../core/scopes.ts";
+import { parseSupabaseManifest } from "../../supabase/manifest.ts";
+import { readJsonFile } from "../files.ts";
+import { MANIFEST_FILE } from "../manifest-json.ts";
+import { loadConfiguredPolicy } from "../project/load.ts";
 import {
   SqlSyntaxError,
   parseSqlFile,
@@ -17,6 +24,7 @@ import {
 import { taggedAccessPolicies } from "../sql/bsb-access.ts";
 import { isPlatformSchema } from "../sql/platform.ts";
 import { tenantCheck } from "../sql/tenant-check.ts";
+import { keyReason, tryKeyReasons } from "./key-reasons.ts";
 import { droppedPolicy, reportFiles } from "./report.ts";
 
 type TableRead = SupabaseManifestTableRead;
@@ -32,6 +40,8 @@ type ReadPolicy = Pick<
 > & {
   /** A policy an `@bsb access` tag renders: the tenant form by construction. */
   readonly tagged?: { readonly column: string; readonly key: string };
+  /** The file that last defined the policy, relative to the project. */
+  readonly file?: string;
 };
 
 type TableFacts = { rls: boolean; readonly policies: Map<string, ReadPolicy> };
@@ -105,8 +115,13 @@ function keysOf(expr: unknown, helper: string): readonly string[] {
       return [];
     }
     const args = Array.isArray(call.node["args"]) ? call.node["args"] : [];
+    const [first] = args;
+    // A dump writes the key as 'x'::text, a TypeCast around the constant.
+    const cast: unknown = isRecord(first) ? first["TypeCast"] : undefined;
+    const inner: unknown =
+      isRecord(cast) && isRecord(cast["arg"]) ? cast["arg"] : first;
     const constant: unknown =
-      args.length === 1 && isRecord(args[0]) ? args[0]["A_Const"] : undefined;
+      args.length === 1 && isRecord(inner) ? inner["A_Const"] : undefined;
     const value: unknown =
       isRecord(constant) && isRecord(constant["sval"])
         ? constant["sval"]["sval"]
@@ -120,6 +135,7 @@ function readOf(
   facts: TableFacts | undefined,
   helpers: { readonly plain: string; readonly byPermission: string },
   fieldTables: ReadonlySet<string>,
+  reasons: KeyReasons | undefined,
 ): TableRead {
   if (facts === undefined || !facts.rls) {
     return { table, share: "row", rules: ["unknown"] };
@@ -129,6 +145,11 @@ function readOf(
   const rules = new Set<TableReadRule>();
   const columns = new Set<string>();
   const keys = new Set<string>();
+  const formKeys = new Set<string>();
+  const stale: ReadPolicy[] = [];
+  const hasTag = [...facts.policies.values()].some(
+    (p) => p.tagged !== undefined,
+  );
   if (fieldTables.has(table)) {
     rules.add("fields");
   }
@@ -144,7 +165,16 @@ function readOf(
       keys.add(key);
     }
     if (check === undefined) {
-      rules.add(ruleOf(policy, helpers.plain));
+      const rule = ruleOf(policy, helpers.plain);
+      rules.add(rule);
+      if (rule === "form") {
+        if (hasTag) {
+          stale.push(policy);
+        }
+        for (const key of keysOf(policy.using, helpers.plain)) {
+          formKeys.add(key);
+        }
+      }
     } else {
       columns.add(check.column);
     }
@@ -160,7 +190,25 @@ function readOf(
   const permissions = [...keys].toSorted();
   const listed = permissions.length === 0 ? {} : { permissions };
   if (rules.size > 0) {
-    return { table, share: "row", ...listed, rules: [...rules].toSorted() };
+    const parts = [
+      ...stale.map(
+        (policy) =>
+          `policy ${policy.name} is still defined${policy.file === undefined ? "" : ` in ${policy.file}`} next to an @bsb access tag that renders the table's policy: write a migration that drops it`,
+      ),
+      ...(reasons === undefined || stale.length > 0
+        ? []
+        : [...formKeys]
+            .toSorted()
+            .map((key) => `key ${key}: ${keyReason(reasons, key)}`)),
+    ];
+    const why = parts.length === 0 ? undefined : parts.join("; ");
+    return {
+      table,
+      share: "row",
+      ...listed,
+      rules: [...rules].toSorted(),
+      ...(why === undefined ? {} : { reason: why }),
+    };
   }
   const [column] = columns;
   return {
@@ -192,6 +240,11 @@ export async function tableReads(input: {
   readonly root: string;
   /** The qualified tables that have a field view, lower case. */
   readonly fieldTables?: ReadonlySet<string>;
+  /**
+   * Why a key's by-permission helper differs from the plain one, for a `form`
+   * table.
+   */
+  readonly reasons?: KeyReasons;
 }): Promise<readonly TableRead[]> {
   const created = new Set<string>();
   const facts = new Map<string, TableFacts>();
@@ -233,7 +286,10 @@ export async function tableReads(input: {
         if (policy !== undefined) {
           factsOf(
             `${policy.schema}.${policy.table}`.toLowerCase(),
-          ).policies.set(policy.name, policy);
+          ).policies.set(policy.name, {
+            ...policy,
+            file: relative(input.cwd, file),
+          });
         }
       }
     }
@@ -269,7 +325,13 @@ export async function tableReads(input: {
     })
     .toSorted()
     .map((table) =>
-      readOf(table, facts.get(table), helpers, input.fieldTables ?? new Set()),
+      readOf(
+        table,
+        facts.get(table),
+        helpers,
+        input.fieldTables ?? new Set(),
+        input.reasons,
+      ),
     );
 }
 
@@ -278,6 +340,7 @@ export function manifestTableReads(
   cwd: string,
   config: PermDockConfig,
   manifest: SupabaseManifest,
+  reasons?: KeyReasons,
 ): Promise<readonly TableRead[]> {
   const root = manifest.rls.scopes[0]?.name;
   if (root === undefined) {
@@ -301,6 +364,7 @@ export function manifestTableReads(
     schema: manifest.rls.schema,
     root,
     fieldTables,
+    ...(reasons === undefined ? {} : { reasons }),
   });
 }
 
@@ -312,9 +376,56 @@ export async function withTableReads<M extends SupabaseManifest>(
   cwd: string,
   config: PermDockConfig,
   manifest: M,
+  reasons?: KeyReasons,
 ): Promise<M> {
-  const reads = await manifestTableReads(cwd, config, manifest);
+  const reads = await manifestTableReads(cwd, config, manifest, reasons);
   return reads.length === 0
     ? manifest
     : { ...manifest, rls: { ...manifest.rls, tableReads: reads } };
+}
+
+/**
+ * The committed `permdock.manifest.json`, or `undefined` when it is absent or
+ * unreadable.
+ */
+export function committedManifest(cwd: string): SupabaseManifest | undefined {
+  const path = join(cwd, MANIFEST_FILE);
+  if (!existsSync(path)) {
+    return undefined;
+  }
+  try {
+    return parseSupabaseManifest(readJsonFile(path));
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * `tableReads` for the configured policy, with the reason of each `form` table.
+ * Field views come from the committed manifest when there is one. Without a
+ * policy the answer is empty; a policy the generator refuses leaves out the
+ * reasons only.
+ */
+export async function configuredTableReads(
+  cwd: string,
+  config: PermDockConfig,
+): Promise<readonly TableRead[]> {
+  const policy = await loadConfiguredPolicy(cwd, config.policy);
+  const root =
+    policy === undefined ? undefined : scopeList(policy.scopes)[0]?.name;
+  if (policy === undefined || root === undefined) {
+    return [];
+  }
+  const reasons = tryKeyReasons(config, policy, cwd);
+  const manifest = committedManifest(cwd);
+  if (manifest !== undefined) {
+    return manifestTableReads(cwd, config, manifest, reasons);
+  }
+  return tableReads({
+    cwd,
+    config,
+    schema: config.rls?.schema ?? "permdock",
+    root,
+    ...(reasons === undefined ? {} : { reasons }),
+  });
 }
