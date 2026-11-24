@@ -43,8 +43,6 @@ export type SignatureChange = {
 };
 
 /** One version's rename map: what the codemod rewrites and what it only reports. */
-export const SCRIPT_BLOCK: RegExp = /<script\b([^>]*)>([\s\S]*?)<\/script>/gu;
-
 export type RenameSet = {
   readonly renames: readonly Rename[];
   readonly signatures: readonly SignatureChange[];

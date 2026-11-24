@@ -1,9 +1,11 @@
 import { basename } from "node:path";
 
+import type { ConfigRoots } from "../source/config-root.ts";
 import type { Edit, Estree } from "./ast.ts";
 import type { CodemodChange, CodemodFollowUp } from "./context.ts";
 
 import { parseSync } from "../core/optional.ts";
+import { resolveConfigRoot } from "../source/config-root.ts";
 import {
   applyEdits,
   child,
@@ -11,7 +13,6 @@ import {
   nameOf,
   nodes,
   position,
-  walk,
 } from "./ast.ts";
 
 /**
@@ -33,38 +34,10 @@ export type ConfigMoveResult = {
 /** Passes over one file before the codemod stops; each pass moves one key. */
 const MAX_PASSES = 500;
 
-function unwrap(node: Estree | null | undefined): Estree | null | undefined {
-  if (
-    node?.type === "TSSatisfiesExpression" ||
-    node?.type === "TSAsExpression" ||
-    node?.type === "ParenthesizedExpression"
-  ) {
-    return unwrap(child(node, "expression"));
-  }
-  if (
-    node?.type === "CallExpression" &&
-    nameOf(node.callee) === "defineConfig"
-  ) {
-    return unwrap(node.arguments?.[0]);
-  }
-  return node;
-}
-
-function configRoots(program: Estree, file: string): readonly Estree[] {
-  const roots: Estree[] = [];
-  const isConfigFile = basename(file).startsWith("permdock.config.");
-  walk(program, (node) => {
-    const root =
-      node.type === "CallExpression" && nameOf(node.callee) === "defineConfig"
-        ? unwrap(node)
-        : node.type === "ExportDefaultDeclaration" && isConfigFile
-          ? unwrap(node.declaration)
-          : undefined;
-    if (root?.type === "ObjectExpression" && !roots.includes(root)) {
-      roots.push(root);
-    }
+function rootsOf(program: Estree, file: string): ConfigRoots {
+  return resolveConfigRoot(program, {
+    isConfigFile: basename(file).startsWith("permdock.config."),
   });
-  return roots;
 }
 
 function keyOf(property: Estree): string | undefined {
@@ -248,7 +221,7 @@ function nextEdits(
   skipped: Set<number>,
   followUps: CodemodFollowUp[],
 ): Extract<Step, { kind: "edits" }> | undefined {
-  for (const root of configRoots(program, file)) {
+  for (const root of rootsOf(program, file).roots) {
     for (const move of moves) {
       const found = find(root, move, 0, [], skipped);
       if (found === undefined) {
@@ -293,6 +266,17 @@ export function moveConfigKeys(
     }
     // SAFETY: Estree is an all-optional view of the Oxc program, whose nodes all carry `start` and `end`.
     const program = parsed.program as unknown as Estree;
+    if (pass === 0) {
+      for (const item of rootsOf(program, file).unresolved) {
+        const { line, column } = position(lineAt, item.at);
+        followUps.push({
+          line,
+          column,
+          name: basename(file),
+          message: item.why,
+        });
+      }
+    }
     const applied = nextEdits(program, file, source, moves, skipped, followUps);
     if (applied === undefined) {
       break;

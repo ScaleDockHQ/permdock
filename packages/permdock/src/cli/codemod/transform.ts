@@ -9,6 +9,7 @@ import type {
 import type { Rename } from "./context.ts";
 
 import { parseSync } from "../core/optional.ts";
+import { scriptBlocks } from "../source/script-blocks.ts";
 import {
   applyEdits,
   lineIndex,
@@ -20,7 +21,6 @@ import {
   walk,
 } from "./ast.ts";
 import {
-  SCRIPT_BLOCK,
   declaredBetween,
   edit,
   importedCallee,
@@ -148,16 +148,12 @@ function byPosition(
 function segmentsOf(file: string, source: string): readonly Segment[] {
   const extension = file.slice(file.lastIndexOf(".") + 1).toLowerCase();
   if (extension === "vue" || extension === "svelte") {
-    return [...source.matchAll(SCRIPT_BLOCK)].map((match) => {
-      const [whole, attributes = "", code = ""] = match;
-      const typed = /\blang=["']?(?:ts|typescript)\b/u.test(attributes);
-      return {
-        code,
-        offset: match.index + whole.indexOf(">") + 1,
-        lang: typed ? "ts" : "jsx",
-        keepLocals: true,
-      };
-    });
+    return scriptBlocks(source).map((block) => ({
+      code: block.code,
+      offset: block.offset,
+      lang: block.lang,
+      keepLocals: true,
+    }));
   }
   const lang: Lang =
     extension === "tsx"

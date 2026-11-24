@@ -13,6 +13,7 @@ import { powersyncOut } from "../powersync/emit/files.ts";
 import { powersyncFiles, staleFiles } from "../powersync/powersync.ts";
 import { roleSources, scopeSourcesOf, streamOf } from "../powersync/sources.ts";
 import { filesOf } from "../shared/doctor-files.ts";
+import { calledNames } from "../source/calls.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import { policyOf } from "./inputs.ts";
 
@@ -134,20 +135,22 @@ function branchGaps(
   return findings;
 }
 
-const NATIVE_REFRESH = /\bnativeRefresh\s*\(/u;
-const AUTHZ_CHANGE_REFRESH = /\bauthzChangeRefresh\s*\(/u;
-const REFRESH_SESSION = /\.refreshSession\s*\(/u;
-
 /**
  * The sources refresh the session and reconnect on an authorization change:
  * `nativeRefresh`, or an app bridge that calls `refreshSession()` and hands
- * PermDock the refresh through `authzChangeRefresh`.
+ * PermDock the refresh through `authzChangeRefresh`. A mention in a comment or
+ * a string is not a call.
  */
 function wiresRefresh(sources: readonly DoctorSource[]): boolean {
-  const has = (pattern: RegExp): boolean =>
-    sources.some((source) => pattern.test(source.text));
+  const called = new Set<string>();
+  for (const source of sources) {
+    for (const name of calledNames(source.file, source.text)) {
+      called.add(name);
+    }
+  }
   return (
-    has(NATIVE_REFRESH) || (has(AUTHZ_CHANGE_REFRESH) && has(REFRESH_SESSION))
+    called.has("nativeRefresh") ||
+    (called.has("authzChangeRefresh") && called.has("refreshSession"))
   );
 }
 

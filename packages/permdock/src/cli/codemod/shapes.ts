@@ -13,10 +13,10 @@ import type {
   PropRename,
 } from "./shapes-0.5.ts";
 
+import { scriptBlocks } from "../source/script-blocks.ts";
 import { child, nameOf, nodes, position } from "./ast.ts";
 import {
   boundImport,
-  SCRIPT_BLOCK,
   edit,
   importedCallee,
   isModuleBinding,
@@ -38,9 +38,13 @@ export function templateHints(
   if (hints.length === 0 || !/\.(?:vue|svelte)$/iu.test(file)) {
     return [];
   }
-  const markup = source.replaceAll(SCRIPT_BLOCK, (block) =>
-    " ".repeat(block.length),
-  );
+  let markup = source;
+  for (const block of scriptBlocks(source)) {
+    markup =
+      markup.slice(0, block.offset) +
+      " ".repeat(block.code.length) +
+      markup.slice(block.offset + block.code.length);
+  }
   return hints.flatMap((hint) =>
     [...markup.matchAll(hint.pattern)].map((match) => {
       const { line, column } = position(lineAt, match.index);
