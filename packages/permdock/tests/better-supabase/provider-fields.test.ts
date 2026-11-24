@@ -181,3 +181,33 @@ describe("versions and wildcards", () => {
     ).not.toHaveProperty("wildcards");
   });
 });
+
+describe("doctor", () => {
+  it("names permdock doctor --json and passes timeoutMs through", () => {
+    expect(
+      authorizationProvider({ manifest: supabaseHookManifestFixture }).doctor,
+    ).toStrictEqual({ command: ["permdock", "doctor", "--json"] });
+    expect(
+      authorizationProvider({
+        manifest: supabaseHookManifestFixture,
+        doctor: { timeoutMs: 120_000 },
+      }).doctor,
+    ).toStrictEqual({
+      command: ["permdock", "doctor", "--json"],
+      timeoutMs: 120_000,
+    });
+  });
+
+  it("reports a timeoutMs that is not a positive whole number", () => {
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      doctor: { timeoutMs: -1 },
+    });
+    expect(provider.doctor).toStrictEqual({
+      command: ["permdock", "doctor", "--json"],
+    });
+    expect(provider.problems).toContainEqual(
+      "doctor.timeoutMs is -1; pass a positive whole number of milliseconds.",
+    );
+  });
+});

@@ -119,6 +119,11 @@ export type AuthorizationProviderOptions<P = undefined> = {
    */
   readonly platformRoles?: boolean;
   /**
+   * `doctor.timeoutMs` for the `permdock doctor --json` run better-supabase's
+   * doctor makes (BS705); better-supabase stops it after 60,000 ms by default.
+   */
+  readonly doctor?: { readonly timeoutMs?: number };
+  /**
    * The permission tree the catalog was generated from. It types the provider's
    * keys; the catalog still supplies the entries.
    */
@@ -153,6 +158,24 @@ const ID_TYPES: Readonly<Record<string, string>> = {
   int: "integer",
   int4: "integer",
 };
+
+/** The command better-supabase's doctor runs, its findings joining BS705. */
+const DOCTOR_COMMAND = ["permdock", "doctor", "--json"] as const;
+
+function doctorOf(
+  options: AuthorizationProviderOptions["doctor"],
+  problems: string[],
+): NonNullable<AuthorizationProvider["doctor"]> {
+  const timeoutMs = options?.timeoutMs;
+  if (timeoutMs === undefined) return { command: DOCTOR_COMMAND };
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+    problems.push(
+      `doctor.timeoutMs is ${String(timeoutMs)}; pass a positive whole number of milliseconds.`,
+    );
+    return { command: DOCTOR_COMMAND };
+  }
+  return { command: DOCTOR_COMMAND, timeoutMs };
+}
 
 function tenantScopeOf(
   manifest: SupabaseManifest,
@@ -440,6 +463,7 @@ export function authorizationProvider<P = undefined>(
     ...(hasTokenHook(manifest)
       ? { tokenHook: tokenHookOf(manifest, options.activeTenant) }
       : {}),
+    doctor: doctorOf(options.doctor, problems),
     ...(problems.length > 0 ? { problems } : {}),
   }) as AuthorizationProvider<ProviderKey<P>>;
 }
