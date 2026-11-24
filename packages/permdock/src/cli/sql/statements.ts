@@ -66,14 +66,19 @@ function dollarEnd(sql: string, from: number): number {
  * dollar-quoted bodies nest nothing and block comments nest.
  */
 function lex(sql: string): { readonly text: string; readonly cuts: number[] } {
-  const out = sql.split("");
+  const parts: string[] = [];
   const cuts: number[] = [];
+  let copied = 0;
   const blank = (from: number, to: number): void => {
-    for (let at = from; at < to; at += 1) {
-      if (out[at] !== "\n") {
-        out[at] = " ";
-      }
-    }
+    parts.push(
+      sql.slice(copied, from),
+      sql
+        .slice(from, to)
+        .split("\n")
+        .map((line) => " ".repeat(line.length))
+        .join("\n"),
+    );
+    copied = to;
   };
   let index = 0;
   while (index < sql.length) {
@@ -102,7 +107,8 @@ function lex(sql: string): { readonly text: string; readonly cuts: number[] } {
     }
     index = end === -1 ? index + 1 : end;
   }
-  return { text: out.join(""), cuts };
+  parts.push(sql.slice(copied));
+  return { text: parts.join(""), cuts };
 }
 
 export type StatementRange = {
