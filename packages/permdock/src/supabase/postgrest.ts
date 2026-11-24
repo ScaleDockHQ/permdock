@@ -3,6 +3,7 @@ import type {
   CustomRoleSource,
   MemberEntry,
   MembershipSource,
+  Intent,
   SourceCall,
   SourceMemo,
 } from "../core/interfaces.ts";
@@ -195,36 +196,49 @@ function isDevelopment(): boolean {
   );
 }
 
+type VersionRead = {
+  readonly intent: Intent | undefined;
+  readonly live: boolean;
+};
+
+const readLabel = (read: VersionRead, stack: string): string =>
+  `  intent ${read.intent ?? "unset"}, ${read.live ? "live" : "not live"}${stack}`;
+
 /**
  * In development, warns once when one principal's version is read twice within
  * `REPEAT_WINDOW_MS`: a request that builds its instance more than once instead
- * of sharing it through `instanceCache` or `permdockFor`.
+ * of sharing it through `instanceCache` or `permdockFor`. The message names the
+ * call stack, the intent and whether each read was live, for both reads.
  */
-function repeatedVersionReads(): (userId: string) => void {
+function repeatedVersionReads(): (userId: string, read: VersionRead) => void {
   if (!isDevelopment()) {
     return () => undefined;
   }
-  const last = new Map<string, number>();
+  const last = new Map<
+    string,
+    { readonly at: number; readonly read: VersionRead; readonly stack: string }
+  >();
   let warned = false;
-  return (userId) => {
+  return (userId, read) => {
     if (warned) {
       return;
     }
     const at = nowMillis();
+    const stack = `\n${new Error("version read").stack ?? ""}`;
     const previous = last.get(userId);
-    if (previous !== undefined && at - previous < REPEAT_WINDOW_MS) {
+    if (previous !== undefined && at - previous.at < REPEAT_WINDOW_MS) {
       warned = true;
       last.clear();
       // oxlint-disable-next-line no-console -- one development hint per sources object for a repeated version read
       console.warn(
-        "PermDock: the authorization version of one user was read more than once within a second. Share one instance per request through instanceCache and permdockFor, or pass version: { known }.",
+        `PermDock: the authorization version of one user was read more than once within a second. Share one instance per request through instanceCache and permdockFor, or pass version: { known }.\nFirst read:\n${readLabel(previous.read, previous.stack)}\nSecond read:\n${readLabel(read, stack)}`,
       );
       return;
     }
     if (last.size >= REPEAT_TRACKED) {
       last.clear();
     }
-    last.set(userId, at);
+    last.set(userId, { at, read, stack });
   };
 }
 
@@ -287,6 +301,7 @@ export function postgrestSources(
     method: string,
     key: string,
     read: () => Promise<T>,
+    meta: Pick<SourceCall, "intent" | "live" | "reason"> = {},
   ): Promise<T> => {
     let ran = false;
     const started = performance.now();
@@ -305,6 +320,7 @@ export function postgrestSources(
           method,
           durationMs: performance.now() - started,
           cached: !ran,
+          ...meta,
         });
       } catch {
         // A failing observer never changes the read.
@@ -336,6 +352,7 @@ export function postgrestSources(
     userId: string,
     memo?: SourceMemo,
     tenant?: string,
+    reason?: SourceCall["reason"],
   ): Promise<SubjectRecord | undefined> =>
     once(
       memo,
@@ -388,17 +405,20 @@ export function postgrestSources(
         }
         return read;
       },
+      reason === undefined ? {} : { reason },
     );
   const version = (
     userId: string,
     memo?: SourceMemo,
-  ): Promise<number | undefined> =>
-    once(
+    intent?: Intent,
+  ): Promise<number | undefined> => {
+    const live = intent !== "read" && intent !== "database-write";
+    return once(
       memo,
       `${schema}.${versionFn}`,
       `${schema}.${versionFn}:${userId}`,
       async () => {
-        noteVersionRead(userId);
+        noteVersionRead(userId, { intent, live });
         const result = await callRpc(client, schema, versionFn, {
           p_user: userId,
         });
@@ -415,7 +435,13 @@ export function postgrestSources(
         }
         return current;
       },
+      {
+        ...(intent === undefined ? {} : { intent }),
+        live,
+        reason: live ? "live" : "stale",
+      },
     );
+  };
   const rolesVersion = (
     tenant: string,
     memo?: SourceMemo,
@@ -456,8 +482,9 @@ export function postgrestSources(
     userId: string,
     memo?: SourceMemo,
     tenant?: string,
+    reason?: SourceCall["reason"],
   ): Promise<SubjectRecord | undefined> => {
-    const found = await record(userId, memo, tenant);
+    const found = await record(userId, memo, tenant, reason);
     return found?.active === true ? found : undefined;
   };
   return {
@@ -465,14 +492,15 @@ export function postgrestSources(
       async membershipsFor(principal, query) {
         if (!tenantScoped) {
           return [
-            ...((await live(principal.id, query.memo))?.memberships ?? []),
+            ...((await live(principal.id, query.memo, undefined, query.reason))
+              ?.memberships ?? []),
           ];
         }
         if (query.tenant === undefined || query.tenant === "") {
           return [];
         }
         return [
-          ...((await live(principal.id, query.memo, query.tenant))
+          ...((await live(principal.id, query.memo, query.tenant, query.reason))
             ?.memberships ?? []),
         ];
       },
@@ -491,7 +519,7 @@ export function postgrestSources(
           ? record(principal.id, context?.memo).then(
               (found) => found?.authzVersion,
             )
-          : version(principal.id, context?.memo);
+          : version(principal.id, context?.memo, context?.intent);
       },
       list,
       async globalRolesFor(principal, context) {

@@ -230,7 +230,16 @@ function assemblePrincipal(
     try {
       return from.membershipsFor(
         compact({ id: of.id, kind: of.kind }),
-        compact({ tenant: options.tenant, memo }),
+        compact({
+          tenant: options.tenant,
+          memo,
+          reason:
+            from.claimsFirst === true
+              ? of.membershipsTruncated === true
+                ? "truncated"
+                : "stale"
+              : undefined,
+        }),
       );
     } catch {
       auth.push({

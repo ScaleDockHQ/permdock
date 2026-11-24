@@ -50,6 +50,7 @@ import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
 import { pd083 } from "./postgrest.ts";
 import { pd058, pd084, pd102 } from "./powersync.ts";
 import { pd005, pd006, pd009, pd012, pd022, pd028, pd040 } from "./project.ts";
+import { pd130 } from "./repeated-version-reads.ts";
 import {
   pd016,
   pd020,
@@ -523,6 +524,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd116(project.sources()),
   },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
+  {
+    code: "PD130",
+    groups: ["next", "supabase", "performance"],
+    run: (project) => pd130(project.sources()),
+  },
 ];
 
 /**

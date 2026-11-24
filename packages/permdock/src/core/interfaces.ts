@@ -58,12 +58,28 @@ export type SourceCall = {
   readonly method: string;
   readonly durationMs: number;
   readonly cached: boolean;
+  /** The intent of the instance that made the read, when the read knows it. */
+  readonly intent?: Intent;
+  /** Whether the read bypassed a shared version cache: `intent` is `write`. */
+  readonly live?: boolean;
+  /**
+   * Why a read reached the source: `live` for a write that reads the version
+   * live, `stale` for a read or a token behind the version, `truncated` for a
+   * token whose memberships were cut to fit.
+   */
+  readonly reason?: "live" | "stale" | "truncated";
 };
 
 /** What `getPermDock` passes to every source call besides its query. */
 export type SourceContext = {
   /** Absent when the source is called outside `getPermDock`. */
   readonly memo?: SourceMemo;
+  /**
+   * Why a `claimsFirst` instance reads memberships it would otherwise take from
+   * the token: `truncated` when the token marks them cut, `stale` otherwise.
+   * Absent for a source that is not `claimsFirst`.
+   */
+  readonly reason?: "stale" | "truncated";
 };
 
 /**
