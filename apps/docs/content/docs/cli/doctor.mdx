@@ -170,6 +170,8 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD116` | A module with a file-level `'use server'` exports a Server Action that calls no `protectAction`, `requirePermission`, `getPermission` or `assert`                                                                                                                                                                                    |
 | `PD120` | `permdock.config` sets a key to the value its command uses when it is unset; `permdock codemod config --prune` removes it                                                                                                                                                                                                            |
 | `PD121` | `rls.memberships` or `rls.suspension` disagrees with the membership sources, or restates what they derive                                                                                                                                                                                                                            |
+| `PD122` | A granted verb has no `rls.actions` entry and infers no SQL command, so it compiles to `none` (information)                                                                                                                                                                                                                          |
+| `PD134` | No schema file creates a table for a resource without an `rls.tables` entry, under its verbatim name or its snake_case plural (information)                                                                                                                                                                                          |
 | `PD130` | The project calls `permdockFor` and builds another instance with `getPermDock` or `createPermDock` and its own `memberships`, `customRoles`, `versions` or `instances`                                                                                                                                                               |
 
 ### PD001: server-only imports in client entries
@@ -781,6 +783,14 @@ With `rls.authorize: "jwt"` the helpers read the `memberships` claim and nothing
 ### PD121: membership facts declared twice
 
 `rls.memberships` and `rls.suspension` are derived from `supabase.hook.memberships` (or `rls.membershipSources`) and `supabase.hook.suspension` ([membership derivation](/docs/cli/rls)). PD121 warns at `rls.memberships.scopes.<scope>` when the written table reads a scope differently from its source, and at the same path or `rls.suspension` when the entry restates the derived value. Delete a restated entry with `permdock codemod config --prune`; fix a disagreeing one so both declarations say the same, then delete it. PD121 reads the config file as written, so a key a plugin such as `supabaseRls()` fills is not reported.
+
+### PD122: verbs that compile to none
+
+A verb with no `rls.actions` entry, no default and no default-verb prefix compiles to `none`: the permission is seeded, and no SQL policy admits that command. PD122 lists those verbs once, as information, with the verbs that infer a command. PD071 reports the ones whose name reads as a write. Map a verb only when its permission should reach a table.
+
+### PD134: resource without a table
+
+`rls generate` binds a resource with no `rls.tables` entry to the table of the same name, or to its snake_case plural when only that one exists in `supabase/schemas` or `supabase/migrations`. PD134 lists each resource for which neither exists, as information: name the table in `rls.tables`, or set the entry to `false` for a resource that has none. The check is silent without schema files.
 
 ### PD130: repeated version reads
 

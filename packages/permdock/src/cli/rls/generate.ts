@@ -10,6 +10,7 @@ import { renamedKeys } from "../../core/permission-registry.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { listPermissions } from "../../index.ts";
 import { describeError, exitCodeOfError } from "../core/errors.ts";
+import { withSchemaDefaults } from "../sql/schema-tables.ts";
 import { tableNames } from "../sql/tables.ts";
 import {
   bindingNotes,
@@ -74,17 +75,21 @@ function refused(output: string): GenerateOutcome {
 }
 
 export async function runRlsGenerate(
-  input: RlsGenerateInput,
+  given: RlsGenerateInput,
 ): Promise<GenerateOutcome> {
-  const options = generateOptions(input);
+  const options = generateOptions(given);
   if (isRefusal(options)) {
     return refused(options.refusal);
   }
-  const loaded = await loadGeneratePolicy(input);
+  const loaded = await loadGeneratePolicy(given);
   if (isPolicyLoadFailure(loaded)) {
     return loaded;
   }
   const policy = loaded;
+  const input = {
+    ...given,
+    config: await withSchemaDefaults(given.cwd, given.config, policy),
+  };
   const built = buildContext(input, policy, options);
   if (isRefusal(built)) {
     return refused(built.refusal);
