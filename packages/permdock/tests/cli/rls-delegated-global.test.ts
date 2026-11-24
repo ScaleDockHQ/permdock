@@ -75,6 +75,39 @@ describe("rls generate gates global grants for delegated tokens", () => {
     expect(has).not.toContain(`((select auth.jwt()) -> 'act') is null`);
   });
 
+  it("drops only the API key term under rls.apiKeys and only the client terms under rls.tokenScopes", async () => {
+    const keyed = helper(
+      await generate({ apiKeys: { claim: "key" } }),
+      "permdock_has",
+    );
+    expect(keyed).toContain(KEY_GATE);
+    expect(keyed).not.toContain(`((select auth.jwt()) -> 'key') is null`);
+    expect(keyed).toContain(CLIENT_GATE);
+    const scoped = helper(
+      await generate({ tokenScopes: true }),
+      "permdock_has",
+    );
+    expect(scoped).toContain(KEY_GATE);
+    expect(scoped).not.toContain(CLIENT_GATE);
+  });
+
+  it("reads the claims from settings on the GUC dialect", async () => {
+    const has = helper(
+      await generate({ dialect: "guc", authorize: "jwt" }),
+      "permdock_has",
+    );
+    expect(has).toContain(
+      `coalesce((select current_setting('app.client_id', true)), '') = ''`,
+    );
+  });
+
+  it("keys delegated tokens apart in the global memo only", async () => {
+    const sql = await generate({ memo: "permdock" });
+    expect(helper(sql, "permdock_has")).toContain("else '|delegated' end)");
+    expect(helper(sql, "permitted_tenant_ids")).not.toContain("|delegated");
+    expect(helper(sql, "permdock_has_for")).not.toContain("|delegated");
+  });
+
   it("keeps the gate off the scoped helpers and the helpers for a named user", async () => {
     const sql = await generate({});
     expect(helper(sql, "permitted_tenant_ids")).not.toContain(CLIENT_GATE);

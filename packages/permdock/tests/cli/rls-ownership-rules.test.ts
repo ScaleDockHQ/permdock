@@ -316,7 +316,10 @@ describe("permdock_can_assign for global roles without kinds", () => {
         ...(own === undefined ? {} : { ownership: own }),
       });
       expect(sql).toContain(
-        "(values ('root', 'member'))\n    )\n    or p_scope_id is null and exists",
+        "(values ('root', 'member'))\n    )\n    or p_scope_id is null and (",
+      );
+      expect(sql).toContain(
+        "coalesce(((select auth.jwt()) ->> 'client_id'), '') = ''",
       );
       expect(sql).toContain("(values ('root', 'helpdesk'))\n    )");
     }
