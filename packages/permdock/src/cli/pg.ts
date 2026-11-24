@@ -72,6 +72,31 @@ async function connectPg(
   };
 }
 
+/**
+ * A `pg.Pool` for a library that takes one, such as pg-delta. No statement
+ * timeout: loading a schema directory into a shadow can run longer than a
+ * catalog read.
+ */
+export async function openPgPool(
+  db: string,
+  command: string,
+  cwd: string = process.cwd(),
+): Promise<Pg.Pool> {
+  const pg = await loadPg(command, cwd);
+  const pool = new pg.Pool({
+    connectionString: db,
+    connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
+    max: 4,
+  });
+  try {
+    (await pool.connect()).release();
+  } catch (cause) {
+    await pool.end();
+    throw unreachable(command, cause);
+  }
+  return pool;
+}
+
 /** A small pool, for independent catalog reads that can run in parallel. */
 export async function connectPgPool(
   db: string,

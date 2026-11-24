@@ -33,6 +33,7 @@ Flags
   --out <file>                           With --kind pgtap, the file to write (default supabase/tests/permdock_rls.test.sql)
   --tree                                 Check the relationship closure
   --introspect                           Compare against the live database
+  --shadow <url|stack>                   Load the schema directory into this empty database with pg-delta and compare PermDock's objects with the live database; stack creates one on the database's cluster
   --advisors                             Run the Supabase security and performance advisors
   --grant-calls                          With --advisors and --db-url-stdin, count executions per permission key from pg_stat_statements
   --ignore <id>                          Accept the finding with this id for one run; rls.verify.ignore is the committed baseline (repeatable)

@@ -1,11 +1,8 @@
-import { createRequire } from "node:module";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
-
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { rel, sqlFiles } from "../files.ts";
+import { importFromApp } from "../shared/app-peer.ts";
 import { filesOf } from "../shared/doctor-files.ts";
 import { SqlSyntaxError, functionArgTypes, parseSqlFile } from "../sql/ast.ts";
 import { resolveSchemas } from "../supabase-schemas.ts";
@@ -49,37 +46,12 @@ type PgTopo = {
   readonly analyzeAndSort: (sql: string[]) => Promise<TopoResult>;
 };
 
-/**
- * Resolves a package from the app, then from the installed `better-supabase`,
- * which pins `@supabase/pg-delta` and `@supabase/pg-topo` and whose BS709 tells
- * the app to remove its own entries. Under pnpm the app then cannot see them.
- */
-export function resolveFromApp(cwd: string, name: string): string | undefined {
-  const app = createRequire(join(cwd, "package.json"));
-  try {
-    return app.resolve(name);
-  } catch {
-    try {
-      return createRequire(app.resolve("better-supabase/package.json")).resolve(
-        name,
-      );
-    } catch {
-      return undefined;
-    }
-  }
-}
-
 function isPgTopo(value: unknown): value is PgTopo {
   return isRecord(value) && typeof value["analyzeAndSort"] === "function";
 }
 
 async function loadPgTopo(cwd: string): Promise<PgTopo | undefined> {
-  const path = resolveFromApp(cwd, PG_TOPO);
-  if (path === undefined) {
-    return undefined;
-  }
-  // An optional peer, resolved from the app or better-supabase rather than from permdock.
-  const loaded: unknown = await import(pathToFileURL(path).href);
+  const loaded = await importFromApp(cwd, PG_TOPO);
   return isPgTopo(loaded) ? loaded : undefined;
 }
 

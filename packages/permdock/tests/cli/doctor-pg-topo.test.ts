@@ -13,7 +13,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { pd125, resolveFromApp } from "../../src/cli/doctor/pg-topo.ts";
+import { pd125 } from "../../src/cli/doctor/pg-topo.ts";
+import { resolveFromApp } from "../../src/cli/shared/app-peer.ts";
 
 const EXAMPLE = resolve(
   import.meta.dirname,

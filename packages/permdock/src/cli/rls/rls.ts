@@ -22,17 +22,19 @@ import {
   introspectMixed,
   introspectRls,
   missingIndexes,
+  normalizeTableName,
 } from "./introspect.ts";
 import { readOnlyActorKinds } from "./policies.ts";
 import { parseRbacAuthorize } from "./rbac.ts";
 import { verifyIgnores, verifyResult } from "./verify-findings.ts";
+import { verifyShadow } from "./verify-shadow.ts";
 import { runRlsVerify } from "./verify.ts";
 
 export const RLS_HELP = `permdock rls generate | import | verify | migrate | explain
 
   generate  Compile the policy into RLS policies and helpers
   import    Turn existing policies (--sql or --db-url-stdin) into a permissions module
-  verify    Run the fixtures, or compare a live database with --introspect
+  verify    Run the fixtures, or compare a live database with --introspect or --shadow
   migrate   Rewrite the rls.migrate helpers' calls onto the generated helpers
   explain   Show the tables, membership sources, custom roles and triggers the SQL binds to
 
@@ -79,6 +81,8 @@ export type RlsRunInput = {
   readonly revokeColumns: boolean;
   readonly tree: boolean;
   readonly introspect: boolean;
+  /** `verify --shadow`: an empty database's URL, or `stack`. */
+  readonly shadow?: string | undefined;
   readonly split: string | undefined;
   /** `--schemas`: `pg-delta`, `migra` or `migrations`. */
   readonly schemas?: string | undefined;
@@ -388,6 +392,51 @@ async function introspect(
   }
 }
 
+/**
+ * `verify --shadow`: the schema directory loaded into a shadow against the live
+ * database, for the objects `generate` writes with the same flags.
+ */
+async function shadow(
+  input: RlsRunInput & { readonly shadow: string },
+  ignore: readonly VerifyIgnore[],
+): Promise<CommandResult> {
+  if (input.db === undefined) {
+    return {
+      code: 2,
+      output:
+        "PermDock CLI: rls verify --shadow needs a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
+    };
+  }
+  const dialect = asDialect(input.dialect ?? input.config.rls?.dialect);
+  if (dialect === undefined) {
+    return {
+      code: 2,
+      output:
+        "rls verify --dialect (or rls.dialect) must be supabase, neon or guc",
+    };
+  }
+  const generated = await runRlsGenerate({
+    ...generateInput(input, "sql", dialect),
+    check: false,
+    write: false,
+  });
+  if (generated.code !== 0 || generated.policies === undefined) {
+    return { code: 2, output: generated.output };
+  }
+  return verifyShadow({
+    cwd: input.cwd,
+    config: input.config,
+    db: input.db,
+    shadow: input.shadow,
+    schema: generated.schema ?? PERMDOCK_SCHEMA,
+    policies: generated.policies.map((policy) => ({
+      table: normalizeTableName(policy.table),
+      name: policy.name,
+    })),
+    ignore,
+  });
+}
+
 export async function runRls(input: RlsRunInput): Promise<CommandResult> {
   const action = input.rest[0];
   if (action === undefined || action === "help") {
@@ -456,6 +505,9 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
         });
       }
       const ignore = verifyIgnores(input.config, input.ignore);
+      if (input.shadow !== undefined) {
+        return shadow({ ...input, shadow: input.shadow }, ignore);
+      }
       if (input.introspect) {
         return introspect(input, ignore);
       }
