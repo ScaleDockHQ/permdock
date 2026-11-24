@@ -1,4 +1,9 @@
 import {
+  hasBlockingDiagnostics,
+  planSchemaFiles,
+  rawProfile,
+} from "@supabase/pg-delta";
+import {
   cpSync,
   mkdirSync,
   mkdtempSync,
@@ -8,21 +13,25 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Client } from "pg";
+import { Client, Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { runPipingDbUrl } from "./db-url.ts";
+import {
+  CENTRAKIT,
+  CUSTOM_ROLES,
+  ROLES,
+} from "./support/declarative-fixtures.ts";
 import { databaseUri, startPostgres } from "./support/postgres.ts";
+import { generated as generatedFiles } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/introspect");
 const TMP = join(HERE, "../tmp");
 
-const ROLES = `
-create role authenticated nologin;
-create role anon nologin;
+const CLUSTER = `${ROLES}
 grant authenticated to tester;
 `;
 
@@ -71,7 +80,7 @@ describe("rls verify --shadow (pg-delta)", () => {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
     }
     generated = readFileSync(out, "utf8");
-    db = await startPostgres([ROLES]);
+    db = await startPostgres([CLUSTER]);
   }, 180_000);
 
   afterAll(async () => {
@@ -113,6 +122,80 @@ describe("rls verify --shadow (pg-delta)", () => {
     expect(result.out).toContain("PermDock's policies, functions and grants");
     expect(result.code).toBe(0);
   }, 120_000);
+
+  /**
+   * What strict coverage blocks when pg-delta plans `files` from an empty
+   * database.
+   */
+  async function strictlyBlocked(
+    files: { readonly name: string; readonly sql: string }[],
+  ): Promise<{
+    readonly blocked: readonly unknown[];
+    readonly actions: number;
+  }> {
+    const target = new Pool({ connectionString: await database([]) });
+    const shadow = new Pool({ connectionString: await database([]) });
+    try {
+      const result = await planSchemaFiles(target, shadow, files, {
+        profile: rawProfile,
+      });
+      const blocked = [
+        ...result.loadDiagnostics,
+        ...result.targetDiagnostics,
+        ...result.driftDiagnostics,
+        ...result.skipped,
+      ].filter(
+        (item) =>
+          !("code" in item) ||
+          hasBlockingDiagnostics([item], { strictCoverage: true }),
+      );
+      return { blocked, actions: result.plan.actions.length };
+    } finally {
+      await Promise.all([target.end(), shadow.end()]);
+    }
+  }
+
+  it("plans the generated tree under strict coverage with nothing pg-delta cannot model", async () => {
+    const result = await strictlyBlocked([
+      { name: "00_app.sql", sql: APP },
+      { name: "10_permdock.sql", sql: generated },
+    ]);
+    expect(result.blocked).toStrictEqual([]);
+    expect(result.actions).toBeGreaterThan(0);
+  }, 120_000);
+
+  for (const [fixture, setup, split] of [
+    ["rls-custom-roles", CUSTOM_ROLES, "helpers"],
+    ["centrakit-roles", CENTRAKIT, "helpers,hook"],
+  ] as const) {
+    it(`plans the ${split} parts under strict coverage (${fixture})`, async () => {
+      const parts = await generatedFiles(
+        [
+          "rls",
+          "generate",
+          "--target",
+          "sql",
+          "--split",
+          `${split},seeds`,
+          "--out",
+          "{dir}/{part}.sql",
+          "--seeds-out",
+          "{dir}/seeds.sql",
+        ],
+        split.split(",").map((part) => `${part}.sql`),
+        { cwd: join(HERE, "../fixtures", fixture) },
+      );
+      const result = await strictlyBlocked([
+        { name: "00_setup.sql", sql: setup },
+        ...parts.map((sql, index) => ({
+          name: `1${String(index)}_part.sql`,
+          sql,
+        })),
+      ]);
+      expect(result.blocked).toStrictEqual([]);
+      expect(result.actions).toBeGreaterThan(0);
+    }, 120_000);
+  }
 
   it("reports a changed policy and a revoked helper grant, and not the app's own drift", async () => {
     const live = await database([APP, generated]);
