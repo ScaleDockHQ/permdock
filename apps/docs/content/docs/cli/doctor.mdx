@@ -179,6 +179,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD135` | A pg-delta project writes the `role_permissions` rows as a data migration; `rls.seeds: 'view'` keeps them declarative (information)                                                                                                                                                                                                  |
 | `PD130` | The project calls `permdockFor` and builds another instance with `getPermDock` or `createPermDock` and its own `memberships`, `customRoles`, `versions` or `instances`                                                                                                                                                               |
 | `PD136` | The project installs a Supabase CLI older than 3.2.0                                                                                                                                                                                                                                                                                 | warning         |
+| `PD131` | A table has more than `doctor.policies.max` (default 4) policies for one command and `authenticated`                                                                                                                                                                                                                                 | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -805,6 +806,12 @@ With pg-delta turned on explicitly (`enabled = true` under `[experimental.pgdelt
 ### PD130: repeated version reads
 
 A request that builds one instance through `permdockFor` and another with its own `memberships`, `customRoles`, `versions` or `instances` reads the authorization version twice: the second instance never finds the `instanceCache` entry or the version cache that `permdockFor` shares. PD130 reads the project's sources and warns at each such `getPermDock` or `createPermDock` call when the project also calls `permdockFor`. Spread `permdockFor.sources()` into the options or resolve the instance through `permdockFor`. In development, `postgrestSources` also warns when one user's version is read twice within a second and names both reads with their intent and whether each was live; `onSourceCall` reports `intent`, `live` and `reason` (`live`, `stale` or `truncated`) in production.
+
+### PD131: many policies for one command
+
+Postgres evaluates every permissive policy of a command, or-ed, and every restrictive one, and-ed, for each row. PD131 counts the policies the schema files and migrations leave on each table for one command and `authenticated` (a `to public` policy counts), and warns above `doctor.policies.max`, 4 by default. The name, the unit and the default are those of better-supabase's BS641, so one number means the same in both configs. The finding lists each policy with `permissive` or `restrictive` and its origin (`library`, `provider` or `app`); fold the provider or app policies into fewer conditions. [`permdock rls report`](/docs/cli/rls#report) shows the helper calls each policy adds.
+
+better-supabase measured a 1,000-row read at 0.92 ms with nine policies and 1.00 ms with thirteen (its ADR 1218), so PD131 stays a warning. When the better-supabase config sets `authorization.doctor.command`, better-supabase's doctor runs PermDock's under BS705 and reports the count itself as BS641, so PD131 reports nothing. `--only rls`, `--only supabase` and `--only performance` run PD131.
 
 ### PD136: Supabase CLI below 3.2.0
 

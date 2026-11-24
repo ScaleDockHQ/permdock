@@ -404,6 +404,25 @@ export const explain: Leaf = defineLeaf({
   },
 });
 
+export const report: Leaf = defineLeaf({
+  flags: { ...dbUrlFlags },
+  async run(ctx, { flags }) {
+    const db = await dbUrl(ctx, flags);
+    // Lazy: the report and the pg peer load only when this command runs.
+    const [{ runRlsReport }, { pgConnector }] = await Promise.all([
+      import("../rls/report.ts"),
+      import("../pg.ts"),
+    ]);
+    return runRlsReport({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      ...(db === undefined
+        ? {}
+        : { db, connect: pgConnector("permdock rls report", ctx.cwd) }),
+    });
+  },
+});
+
 export const migrate: Leaf = defineLeaf({
   flags: {
     ...shapeFlags,

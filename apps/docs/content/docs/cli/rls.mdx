@@ -1121,6 +1121,26 @@ permdock rls explain --db-url-stdin --json
 
 With `--json`, the report is printed as JSON. `explain` writes no file and reads the database only with `--db-url-stdin`.
 
+## report
+
+```bash
+permdock rls report
+permdock rls report --local --json
+printf %s "$DATABASE_URL" | permdock rls report --db-url-stdin
+```
+
+`report` lists, per table, every policy with its commands, roles, `permissive` or `restrictive`, its origin and the PermDock helpers and permission keys it calls. Tables are sorted by helper calls per statement: the helper calls of every policy Postgres evaluates for one command and `authenticated`, summed. The policy count alone is no cost measure, because a policy costs its predicate.
+
+The origin uses better-supabase BS641's three words:
+
+| Origin     | Policy                                                                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `library`  | A `bsb_` policy, or one a `@bsb access` tag renders                                                                                                     |
+| `provider` | One that calls a PermDock helper: a `permdock` schema function, `permdock_*`, `permitted_<scope>_ids` or `member_<scope>_ids` outside `better_supabase` |
+| `app`      | Any other                                                                                                                                               |
+
+Without a database URL, `report` reads the migration folders (`doctor.migrations`), `supabase/schemas` and `rls.out` in that order, through libpg_query: a later `create policy` replaces one of the same name on the same table, and `drop policy` removes it. A file libpg_query rejects stops the command with exit `2` and its file, line and column. With `--db-url-stdin` or `--local`, it reads `pg_policies` instead and adds each indexed column, on a table with row level security, whose btree `=` operator is not leakproof (`proleakproof` false), such as an enum `status`: Postgres applies the policies before such a filter, so the filter cannot use the index. `--json` prints the report as `data`. [Doctor PD131](/docs/cli/doctor#pd131-many-policies-for-one-command) warns on the same count.
+
 ## verify
 
 ```bash
@@ -1229,6 +1249,7 @@ What each command may change; [side effects](/docs/cli#side-effects) explains ea
 | `permdock rls verify`  | `files`, `database:read` |
 | `permdock rls migrate` | `rewrite`, `files`       |
 | `permdock rls explain` | `database:read`          |
+| `permdock rls report`  | `database:read`          |
 
 ## Related
 

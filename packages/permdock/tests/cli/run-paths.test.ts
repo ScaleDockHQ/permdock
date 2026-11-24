@@ -62,7 +62,9 @@ describe("run: groups", () => {
     expect(errorOf(result.stderr)).toMatchObject({
       reason: "usage",
       data: {
-        choices: { "<command>": ["import", "verify", "migrate", "explain"] },
+        choices: {
+          "<command>": ["import", "verify", "migrate", "explain", "report"],
+        },
       },
     });
   });

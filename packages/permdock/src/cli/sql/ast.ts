@@ -151,7 +151,7 @@ const POLICY_COMMANDS: ReadonlySet<string> = new Set([
   "delete",
 ]);
 
-function isPolicyCommand(value: unknown): value is PolicyCommand {
+export function isPolicyCommand(value: unknown): value is PolicyCommand {
   return typeof value === "string" && POLICY_COMMANDS.has(value);
 }
 

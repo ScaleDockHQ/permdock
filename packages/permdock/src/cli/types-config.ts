@@ -53,6 +53,11 @@ export type DoctorConfig = {
   readonly ignore?: readonly { readonly id: string; readonly reason: string }[];
   /** PD017 findings accepted for one permission key. */
   readonly waivers?: readonly DoctorWaiver[];
+  /**
+   * PD131 reports a table with more than `max` policies for one command and
+   * `authenticated`; default 4, better-supabase's `doctor.policies.max`.
+   */
+  readonly policies?: { readonly max?: number };
 };
 
 export type DoctorWaiver = {

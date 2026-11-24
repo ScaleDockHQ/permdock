@@ -424,6 +424,20 @@ export const SECTIONS: readonly Section[] = [
               load: async () => (await import("../commands/rls.ts")).explain,
             },
           ),
+          leaf(
+            "report",
+            "List each table's policies by command, role, origin and helper calls",
+            {
+              examples: [
+                "permdock rls report",
+                "permdock rls report --local --json",
+              ],
+              docs: "rls",
+              effects: ["database:read"],
+              config: true,
+              load: async () => (await import("../commands/rls.ts")).report,
+            },
+          ),
         ],
       ),
       group(

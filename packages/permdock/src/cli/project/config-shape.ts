@@ -140,6 +140,7 @@ const DOCTOR = {
   cacheHelpers: ARRAY,
   ignore: ARRAY,
   waivers: ARRAY,
+  policies: OBJECT,
 } as const satisfies Record<keyof DoctorConfig, KeyShape>;
 
 const GEN = {

@@ -47,6 +47,7 @@ import { pd111 } from "./perf-limit.ts";
 import { pd112 } from "./perf-snapshot.ts";
 import { pd103, pd104, pd105, pd106, pd107, pd108 } from "./perf-sql.ts";
 import { pd109, pd110, pd114 } from "./perf-token.ts";
+import { pd131 } from "./policy-count.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
 import { pd083 } from "./postgrest.ts";
 import { pd058, pd084, pd102 } from "./powersync.ts";
@@ -537,6 +538,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     groups: ["next", "supabase", "performance"],
     run: (project) => pd130(project.sources()),
   },
+  { code: "PD131", groups: ["rls", "supabase", "performance"], run: pd131 },
   {
     code: "PD120",
     groups: ["project"],
