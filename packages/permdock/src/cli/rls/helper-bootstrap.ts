@@ -1,11 +1,14 @@
 import type { RlsSqlContext } from "../sql/context.ts";
-import type { ShimGrants } from "./shims.ts";
 
 import { scopeTypeOf } from "../sql/columns.ts";
 import { BOOTSTRAP_PERMISSIONS, memberIdsHelper } from "../sql/names.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { rootName } from "../sql/shared.ts";
-import { checkName, permissionKeysHelper } from "./permission-keys.ts";
+import {
+  PERMISSION_HELPERS,
+  checkName,
+  permissionKeysHelper,
+} from "./permission-keys.ts";
 
 function textArray(values: readonly string[]): string {
   return values.length === 0
@@ -43,15 +46,11 @@ function bitsetSql(indexes: string, bytes: number): string {
 export function bootstrapPermissionsSql(
   ctx: RlsSqlContext,
   keys: readonly string[],
-  grants: ShimGrants,
 ): string {
   const fn = qualified(ctx, BOOTSTRAP_PERMISSIONS);
   const root = rootName(ctx);
   const bytes = Math.ceil(keys.length / 8);
-  const platform = Object.entries(grants.get("global") ?? {})
-    .filter(([key, effects]) => effects.allow.length > 0 && keys.includes(key))
-    .map(([key]) => key)
-    .toSorted();
+  const view = qualified(ctx, PERMISSION_HELPERS.keys);
   const memberIds = qualified(ctx, memberIdsHelper(root));
   const held = qualified(ctx, checkName(permissionKeysHelper(root)));
   return `-- the caller's permissions in better-supabase's compact BootstrapPermissionsWire: the policy's keys once, a bitset per ${root} the caller is a member of (p_tenant alone when given) and one for platform
@@ -72,12 +71,15 @@ as $$
   ),
   pdk_p(n) as (
     select k.n from ${held}(null::${scopeTypeOf(ctx, root)}) h(key) join pdk_k k on k.key = h.key
-    where k.key = any(${textArray(platform)})
+    where exists (
+      select 1 from ${view} v
+      where v.permission = k.key and v.scope = 'global' and v.effect = 'allow' and not v.conditioned
+    )
   )
   select jsonb_strip_nulls(jsonb_build_object(
     'apiVersion', 1,
     'form', 'compact',
-    'keys', to_jsonb(${textArray(keys)}),
+    'keys', coalesce((select jsonb_agg(k.key order by k.n) from pdk_k k), '[]'::jsonb),
     'tenants', coalesce((
       select jsonb_object_agg(t.id::text, ${bitsetSql(
         `select k.n from ${held}(t.id) h(key) join pdk_k k on k.key = h.key`,

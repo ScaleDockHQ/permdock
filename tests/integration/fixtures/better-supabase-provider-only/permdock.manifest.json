@@ -164,6 +164,12 @@
         "execute": ["authenticated"]
       },
       {
+        "name": "permdock_request_approver_ids",
+        "args": "p_requester uuid, p_tenant text",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
         "name": "permdock_has_for",
         "args": "p_user uuid, p_grant text",
         "returns": "boolean",

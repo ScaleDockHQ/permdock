@@ -18,6 +18,7 @@ import { forUserContext, grantBodies } from "./helpers.ts";
  * of the SQL contract.
  */
 export const PERMISSION_HELPERS = {
+  keys: "permission_keys",
   grantKeys: "grant_keys",
   has: "permdock_has_permission",
   hasFor: "permdock_has_permission_for",
@@ -101,14 +102,71 @@ ${body.sql}
   };
 }
 
-function grantsFunction(
+type KeyRow = readonly [string, string, "allow" | "deny", string, boolean];
+
+function keyRows(grants: ShimGrants): readonly KeyRow[] {
+  return [...grants].toSorted(byKey).flatMap(([scope, byPermission]) =>
+    Object.entries(byPermission)
+      .toSorted(byKey)
+      .flatMap(([permission, effects]) =>
+        (
+          [
+            ["allow", effects.allow, false],
+            ["deny", effects.deny, false],
+            ["allow", effects["conditioned-allow"] ?? [], true],
+            ["deny", effects["conditioned-deny"] ?? [], true],
+          ] as const
+        ).flatMap(([effect, keys, conditioned]) =>
+          keys.map((grant): KeyRow => [
+            permission,
+            scope,
+            effect,
+            grant,
+            conditioned,
+          ]),
+        ),
+      ),
+  );
+}
+
+/**
+ * `<schema>.permission_keys`: one row per permission key, scope, effect and
+ * grant key, `conditioned` when the grant carries a row condition. A view, so
+ * pg-delta diffs it like a function; every reader of the key map reads it.
+ */
+function keysView(
   ctx: RlsSqlContext,
   grants: ShimGrants,
+  anonExecute: boolean,
+): string {
+  const view = qualified(ctx, PERMISSION_HELPERS.keys);
+  const rows = keyRows(grants);
+  const body =
+    rows.length === 0
+      ? "  select null::text as permission, null::text as scope, null::text as effect, null::text as grant_key, null::boolean as conditioned where false"
+      : `  select v.permission, v.scope, v.effect, v.grant_key, v.conditioned
+  from (values
+    ${rows
+      .map(
+        ([permission, scope, effect, grant, conditioned]) =>
+          `(${[permission, scope, effect, grant].map(quoteLiteral).join(", ")}, ${String(conditioned)})`,
+      )
+      .join(",\n    ")}
+  ) v(permission, scope, effect, grant_key, conditioned)`;
+  return `-- every grant key a permission key reaches per scope and effect; conditioned marks a grant with a row condition
+create or replace view ${view} with (security_invoker = true) as
+${body};
+revoke all on table ${view} from anon, authenticated, public;
+grant select on table ${view} to ${anonExecute ? "anon, authenticated" : "authenticated"};`;
+}
+
+function grantsFunction(
+  ctx: RlsSqlContext,
   renamed: Readonly<Record<string, string>>,
   anonExecute: boolean,
 ): string {
   const fn = qualified(ctx, PERMISSION_HELPERS.grantKeys);
-  const map = Object.fromEntries([...grants].toSorted(byKey));
+  const view = qualified(ctx, PERMISSION_HELPERS.keys);
   const current =
     Object.keys(renamed).length === 0
       ? "p_permission"
@@ -122,11 +180,12 @@ set search_path = ''
 as $$
 begin
   return query
-  select g.grant_key
-  from pg_catalog.jsonb_array_elements_text(coalesce(
-    ${quoteLiteral(JSON.stringify(map))}::jsonb -> p_scope -> ${current} -> p_effect,
-    '[]'::jsonb
-  )) g(grant_key);
+  select k.grant_key
+  from ${view} k
+  where k.scope = p_scope
+    and k.permission = ${current}
+    and k.effect = pg_catalog.replace(p_effect, 'conditioned-', '')
+    and k.conditioned = (p_effect in ('conditioned-allow', 'conditioned-deny'));
 end;
 $$;
 ${grantsSql(fn, "text, text, text", anonExecute)}`;
@@ -294,18 +353,6 @@ ${functionBody((conditioned ? conditionedIds : ids)(bodies, scope), parallel, tr
     bodies: { readonly has: Body; readonly ids: (scope: string) => Body },
     filtered: boolean,
   ): Body => {
-    const rows = (["global", scope] as const).flatMap((at) =>
-      Object.entries(grants.get(at) ?? {})
-        .toSorted(byKey)
-        .flatMap(([key, effects]) =>
-          (["allow", "deny"] as const).flatMap((effect) =>
-            effects[effect].map(
-              (grant) =>
-                `(${[key, at, effect, grant].map(quoteLiteral).join(", ")})`,
-            ),
-          ),
-        ),
-    );
     const allows = new Set(
       (["global", scope] as const).flatMap((at) =>
         Object.entries(grants.get(at) ?? {}).flatMap(([key, effects]) =>
@@ -320,8 +367,9 @@ ${functionBody((conditioned ? conditionedIds : ids)(bodies, scope), parallel, tr
     const idsBody = bodies.ids(scope);
     return {
       sql: `  with pdk_m(key, scope, effect, grant_key) as (
-    values
-      ${rows.join(",\n      ")}
+    select k.permission, k.scope, k.effect, k.grant_key
+    from ${qualified(ctx, PERMISSION_HELPERS.keys)} k
+    where not k.conditioned and k.scope in ('global', ${quoteLiteral(scope)})
   ),
   pdk_w as (
     select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
@@ -352,7 +400,8 @@ ${idsBody.sql}
     };
   };
   const chunks = [
-    grantsFunction(ctx, grants, renamed, anonExecute),
+    keysView(ctx, grants, anonExecute),
+    grantsFunction(ctx, renamed, anonExecute),
     `-- the helpers by permission key: unconditional allows minus any deny
 ${definer(
   qualified(ctx, PERMISSION_HELPERS.has),

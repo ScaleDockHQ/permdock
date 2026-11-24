@@ -387,7 +387,6 @@ function preambleSql(
           listPermissions(policy.permissions)
             .map((leaf) => leaf.key)
             .toSorted(),
-          grants,
         )
       : undefined,
     nonEmptyOr(permissionHoldersSql(ctx), undefined),

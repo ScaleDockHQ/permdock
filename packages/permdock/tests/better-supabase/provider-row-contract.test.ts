@@ -169,7 +169,7 @@ describe("the better-supabase row templates match the generated row helpers", ()
       gucPrefix: "app",
     };
     const written = signatures(
-      `${supabaseHookSql(scopes, config).sql}\n${bootstrapPermissionsSql(ctx, ["doc.read"], new Map())}`,
+      `${supabaseHookSql(scopes, config).sql}\n${bootstrapPermissionsSql(ctx, ["doc.read"])}`,
     );
     const readers = (provider.requires ?? []).filter((entry) =>
       /^permdock\.permdock_(?:subject|bootstrap_permissions)$/u.test(

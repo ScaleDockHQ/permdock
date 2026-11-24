@@ -152,7 +152,12 @@ export default {
         'revoke execute on function "permdock".permdock_bump_authz_version() from public, anon, authenticated;',
       );
       expect(grants).toContain('revoke all on schema "permdock" from public;');
-      expect(grants).not.toContain("on table");
+      expect(
+        grants
+          .split("\n")
+          .filter((line) => line.includes(" on table "))
+          .filter((line) => !line.includes('"permdock".permission_keys ')),
+      ).toStrictEqual([]);
       expect(grants).not.toContain("create policy");
       expect(`${helpers}${policies}${hook}${grants}`).not.toMatch(
         /service_role/iu,
@@ -215,7 +220,15 @@ export default {
         .filter(
           (line) =>
             UNDIFFED.test(line) ||
-            line.startsWith('revoke all on table "permdock".permdock_ceiling '),
+            line.startsWith(
+              'revoke all on table "permdock".permdock_ceiling ',
+            ) ||
+            line.startsWith(
+              'revoke all on table "permdock".permission_keys ',
+            ) ||
+            line.startsWith(
+              'grant select on table "permdock".permission_keys ',
+            ),
         );
       expect(moved).toContain(
         'grant execute on function "permdock".permdock_has(text) to authenticated;',
@@ -226,10 +239,20 @@ export default {
       const authAdmin = (line: string): boolean =>
         line.endsWith(" to supabase_auth_admin;");
       const plain = moved.filter((line) => !authAdmin(line));
-      expect(grants.split("\n").slice(2)).toStrictEqual([
-        ...plain.slice(0, 5),
+      const views = [
         'alter view "permdock".permdock_ceiling set (security_invoker = true);',
-        ...plain.slice(5),
+        'alter view "permdock".permission_keys set (security_invoker = true);',
+      ];
+      expect(
+        grants.split("\n").filter((line) => views.includes(line)),
+      ).toStrictEqual(views);
+      expect(
+        grants
+          .split("\n")
+          .slice(2)
+          .filter((line) => !views.includes(line)),
+      ).toStrictEqual([
+        ...plain,
         "do $permdock$ begin",
         "  if exists (select 1 from pg_catalog.pg_roles where rolname = 'supabase_auth_admin') then",
         ...moved.filter(authAdmin).map((line) => `    ${line}`),
