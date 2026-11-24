@@ -531,6 +531,36 @@ export default {
       );
     });
 
+    it("writes the read-only actor guards to permdock/read_only_actors.sql", async () => {
+      const cwd = project(
+        true,
+        ", helpersOnly: true, readOnlyActors: true",
+        null,
+      );
+      pgDelta(cwd);
+      mkdirSync(join(cwd, "supabase/schemas/public"), { recursive: true });
+      writeFileSync(
+        join(cwd, "supabase/schemas/public/notes.sql"),
+        "create table public.notes (id uuid primary key);\ncreate policy notes_insert on public.notes for insert to authenticated with check (true);\n",
+      );
+      const result = await rlsGenerate(
+        ["--split", "helpers,seeds", "--seeds-out", SEEDS],
+        { cwd },
+      );
+      expect(result.code).toBe(0);
+      const guards = read(
+        cwd,
+        "supabase/schemas/permdock/read_only_actors.sql",
+      );
+      expect(guards).toContain(
+        'create policy "public_notes_insert_read_only_actors"',
+      );
+      expect(guards).not.toContain("drop policy");
+      expect(read(cwd, "supabase/schemas/permdock/helpers.sql")).not.toContain(
+        "_read_only_actors",
+      );
+    });
+
     it("writes no drop statement in a declarative file", async () => {
       const cwd = project(
         true,

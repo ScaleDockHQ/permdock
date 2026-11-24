@@ -653,10 +653,13 @@ const WRITES = ["insert", "update", "delete"] as const;
 
 /**
  * `rls generate` inlines the check in its `<table>_<command>_read_only_actors`
- * policies.
+ * policies; an `@bsb access` tag with `actor-guard` calls better-supabase's.
  */
 function inlinesActorCheck(expression: string): boolean {
-  return expression.includes("'act'") && expression.includes("'read_only'");
+  return (
+    (expression.includes("'act'") && expression.includes("'read_only'")) ||
+    expression.includes("better_supabase.actor_may_write(")
+  );
 }
 
 /**

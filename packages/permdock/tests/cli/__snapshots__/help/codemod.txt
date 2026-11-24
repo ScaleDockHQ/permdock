@@ -3,7 +3,7 @@ permdock codemod: Apply a release's renames to files that import permdock; list 
 Usage  permdock codemod <version> [paths...] [flags]
 
 Arguments
-  version  The release to migrate to (0.5), config with --prune, or manager-chain
+  version  The release to migrate to (0.5), config with --prune, manager-chain or bsb-access-tags
   paths    Files or directories to rewrite (default the working directory)
 
 Flags

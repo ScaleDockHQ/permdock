@@ -23,6 +23,7 @@ import {
 } from "../../supabase-hook/emit/hook-sql.ts";
 import { asideAuthzReceive } from "../../supabase-hook/version.ts";
 import { resolveSchemas } from "../../supabase-schemas.ts";
+import { withHelperTables } from "../generate-policies.ts";
 import {
   guardAuthAdminGrants,
   unguardAuthAdminGrants,
@@ -39,6 +40,11 @@ export type SplitSql = {
   /** Plain Storage policies for `<parent>/service/storage/permdock.sql`. */
   readonly storagePolicies?: string;
   readonly helpers: string;
+  /**
+   * The read-only actor guards `--helpers-only` writes: under pg-delta in
+   * `<schemaDir>/permdock/read_only_actors.sql`, otherwise after the helpers.
+   */
+  readonly readOnlyActors?: string;
   readonly seeds: string;
   readonly indexes: string;
 };
@@ -245,7 +251,22 @@ export function outputFiles(plan: {
   for (const part of split) {
     switch (part) {
       case "helpers": {
-        const helpers = unguardAuthAdminGrants(sql.helpers);
+        const ownFile =
+          pgDelta !== undefined &&
+          !placeholder &&
+          sql.readOnlyActors !== undefined;
+        if (ownFile) {
+          files.push({
+            part: "readOnlyActors",
+            rel: `${pgDelta.schemaDir.replace(/\/$/u, "")}/permdock/read_only_actors.sql`,
+            text: sql.readOnlyActors,
+          });
+        }
+        const helpers = unguardAuthAdminGrants(
+          ownFile
+            ? sql.helpers
+            : withHelperTables(sql.helpers, sql.readOnlyActors),
+        );
         if (label === undefined) {
           files.push({ part, rel: at(part), text: helpers });
           break;

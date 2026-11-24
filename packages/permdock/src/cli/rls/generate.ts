@@ -11,6 +11,7 @@ import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { listPermissions } from "../../index.ts";
 import { describeError, exitCodeOfError } from "../core/errors.ts";
 import { withSchemaDefaults } from "../sql/schema-tables.ts";
+import { schemaWrites } from "../sql/schema-writes.ts";
 import { tableNames } from "../sql/tables.ts";
 import {
   bindingNotes,
@@ -30,6 +31,7 @@ import {
   withoutServedTargets,
 } from "./index-scan.ts";
 import { pruneIndexTargets, readTableIndexFacts } from "./indexes.ts";
+import { readOnlyActorKinds } from "./policies.ts";
 import { levelKeys } from "./rows.ts";
 import { triggerNotes } from "./trigger-notes.ts";
 
@@ -86,9 +88,15 @@ export async function runRlsGenerate(
     return loaded;
   }
   const policy = loaded;
+  const guardsSchema =
+    (given.helpersOnly === true || given.config.rls?.helpersOnly === true) &&
+    readOnlyActorKinds(given.config.rls?.readOnlyActors) !== undefined;
   const input = {
     ...given,
     config: await withSchemaDefaults(given.cwd, given.config, policy),
+    ...(guardsSchema && given.schemaWrites === undefined
+      ? { schemaWrites: await schemaWrites(given.cwd) }
+      : {}),
   };
   const built = buildContext(input, policy, options);
   if (isRefusal(built)) {

@@ -1,5 +1,6 @@
 import type { Policy } from "../../index.ts";
 import type { CompiledGrants, CompiledPolicy } from "../sql/compile.ts";
+import type { SchemaWrite } from "../sql/schema-writes.ts";
 import type { RlsTable } from "../types.ts";
 import type { FieldView } from "./fields.ts";
 import type { GenerateContext } from "./generate-context.ts";
@@ -109,17 +110,42 @@ export function withHelperTables(
 function helpersOnlyActorGuards(
   guards: readonly CompiledPolicy[],
   tables: Readonly<Record<string, RlsTable>> | undefined,
+  writes: readonly SchemaWrite[],
+  passes: string,
   actorMayWrite: string,
   warnings: string[],
 ): readonly CompiledPolicy[] {
-  const named = new Set(
-    Object.values(tableNames(tables) ?? {}).map((table) =>
+  const fromSchema = readOnlyActorPolicies(
+    writes.flatMap((write) =>
+      write.commands.map((command) => ({
+        name: "",
+        table: write.table,
+        command,
+        effect: "allow" as const,
+        roles: ["authenticated"],
+      })),
+    ),
+    passes,
+  );
+  const named = new Set([
+    ...Object.values(tableNames(tables) ?? {}).map((table) =>
       qualifySqlTable(table),
     ),
+    ...writes.map((write) => write.table),
+  ]);
+  const seen = new Set(
+    fromSchema.map(
+      (guard) => `${qualifySqlTable(guard.table)}\u0000${guard.command}`,
+    ),
   );
-  const kept = guards.filter((guard) =>
-    named.has(qualifySqlTable(guard.table)),
-  );
+  const kept = [
+    ...guards.filter(
+      (guard) =>
+        named.has(qualifySqlTable(guard.table)) &&
+        !seen.has(`${qualifySqlTable(guard.table)}\u0000${guard.command}`),
+    ),
+    ...fromSchema,
+  ];
   const unmapped = [
     ...new Set(
       guards
@@ -220,6 +246,8 @@ export function generatePolicies(
       : helpersOnlyActorGuards(
           readOnlyActorPolicies(assembled, actorMayWriteCall(ctx)),
           rls?.tables,
+          input.schemaWrites ?? [],
+          actorMayWriteCall(ctx),
           qualified(ctx, ACTOR_MAY_WRITE),
           warnings,
         );
