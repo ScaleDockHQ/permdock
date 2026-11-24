@@ -13,6 +13,7 @@ import {
   HELPER_TABLES,
   helperCallKeys,
 } from "../sql/helper-calls.ts";
+import { isPlatformSchema } from "../sql/platform.ts";
 import { COLUMNS_SQL, INDEX_COLUMNS_SQL } from "./indexes.ts";
 import { ACTOR_MAY_WRITE } from "./policies.ts";
 import { rlsFinding } from "./verify-findings.ts";
@@ -713,32 +714,10 @@ function unguardedWrites(
   return out;
 }
 
-const SYSTEM_SCHEMAS = [
-  "pg_catalog",
-  "information_schema",
-  "pg_toast",
-  "auth",
-  "storage",
-  "realtime",
-  "extensions",
-  "graphql",
-  "graphql_public",
-  "vault",
-  "pgsodium",
-  "pgsodium_masks",
-  "net",
-  "cron",
-  "supabase_functions",
-  "supabase_migrations",
-] as const;
-
 function inScope(table: string): boolean {
   const schema = beforeFirst(table, ".");
   return (
-    HELPER_TABLES.some((item) => item === table) ||
-    !(
-      SYSTEM_SCHEMAS.some((item) => item === schema) || schema.startsWith("pg_")
-    )
+    HELPER_TABLES.some((item) => item === table) || !isPlatformSchema(schema)
   );
 }
 

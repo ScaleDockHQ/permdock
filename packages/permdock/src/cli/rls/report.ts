@@ -19,6 +19,7 @@ import {
 } from "../sql/ast.ts";
 import { taggedAccessPolicies } from "../sql/bsb-access.ts";
 import { callsHelper, helperCallKeys } from "../sql/helper-calls.ts";
+import { isStripeDataPipelineSchema } from "../sql/platform.ts";
 
 /** Who owns a policy, in better-supabase BS641's words. */
 export type PolicyOrigin = "library" | "provider" | "app";
@@ -316,6 +317,9 @@ async function fromDatabase(
     const rows = (await client.query(REPORT_POLICIES_SQL, [])).rows;
     const policies: RawPolicy[] = [];
     for (const row of rows) {
+      if (isStripeDataPipelineSchema(text(row["schemaname"]))) {
+        continue;
+      }
       const qual = text(row["qual"]);
       const check = text(row["with_check"]);
       policies.push({

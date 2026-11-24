@@ -122,6 +122,16 @@ describe("rls report", () => {
                 qual: "(owner_id = auth.uid())",
                 with_check: null,
               },
+              {
+                schemaname: "stripe_sdp_acct_1",
+                tablename: "charges",
+                policyname: "stripe_sync",
+                permissive: "PERMISSIVE",
+                roles: ["stripe_sdp"],
+                cmd: "ALL",
+                qual: "true",
+                with_check: null,
+              },
             ],
           };
         }
