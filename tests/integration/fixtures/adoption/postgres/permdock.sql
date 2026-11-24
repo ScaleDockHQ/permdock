@@ -295,6 +295,15 @@ end;
 $$;
 revoke execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) from public, anonymous, authenticated;
 
+-- every grant key a permission key reaches per scope and effect; conditioned marks a grant with a row condition
+create or replace view "permdock".permission_keys with (security_invoker = true) as
+  select v.permission, v.scope, v.effect, v.grant_key, v.conditioned
+  from (values
+    ('note.read', 'global', 'allow', 'note.read', false)
+  ) v(permission, scope, effect, grant_key, conditioned);
+revoke all on table "permdock".permission_keys from anonymous, authenticated, public;
+grant select on table "permdock".permission_keys to authenticated;
+
 -- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function "permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')
 returns setof text
@@ -304,11 +313,12 @@ set search_path = ''
 as $$
 begin
   return query
-  select g.grant_key
-  from pg_catalog.jsonb_array_elements_text(coalesce(
-    '{"global":{"note.read":{"allow":["note.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
-    '[]'::jsonb
-  )) g(grant_key);
+  select k.grant_key
+  from "permdock".permission_keys k
+  where k.scope = p_scope
+    and k.permission = p_permission
+    and k.effect = pg_catalog.replace(p_effect, 'conditioned-', '')
+    and k.conditioned = (p_effect in ('conditioned-allow', 'conditioned-deny'));
 end;
 $$;
 revoke execute on function "permdock".grant_keys(text, text, text) from public, anonymous;
@@ -382,8 +392,9 @@ set search_path = ''
 set jit = off
 as $$
   with pdk_m(key, scope, effect, grant_key) as (
-    values
-      ('note.read', 'global', 'allow', 'note.read')
+    select k.permission, k.scope, k.effect, k.grant_key
+    from "permdock".permission_keys k
+    where not k.conditioned and k.scope in ('global', 'tenant')
   ),
   pdk_w as (
     select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
@@ -449,8 +460,9 @@ set search_path = ''
 set jit = off
 as $$
   with pdk_m(key, scope, effect, grant_key) as (
-    values
-      ('note.read', 'global', 'allow', 'note.read')
+    select k.permission, k.scope, k.effect, k.grant_key
+    from "permdock".permission_keys k
+    where not k.conditioned and k.scope in ('global', 'tenant')
   ),
   pdk_w as (
     select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
@@ -606,8 +618,9 @@ set search_path = ''
 set jit = off
 as $$
   with pdk_m(key, scope, effect, grant_key) as (
-    values
-      ('note.read', 'global', 'allow', 'note.read')
+    select k.permission, k.scope, k.effect, k.grant_key
+    from "permdock".permission_keys k
+    where not k.conditioned and k.scope in ('global', 'team')
   ),
   pdk_w as (
     select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key
@@ -673,8 +686,9 @@ set search_path = ''
 set jit = off
 as $$
   with pdk_m(key, scope, effect, grant_key) as (
-    values
-      ('note.read', 'global', 'allow', 'note.read')
+    select k.permission, k.scope, k.effect, k.grant_key
+    from "permdock".permission_keys k
+    where not k.conditioned and k.scope in ('global', 'team')
   ),
   pdk_w as (
     select pdk_m.key, pdk_m.scope, pdk_m.effect, pdk_m.grant_key

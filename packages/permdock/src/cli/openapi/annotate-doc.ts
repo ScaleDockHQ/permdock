@@ -43,6 +43,7 @@ function skipFinding(
   const base = { severity: "error", docs: DOCS } as const;
   switch (cause) {
     case "public":
+    case "handler":
       return undefined;
     case "no-permission":
       return {

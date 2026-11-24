@@ -169,6 +169,8 @@ The generated file merges with hand-written definitions through `mergePermission
 
 `permdock openapi annotate --routes 'app/**/route.ts'` reads `@permission`, `@permissionCheck` and `@oauthScopes` on each exported handler and writes `src/operations.generated.ts`. The path comes from the file: `app/orgs/[org]/posts/route.ts` is `POST /orgs/{org}/posts` when the handler is `POST`. `x-authorization` and `x-oauth-scopes` on an existing document are input only; `emit` and the runtime hooks still write `x-permdock-*` and `security`.
 
+`--write-spec openapi.yaml` writes the route comments into an existing JSON or YAML document instead of a module: `@permission` becomes `x-authorization` (an object with `check` when `@permissionCheck` is set) and `@oauthScopes` becomes `x-oauth-scopes` on the matching `paths[path][method]`. YAML comments are kept. A route with no operation in the document is an `operation-not-in-spec` warning, and the document gains no new operations.
+
 The openapi plugin emits the same module when `routes` is set, through `permdock generate --only openapi`.
 
 ### From a document
@@ -193,7 +195,7 @@ Every key is checked against `--permissions` (or `permissions` in the config). T
 | `operation-invalid-extension`   | A malformed `x-permdock-*`, `x-authorization` or `x-oauth-scopes` |
 | `operation-id-duplicate`        | Two operations share an `operationId`                             |
 
-`operation-id-missing` and `operation-no-tenant` (an operation without the `--tenant-path` parameter) are warnings. An operation with `security: []` is public and is left out of the map. `--check` exits `1` when the file on disk differs from what the document produces. Without a vocabulary the command exits `2` with `input_required` and `data.missing: ["--permissions"]`.
+`operation-id-missing` and `operation-no-tenant` (an operation without the `--tenant-path` parameter) are warnings. An operation with `security: []` is public and is left out of the map. `x-authorization: "handler"` marks an operation the handler checks itself: with OAuth scopes it becomes a scope-only entry with `enforcement: "handler"`, without them it is left out with no finding. `--check` exits `1` when the file on disk differs from what the document produces. Without a vocabulary the command exits `2` with `input_required` and `data.missing: ["--permissions"]`.
 
 ## `--check` in CI
 
