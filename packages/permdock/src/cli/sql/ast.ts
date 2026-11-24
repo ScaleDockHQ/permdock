@@ -1,6 +1,9 @@
-import { parse } from "pgsql-parser";
+import type { parse } from "pgsql-parser";
+
+import type { StatementRange } from "./statements.ts";
 
 import { isRecord } from "../../core/compact.ts";
+import { statementRanges } from "./statements.ts";
 
 /** One statement of a SQL file: its parse node and where it sits in the text. */
 export interface SqlNode {
@@ -74,6 +77,16 @@ function skipTrivia(text: string, from: number, to: number): number {
 }
 
 /**
+ * Loads libpg_query on the first parse, not at import: `rls generate` imports
+ * this layer, and a cold `permdock generate` that parses no SQL measured 60 to
+ * 160 ms slower and 30 to 110 MB larger with the static import.
+ */
+async function libpgParse(text: string): ReturnType<typeof parse> {
+  const parser = await import("pgsql-parser");
+  return parser.parse(text);
+}
+
+/**
  * Parses a SQL file into statements with typed nodes and string ranges.
  *
  * @throws {SqlSyntaxError} When libpg_query rejects the file; it names the line
@@ -82,7 +95,7 @@ function skipTrivia(text: string, from: number, to: number): number {
 export async function parseSqlFile(text: string): Promise<readonly SqlNode[]> {
   let result: Awaited<ReturnType<typeof parse>>;
   try {
-    result = await parse(text);
+    result = await libpgParse(text);
   } catch (error) {
     throw syntaxError(text, error);
   }
@@ -122,6 +135,93 @@ export async function parseSqlFile(text: string): Promise<readonly SqlNode[]> {
     nodes.push({ kind, node, start, end, line, text: text.slice(start, end) });
   }
   return nodes;
+}
+
+/**
+ * `parseSqlFile`, except that a file libpg_query rejects is split on `;` and
+ * every statement it accepts is kept, so one bad statement in a migration does
+ * not hide the rest. `rejected` holds the statements it refused.
+ */
+export async function parseSqlStatements(
+  text: string,
+): Promise<{
+  readonly nodes: readonly SqlNode[];
+  readonly rejected: readonly StatementRange[];
+}> {
+  try {
+    return { nodes: await parseSqlFile(text), rejected: [] };
+  } catch (error) {
+    if (!(error instanceof SqlSyntaxError)) {
+      throw error;
+    }
+  }
+  const nodes: SqlNode[] = [];
+  const rejected: StatementRange[] = [];
+  for (const range of statementRanges(text)) {
+    let parsed: readonly SqlNode[];
+    try {
+      parsed = await parseSqlFile(text.slice(range.start, range.end));
+    } catch (error) {
+      if (error instanceof SqlSyntaxError) {
+        rejected.push(range);
+        continue;
+      }
+      throw error;
+    }
+    for (const node of parsed) {
+      nodes.push({
+        ...node,
+        start: node.start + range.start,
+        end: node.end + range.start,
+        line: node.line + range.line - 1,
+      });
+    }
+  }
+  return { nodes, rejected };
+}
+
+/** The statements of `parseSqlStatements`, without the rejected ones. */
+export async function parseSqlLenient(
+  text: string,
+): Promise<readonly SqlNode[]> {
+  return (await parseSqlStatements(text)).nodes;
+}
+
+/** A relation as the parser read it: names keep the case Postgres folds them to. */
+export interface SqlRelation {
+  /** `undefined` when the statement names no schema. */
+  readonly schema: string | undefined;
+  readonly name: string;
+  /** `p` permanent, `u` unlogged, `t` temporary. */
+  readonly persistence: string;
+}
+
+/** The `RangeVar` node of `relation`, or `undefined` for another value. */
+export function readRelation(relation: unknown): SqlRelation | undefined {
+  if (!isRecord(relation) || typeof relation["relname"] !== "string") {
+    return undefined;
+  }
+  return {
+    schema:
+      typeof relation["schemaname"] === "string"
+        ? relation["schemaname"]
+        : undefined,
+    name: relation["relname"],
+    persistence:
+      typeof relation["relpersistence"] === "string"
+        ? relation["relpersistence"]
+        : "p",
+  };
+}
+
+/** `String` nodes' values, in order; another node gives nothing. */
+export function stringValues(list: unknown): readonly string[] {
+  return (Array.isArray(list) ? list : []).flatMap((item: unknown) => {
+    const string: unknown = isRecord(item) ? item["String"] : undefined;
+    return isRecord(string) && typeof string["sval"] === "string"
+      ? [string["sval"]]
+      : [];
+  });
 }
 
 /** The command a `create policy` names; `all` when it names none. */

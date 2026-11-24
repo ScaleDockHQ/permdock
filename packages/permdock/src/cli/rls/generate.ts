@@ -123,8 +123,13 @@ export async function runRlsGenerate(
     warnings.push(`run select ${built.schema}.seed(); after each deploy`);
   }
   if (input.db === undefined) {
-    indexes = withoutServedTargets(indexes, indexKeysFromProject(input.cwd));
-    warnings.push(...unknownTableNotes(bindings, tablesFromProject(input.cwd)));
+    indexes = withoutServedTargets(
+      indexes,
+      await indexKeysFromProject(input.cwd),
+    );
+    warnings.push(
+      ...unknownTableNotes(bindings, await tablesFromProject(input.cwd)),
+    );
   }
   if (input.db !== undefined) {
     try {

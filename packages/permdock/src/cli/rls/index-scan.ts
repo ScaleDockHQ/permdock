@@ -1,177 +1,126 @@
 import { readFileSync } from "node:fs";
 
+import type { SqlNode, SqlRelation } from "../sql/ast.ts";
 import type { IndexTarget } from "./indexes.ts";
 
+import { isRecord } from "../../core/compact.ts";
 import { sqlFiles } from "../files.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
+import { parseSqlLenient, readRelation, stringValues } from "../sql/ast.ts";
 
 /**
  * An index PermDock generated (`permdock_<table>_<columns>_idx`), in the
  * indexes part or in a migration derived from it: it never counts as serving
  * its own target.
  */
-const GENERATED_INDEX =
-  /\bcreate\s+index\s+(?:if\s+not\s+exists\s+)?"?permdock_\w*_idx"?[^;]*;/giu;
-const IDENT = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][\w$]*)`;
-const NAME = String.raw`${IDENT}(?:\s*\.\s*${IDENT})?`;
-const CREATE_INDEX = new RegExp(
-  String.raw`\bcreate\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?(?:${IDENT}\s+)?on\s+(?:only\s+)?(${NAME})\s*(?:using\s+\w+\s*)?\(`,
-  "giu",
-);
-const ADD_KEY = new RegExp(
-  String.raw`\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(${NAME})\s+add\s+(?:constraint\s+${IDENT}\s+)?(?:unique|primary\s+key)\s*(?:nulls\s+not\s+distinct\s*)?\(`,
-  "giu",
-);
-const CREATE_TABLE = new RegExp(
-  String.raw`\bcreate\s+(?:unlogged\s+|temp(?:orary)?\s+)?table\s+(?:if\s+not\s+exists\s+)?(${NAME})\s*\(`,
-  "giu",
-);
-const TABLE_NAME = new RegExp(
-  String.raw`\bcreate\s+(?:unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?(${NAME})`,
-  "giu",
-);
-const TABLE_KEY = new RegExp(
-  String.raw`^(?:constraint\s+${IDENT}\s+)?(?:unique|primary\s+key)\s*(?:nulls\s+not\s+distinct\s*)?\(`,
-  "iu",
-);
-const COLUMN_KEY = new RegExp(
-  String.raw`^(${IDENT})\s+[^,]*?\b(?:primary\s+key|unique)\b`,
-  "iu",
-);
-const NOT_A_COLUMN = /^(?:constraint|check|foreign|exclude|like)\b/iu;
+const GENERATED_INDEX = /^permdock_\w*_idx$/u;
 
-function bare(part: string): string {
-  const trimmed = part.trim();
-  return trimmed.startsWith('"')
-    ? trimmed.slice(1, -1).replaceAll('""', '"')
-    : trimmed.toLowerCase();
-}
+const KEY_CONSTRAINTS: ReadonlySet<string> = new Set([
+  "CONSTR_PRIMARY",
+  "CONSTR_UNIQUE",
+]);
 
 /** `schema.table`, with `public` for an unqualified name. */
-function qualified(raw: string): string {
-  const parts = raw.split(".").map(bare);
-  return parts.length === 1 ? `public.${parts.join("")}` : parts.join(".");
-}
-
-function stripComments(sql: string): string {
-  return sql
-    .replaceAll(/\/\*[\s\S]*?\*\//gu, " ")
-    .replaceAll(/--[^\n]*/gu, " ");
-}
-
-/**
- * The text between the `(` that ends `match` and its closing `)`, and the index
- * after it.
- */
-function group(
-  text: string,
-  open: number,
-): { body: string; end: number } | undefined {
-  let depth = 1;
-  for (let index = open; index < text.length; index += 1) {
-    const char = text[index];
-    if (char === "'" || char === '"') {
-      const close = text.indexOf(char, index + 1);
-      if (close === -1) {
-        return undefined;
-      }
-      index = close;
-    } else if (char === "(") {
-      depth += 1;
-    } else if (char === ")") {
-      depth -= 1;
-      if (depth === 0) {
-        return { body: text.slice(open, index), end: index + 1 };
-      }
-    }
-  }
-  return undefined;
-}
-
-function splitTop(body: string): string[] {
-  const items: string[] = [];
-  let depth = 0;
-  let from = 0;
-  for (let index = 0; index < body.length; index += 1) {
-    const char = body[index];
-    if (char === "'" || char === '"') {
-      index = Math.max(body.indexOf(char, index + 1), index);
-    } else if (char === "(") {
-      depth += 1;
-    } else if (char === ")") {
-      depth -= 1;
-    } else if (char === "," && depth === 0) {
-      items.push(body.slice(from, index));
-      from = index + 1;
-    }
-  }
-  items.push(body.slice(from));
-  return items.map((item) => item.trim());
-}
-
-/** The first capture group of a match; every pattern here captures it. */
-function captured(match: RegExpMatchArray): string {
-  return match.slice(1, 2).join("");
-}
-
-/** The index just past a match. */
-function endOf(match: RegExpExecArray): number {
-  return match.index + match[0].length;
+function qualified(relation: SqlRelation): string {
+  return `${relation.schema ?? "public"}.${relation.name}`;
 }
 
 /** The plain key columns of an index column list, cut at the first expression. */
-function keyColumns(body: string): string[] {
+function indexColumns(params: unknown): string[] {
   const columns: string[] = [];
-  for (const item of splitTop(body)) {
-    const match = new RegExp(`^(${IDENT})(?:\\s|$)`, "u").exec(item);
-    if (match === null || item.startsWith("(")) {
+  for (const item of Array.isArray(params) ? params : []) {
+    const element: unknown = isRecord(item) ? item["IndexElem"] : undefined;
+    if (!isRecord(element) || typeof element["name"] !== "string") {
       break;
     }
-    columns.push(bare(captured(match)));
+    columns.push(element["name"]);
   }
   return columns;
 }
 
+/** The key columns of a `primary key` or `unique` constraint node. */
+function constraintKeys(value: unknown): string[] | undefined {
+  const constraint: unknown = isRecord(value) ? value["Constraint"] : undefined;
+  if (
+    !isRecord(constraint) ||
+    !KEY_CONSTRAINTS.has(String(constraint["contype"]))
+  ) {
+    return undefined;
+  }
+  return [...stringValues(constraint["keys"])];
+}
+
+/** The `[table, columns]` keys one statement creates. */
+function statementKeys(
+  statement: SqlNode,
+): readonly (readonly [string, string[]])[] {
+  const { node } = statement;
+  const relation = readRelation(node["relation"]);
+  if (relation === undefined) {
+    return [];
+  }
+  const table = qualified(relation);
+  switch (statement.kind) {
+    case "IndexStmt": {
+      const name = node["idxname"];
+      return typeof name === "string" && GENERATED_INDEX.test(name)
+        ? []
+        : [[table, indexColumns(node["indexParams"])]];
+    }
+    case "AlterTableStmt": {
+      const commands = Array.isArray(node["cmds"]) ? node["cmds"] : [];
+      return commands.flatMap((item: unknown) => {
+        const command: unknown = isRecord(item)
+          ? item["AlterTableCmd"]
+          : undefined;
+        const keys =
+          isRecord(command) && command["subtype"] === "AT_AddConstraint"
+            ? constraintKeys(command["def"])
+            : undefined;
+        return keys === undefined ? [] : [[table, keys] as const];
+      });
+    }
+    case "CreateStmt": {
+      const elements = Array.isArray(node["tableElts"])
+        ? node["tableElts"]
+        : [];
+      return elements.flatMap((item: unknown) => {
+        const tableKeys = constraintKeys(item);
+        if (tableKeys !== undefined) {
+          return [[table, tableKeys] as const];
+        }
+        const column: unknown = isRecord(item) ? item["ColumnDef"] : undefined;
+        if (!isRecord(column) || typeof column["colname"] !== "string") {
+          return [];
+        }
+        const name = column["colname"];
+        const constraints = Array.isArray(column["constraints"])
+          ? column["constraints"]
+          : [];
+        return constraints.some(
+          (constraint: unknown) => constraintKeys(constraint) !== undefined,
+        )
+          ? [[table, [name]] as const]
+          : [];
+      });
+    }
+    default:
+      return [];
+  }
+}
+
 /**
  * Key columns of each index, unique constraint and primary key the SQL creates,
- * per `schema.table`.
+ * per `schema.table`. Indexes PermDock generated are left out.
  */
-export function indexKeysFromSql(
+export async function indexKeysFromSql(
   sql: string,
-): Readonly<Record<string, readonly (readonly string[])[]>> {
-  const text = stripComments(sql);
+): Promise<Readonly<Record<string, readonly (readonly string[])[]>>> {
   const keys: Record<string, string[][]> = {};
-  const add = (table: string, columns: string[]): void => {
-    if (columns.length > 0) {
-      (keys[qualified(table)] ??= []).push(columns);
-    }
-  };
-  for (const pattern of [CREATE_INDEX, ADD_KEY]) {
-    for (const match of text.matchAll(pattern)) {
-      const open = endOf(match);
-      const found = group(text, open);
-      if (found !== undefined) {
-        add(captured(match), keyColumns(found.body));
-      }
-    }
-  }
-  for (const match of text.matchAll(CREATE_TABLE)) {
-    const found = group(text, endOf(match));
-    if (found === undefined) {
-      continue;
-    }
-    for (const item of splitTop(found.body)) {
-      if (TABLE_KEY.test(item)) {
-        const open = item.indexOf("(") + 1;
-        const inner = group(item, open);
-        if (inner !== undefined) {
-          add(captured(match), keyColumns(inner.body));
-        }
-      } else if (!NOT_A_COLUMN.test(item)) {
-        const column = COLUMN_KEY.exec(item)?.[1];
-        if (column !== undefined) {
-          add(captured(match), [bare(column)]);
-        }
+  for (const statement of await parseSqlLenient(sql)) {
+    for (const [table, columns] of statementKeys(statement)) {
+      if (columns.length > 0) {
+        (keys[table] ??= []).push(columns);
       }
     }
   }
@@ -182,14 +131,12 @@ export function indexKeysFromSql(
  * The index keys of the SQL files under the migration and schema folders of
  * `cwd`.
  */
-export function indexKeysFromProject(
+export async function indexKeysFromProject(
   cwd: string,
-): Readonly<Record<string, readonly (readonly string[])[]>> {
+): Promise<Readonly<Record<string, readonly (readonly string[])[]>>> {
   const all: Record<string, (readonly string[])[]> = {};
   for (const file of sqlFiles(cwd, [...MIGRATION_DIRS])) {
-    const keys = indexKeysFromSql(
-      readFileSync(file, "utf8").replaceAll(GENERATED_INDEX, ""),
-    );
+    const keys = await indexKeysFromSql(readFileSync(file, "utf8"));
     for (const [table, list] of Object.entries(keys)) {
       (all[table] ??= []).push(...list);
     }
@@ -198,22 +145,33 @@ export function indexKeysFromProject(
 }
 
 /** Every `schema.table` the SQL creates, temporary tables left out. */
-export function tablesFromSql(sql: string): ReadonlySet<string> {
-  return new Set(
-    [...stripComments(sql).matchAll(TABLE_NAME)].map((match) =>
-      qualified(captured(match)),
-    ),
-  );
+export async function tablesFromSql(sql: string): Promise<ReadonlySet<string>> {
+  const tables = new Set<string>();
+  for (const statement of await parseSqlLenient(sql)) {
+    const into: unknown = statement.node["into"];
+    const relation =
+      statement.kind === "CreateStmt"
+        ? readRelation(statement.node["relation"])
+        : statement.kind === "CreateTableAsStmt" && isRecord(into)
+          ? readRelation(into["rel"])
+          : undefined;
+    if (relation !== undefined && relation.persistence !== "t") {
+      tables.add(qualified(relation));
+    }
+  }
+  return tables;
 }
 
 /**
  * Every `schema.table` the SQL files under the migration and schema folders of
  * `cwd` create.
  */
-export function tablesFromProject(cwd: string): ReadonlySet<string> {
+export async function tablesFromProject(
+  cwd: string,
+): Promise<ReadonlySet<string>> {
   const all = new Set<string>();
   for (const file of sqlFiles(cwd, [...MIGRATION_DIRS])) {
-    for (const table of tablesFromSql(readFileSync(file, "utf8"))) {
+    for (const table of await tablesFromSql(readFileSync(file, "utf8"))) {
       all.add(table);
     }
   }

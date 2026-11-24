@@ -105,7 +105,7 @@ function lex(sql: string): { readonly text: string; readonly cuts: number[] } {
   return { text: out.join(""), cuts };
 }
 
-type StatementRange = {
+export type StatementRange = {
   readonly line: number;
   /** Comments blanked, trimmed. */
   readonly text: string;
@@ -115,7 +115,7 @@ type StatementRange = {
   readonly end: number;
 };
 
-function statementRanges(sql: string): readonly StatementRange[] {
+export function statementRanges(sql: string): readonly StatementRange[] {
   const { text, cuts } = lex(sql);
   const statements: StatementRange[] = [];
   // Statements arrive in order, so count newlines once instead of rescanning the prefix.

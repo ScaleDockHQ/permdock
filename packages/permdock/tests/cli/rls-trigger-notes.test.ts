@@ -51,4 +51,26 @@ describe(generatedTriggers, () => {
       "generated trigger permdock_holders_org on public.user_roles (ownershipTriggers; set rls.ownershipTriggers.<scope>: false to skip)",
     );
   });
+
+  it("reads create or replace trigger and skips a trigger inside a function body", () => {
+    const sql = `create or replace trigger permdock_assignment before insert on public.user_roles
+  for each row execute function f();
+create function g() returns void language plpgsql as $$
+begin
+  execute 'select 1';
+end
+$$;
+create function h() returns text language sql as $body$
+select 'x';
+create trigger permdock_closure_fake after insert on public.nope for each row execute function f();
+$body$;`;
+    expect(generatedTriggers(sql)).toStrictEqual([
+      {
+        name: "permdock_assignment",
+        table: "public.user_roles",
+        reason:
+          "assignments: a role assignment is checked against the caller's own roles",
+      },
+    ]);
+  });
 });

@@ -15,8 +15,8 @@ function files(sql: Readonly<Record<string, string>>): DoctorFiles {
 }
 
 describe("PD099", () => {
-  it("reports an update policy on a table with no select policy", () => {
-    const found = pd099(
+  it("reports an update policy on a table with no select policy", async () => {
+    const found = await pd099(
       "/p",
       files({
         "a.sql": `create policy "notes_update" on public.notes for update to authenticated using (true);
@@ -30,6 +30,20 @@ create policy tasks_update on public.tasks for update using (true);`,
       "public.notes",
     ]);
     expect(found[0]?.code).toBe("PD099");
+  });
+});
+
+describe("PD099 reads the policy command", () => {
+  it("does not read for update in a subquery or a ; in a string as the policy's end", async () => {
+    const found = await pd099(
+      "/p",
+      files({
+        "a.sql": `create policy locks on public.notes using (exists (select 1 from public.locks for update));
+create policy semi on public.tasks for select using (title <> ';');
+create policy tasks_update on public.tasks for update using (true);`,
+      }),
+    );
+    expect(found).toStrictEqual([]);
   });
 });
 

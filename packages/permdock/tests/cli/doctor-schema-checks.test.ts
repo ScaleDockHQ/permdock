@@ -7,14 +7,7 @@ import type { DoctorFiles } from "../../src/cli/shared/doctor-types.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { Policy } from "../../src/core/policy-types.ts";
 
-import {
-  captured,
-  lastSegment,
-  matchStart,
-  pd095,
-  pd096,
-  pd101,
-} from "../../src/cli/doctor/schema-checks.ts";
+import { pd095, pd096, pd101 } from "../../src/cli/doctor/schema-checks.ts";
 import { pd097 } from "../../src/cli/doctor/seed-data.ts";
 import { nodeFiles } from "../../src/cli/shared/doctor-files.ts";
 import {
@@ -51,7 +44,7 @@ describe("PD095", () => {
     }
   });
 
-  it("flags PermDock schema shapes and a versioned migration that repeats them", () => {
+  it("flags PermDock schema shapes and a versioned migration that repeats them", async () => {
     const cwd = project();
     put(
       cwd,
@@ -61,15 +54,16 @@ describe("PD095", () => {
     put(
       cwd,
       "supabase/schemas/permdock/helpers.sql",
-      `do $$
+      `create table public.notes (id int);
+do $$
 begin
-  create table public.notes (id int);
+  create table public.notes_copy (id int);
 end $$;
 grant select on all tables in schema public to authenticated;
 create function "permdock".same(p int) returns int language sql as $$ select p $$;
 create or replace function "permdock".same(p int) returns int language sql as $$ select p $$;
 create view public.notes_v as select 1 as id;
-create trigger notes_v insert on public.notes_v execute function "permdock".same(1);
+create trigger notes_v instead of insert on public.notes_v for each row execute function "permdock".same(1);
 `,
     );
     put(
@@ -85,7 +79,7 @@ create table public.notes (id int);
 grant select on table public.notes to authenticated;
 `,
     );
-    const findings = pd095(cwd, nodeFiles);
+    const findings = await pd095(cwd, nodeFiles);
     const helpers = findings.find((finding) =>
       targetOf(finding).endsWith("helpers.sql"),
     );
@@ -106,7 +100,7 @@ grant select on table public.notes to authenticated;
     expect(repeated?.message).toContain("notes");
   });
 
-  it("flags if not exists on create table, index and policy, and a drop-then-create trigger", () => {
+  it("flags if not exists on create table, index and policy, and a drop-then-create trigger", async () => {
     const cwd = project();
     put(
       cwd,
@@ -119,14 +113,14 @@ drop trigger if exists notes_t on public.notes;
 create trigger notes_t after insert on public.notes execute function permdock.kept();
 `,
     );
-    const message = pd095(cwd, nodeFiles)[0]?.message ?? "";
+    const message = (await pd095(cwd, nodeFiles))[0]?.message ?? "";
     expect(message).toContain("create table if not exists");
     expect(message).toContain("create index if not exists");
     expect(message).toContain("create policy if not exists");
     expect(message).toContain("drop trigger before create trigger");
   });
 
-  it("allows create or replace trigger and a schema if not exists", () => {
+  it("allows create or replace trigger and a schema if not exists", async () => {
     const cwd = project();
     put(
       cwd,
@@ -135,14 +129,14 @@ create trigger notes_t after insert on public.notes execute function permdock.ke
 create or replace trigger notes_t after insert on public.notes execute function permdock.kept();
 `,
     );
-    expect(pd095(cwd, nodeFiles)).toStrictEqual([]);
+    expect(await pd095(cwd, nodeFiles)).toStrictEqual([]);
   });
 
-  it("returns no findings when the schema directory is absent", () => {
-    expect(pd095(project(), nodeFiles)).toStrictEqual([]);
+  it("returns no findings when the schema directory is absent", async () => {
+    expect(await pd095(project(), nodeFiles)).toStrictEqual([]);
   });
 
-  it("ignores a clean schema file, a non-sql neighbour and a migration that adds a new name", () => {
+  it("ignores a clean schema file, a non-sql neighbour and a migration that adds a new name", async () => {
     const cwd = project();
     put(cwd, "supabase/schemas/permdock/notes.txt", "not sql\n");
     put(
@@ -168,7 +162,28 @@ begin
 create table public.fresh (id int);
 `,
     );
-    expect(pd095(cwd, nodeFiles)).toStrictEqual([]);
+    expect(await pd095(cwd, nodeFiles)).toStrictEqual([]);
+  });
+});
+
+describe("PD095 reads statements", () => {
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not count a definition in a comment or a string as a second one", async () => {
+    const cwd = project();
+    put(
+      cwd,
+      "supabase/schemas/permdock/helpers.sql",
+      `-- create or replace function permdock.same(p int) was renamed
+create function permdock.same(p int) returns int language sql as $$ select p $$;
+comment on function permdock.same(int) is 'create function permdock.same(p int) replaces the old one';
+`,
+    );
+    expect(await pd095(cwd, nodeFiles)).toStrictEqual([]);
   });
 });
 
@@ -242,25 +257,6 @@ describe("PD097 defaults", () => {
   });
 });
 
-describe("schema match parts", () => {
-  it("reads a group and an index, and refuses a match that has neither", () => {
-    const match = /do (\$\$)/u.exec("do $$");
-    if (match === null) {
-      throw new Error("expected a match");
-    }
-    expect(captured(match, 1)).toBe("$$");
-    expect(matchStart(match)).toBe(0);
-    expect(lastSegment("public.folders")).toBe("folders");
-    expect(() => captured(match, 4)).toThrow("without its group");
-    const bare = /do/u.exec("do $$");
-    if (bare === null) {
-      throw new Error("expected a match");
-    }
-    Object.defineProperty(bare, "index", { value: undefined });
-    expect(() => matchStart(bare)).toThrow("no index");
-  });
-});
-
 describe("PD101", () => {
   afterEach(() => {
     for (const dir of dirs.splice(0)) {
@@ -281,7 +277,7 @@ describe("PD101", () => {
     },
   };
 
-  it("flags a permissive app policy on a follows child table", () => {
+  it("flags a permissive app policy on a follows child table", async () => {
     const cwd = project();
     put(
       cwd,
@@ -298,14 +294,14 @@ create policy "jobs_select" on public.jobs for select to authenticated using (tr
       `create policy "permdock_follow_job_parties_select" on "public"."job_parties" for select to authenticated using (true);
 `,
     );
-    const findings = pd101(cwd, config, nodeFiles);
+    const findings = await pd101(cwd, config, nodeFiles);
     expect(findings.map((finding) => finding.message)).toStrictEqual([
       expect.stringContaining("permissive select policy on public.job_parties"),
       expect.stringContaining("permissive all policy on public.job_parties"),
     ]);
   });
 
-  it("reads an unqualified table as public, skips plain and false tables, and reports an app policy once per command", () => {
+  it("reads an unqualified table as public, skips plain and false tables, and reports an app policy once per command", async () => {
     const cwd = project();
     put(
       cwd,
@@ -326,20 +322,38 @@ create policy "r" on public.other for select using (true);
         },
       },
     };
-    expect(pd101(cwd, mixed, nodeFiles)).toStrictEqual([
+    expect(await pd101(cwd, mixed, nodeFiles)).toStrictEqual([
       expect.objectContaining({
         message: expect.stringContaining("permissive delete policy"),
       }),
     ]);
   });
 
-  it("stays quiet without follows", () => {
+  it("reads as restrictive and the command from the statement, not from a string or subquery", async () => {
+    const cwd = project();
+    put(
+      cwd,
+      "supabase/schemas/app.sql",
+      `create policy "s" on public.job_parties using (note <> 'as restrictive');
+create policy "t" on public.job_parties as restrictive using (exists (select 1 from public.jobs for update));
+`,
+    );
+    expect(
+      (await pd101(cwd, config, nodeFiles)).map((finding) => finding.message),
+    ).toStrictEqual([
+      expect.stringContaining("permissive all policy on public.job_parties"),
+    ]);
+  });
+
+  it("stays quiet without follows", async () => {
     const cwd = project();
     put(
       cwd,
       "supabase/schemas/a.sql",
       "create policy p on public.job_parties for select using (true);\n",
     );
-    expect(pd101(cwd, { ...config, rls: {} }, nodeFiles)).toStrictEqual([]);
+    expect(await pd101(cwd, { ...config, rls: {} }, nodeFiles)).toStrictEqual(
+      [],
+    );
   });
 });
