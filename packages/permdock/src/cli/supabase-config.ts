@@ -1,17 +1,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, posix, relative, resolve } from "node:path";
+import { join, posix } from "node:path";
 import { parse } from "smol-toml";
 
 import type { DoctorFinding } from "./shared/doctor-types.ts";
+import type { SupabaseConfigFormat } from "./supabase-dir.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { describeError } from "./core/errors.ts";
 import { hookUri } from "./rls/rbac.ts";
+import { supabaseConfigFile } from "./supabase-dir.ts";
 
 /** The formats the Supabase CLI reads its project config from. */
-export type SupabaseConfigFormat = "toml" | "json" | "jsonc";
+export type { SupabaseConfigFormat } from "./supabase-dir.ts";
 
 /** The settings of the Supabase project config doctor reads. */
 export type SupabaseConfig = {
@@ -59,47 +61,6 @@ export type SupabaseConfigRead =
       readonly format: SupabaseConfigFormat;
     }
   | { readonly ok: false; readonly error: string; readonly file: string };
-
-/** The file names the CLI looks for in `supabase/`, in its order of preference. */
-type SupabaseConfigFile = {
-  readonly file: string;
-  readonly format: SupabaseConfigFormat;
-};
-
-const CONFIG_FILES: readonly SupabaseConfigFile[] = [
-  { file: "supabase/config.json", format: "json" },
-  { file: "supabase/config.jsonc", format: "jsonc" },
-  { file: "supabase/config.toml", format: "toml" },
-];
-
-/**
- * The project's config file by the CLI's order of preference (`config.json`,
- * `config.jsonc`, `config.toml`), or `undefined` when it has none.
- */
-function supabaseConfigFile(cwd: string): SupabaseConfigFile | undefined {
-  return CONFIG_FILES.find(({ file }) => existsSync(join(cwd, file)));
-}
-
-/**
- * The `supabase` directory relative to `cwd`: `supabase` when `cwd` has a
- * Supabase config or none is found, else the one in the nearest parent with
- * one, such as `../../supabase` for a config in `packages/identity`. The search
- * stops after the first directory with `.git`, so a checkout never reads a
- * project outside it.
- */
-export function supabaseDir(cwd: string): string {
-  let dir = resolve(cwd);
-  for (;;) {
-    if (supabaseConfigFile(dir) !== undefined) {
-      return relative(cwd, join(dir, "supabase")).replaceAll("\\", "/");
-    }
-    const parent = dirname(dir);
-    if (parent === dir || existsSync(join(dir, ".git"))) {
-      return "supabase";
-    }
-    dir = parent;
-  }
-}
 
 /**
  * The config file name for messages: the one the project has, else

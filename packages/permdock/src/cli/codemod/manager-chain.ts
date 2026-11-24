@@ -20,7 +20,7 @@ import {
 } from "../rls/approval-chain.ts";
 import { checkedManagers, isManagerRows } from "../rls/approval-managers.ts";
 import { charIndex, parseSqlFile, removeStatements } from "../sql/ast.ts";
-import { supabaseDir } from "../supabase-config.ts";
+import { supabaseDir } from "../supabase-dir.ts";
 
 /** What `permdock codemod manager-chain --json` prints. */
 export type ManagerChainReport = {

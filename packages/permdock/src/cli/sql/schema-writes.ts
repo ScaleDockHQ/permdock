@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { SqlNode } from "./ast.ts";
 
 import { isRecord } from "../../core/compact.ts";
-import { supabaseDir } from "../supabase-config.ts";
+import { supabaseDir } from "../supabase-dir.ts";
 import { SqlSyntaxError, parseSqlFile } from "./ast.ts";
 import { loadBsbSql, schemaSqlFiles } from "./bsb-access.ts";
 

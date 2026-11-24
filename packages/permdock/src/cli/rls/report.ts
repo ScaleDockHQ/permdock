@@ -20,7 +20,7 @@ import {
 import { taggedAccessPolicies } from "../sql/bsb-access.ts";
 import { callsHelper, helperCallKeys } from "../sql/helper-calls.ts";
 import { isStripeDataPipelineSchema } from "../sql/platform.ts";
-import { supabaseDir } from "../supabase-config.ts";
+import { supabaseDir } from "../supabase-dir.ts";
 
 /** Who owns a policy, in better-supabase BS641's words. */
 export type PolicyOrigin = "library" | "provider" | "app";

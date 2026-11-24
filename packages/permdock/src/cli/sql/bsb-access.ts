@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { isRecord } from "../../core/compact.ts";
-import { supabaseDir } from "../supabase-config.ts";
+import { supabaseDir } from "../supabase-dir.ts";
 
 export type BsbTag = {
   readonly name: string;

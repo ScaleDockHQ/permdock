@@ -6,7 +6,7 @@ import type { PermDockConfig, RlsTable } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { scopeList } from "../../core/scopes.ts";
-import { supabaseDir } from "../supabase-config.ts";
+import { supabaseDir } from "../supabase-dir.ts";
 import { SqlSyntaxError, parseSqlFile } from "./ast.ts";
 
 /** Each table the schema files create, as `schema.table`, with its column types. */

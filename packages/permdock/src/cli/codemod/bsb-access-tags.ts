@@ -26,7 +26,7 @@ import {
 import { compileGrants } from "../sql/compile.ts";
 import { tableNames } from "../sql/tables.ts";
 import { svals, tenantCheck } from "../sql/tenant-check.ts";
-import { supabaseDir } from "../supabase-config.ts";
+import { supabaseDir } from "../supabase-dir.ts";
 
 /** What `permdock codemod bsb-access-tags --json` prints. */
 export type AccessTagReport = {
