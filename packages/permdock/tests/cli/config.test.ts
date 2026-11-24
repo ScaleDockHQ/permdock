@@ -284,6 +284,13 @@ export default { permissions };
           ],
           rlsSchema: "permdock",
         },
+        effective: {
+          permissions: "./src/permissions.ts",
+          collect: { barrel: true, srcPath: ["./src"] },
+          doctr: {},
+        },
+        defaults: ["collect.srcPath"],
+        restated: [],
         warnings: [expect.stringContaining("unknown key doctr")],
       });
     });

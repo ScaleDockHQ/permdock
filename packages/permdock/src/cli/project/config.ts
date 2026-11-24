@@ -44,6 +44,13 @@ export type LoadedConfig = ParsedConfig & {
   readonly file: string | undefined;
 };
 
+/** The `permdock.config.*` file in `cwd`, or `undefined` when there is none. */
+export function configFileIn(cwd: string): string | undefined {
+  return CONFIG_FILES.map((name) => resolve(cwd, name)).find((file) =>
+    existsSync(file),
+  );
+}
+
 export async function readConfig(
   cwd: string,
   fromFlag?: string,
@@ -52,9 +59,7 @@ export async function readConfig(
   const path =
     fromFlag !== undefined && fromFlag !== ""
       ? resolve(cwd, fromFlag)
-      : CONFIG_FILES.map((name) => resolve(cwd, name)).find((file) =>
-          existsSync(file),
-        );
+      : configFileIn(cwd);
   if (path === undefined) {
     return { config: {}, warnings: [], file: undefined };
   }
@@ -65,17 +70,39 @@ export async function readConfig(
       { code: "config_not_found" },
     );
   }
+  const parsed = await readParsedConfig(cwd, path, options);
+  return { ...(await withDerivedDefaults(cwd, path, parsed)), file: path };
+}
+
+/** The config file at `path` as written, before any default is applied. */
+export async function readParsedConfig(
+  cwd: string,
+  path: string,
+  options?: { readonly fresh?: boolean },
+): Promise<ParsedConfig> {
   // Lazy: jiti and the core load only when there is a config file to read.
   const { loadModule, pickNamed } = await import("./load.ts");
   const mod = await loadModule(path, options);
   const display = relative(cwd, path).replaceAll("\\", "/");
   const raw = pickNamed(mod, ["default"]);
-  const parsed = parseConfig(
+  return parseConfig(
     hasModuleValue(raw)
       ? await traceValues(cwd, path, display, raw, options)
       : raw,
     display,
   );
+}
+
+/**
+ * `parsed` as every command reads it: plugin outputs folded in and the
+ * better-supabase defaults applied. `codemod config --prune` runs it on an
+ * edited config to prove the edit changes no output.
+ */
+export async function withDerivedDefaults(
+  cwd: string,
+  path: string,
+  parsed: ParsedConfig,
+): Promise<ParsedConfig> {
   const lookup = {
     cwd,
     from: dirname(path),
@@ -98,7 +125,6 @@ export async function readConfig(
       failed === undefined || parsed.config.supabase?.hook === undefined
         ? parsed.warnings
         : [...parsed.warnings, unloadedWarning(cwd, failed, parsed.config)],
-    file: path,
   };
 }
 

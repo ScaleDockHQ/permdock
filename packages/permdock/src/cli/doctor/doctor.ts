@@ -51,6 +51,7 @@ import { pd083 } from "./postgrest.ts";
 import { pd058, pd084, pd102 } from "./powersync.ts";
 import { pd005, pd006, pd009, pd012, pd022, pd028, pd040 } from "./project.ts";
 import { pd130 } from "./repeated-version-reads.ts";
+import { pd120 } from "./restated-defaults.ts";
 import {
   pd016,
   pd020,
@@ -528,6 +529,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     code: "PD130",
     groups: ["next", "supabase", "performance"],
     run: (project) => pd130(project.sources()),
+  },
+  {
+    code: "PD120",
+    groups: ["project"],
+    run: (project) => pd120(project.config),
   },
 ];
 

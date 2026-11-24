@@ -1,13 +1,14 @@
 import type { Leaf } from "../core/command.ts";
 
 import { defineLeaf } from "../core/command.ts";
+import { CliError } from "../core/errors.ts";
 import { dryRunFlag } from "../core/flags.ts";
 
 export const codemod: Leaf = defineLeaf({
   positionals: [
     {
       name: "version",
-      description: "The release to migrate to (0.5)",
+      description: "The release to migrate to (0.5), or config with --prune",
       required: true,
       async complete() {
         // Lazy: oxc-parser and the rename maps load only when completion asks for them.
@@ -27,8 +28,32 @@ export const codemod: Leaf = defineLeaf({
       type: "boolean",
       description: "Rewrite files with uncommitted changes too",
     },
+    prune: {
+      type: "boolean",
+      description:
+        "With config: remove each key set to its default, after proving every generated file stays the same",
+    },
+    check: {
+      type: "boolean",
+      description: "With config --prune: exit 1 when a key would be removed",
+    },
   },
   async run(ctx, { flags, args, rest }) {
+    if (args["version"] === "config") {
+      if (!flags.prune) {
+        throw new CliError("usage", "codemod config needs --prune", {
+          code: "invalid_value",
+        });
+      }
+      // Lazy: the generators load only when the prune runs.
+      return (await import("../codemod/prune-config.ts")).runPruneConfig({
+        cwd: ctx.cwd,
+        check: flags.check,
+        dryRun: flags["dry-run"],
+        force: flags.force,
+        json: ctx.json,
+      });
+    }
     // Lazy: oxc-parser and the rename maps load only when this command runs, not for --help.
     return (await import("../codemod/codemod.ts")).runCodemod({
       cwd: ctx.cwd,

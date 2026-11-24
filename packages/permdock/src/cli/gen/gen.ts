@@ -94,7 +94,9 @@ export type GenInput = {
 };
 
 /** The files `permdock gen` writes: one per kind under the output directory. */
-async function genFiles(input: GenInput): Promise<readonly OutputFile[]> {
+export async function genFiles(
+  input: GenInput,
+): Promise<readonly OutputFile[]> {
   const kinds = kindsOf(input.kinds, input.config, input.out);
   if (input.out !== undefined && kinds.length > 1) {
     throw new CliError(

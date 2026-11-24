@@ -49,9 +49,17 @@ With `--json`, `data` is the report `--print` prints.
     ],
     "rlsSchema": "permdock"
   },
+  "effective": {
+    "permissions": "./src/permissions.ts",
+    "collect": { "barrel": true, "srcPath": ["./src"] }
+  },
+  "defaults": ["collect.srcPath"],
+  "restated": [],
   "warnings": []
 }
 ```
+
+`effective` is the config every command reads: each unset key of a section the config opens (`rls`, `supabase.hook`, `gen`, `collect`, `doctor`) holds its default, and `defaults` names those keys. A section the config does not open stays unset, because opening it turns a command on. `restated` lists keys set to their default, which doctor `PD120` reports and `permdock codemod config --prune` removes.
 
 | `resolved` field   | Unset default                                                                                  | Read by                           |
 | ------------------ | ---------------------------------------------------------------------------------------------- | --------------------------------- |

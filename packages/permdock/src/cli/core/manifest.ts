@@ -649,6 +649,7 @@ export const SECTIONS: readonly Section[] = [
           examples: [
             "permdock codemod 0.26 --dry-run",
             "permdock codemod 0.17 src",
+            "permdock codemod config --prune --check",
           ],
           docs: "codemod",
           effects: ["rewrite"],

@@ -35,7 +35,7 @@ const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
 });
 
 export function codemodVersions(): readonly string[] {
-  return Object.keys(CODEMODS);
+  return [...Object.keys(CODEMODS), "config"];
 }
 
 const EXTENSIONS: ReadonlySet<string> = new Set([

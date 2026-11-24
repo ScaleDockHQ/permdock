@@ -3,12 +3,14 @@ permdock codemod: Apply a release's renames to files that import permdock; list 
 Usage  permdock codemod <version> [paths...] [flags]
 
 Arguments
-  version  The release to migrate to (0.5)
+  version  The release to migrate to (0.5), or config with --prune
   paths    Files or directories to rewrite (default the working directory)
 
 Flags
   --dry-run  Print what would change; write nothing
   --force    Rewrite files with uncommitted changes too
+  --prune    With config: remove each key set to its default, after proving every generated file stays the same
+  --check    With config --prune: exit 1 when a key would be removed
 
 Global flags
   --cwd --config --json --format --yes --effects-digest --agent --debug --color --help; see permdock --help
@@ -16,6 +18,7 @@ Global flags
 Examples
   permdock codemod 0.26 --dry-run
   permdock codemod 0.17 src
+  permdock codemod config --prune --check
 
 Side effects  rewrite
 Docs  https://permdock.com/docs/cli/codemod

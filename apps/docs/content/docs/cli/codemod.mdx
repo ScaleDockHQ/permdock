@@ -20,10 +20,23 @@ The positional arguments after the version are files or directories; the default
 | `--dry-run` | Print the report without writing any file                                                                              |
 | `--force`   | Rewrite files with uncommitted changes too; without it, a dirty file in a git work tree exits `1` (`file_conflict`)    |
 | `--json`    | `data` in the result: `{ version, dryRun, scanned, files, followUps }`; an unknown version is a `usage` error document |
+| `--prune`   | With `config`: remove each key set to its default ([Prune the config](#prune-the-config))                              |
+| `--check`   | With `config --prune`: write nothing and exit `1` when a key would be removed                                          |
 
 The codemod rewrites files in place, so in [agent mode](/docs/cli/agent-mode) a run without `--dry-run` first asks for the person's confirmation (`rewrite`).
 
 The version is `0.17` or `0.26` (`0.17.0` and `v0.17` are read the same way). Any other version is a usage error that names the supported ones, exit `2`. The 0.5 and 0.8 rename tables are history on the [Naming](/docs/getting-started/naming) page.
+
+## Prune the config
+
+`permdock codemod config --prune` removes each `permdock.config` key set to its default, the keys doctor `PD120` lists. Before it writes, it regenerates every plugin output and the `gen` modules in memory, with and without the keys. When a byte differs it tries each section, then each key of a section that differs, and keeps a key whose removal changes a file. The comment lines directly above a removed key go with it.
+
+```bash
+permdock codemod config --prune --check   # exit 1 when a key would be removed, for CI
+permdock codemod config --prune           # remove them
+```
+
+With `--json`, `data` is `{ file, check, removed, kept, unreachable }`. `unreachable` lists keys the codemod found in the loaded config but not as an object literal key in the file, such as a value from a spread; remove those by hand.
 
 ## What it renames
 
