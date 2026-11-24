@@ -57,101 +57,73 @@ Literals are JSON literals. Single-child compounds are collapsed and nested same
 
 ## Snapshot
 
-Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots). Grant terms live once in a top-level `conditions` list: `conditions` holds each distinct `{ effect, role, to, scope, where, … }` in order of first use, and a grant is `{ permission, cond }` where `cond` is an index or, for consecutive grants of one permission, a list of indexes. Terms are compared by their RFC 8785 canonical JSON. `parseSnapshot` validates the form and rejects an index outside `conditions`; `expandSnapshot` flattens it to one object per grant for evaluation. `issuedAt` and `expiresAt` are RFC 3339 date-times, and `subject.delegation` is the token's OAuth `scope` (one space-separated string) and RFC 9396 `authorization_details`. The JSON Schema is `schemas/snapshot-v1.json`. The subject carries `principal.memberships` and `principal.tenant`; each grant carries its grantee union `to`, a `scope` and a `membership`; the top level carries `tenants`, `simulated` and `vocabulary.roles` / `vocabulary.plans`. The optional `authzVersion` is the token's `authz_ver` the snapshot was built from, and `sessionId` its Auth `session_id`; both were added within v1, so a v1 reader ignores them. The optional `scopes` field lists the policy's [named scopes](/docs/concepts/scopes) in declaration order, each `{ name, key, within?, resources?, fields? }`, where `resources` names the resources whose `memberOf` relations partition rows by that key (absent when the policy declares no scopes) and `fields` maps a resource to the field that holds the scope's id when it is not `key`, such as `{ "organization": "id" }` for a table whose own id is the instance. The optional `static` field is `{ held, digests }`, written by `omitStatic`: `held` is a list of `[role, membershipIndex | null]` pairs, where the index points into `subject.principal.memberships` and `null` marks a global role, and `digests` maps each listed role to the `sha-256:` digest of its bundle entry. The grants of those roles are not in `grants`. `expandSnapshot(snapshot, { bundle })` appends them from the bundle when the digest matches and an index is in range, and appends nothing otherwise; `parseSnapshot` rejects an index outside the memberships and a digest without the `sha-256:` prefix. The bundle is `{ v: 1, conditions, roles: { [role]: { digest, grants } } }` in the compact grant form above, and `permdock generate` writes it as the `clientBundle` export of a `"use client"` module. A reader that ignores `static` sees fewer grants and denies. The optional `typeLevel` field is `{ granted, approval?, endpoint? }`, lists of permission keys answered without row data: `granted` for an allow, `approval` for approval-required, `endpoint` for a grant only the server can decide. A client that finds a key in none of them denies it. It is absent when a grant has `validity` or a membership has `expiresAt`, and `simulate` drops it; `permdock/react` then answers from its evaluator, and `permdock/react/lazy` loads that evaluator first ([decision 0058](https://github.com/ScaleDockHQ/permdock/blob/main/docs/decisions/0058-react-evaluator-split.md)). A reader without `fields` support checks `key` on those rows, finds none, and denies. A client checks the row against each grant's `membership` along the scope's chain, so a snapshot client never grants what the server denies. The principal carries no `claims`: a grant's `where` or `check` that reads `principal.claims.*` (or `principal.claim.*`) holds the subject's value as a literal instead of the `ref`, bound when the snapshot is built (a missing claim binds to `null`, or `[]` for `in` / `notIn`, as in `where()`).
+Output of `permdock.snapshot()`; `v` is `2`. See [snapshots](/docs/concepts/snapshots). The JSON Schema is `schemas/snapshot-v2.json`. `parseSnapshot` validates the form and refuses any other `v`, including `1`: a stored or cached v1 snapshot is discarded and refetched, never read. `readSnapshot(snapshot, { bundle })` flattens it into the `ExpandedSnapshot` the evaluator reads, one object per grant.
+
+Grant terms live once in `conditions`: each distinct `{ effect, role, to, scope, where, … }` in order of first use, compared by RFC 8785 canonical JSON, without its `membership`. A grant is `{ permission, cond }`. `cond` is a `conditions` index, a list of indexes for consecutive grants of one permission, or `[term, memberships]` with the indexes into `subject.principal.memberships` the grant holds through, one grant per membership. An id list used by more than one `in` or `notIn` condition is stored once in `lists` and referenced as `{ "list": n }`.
+
+These fields shrink a snapshot whose subject has many memberships:
+
+- **`subject.principal.memberships`** writes a membership that carries only `scope`, `id`, `roles` and `via` as `[shape, id]`. `shapes` holds each distinct `{ scope, roles, via? }`. Any other membership stays a whole object.
+- **`requires`** lists, once per [`requires`](/docs/concepts/policies#requires) key, where the subject holds it: `[keys, true]` when it holds the key everywhere, or `[keys, memberships]` with the indexes of the memberships whose scope and id hold it. A grant term carries `requires: { keys, fields }`, the keys and the `[scope, field]` pairs to place them on; `readSnapshot` adds `{ op: "in", field, value: ids }` per scope to that grant's `where`. A term marked `placed: true` already holds the placed condition. A key held nowhere places an empty `in`, which denies.
+- **`bundle`** is the `digest` of the [client bundle](/docs/concepts/snapshots#static-roles-omitstatic) the snapshot was compacted against. It is present when the snapshot leaves `vocabulary`, `scopes`, the shared grants or a bit-set `typeLevel` to the bundle. A reader whose bundle has another digest, or that has none, resolves no grant and no `typeLevel`, so the client denies until it loads the matching bundle.
+- **`typeLevel`** is `{ granted, approval?, endpoint? }`: permission keys a check without a row answers. With `bits: true` each list is a base64url bit set over the bundle's sorted `keys`, bit `i` for `keys[i]`.
+- **`static`** is `{ held, digests, shared? }`, written by `omitStatic`. `held` pairs a role with the index of the membership that holds it, or `null` for a global role; `digests` pins each role to its bundle entry by SHA-256. `shared` pins the bundle's shared grants, those every signed-in subject holds without a membership. A digest that differs from the bundle's resolves nothing.
+- **`truncated`** lists the tenants whose grants `maxGrantsPerTenant` left out; a check in one of them denies with `opaque-condition` and goes to the decision endpoint.
+
+`omitStatic` with `tenants: "all"` for a subject with three memberships:
 
 ```json
 {
-  "v": 1,
-  "issuedAt": "2026-09-09T00:25:00Z",
-  "expiresAt": "2026-09-09T00:41:40Z",
+  "v": 2,
+  "issuedAt": "2026-11-24T14:39:08.000Z",
+  "roles": ["admin"],
+  "tenants": ["o_1", "o_2", "o_3"],
   "subject": {
     "principal": {
       "id": "u_1",
       "roles": [],
-      "plans": ["pro"],
       "tenant": "o_1",
       "memberships": [
-        { "scope": "tenant", "id": "o_1", "roles": ["member"] },
-        {
-          "scope": "team",
-          "id": "t_design",
-          "within": { "tenant": "o_1" },
-          "roles": ["lead"],
-          "via": "group:9f2c"
-        }
+        [0, "o_1"],
+        [1, "o_2"],
+        [1, "o_3"]
       ]
     },
-    "delegation": { "scope": "post:read post:update" },
     "context": {}
   },
-  "roles": ["member", "lead"],
-  "vocabulary": {
-    "roles": {
-      "member": { "key": "member", "assignable": true },
-      "lead": { "key": "lead", "on": "team", "assignable": true }
-    },
-    "plans": { "pro": { "key": "pro" } }
-  },
-  "scopes": [
-    { "name": "tenant", "key": "orgId", "resources": ["post"] },
-    { "name": "team", "key": "teamId", "within": "tenant" }
+  "shapes": [
+    { "scope": "tenant", "roles": ["admin"] },
+    { "scope": "tenant", "roles": ["member"] }
   ],
-  "conditions": [
-    {
-      "effect": "allow",
-      "role": "member",
-      "scope": "tenant",
-      "to": { "kind": "role", "role": "member", "scope": "tenant" },
-      "membership": { "scope": "tenant", "id": "o_1", "roles": ["member"] }
+  "typeLevel": { "bits": true, "granted": "BQ" },
+  "bundle": "sha-256:FPxTmNgkyXn_y_jdGJdVBwas3Z8-rGNwVPIJ9YkQQdg",
+  "requires": [[["post.update"], [0]]],
+  "conditions": [],
+  "grants": [],
+  "static": {
+    "held": [
+      ["member", 1],
+      ["member", 2],
+      ["admin", 0]
+    ],
+    "digests": {
+      "member": "sha-256:lPJu3bUm80cNS8E__tbHaG-qJmYsx_Vp4eGfxPfBY-w",
+      "admin": "sha-256:T7y0N2pYebunKEh4crgO0lowWjjh_anBCSTc44F1rJ4"
     },
-    {
-      "effect": "allow",
-      "role": null,
-      "to": { "kind": "relation", "resource": "post", "relation": "author" },
-      "where": {
-        "op": "eq",
-        "field": "authorId",
-        "value": { "ref": "principal.id" }
-      }
-    },
-    {
-      "effect": "allow",
-      "role": "member",
-      "scope": "tenant",
-      "approval": "human",
-      "to": { "kind": "role", "role": "member", "scope": "tenant" }
-    }
-  ],
-  "grants": [
-    { "permission": "post.read", "cond": 0 },
-    { "permission": "post.update", "cond": 1 },
-    { "permission": "post.delete", "cond": 2 }
-  ],
-  "tenants": ["o_1"],
-  "include": ["post"],
-  "assignable": [
-    {
-      "tenant": "o_1",
-      "roles": ["member"],
-      "permissions": [
-        {
-          "key": "post.read",
-          "resource": "post",
-          "action": "read",
-          "scope": "post:read",
-          "meta": {}
-        }
-      ]
-    }
-  ]
+    "shared": "sha-256:qsGvBasyvA9rgMX9iJpLI5u31ZGeg0Wc5yX26cXxKSk"
+  }
 }
 ```
 
-A grant entry has `permission`, `effect` (`allow` or `deny`), `to` (the [policies](/docs/concepts/policies) grantee), optional `role` (string or `null` for non-role selectors), optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `validity` (`{ from?, until? }` as RFC 3339 instants when the grant has a `validFrom` or `validUntil`; the client evaluator checks it against its clock and treats a malformed bound as not yet active), `scope` (a scope name or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque, needs the relation graph (a `through: 'parent'` or edge-table relation), or reads a relation `period`; such an entry carries no `where` or `check`, so the client sends the check to the decision endpoint. A snapshot has one entry per membership of the grant's scope that holds its roles (no cascade between scopes), and a client denies when a `portable: false` deny applies. A resolved [custom-role](/docs/concepts/custom-roles) grant is an ordinary entry whose `role` is the custom role name, whose `to` is that role in its scope, and whose `membership` is the membership holding it. `roles` is ranked by the policy's `assigns` graph when it has one, and `audiences` lists the distinct `meta.audience` values of those roles in the same order (absent when there are none). `assignable` has one `{ tenant, roles, permissions, levels? }` entry per tenant in `tenants`: the declared role names and the permission leaves the subject may hand out there, with `permissions` trimmed by `include`, and `levels` mapping a permission key to the [levels](/docs/concepts/custom-roles#levels) the subject may hand out (absent when no resource declares levels); it is absent when `tenants` is empty. `notEntitled` lists `{ permission, role, to }` for each allow grant whose roles the subject holds and whose `plan` grantee it lacks, one per permission and role; it grants nothing and is absent when empty. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects an unknown major `v` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
+The client bundle is `{ v: 2, digest, keys, conditions, roles, vocabulary?, scopes?, shared? }`. `keys` is the policy's permission keys, sorted, that bit sets index. `digest` is the SHA-256 of the canonical `{ vocabulary, scopes, keys }`. `roles` maps a role to `{ digest, grants }` and `shared` is `{ digest, grants }`, both in the compact grant form above. `permdock generate` writes it as the `clientBundle` export of a `"use client"` module.
 
-An optional top-level `ids` maps a resource to its row id field when the resource's `id` option is not `id`. It was added within `v: 1`; a reader that predates it reads `id`, which matches no row of such a resource, so it denies.
+Without `omitStatic` the snapshot carries `vocabulary` and `scopes` and lists every grant inline. `subject.delegation` is the token's OAuth `scope` (one space-separated string) and RFC 9396 `authorization_details`. `issuedAt` and `expiresAt` are RFC 3339 date-times. `authzVersion` is the token's `authz_ver` the snapshot was built from and `sessionId` its Auth `session_id`. `scopes` lists the policy's [named scopes](/docs/concepts/scopes) in declaration order, each `{ name, key, within?, resources?, fields? }`: `resources` names the resources whose `memberOf` relations partition rows by that key, and `fields` maps a resource to the field that holds the scope's id when it is not `key`. `typeLevel` is absent when a grant has `validity` or a membership has `expiresAt`, and `simulate` drops it; `permdock/react` then answers from its evaluator, and `permdock/react/lazy` loads that evaluator first ([decision 0058](https://github.com/ScaleDockHQ/permdock/blob/main/docs/decisions/0058-react-evaluator-split.md)). A client checks the row against each grant's `membership` along the scope's chain, so a snapshot client never grants what the server denies. The principal carries no `claims`: a grant's `where` or `check` that reads `principal.claims.*` holds the subject's value as a literal, bound when the snapshot is built (a missing claim binds to `null`, or `[]` for `in` / `notIn`).
 
-Three optional grant fields were added within `v: 1`. They carry app data and change no outcome. `name` is the grant's declared name. `meta` is its `{ description?, x? }`. `obligations` lists the `{ kind: "app", name, detail? }` obligations an allow declares, and the client evaluator emits them on a granted decision as the server does. A membership in `principal.memberships` may carry `x`, and `subject.context` carries what an adapter's `context` hook returned. All of these are visible to the client that holds the snapshot, so they must never hold a secret ([extend PermDock](/docs/guides/extending)). A reader that predates them ignores them.
+An expanded grant has `permission`, `effect` (`allow` or `deny`), `to` (the [policies](/docs/concepts/policies) grantee), optional `role` (string or `null` for non-role selectors), optional `where`, `check`, `approval`, `fields` (schema keys the grant covers; omitted means every field), `validity` (`{ from?, until? }` as RFC 3339 instants when the grant has a `validFrom` or `validUntil`; the client evaluator checks it against its clock and treats a malformed bound as not yet active), `scope` (a scope name or a resource object) with the `membership` that supplied the role, and `portable: false` when the server-side grant is a closure or opaque, needs the relation graph (a `through: 'parent'` or edge-table relation), or reads a relation `period`; such an entry carries no `where` or `check`, so the client sends the check to the decision endpoint. A snapshot has one entry per membership of the grant's scope that holds its roles (no cascade between scopes), and a client denies when a `portable: false` deny applies. A resolved [custom-role](/docs/concepts/custom-roles) grant is an ordinary entry whose `role` is the custom role name, whose `to` is that role in its scope, and whose `membership` is the membership holding it. `roles` is ranked by the policy's `assigns` graph when it has one, and `audiences` lists the distinct `meta.audience` values of those roles in the same order (absent when there are none). `assignable` has one `{ tenant, roles, permissions, levels? }` entry per tenant in `tenants`: the declared role names and the permission leaves the subject may hand out there, with `permissions` trimmed by `include`, and `levels` mapping a permission key to the [levels](/docs/concepts/custom-roles#levels) the subject may hand out (absent when no resource declares levels); it is absent when `tenants` is empty. `notEntitled` lists `{ permission, role, to }` for each allow grant whose roles the subject holds and whose `plan` grantee it lacks, one per permission and role; it grants nothing and is absent when empty. `tenants` lists the tenants whose grants are included; `simulated: true` marks a preview snapshot the decision endpoint must refuse. `parseSnapshot(json)` is the public reader: it rejects a `v` other than `2` and any object key in the forbidden set (`__proto__`, `constructor`, `prototype`). Readers must reject a `v` they do not know.
+
+An optional top-level `ids` maps a resource to its row id field when the resource's `id` option is not `id`.
+
+Three optional grant fields carry app data and change no outcome. `name` is the grant's declared name. `meta` is its `{ description?, x? }`. `obligations` lists the `{ kind: "app", name, detail? }` obligations an allow declares, and the client evaluator emits them on a granted decision as the server does. A membership in `principal.memberships` may carry `x`, and `subject.context` carries what an adapter's `context` hook returned. All of these are visible to the client that holds the snapshot, so they must never hold a secret ([extend PermDock](/docs/guides/extending)). A reader that predates them ignores them.
 
 ```json
 {
@@ -637,7 +609,7 @@ The envelope is the same for all of them:
 | `vnd.permdock.evidence+jwt`        | `events`: CloudEvents 1.0 events from a sink                                                                                                                                                                                                                        | `signDecisionBatch`, `memoryDecisionSink({ signer })` ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports                                             | A SIEM, an auditor, a compliance tool verifying provenance offline                                                               |
 | `at+jwt`                           | `roles`, `memberships`, `tenant` and one `permdock_approval` `authorization_details` entry: `id`, `status`, `permissions`, `relations`, `etag?`, `vouched?`; RFC 9068 `sub` is the approver's principal id, `exp` is `iat` + 60 seconds, and `act` is never present | `cloud({ approver })`, sent as `PermDock-Approver` on `approvals.resolve` ([approver token](/docs/adapters/cloud#approver-token))                                             |
 
-Each signed format has a JSON Schema in the `permdock` package: `schemas/snapshot-v1.json` (the unsigned snapshot), `schemas/approval-signature-v1.json`, `schemas/policy-v1.json`, `schemas/capability-v1.json`, `schemas/run-v1.json`, `schemas/support-session-v1.json` and `schemas/evidence-export-v1.json` (the claims sets). `schemas/connector-v1.json` is the unsigned Cloud connector body. `schemas/cloud-api-v1.json` is the OpenAPI 3.1 document of the PermDock Cloud API, not a JSON Schema. Import one as `permdock/schemas/<name>.json`, or fetch its `$id`, `https://permdock.com/schemas/<name>.json`, which serves the file of the latest release with `Access-Control-Allow-Origin: *`. `snapshotFromClaims` reads a verified snapshot token back into a Snapshot, `policyDocumentFromClaims` a policy token and `parseApprovalRequest` (`permdock/approvals`) an approval request record.
+Each signed format has a JSON Schema in the `permdock` package: `schemas/snapshot-v2.json` (the unsigned snapshot), `schemas/approval-signature-v1.json`, `schemas/policy-v1.json`, `schemas/capability-v1.json`, `schemas/run-v1.json`, `schemas/support-session-v1.json` and `schemas/evidence-export-v1.json` (the claims sets). `schemas/connector-v1.json` is the unsigned Cloud connector body. `schemas/cloud-api-v1.json` is the OpenAPI 3.1 document of the PermDock Cloud API, not a JSON Schema. Import one as `permdock/schemas/<name>.json`, or fetch its `$id`, `https://permdock.com/schemas/<name>.json`, which serves the file of the latest release with `Access-Control-Allow-Origin: *`. `snapshotFromClaims` reads a verified snapshot token back into a Snapshot, `policyDocumentFromClaims` a policy token and `parseApprovalRequest` (`permdock/approvals`) an approval request record.
 
 Signed snapshot, decoded:
 

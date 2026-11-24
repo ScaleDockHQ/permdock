@@ -16,7 +16,7 @@ import {
 import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 
 const snapshot: Snapshot = compactSnapshot({
-  v: 1,
+  v: 2,
   issuedAt: "1970-01-01T00:00:01Z",
   subject: { principal: null, context: {} },
   roles: [],

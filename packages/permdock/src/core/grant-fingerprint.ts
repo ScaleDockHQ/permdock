@@ -2,11 +2,12 @@ import type { Condition } from "../conditions/ast.ts";
 import type { Grantee } from "./grantee.ts";
 import type { PermDock } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
-import type { Snapshot, SnapshotGrantTerms } from "./snapshot-types.ts";
+import type { SnapshotGrantTerms } from "./snapshot-types.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
 import { findPermission } from "./permission-registry.ts";
 import { sha256Digest } from "./sha256.ts";
+import { expandGrants } from "./snapshot-compact.ts";
 
 const PREFIX = "gf1:";
 
@@ -70,17 +71,6 @@ function decisive(terms: SnapshotGrantTerms): unknown {
   };
 }
 
-function termsOf(
-  snapshot: Snapshot,
-  cond: number | readonly number[],
-): readonly SnapshotGrantTerms[] {
-  const indexes = typeof cond === "number" ? [cond] : cond;
-  return indexes.flatMap((index) => {
-    const terms = snapshot.conditions[index];
-    return terms === undefined ? [] : [terms];
-  });
-}
-
 /**
  * A digest of what `permdock` grants for `permissions` in its tenant, or `null`
  * when two callers with the same digest could still be decided differently or
@@ -124,15 +114,13 @@ export function grantFingerprint(
     return null;
   }
   const keys = new Set(leaves.map((leaf) => leaf.key));
-  const grants = snapshot.grants
-    .filter((grant) => keys.has(grant.permission))
-    .flatMap((grant) =>
-      termsOf(snapshot, grant.cond).map((terms) => ({
-        permission: grant.permission,
-        terms,
-        decisive: decisive(terms),
-      })),
-    );
+  const grants = expandGrants(snapshot)
+    .grants.filter((grant) => keys.has(grant.permission))
+    .map(({ permission, ...terms }) => ({
+      permission,
+      terms,
+      decisive: decisive(terms),
+    }));
   if (
     grants.some(
       ({ terms }) =>

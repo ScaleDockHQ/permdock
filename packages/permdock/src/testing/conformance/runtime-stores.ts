@@ -73,7 +73,7 @@ export function testSnapshotSource(source: SnapshotSource): void {
     const snapshot = await source.get();
     expect(snapshot === null || snapshot === undefined).toBe(false);
     if (typeof snapshot === "object" && snapshot !== null && "v" in snapshot) {
-      expect(snapshot.v).toBe(1);
+      expect(snapshot.v).toBe(2);
     }
     if (source.subscribe !== undefined) {
       const unsubscribe = source.subscribe(() => undefined);

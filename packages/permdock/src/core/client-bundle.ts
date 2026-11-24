@@ -4,33 +4,48 @@ import type {
   ExpandedSnapshot,
   Snapshot,
   SnapshotGrant,
-  SnapshotGrantTerms,
   SnapshotStatic,
+  SnapshotWireTerms,
 } from "./snapshot-types.ts";
 import type { Membership, Principal } from "./subject.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
-import { snapshotOf } from "./instance-snapshot.ts";
+import { freezeDeep } from "./freeze.ts";
+import { snapshotOf, snapshotScopes } from "./instance-snapshot.ts";
+import { listPermissions } from "./permission-registry.ts";
 import { declaredRoleNames } from "./policy.ts";
 import { roleMeta } from "./role-rank.ts";
 import { resolveScope, scopeList } from "./scopes.ts";
 import { sha256Digest } from "./sha256.ts";
 import { compactSnapshot, internGrants } from "./snapshot-compact.ts";
+import { withoutRequirement } from "./snapshot-requires.ts";
+import { snapshotVocabulary } from "./snapshot.ts";
 import { findRole } from "./vocabulary.ts";
 
 /** What a role holder is checked against; no real id can equal it. */
 const PROBE = "$probe";
 
-function termsOf(grant: SnapshotGrant): {
-  readonly permission: string;
-  readonly terms: SnapshotGrantTerms;
-} {
+/**
+ * A grant's terms as the wire writes them: without its membership, and without
+ * the requirement its subject's `requires` table places.
+ */
+function wireTerms(
+  grant: SnapshotGrant,
+  snapshot: ExpandedSnapshot,
+): SnapshotWireTerms & { readonly permission: string } {
   const { permission, membership: _membership, ...terms } = grant;
-  return { permission, terms };
+  return {
+    permission,
+    ...withoutRequirement(
+      terms,
+      snapshot.requires,
+      snapshot.subject.principal?.memberships ?? [],
+    ),
+  };
 }
 
-function canonOf(grant: SnapshotGrant): string {
-  const { permission, terms } = termsOf(grant);
+function canonOf(grant: SnapshotGrant, snapshot: ExpandedSnapshot): string {
+  const { permission, ...terms } = wireTerms(grant, snapshot);
   return canonicalJson([permission, terms]);
 }
 
@@ -56,11 +71,42 @@ function probeMembership(
   };
 }
 
+function probeSnapshot(policy: Policy, principal: Principal): ExpandedSnapshot {
+  return snapshotOf(
+    policy,
+    { principal, context: {} },
+    {
+      customRoles: [],
+      omitAssignable: true,
+      omitTypeLevel: true,
+      tenants: "all",
+    },
+  );
+}
+
+/** A probe group as the bundle stores it: wire terms and their canon. */
+type ProbeGroup = {
+  readonly terms: readonly (SnapshotWireTerms & {
+    readonly permission: string;
+  })[];
+  readonly canon: readonly string[];
+};
+
+function probeGroup(
+  snapshot: ExpandedSnapshot,
+  keep: (grant: SnapshotGrant) => boolean,
+): ProbeGroup | undefined {
+  const grants = snapshot.grants.filter(keep);
+  return grants.length === 0
+    ? undefined
+    : {
+        terms: grants.map((grant) => wireTerms(grant, snapshot)),
+        canon: grants.map((grant) => canonOf(grant, snapshot)),
+      };
+}
+
 /** The grants a holder of only `role` receives, or `undefined` when none. */
-function roleGrants(
-  policy: Policy,
-  role: string,
-): readonly SnapshotGrant[] | undefined {
+function roleGrants(policy: Policy, role: string): ProbeGroup | undefined {
   const on =
     policy.rolesByName.get(role)?.on ??
     findRole(policy.vocabulary?.roles, role)?.on;
@@ -71,25 +117,19 @@ function roleGrants(
   }
   const membership =
     scope === undefined ? undefined : probeMembership(policy, role, scope);
-  const snapshot = snapshotOf(
-    policy,
-    {
-      principal: {
-        id: PROBE,
-        roles: membership === undefined ? [role] : [],
-        ...(membership === undefined ? {} : { memberships: [membership] }),
-      },
-      context: {},
-    },
-    {
-      customRoles: [],
-      omitAssignable: true,
-      omitTypeLevel: true,
-      tenants: "all",
-    },
+  return probeGroup(
+    probeSnapshot(policy, {
+      id: PROBE,
+      roles: membership === undefined ? [role] : [],
+      ...(membership === undefined ? {} : { memberships: [membership] }),
+    }),
+    (grant) => grant.role === role,
   );
-  const grants = snapshot.grants.filter((grant) => grant.role === role);
-  return grants.length === 0 ? undefined : grants;
+}
+
+/** A grant held without a role or membership: the bundle's shared group. */
+function isShared(grant: SnapshotGrant): boolean {
+  return grant.role === null && grant.membership === undefined;
 }
 
 /**
@@ -115,21 +155,12 @@ function memoOf(policy: Policy): BundleMemo {
   const names = [...declaredRoleNames(policy)]
     .filter((name) => roleMeta(policy, name)?.clientBundle !== false)
     .toSorted();
-  const pool: SnapshotGrantTerms[] = [];
+  const pool: SnapshotWireTerms[] = [];
   const index = new Map<string, number>();
   const roles: Record<string, ClientBundle["roles"][string]> = {};
   const expected = new Map<string, readonly string[]>();
-  for (const name of names) {
-    const grants = roleGrants(policy, name);
-    if (grants === undefined) {
-      continue;
-    }
-    const interned = internGrants(
-      grants.map((grant): SnapshotGrant => {
-        const { membership: _membership, ...bare } = grant;
-        return bare;
-      }),
-    );
+  const pooled = (group: ProbeGroup): ClientBundle["roles"][string] => {
+    const interned = internGrants(group.terms);
     const remap = interned.conditions.map((terms): number => {
       const key = canonicalJson(terms);
       let at = index.get(key);
@@ -140,25 +171,48 @@ function memoOf(policy: Policy): BundleMemo {
       }
       return at;
     });
-    const mapped = interned.grants.map((grant) => ({
-      permission: grant.permission,
-      cond: Array.isArray(grant.cond)
-        ? grant.cond.map((at) => remap[at] ?? at)
-        : (remap[grant.cond] ?? grant.cond),
-    }));
-    const canon = grants.map(canonOf);
-    expected.set(name, canon);
-    roles[name] = {
-      digest: sha256Digest(canonicalJson(canon)),
-      grants: mapped,
+    return {
+      digest: sha256Digest(canonicalJson(group.canon)),
+      grants: interned.grants.map((grant) => ({
+        permission: grant.permission,
+        cond: Array.isArray(grant.cond)
+          ? grant.cond.map((at) => remap[at] ?? at)
+          : (remap[grant.cond] ?? grant.cond),
+      })),
     };
+  };
+  for (const name of names) {
+    const group = roleGrants(policy, name);
+    if (group !== undefined) {
+      expected.set(name, group.canon);
+      roles[name] = pooled(group);
+    }
   }
-  const bundle: ClientBundle = Object.freeze({
-    v: 1,
-    conditions: Object.freeze(pool),
-    roles: Object.freeze(roles),
+  const sharedGroup = probeGroup(
+    probeSnapshot(policy, { id: PROBE, roles: [] }),
+    isShared,
+  );
+  const shared = sharedGroup === undefined ? undefined : pooled(sharedGroup);
+  const scopes = snapshotScopes(policy);
+  const vocabulary = snapshotVocabulary(policy.vocabulary);
+  const keys = listPermissions(policy.permissions)
+    .map((leaf) => leaf.key)
+    .toSorted();
+  const bundle: ClientBundle = freezeDeep({
+    v: 2 as const,
+    digest: sha256Digest(canonicalJson({ vocabulary, scopes, keys })),
+    keys,
+    conditions: pool,
+    roles,
+    ...(shared === undefined ? {} : { shared }),
+    ...(vocabulary === undefined ? {} : { vocabulary }),
+    ...(scopes === undefined ? {} : { scopes }),
   });
-  const memo: BundleMemo = { bundle, expected };
+  const memo: BundleMemo = {
+    bundle,
+    expected,
+    ...(sharedGroup === undefined ? {} : { shared: sharedGroup.canon }),
+  };
   policy.index.bundle.set(policy, memo);
   return memo;
 }
@@ -177,7 +231,7 @@ export function compactWithBundle(
   policy: Policy,
   expanded: ExpandedSnapshot,
 ): Snapshot {
-  const { bundle, expected: expectedByRole } = memoOf(policy);
+  const { bundle, expected: expectedByRole, shared } = memoOf(policy);
   const memberships = expanded.subject.principal?.memberships ?? [];
   const memberAt = new Map<string, number>();
   for (const [at, membership] of memberships.entries()) {
@@ -191,8 +245,15 @@ export function compactWithBundle(
     string,
     { role: string; member: string; at: number[]; canon: string[] }
   >();
+  const sharedAt: number[] = [];
+  const sharedCanon: string[] = [];
   for (const [at, grant] of expanded.grants.entries()) {
     const role = grant.role;
+    if (isShared(grant)) {
+      sharedAt.push(at);
+      sharedCanon.push(canonOf(grant, expanded));
+      continue;
+    }
     if (role === null || !expectedByRole.has(role)) {
       continue;
     }
@@ -204,7 +265,7 @@ export function compactWithBundle(
     const id = `${role}\u0000${member}`;
     const group = groups.get(id) ?? { role, member, at: [], canon: [] };
     group.at.push(at);
-    group.canon.push(canonOf(grant));
+    group.canon.push(canonOf(grant, expanded));
     groups.set(id, group);
   }
   const removed = new Set<number>();
@@ -230,15 +291,31 @@ export function compactWithBundle(
     held.push([group.role, index]);
     digests[group.role] = entry.digest;
   }
-  if (held.length === 0) {
-    return compactSnapshot(expanded);
+  const sharedDigest =
+    shared !== undefined &&
+    bundle.shared !== undefined &&
+    sameList(sharedCanon, shared)
+      ? bundle.shared.digest
+      : undefined;
+  if (sharedDigest !== undefined) {
+    for (const at of sharedAt) {
+      removed.add(at);
+    }
   }
-  const wire: SnapshotStatic = { held, digests };
+  if (held.length === 0 && sharedDigest === undefined) {
+    return compactSnapshot(expanded, undefined, bundle);
+  }
+  const wire: SnapshotStatic = {
+    held,
+    digests,
+    ...(sharedDigest === undefined ? {} : { shared: sharedDigest }),
+  };
   return compactSnapshot(
     {
       ...expanded,
       grants: expanded.grants.filter((_, at) => !removed.has(at)),
     },
     wire,
+    bundle,
   );
 }

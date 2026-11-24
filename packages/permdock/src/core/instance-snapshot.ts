@@ -19,6 +19,7 @@ import {
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames } from "./held-roles.ts";
 import { getResource } from "./permission-registry.ts";
+import { keyHolding } from "./requires-conditions.ts";
 import { audiencesOf } from "./role-rank.ts";
 import {
   collectSnapshotGrants,
@@ -49,6 +50,7 @@ export function snapshotOf(
     readonly include?: SnapshotInclude;
     readonly tenants?: SnapshotTenants;
     readonly omitAssignable?: boolean;
+    readonly maxGrantsPerTenant?: number;
     /** Skips the type-level table, which evaluates every held permission. */
     readonly omitTypeLevel?: boolean;
     readonly simulated?: boolean;
@@ -107,8 +109,18 @@ export function snapshotOf(
               })
             : item,
         ),
+      holding: (key: string) =>
+        keyHolding(
+          policy,
+          subject,
+          key,
+          now,
+          options.customRoles,
+          customGrants,
+        ),
       include: includePrefixes(options.include),
       tenants: options.tenants,
+      maxGrantsPerTenant: options.maxGrantsPerTenant,
       simulated: options.simulated,
       now: Math.floor(now),
       vocabulary: policy.vocabulary,

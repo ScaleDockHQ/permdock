@@ -21,7 +21,7 @@ describe("input guards", () => {
     expect(() => parseSnapshot([])).toThrow(/must be an object/u);
     expect(() =>
       parseSnapshot({
-        v: 1,
+        v: 2,
         issuedAt: "2026-10-13T09:00:00Z",
         conditions: [],
         grants: [],
@@ -32,14 +32,14 @@ describe("input guards", () => {
     expect(hashed.length).toBeGreaterThan(10);
     const issuedAt = "2026-10-13T09:00:00Z";
     expect(
-      parseSnapshot({ v: 1, issuedAt, conditions: [], grants: [] }).v,
-    ).toBe(1);
+      parseSnapshot({ v: 2, issuedAt, conditions: [], grants: [] }).v,
+    ).toBe(2);
     expect(() =>
-      parseSnapshot({ v: 1, issuedAt: 1, conditions: [], grants: [] }),
+      parseSnapshot({ v: 2, issuedAt: 1, conditions: [], grants: [] }),
     ).toThrow(/RFC 3339/u);
     expect(() =>
       parseSnapshot({
-        v: 1,
+        v: 2,
         issuedAt,
         expiresAt: "tomorrow",
         conditions: [],

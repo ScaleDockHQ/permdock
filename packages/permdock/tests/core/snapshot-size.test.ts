@@ -61,8 +61,8 @@ describe("snapshot size", () => {
       return { inline: bytes(build(false)), lean: bytes(build(true)) };
     }
 
-    // Ceilings sit about 20% above the measured size: large admin 765 B
-    // (389 gzip), large mixed 1,425 B (531), CentraKit shape 5,661 B (1,289).
+    // Ceilings sit about 20% above the measured wire v2 size: large admin
+    // 465 B (328 gzip), large mixed 812 B (458), CentraKit shape 1,039 B (524).
     it("keeps the large admin snapshot under 1 KB", () => {
       const { inline, lean } = sizes((omitStatic) =>
         getPermDockSync(policy, adminOf("o0"), { tenant: "o0" }).snapshot({
@@ -71,8 +71,8 @@ describe("snapshot size", () => {
         }),
       );
       expect(inline.raw / lean.raw).toBeGreaterThanOrEqual(20);
-      expect(lean.raw).toBeLessThanOrEqual(920);
-      expect(lean.gzip).toBeLessThanOrEqual(470);
+      expect(lean.raw).toBeLessThanOrEqual(560);
+      expect(lean.gzip).toBeLessThanOrEqual(400);
     });
 
     it("keeps a mixed-role snapshot of all tenants under 1.8 KB", () => {
@@ -84,8 +84,8 @@ describe("snapshot size", () => {
         }),
       );
       expect(inline.raw / lean.raw).toBeGreaterThanOrEqual(15);
-      expect(lean.raw).toBeLessThanOrEqual(1710);
-      expect(lean.gzip).toBeLessThanOrEqual(640);
+      expect(lean.raw).toBeLessThanOrEqual(980);
+      expect(lean.gzip).toBeLessThanOrEqual(550);
     });
 
     it("shrinks the CentraKit-shaped snapshot at least 5 times", () => {
@@ -97,8 +97,8 @@ describe("snapshot size", () => {
         }),
       );
       expect(inline.raw / lean.raw).toBeGreaterThanOrEqual(5);
-      expect(lean.raw).toBeLessThanOrEqual(6800);
-      expect(lean.gzip).toBeLessThanOrEqual(1550);
+      expect(lean.raw).toBeLessThanOrEqual(1250);
+      expect(lean.gzip).toBeLessThanOrEqual(630);
     });
 
     it("ships the active tenant only by default, 17,311 B for the CentraKit shape", () => {
@@ -108,10 +108,11 @@ describe("snapshot size", () => {
       expect(bytes(snapshot).raw).toBeLessThanOrEqual(20_800);
     });
 
-    it("keeps the bundle of the large policy under 31 KB", () => {
+    // 30,487 B (3,031 gzip): the roles, the shared group and the key table.
+    it("keeps the bundle of the large policy under 37 KB", () => {
       const { raw, gzip } = bytes(clientBundle(policy));
-      expect(raw).toBeLessThanOrEqual(31_200);
-      expect(gzip).toBeLessThanOrEqual(2460);
+      expect(raw).toBeLessThanOrEqual(36_600);
+      expect(gzip).toBeLessThanOrEqual(3640);
     });
   });
 });

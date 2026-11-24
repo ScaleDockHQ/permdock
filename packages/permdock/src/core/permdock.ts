@@ -225,6 +225,12 @@ export type SnapshotOptions = {
    * inline. Without the bundle on the client those roles grant nothing.
    */
   readonly omitStatic?: boolean;
+  /**
+   * The most grants one tenant may carry. A tenant over it keeps none and is
+   * listed in `truncated`; the client denies a check there, so it asks the
+   * server.
+   */
+  readonly maxGrantsPerTenant?: number;
   readonly signer?: TokenSigner;
   readonly audience?: string | readonly string[];
 };

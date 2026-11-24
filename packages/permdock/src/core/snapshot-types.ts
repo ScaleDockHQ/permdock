@@ -19,10 +19,10 @@ export type SnapshotTenants = "all" | readonly string[];
 
 /**
  * The flat form the evaluator reads: one entry per grant, each with its full
- * terms. Not public.
+ * terms and membership. `readSnapshot` returns it.
  */
 export type ExpandedSnapshot = {
-  readonly v: 1;
+  readonly v: 2;
   /**
    * RFC 3339. The epoch for a snapshot built without a clock. Signed, it is the
    * token's `iat`.
@@ -106,6 +106,25 @@ export type ExpandedSnapshot = {
    * (a grant `validity`, a membership `expiresAt`) or on the server alone.
    */
   readonly typeLevel?: SnapshotTypeLevel;
+  /**
+   * Tenants whose grants `maxGrantsPerTenant` left out. A check in one denies
+   * with `opaque-condition`, so a client asks the server.
+   */
+  readonly truncated?: readonly string[];
+  /**
+   * Per key a grant's `requires` names, where the subject holds it: `true`
+   * globally, else the `subject.principal.memberships` indexes.
+   */
+  readonly requires?: Readonly<Record<string, true | readonly number[]>>;
+};
+
+/**
+ * A grant's `requires` keys and the `[scope, field]` pairs its placed condition
+ * filters, in partition order.
+ */
+export type SnapshotRequires = {
+  readonly keys: readonly string[];
+  readonly fields: readonly (readonly [scope: string, field: string])[];
 };
 
 /**
@@ -116,13 +135,72 @@ export type ExpandedSnapshot = {
 export type SnapshotGrantTerms = Omit<SnapshotGrant, "permission">;
 
 /**
- * The wire form `snapshot()` returns and every client takes: `conditions` holds
- * each distinct set of grant terms once and a grant is `{ permission, cond }`,
- * `cond` indexing it. `parseSnapshot` validates it; the evaluator expands it
- * into an `ExpandedSnapshot` it alone reads.
+ * Grant terms as the wire writes them: `where` without the condition its
+ * `requires` table places, unless `placed` marks it as already holding it.
  */
-export type Snapshot = Omit<ExpandedSnapshot, "grants"> & {
-  readonly conditions: readonly SnapshotGrantTerms[];
+export type SnapshotWireTerms = SnapshotGrantTerms & { readonly placed?: true };
+
+/**
+ * One grant reference in a wire snapshot: a `conditions` index, or a
+ * `conditions` index with the `subject.principal.memberships` indexes the grant
+ * holds through, one grant per membership in order.
+ */
+export type SnapshotGrantRef =
+  | number
+  | readonly [term: number, memberships: number | readonly number[]];
+
+/**
+ * An `in` or `notIn` value the wire form keeps in `lists`, by index; equal id
+ * lists are written once.
+ */
+export type SnapshotListRef = { readonly list: number };
+
+/** `assignable` as the wire form writes it: permissions index `permissions`. */
+export type SnapshotWireAssignable = Omit<SnapshotAssignable, "permissions"> & {
+  readonly permissions: readonly number[];
+};
+
+/**
+ * The wire form `snapshot()` returns and every client takes, version 2.
+ * `conditions` holds each distinct set of grant terms once, without the
+ * membership; a grant is `{ permission, cond }` and each `cond` reference names
+ * its terms and the memberships it holds through. `parseSnapshot` validates it;
+ * `readSnapshot` expands it into the flat form the evaluator reads.
+ */
+export type Snapshot = Omit<
+  ExpandedSnapshot,
+  "v" | "subject" | "grants" | "assignable" | "typeLevel" | "requires"
+> & {
+  readonly v: 2;
+  readonly subject: Omit<ExpandedSnapshot["subject"], "principal"> & {
+    readonly principal:
+      | (Omit<
+          NonNullable<ExpandedSnapshot["subject"]["principal"]>,
+          "memberships"
+        > & { readonly memberships?: readonly SnapshotWireMembership[] })
+      | null;
+  };
+  /** The membership shapes `[shape, id]` entries index. */
+  readonly shapes?: readonly SnapshotMembershipShape[];
+  /** As in the flat form, or, against a bundle, bit sets over its `keys`. */
+  readonly typeLevel?: SnapshotTypeLevel | SnapshotWireTypeLevel;
+  /**
+   * Per group of keys with the same holding, the membership indexes where the
+   * subject holds them, or `true` for a global hold. A term's `requires`
+   * condition is placed from it.
+   */
+  readonly requires?: readonly (readonly [
+    keys: readonly string[],
+    held: true | readonly number[],
+  ])[];
+  /**
+   * The `digest` of the `ClientBundle` the snapshot leaves its vocabulary,
+   * scopes or key table to. A reader with another bundle refuses it.
+   */
+  readonly bundle?: string;
+  readonly conditions: readonly SnapshotWireTerms[];
+  /** The id lists `{ list: n }` in a condition's `in` value refers to. */
+  readonly lists?: readonly (readonly string[])[];
   /**
    * Grants the snapshot leaves to a `ClientBundle`, built with `omitStatic`.
    * Absent when every grant is inline.
@@ -131,11 +209,37 @@ export type Snapshot = Omit<ExpandedSnapshot, "grants"> & {
   readonly grants: readonly {
     readonly permission: string;
     /**
-     * Indexes into `conditions`: one, or a list for consecutive grants of the
-     * same permission, in grant order.
+     * A `conditions` index, or the references of consecutive grants of one
+     * permission in grant order.
      */
-    readonly cond: number | readonly number[];
+    readonly cond: number | readonly SnapshotGrantRef[];
   }[];
+  /** Every permission an `assignable` entry lists, written once. */
+  readonly permissions?: readonly Permission[];
+  readonly assignable?: readonly SnapshotWireAssignable[];
+};
+
+/** The scope, roles and `via` memberships share; written once per snapshot. */
+export type SnapshotMembershipShape = {
+  readonly scope: string;
+  readonly roles: readonly string[];
+  readonly via?: Membership["via"];
+};
+
+/**
+ * A membership on the wire: `[shape, id]`, or the whole membership when it
+ * carries more than a shape holds.
+ */
+export type SnapshotWireMembership =
+  | readonly [shape: number, id: string]
+  | Membership;
+
+/** `typeLevel` as bit sets over the bundle's `keys`. */
+export type SnapshotWireTypeLevel = {
+  readonly bits: true;
+  readonly granted: string;
+  readonly approval?: string;
+  readonly endpoint?: string;
 };
 
 /**
@@ -148,6 +252,11 @@ export type Snapshot = Omit<ExpandedSnapshot, "grants"> & {
 export type SnapshotStatic = {
   readonly held: readonly (readonly [string, number | null])[];
   readonly digests: Readonly<Record<string, string>>;
+  /**
+   * The digest of the bundle's `shared` grants, when the subject's grants
+   * without a role are exactly those.
+   */
+  readonly shared?: string;
 };
 
 /**
@@ -156,8 +265,24 @@ export type SnapshotStatic = {
  * snapshot. A role's grants are what a holder of only that role receives.
  */
 export type ClientBundle = {
-  readonly v: 1;
-  readonly conditions: readonly SnapshotGrantTerms[];
+  readonly v: 2;
+  readonly conditions: readonly SnapshotWireTerms[];
+  /** The policy's vocabulary; a snapshot built against the bundle omits it. */
+  readonly vocabulary?: ExpandedSnapshot["vocabulary"];
+  /** The policy's scopes; a snapshot built against the bundle omits them. */
+  readonly scopes?: ExpandedSnapshot["scopes"];
+  /** Every permission key of the policy, sorted: the table bit sets index. */
+  readonly keys: readonly string[];
+  /** Pins `vocabulary`, `scopes` and `keys`; a snapshot names it in `bundle`. */
+  readonly digest: string;
+  /**
+   * The grants every signed-in subject holds without a role, as a probe
+   * principal with no role or membership receives them.
+   */
+  readonly shared?: {
+    readonly digest: string;
+    readonly grants: ClientBundle["roles"][string]["grants"];
+  };
   readonly roles: Readonly<
     Record<
       string,
@@ -233,6 +358,11 @@ export type SnapshotGrant = {
   /** A scope name or one resource; absent for a global grant. */
   readonly scope?: string | { readonly resource: string };
   readonly membership?: Membership;
+  /**
+   * The grant's `requires`: `where` ends with the condition placed from where
+   * the subject holds each key (`ExpandedSnapshot.requires`).
+   */
+  readonly requires?: SnapshotRequires;
   readonly portable?: false;
   readonly fields?: readonly string[];
   /**

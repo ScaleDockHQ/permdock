@@ -446,7 +446,7 @@ When better-supabase passes `runtime.seed` (`{ userId, version, subject }`), the
 
 ### One tenant's snapshot
 
-`definePermDock(...).next()` returns `getSnapshot(source, { tenant, omitStatic? })` next to `authorization`, `authorizer` and `versions`. It builds the snapshot of one tenant for a session, a `bsb.bootstrap()` or `bsb.getAccess()` result, or a subject, and lists only that tenant's memberships. A tenant without a membership, or `null`, lists none. A bootstrap that read `permdock_subject(p_tenant)` (the provider's `subjectForTenant`) seeds the subject read:
+`definePermDock(...).next()` returns `getSnapshot(source, { tenant, omitStatic? })` next to `authorization`, `authorizer` and `versions`. It builds the snapshot of one tenant for a session, a `bsb.bootstrap()` or `bsb.getAccess()` result, or a subject: that tenant's grants and the subject's whole membership list, so the client can show its other tenants. A bootstrap that read `permdock_subject(p_tenant)` (the provider's `subjectForTenant`) seeds the subject read:
 
 ```ts title="src/app/layout.tsx"
 const { getSnapshot } = permdock.next();
@@ -457,7 +457,7 @@ const snapshot = await getSnapshot(access, {
 });
 ```
 
-With `omitStatic`, pass the generated `clientBundle` to the provider's `bundle` prop. The snapshot stays 4,832 bytes for a user with 1, 50 or 150 memberships, where the default snapshot of every tenant grows to 12,472 bytes at 150 ([snapshots](/docs/concepts/snapshots)).
+With `omitStatic`, pass the generated `clientBundle` to the provider's `bundle` prop. Each extra membership adds about 40 bytes: on CentraKit's policy the snapshot weighs 1,850 bytes at 12 memberships and 3,383 at 50 ([snapshots](/docs/concepts/snapshots#why)).
 
 ### One instance per version
 

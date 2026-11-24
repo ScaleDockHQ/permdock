@@ -1,11 +1,14 @@
 import type { Permission } from "./permission-types.ts";
 import type { Grant, PolicyVocabulary } from "./policy-types.ts";
+import type { SnapshotGrantItem } from "./snapshot-grants.ts";
+import type { KeyHolding } from "./snapshot-requires.ts";
 import type {
   ExpandedSnapshot,
   Snapshot,
   SnapshotAssignable,
   SnapshotGrant,
   SnapshotNotEntitled,
+  SnapshotRequires,
   SnapshotTenants,
 } from "./snapshot-types.ts";
 import type { Delegation, Membership, Subject } from "./subject.ts";
@@ -16,7 +19,8 @@ import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { scopeList, tenantOf } from "./scopes.ts";
-import { expandGrants } from "./snapshot-compact.ts";
+import { checkHeader, expandGrants } from "./snapshot-compact.ts";
+import { requiresTable } from "./snapshot-requires.ts";
 import { tenantsOf } from "./tenancy.ts";
 import { isRfc3339, nowSeconds, rfc3339 } from "./time.ts";
 import { wireValidity } from "./validity.ts";
@@ -51,6 +55,7 @@ function plainPlan(leaf: Plan): Plan {
 export function snapshotGrant(
   grant: Grant,
   membership: Membership | undefined,
+  requires?: SnapshotRequires,
 ): SnapshotGrant {
   const scope =
     grant.scope === "global"
@@ -68,6 +73,7 @@ export function snapshotGrant(
     approval: grant.approval,
     scope,
     membership,
+    requires: grant.portable ? requires : undefined,
     portable: grant.portable ? undefined : false,
     fields: grant.fields,
     validity: wireValidity(grant.validity),
@@ -131,16 +137,64 @@ function notEntitledOf(
   return seen.size === 0 ? undefined : [...seen.values()];
 }
 
+/** Tenants holding more than `limit` grants through their memberships. */
+function overLimit(
+  items: readonly { readonly membership?: Membership }[],
+  scopes: ReturnType<typeof scopeList>,
+  limit: number | undefined,
+): ReadonlySet<string> {
+  if (limit === undefined) {
+    return new Set();
+  }
+  if (!Number.isSafeInteger(limit) || limit < 0) {
+    throw new TypeError(
+      `PermDock: maxGrantsPerTenant must be a non-negative integer, got ${String(limit)}`,
+    );
+  }
+  const counts = new Map<string, number>();
+  for (const { membership } of items) {
+    const tenant =
+      membership === undefined ? undefined : tenantOf(membership, scopes);
+    if (tenant !== undefined) {
+      counts.set(tenant, (counts.get(tenant) ?? 0) + 1);
+    }
+  }
+  return new Set(
+    [...counts].filter(([, count]) => count > limit).map(([tenant]) => tenant),
+  );
+}
+
+/** The roles and plans of a vocabulary as plain JSON; absent when it has none. */
+export function snapshotVocabulary(
+  vocabulary: PolicyVocabulary | undefined,
+): ExpandedSnapshot["vocabulary"] {
+  if (vocabulary === undefined) {
+    return undefined;
+  }
+  const roles = listRoles(vocabulary.roles);
+  const plans = listPlans(vocabulary.plans);
+  return compact<NonNullable<ExpandedSnapshot["vocabulary"]>>({
+    roles:
+      roles.length === 0
+        ? undefined
+        : Object.fromEntries(roles.map((leaf) => [leaf.key, plainRole(leaf)])),
+    plans:
+      plans.length === 0
+        ? undefined
+        : Object.fromEntries(plans.map((leaf) => [leaf.key, plainPlan(leaf)])),
+  });
+}
+
 export function buildSnapshot(input: {
   readonly subject: Subject;
   readonly roles: readonly string[];
   readonly audiences?: readonly string[];
-  readonly grants: readonly {
-    readonly grant: Grant;
-    readonly membership?: Membership;
-  }[];
+  readonly grants: readonly SnapshotGrantItem[];
+  /** Where the subject holds a key a grant `requires`. */
+  readonly holding?: (key: string) => KeyHolding;
   readonly include?: readonly string[];
   readonly tenants?: SnapshotTenants | undefined;
+  readonly maxGrantsPerTenant?: number | undefined;
   readonly simulated?: boolean;
   readonly now?: number;
   readonly vocabulary?: PolicyVocabulary;
@@ -186,12 +240,29 @@ export function buildSnapshot(input: {
     const tenant = tenantOf(membership, scopes);
     return tenant === undefined || shown.has(tenant);
   };
-  const grants = input.grants
+  const kept = input.grants
     .filter((item) => listed(item.membership))
-    .filter((item) => included(item.grant.permission))
+    .filter((item) => included(item.grant.permission));
+  const truncated = overLimit(kept, scopes, input.maxGrantsPerTenant);
+  const grants = kept
+    .filter((item) => {
+      const tenant =
+        item.membership === undefined
+          ? undefined
+          : tenantOf(item.membership, scopes);
+      return tenant === undefined || !truncated.has(tenant);
+    })
     .map((item) =>
-      bindClaims(snapshotGrant(item.grant, item.membership), input.subject),
+      bindClaims(
+        snapshotGrant(item.grant, item.membership, item.requires),
+        input.subject,
+      ),
     );
+  const requires = requiresTable(
+    grants,
+    principal?.memberships ?? [],
+    input.holding,
+  );
   const ids: Record<string, string> = {};
   for (const item of input.grants) {
     const name = item.grant.permission.resource;
@@ -228,7 +299,7 @@ export function buildSnapshot(input: {
         });
   const snapshot = freezeDeep(
     compact<ExpandedSnapshot>({
-      v: 1 as const,
+      v: 2 as const,
       issuedAt: rfc3339(now),
       subject: compact<ExpandedSnapshot["subject"]>({
         principal:
@@ -251,6 +322,8 @@ export function buildSnapshot(input: {
       grants,
       tenants,
       include,
+      truncated: truncated.size === 0 ? undefined : [...truncated].toSorted(),
+      requires,
       simulated: input.simulated === true ? true : undefined,
       expiresAt:
         input.subject.expiresAt === undefined
@@ -270,29 +343,7 @@ export function buildSnapshot(input: {
           included(item.grant.permission),
         ),
       ),
-      vocabulary:
-        input.vocabulary === undefined
-          ? undefined
-          : compact<NonNullable<ExpandedSnapshot["vocabulary"]>>({
-              roles:
-                listRoles(input.vocabulary.roles).length === 0
-                  ? undefined
-                  : Object.fromEntries(
-                      listRoles(input.vocabulary.roles).map((leaf) => [
-                        leaf.key,
-                        plainRole(leaf),
-                      ]),
-                    ),
-              plans:
-                listPlans(input.vocabulary.plans).length === 0
-                  ? undefined
-                  : Object.fromEntries(
-                      listPlans(input.vocabulary.plans).map((leaf) => [
-                        leaf.key,
-                        plainPlan(leaf),
-                      ]),
-                    ),
-            }),
+      vocabulary: snapshotVocabulary(input.vocabulary),
     }),
   );
   return snapshot;
@@ -356,11 +407,21 @@ function validTypeLevel(value: unknown): boolean {
   }
   // SAFETY: a non-array object checked above; each field is checked next.
   const record = value as Record<string, unknown>;
+  const valid =
+    record["bits"] === true
+      ? (item: unknown): boolean =>
+          typeof item === "string" && /^[\w-]*$/u.test(item)
+      : isKeyList;
   return (
-    isKeyList(record["granted"]) &&
-    (record["approval"] === undefined || isKeyList(record["approval"])) &&
-    (record["endpoint"] === undefined || isKeyList(record["endpoint"]))
+    (record["bits"] === undefined || record["bits"] === true) &&
+    valid(record["granted"]) &&
+    (record["approval"] === undefined || valid(record["approval"])) &&
+    (record["endpoint"] === undefined || valid(record["endpoint"]))
   );
+}
+
+function isDigest(value: unknown): boolean {
+  return typeof value === "string" && value.startsWith("sha-256:");
 }
 
 function validStatic(value: unknown, memberships: number): boolean {
@@ -391,9 +452,8 @@ function validStatic(value: unknown, memberships: number): boolean {
         (item[1] === null ||
           (Number.isInteger(item[1]) && item[1] >= 0 && item[1] < memberships)),
     ) &&
-    Object.values(digests).every(
-      (digest) => typeof digest === "string" && digest.startsWith("sha-256:"),
-    )
+    Object.values(digests).every(isDigest) &&
+    (record["shared"] === undefined || isDigest(record["shared"]))
   );
 }
 
@@ -418,7 +478,7 @@ export function parseSnapshot(json: unknown): Snapshot {
   // SAFETY: value is a non-array object; its fields stay unknown until checked.
   const record = value as Record<string, unknown>;
   const version = record["v"];
-  if (version !== 1) {
+  if (version !== 2) {
     throw new Error(
       `PermDock: unsupported snapshot version '${String(version)}'`,
     );
@@ -441,6 +501,9 @@ export function parseSnapshot(json: unknown): Snapshot {
     throw new Error(
       "PermDock: snapshot authzVersion must be a non-negative integer and sessionId a string",
     );
+  }
+  if (record["bundle"] !== undefined && !isDigest(record["bundle"])) {
+    throw new Error("PermDock: snapshot bundle must be a sha-256 digest");
   }
   if (!validTypeLevel(record["typeLevel"])) {
     throw new Error(
@@ -466,8 +529,10 @@ export function parseSnapshot(json: unknown): Snapshot {
       "PermDock: snapshot static must list [role, membership index] pairs and sha-256 digests",
     );
   }
-  // Reading the grants checks every `cond` index now, so a malformed document never parses.
+  // Reading the grants and assignable checks every index now, so a malformed document never parses.
   expandGrants(record);
+  // SAFETY: the grants above parsed; checkHeader reads the memberships, requires and assignable and throws on a bad index.
+  checkHeader(record as Snapshot);
   // SAFETY: the version, times, typeLevel, unsafe keys and grant indexes are checked; the other fields are not validated here.
   return freezeDeep(value) as Snapshot;
 }

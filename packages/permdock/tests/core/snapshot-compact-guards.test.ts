@@ -5,7 +5,7 @@ import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 
 const base = {
-  v: 1,
+  v: 2,
   issuedAt: "1970-01-01T00:00:00Z",
   subject: { principal: null, context: {} },
   roles: [],

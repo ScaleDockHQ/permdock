@@ -654,6 +654,8 @@ export type PolicyIndex = {
 export type BundleMemo = {
   readonly bundle: ClientBundle;
   readonly expected: ReadonlyMap<string, readonly string[]>;
+  /** The canon of the bundle's shared group, in grant order. */
+  readonly shared?: readonly string[];
 };
 
 export type GrantCondition<T, K extends PermissionKind> = K extends "collection"

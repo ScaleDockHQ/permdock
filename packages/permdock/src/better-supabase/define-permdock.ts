@@ -24,7 +24,6 @@ import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 import { definePermDock as defineApp } from "../app/define-permdock.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { getPermDock } from "../core/permdock.ts";
-import { listedTenantSnapshot } from "../core/snapshot-tenant.ts";
 import { ownedCaches, withMembers } from "../supabase/app-members.ts";
 import { subjectFromSupabaseClient } from "../supabase/client-subject.ts";
 import { SUPABASE_OPTIONS } from "../supabase/definition-options.ts";
@@ -265,7 +264,7 @@ export function definePermDock<
               omitAssignable: query.omitAssignable,
               omitStatic: query.omitStatic,
             });
-          return listedTenantSnapshot(permdock.snapshot(built));
+          return permdock.snapshot(built);
         },
       };
     },

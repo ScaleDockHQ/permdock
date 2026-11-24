@@ -16,6 +16,7 @@ import {
 import { policyDocumentFromClaims } from "../../src/core/hosted.ts";
 import { signPolicyDocument } from "../../src/core/policy-sign.ts";
 import { signDecisionBatch } from "../../src/core/sink.ts";
+import { snapshotFor } from "../../src/core/snapshot-for.ts";
 import {
   signSnapshot,
   snapshotClaims,
@@ -24,6 +25,14 @@ import {
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { CONNECTOR_SCHEMA } from "../../src/delivery/connector-schema.ts";
 import { parseConnector } from "../../src/delivery/connector.ts";
+import {
+  allow,
+  authenticated,
+  definePermissions,
+  definePolicy,
+  resource,
+  role,
+} from "../../src/index.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { signRunTicket } from "../../src/server/run-ticket.ts";
 import { signSupportSession } from "../../src/server/support-session.ts";
@@ -134,8 +143,40 @@ describe("schemas/*.json", () => {
   });
 });
 
-describe("snapshot-v1.json", () => {
-  const check = validator("snapshot-v1.json");
+const leanPermissions = definePermissions({
+  doc: resource({
+    actions: ["read", "share"],
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
+  }),
+});
+
+const leanPolicy = definePolicy(leanPermissions, {
+  scopes: { tenant: { key: "orgId" } },
+  roles: [role("member", [allow(leanPermissions.doc.read)], { on: "tenant" })],
+  grants: [
+    allow(leanPermissions.doc.share, {
+      to: authenticated(),
+      requires: leanPermissions.doc.read,
+    }),
+  ],
+  subject: (user: {
+    readonly id: string;
+    readonly tenant: string;
+    readonly orgs: readonly string[];
+  }) => ({
+    id: user.id,
+    roles: [],
+    tenant: user.tenant,
+    memberships: user.orgs.map((id) => ({
+      scope: "tenant",
+      id,
+      roles: ["member"],
+    })),
+  }),
+});
+
+describe("snapshot-v2.json", () => {
+  const check = validator("snapshot-v2.json");
 
   it("accepts the snapshot fixture and a snapshot read back from its token", () => {
     expect(
@@ -148,6 +189,23 @@ describe("snapshot-v1.json", () => {
     expect(
       check(snapshotFromClaims(claimsOf(jwtFixtureTokens.snapshot))),
     ).toStrictEqual([]);
+  });
+
+  it("accepts a lean snapshot with shapes, requires, bundle bits and shared grants", () => {
+    const { doc } = leanPermissions;
+    const lean = snapshotFor(
+      leanPolicy,
+      { id: "u1", tenant: "o1", orgs: ["o1", "o2"] },
+      { tenant: "o1", tenants: "all", omitStatic: true },
+    );
+    expect(lean).toMatchObject({
+      shapes: [{ scope: "tenant", roles: ["member"] }],
+      requires: [[[doc.read.key], [0, 1]]],
+      bundle: expect.stringMatching(/^sha-256:/u),
+      typeLevel: { bits: true },
+      static: { shared: expect.stringMatching(/^sha-256:/u) },
+    });
+    expect(check(JSON.parse(JSON.stringify(lean)))).toStrictEqual([]);
   });
 
   it("snapshotClaims are the claims signSnapshot signs and snapshotFromClaims reads back", async () => {

@@ -423,7 +423,7 @@ export function buildLocalSnapshot(
   const rules = manifest.assignable;
   return compactSnapshot(
     compact<ExpandedSnapshot>({
-      v: 1 as const,
+      v: 2 as const,
       issuedAt: rfc3339(now),
       subject: { principal, context: {} },
       roles,

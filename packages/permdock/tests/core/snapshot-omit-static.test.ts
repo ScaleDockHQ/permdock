@@ -350,7 +350,9 @@ describe("snapshot omitStatic", () => {
         "secret",
       );
       expect(
-        expandSnapshot(lean).grants.some((grant) => grant.role === "secret"),
+        expandSnapshot(lean, { bundle: clientBundle(claimed) }).grants.some(
+          (grant) => grant.role === "secret",
+        ),
       ).toBe(true);
     });
   });

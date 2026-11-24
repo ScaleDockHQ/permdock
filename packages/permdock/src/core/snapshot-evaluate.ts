@@ -290,7 +290,11 @@ export function evaluateSnapshot(
       why,
     });
   };
-  if (!coveredByInclude(snapshot, permission)) {
+  const tenant = subject.principal?.tenant;
+  if (
+    !coveredByInclude(snapshot, permission) ||
+    (tenant !== undefined && snapshot.truncated?.includes(tenant) === true)
+  ) {
     return done({
       outcome: "denied",
       denials: [{ role: null, reason: "opaque-condition" }],

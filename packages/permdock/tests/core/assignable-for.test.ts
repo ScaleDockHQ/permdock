@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assignableFor, snapshotFor } from "../../src/index.ts";
+import { assignableFor, readSnapshot, snapshotFor } from "../../src/index.ts";
 import { alice, policy } from "../fixtures/saas.ts";
 
 describe(assignableFor, () => {
@@ -9,7 +9,9 @@ describe(assignableFor, () => {
       tenant: "acme",
       tenants: "all",
     });
-    const entry = snapshot.assignable?.find((item) => item.tenant === "acme");
+    const entry = readSnapshot(snapshot).assignable?.find(
+      (item) => item.tenant === "acme",
+    );
     expect(assignableFor(policy, alice, { tenant: "acme" })).toStrictEqual(
       entry,
     );

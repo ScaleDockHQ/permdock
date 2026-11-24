@@ -224,7 +224,11 @@ export type {
 } from "./core/version-cache.ts";
 export type {
   ClientBundle,
+  ExpandedSnapshot,
+  SnapshotGrantRef,
+  SnapshotListRef,
   SnapshotStatic,
+  SnapshotWireAssignable,
   LocalCustomRoleTable,
   LocalMembershipRows,
   LocalRowColumn,
@@ -263,6 +267,7 @@ export type {
 } from "./core/arazzo.ts";
 export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
 export { clientBundle } from "./core/client-bundle.ts";
+export { readSnapshot } from "./core/snapshot-compact.ts";
 export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { parseLocalSnapshotManifest } from "./core/parse-local-manifest.ts";
 export {

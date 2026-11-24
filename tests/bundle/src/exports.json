@@ -146,6 +146,7 @@
     "policyDocumentFromClaims",
     "postgresCacheVersionStore",
     "principal",
+    "readSnapshot",
     "readable",
     "relation",
     "requiredPlans",

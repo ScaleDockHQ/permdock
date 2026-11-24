@@ -51,7 +51,7 @@ describe(snapshotFor, () => {
     const actual = snapshotFor(policy, alice, {
       tenant: "acme",
       now: Temporal.Instant.from(expected.issuedAt),
-      v: 1,
+      v: 2,
     });
     expect(actual).toStrictEqual(expected);
   });
@@ -150,7 +150,7 @@ describe(snapshotFor, () => {
   });
 
   it("builds an anonymous snapshot for a null user", () => {
-    const snapshot = snapshotFor(policy, null, { v: 1 });
+    const snapshot = snapshotFor(policy, null, { v: 2 });
     expect(snapshot.subject.principal).toBeNull();
     expect(
       expandSnapshot(snapshot).grants.filter(
@@ -159,11 +159,11 @@ describe(snapshotFor, () => {
     ).toStrictEqual([]);
   });
 
-  it("refuses a wire version it does not write", () => {
-    // SAFETY: deliberately a version that does not exist, which snapshotFor must refuse.
-    const v2 = 2 as unknown as 1;
-    expect(() => snapshotFor(policy, alice, { v: v2 })).toThrow(
-      /version 1 only/u,
+  it("refuses a wire version it does not write, v 1 included", () => {
+    // SAFETY: deliberately the dropped version, which snapshotFor must refuse.
+    const v1 = 1 as unknown as 2;
+    expect(() => snapshotFor(policy, alice, { v: v1 })).toThrow(
+      /version 2 only/u,
     );
   });
 

@@ -377,7 +377,7 @@ A tenant switch is a new `source` (and `PermDockProvider` reconnects to it); bui
 
 ## What it validates
 
-- The persisted snapshot against the snapshot v1 schema before use. A snapshot written by an older app version that fails validation is discarded and refetched rather than trusted.
+- The persisted snapshot against the snapshot v2 schema before use. A snapshot written by an older app version, a v1 snapshot included, fails validation and is discarded and refetched rather than trusted.
 - The snapshot's principal id against `subjectId`, which the provider requires (`null` when signed out). A mismatch clears the stored snapshot and tenant, and is treated as empty storage.
 - Nothing else client-side. As on the web, on-device answers are UI hints; every mutation is re-checked by the API.
 

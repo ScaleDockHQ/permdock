@@ -510,9 +510,10 @@ describe("hooks", () => {
       const info = vi
         .spyOn(console, "info")
         .mockImplementation(() => undefined);
+      const expanded = expandSnapshot(snapshot);
       const closure: Snapshot = compactSnapshot({
-        ...snapshot,
-        grants: expandSnapshot(snapshot).grants.map((grant) =>
+        ...expanded,
+        grants: expanded.grants.map((grant) =>
           grant.permission === "post.update" || grant.permission === "post.read"
             ? {
                 permission: grant.permission,

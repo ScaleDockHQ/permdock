@@ -49,7 +49,12 @@ export function typeLevelOf(
   policy: Policy,
   snapshot: ExpandedSnapshot,
 ): SnapshotTypeLevel | undefined {
-  if (clockDependent(snapshot)) {
+  const tenant = snapshot.subject.principal?.tenant;
+  // A truncated tenant has no grants to answer from; its checks go to the server.
+  if (
+    clockDependent(snapshot) ||
+    (tenant !== undefined && snapshot.truncated?.includes(tenant) === true)
+  ) {
     return undefined;
   }
   const granted: string[] = [];
