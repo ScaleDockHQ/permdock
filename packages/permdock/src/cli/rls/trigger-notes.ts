@@ -34,6 +34,9 @@ function reasonOf(name: string): string {
   if (name === "permdock_custom_role_name_guard") {
     return "customRoleWrites.roles: a tenant role cannot take a declared or shared role's name";
   }
+  if (name === "permdock_custom_role_system_guard") {
+    return "customRoleWrites.roles: a signed-in caller cannot mark a role as a system role or rename one";
+  }
   if (name === "permdock_custom_role_cascade") {
     return "customRoleWrites.roles: a rename or delete of a role carries its grants";
   }

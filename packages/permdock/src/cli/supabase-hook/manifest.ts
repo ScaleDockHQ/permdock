@@ -232,9 +232,11 @@ function trustedHelpers(
           ),
           helperEntry(
             REQUEST_APPROVER_IDS,
-            config.rls.approvals.managers.tenant === undefined
-              ? "p_requester uuid"
-              : `p_requester uuid, p_tenant ${tenantType}`,
+            `${
+              config.rls.approvals.managers.tenant === undefined
+                ? "p_requester uuid"
+                : `p_requester uuid, p_tenant ${tenantType}`
+            }${config.rls.approvals.delegations === true ? ", p_resource text" : ""}`,
             "setof uuid",
             client,
           ),

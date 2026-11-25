@@ -77,6 +77,30 @@ describe("a tenant row named like a declared role", () => {
     );
   });
 
+  it("lets only trusted SQL mark, rename or move a skipped row", () => {
+    const sql = customRoleNameGuardSql(
+      ctx({
+        customRoles: {
+          declared: ["owner"],
+          assignable: [],
+          table: { ...table, skip: "is_system" },
+        },
+      }),
+    );
+    expect(sql).toContain(
+      `create trigger "permdock_custom_role_system_guard"\n  before insert or update on "public"."app_roles"`,
+    );
+    expect(sql).toContain("security invoker");
+    expect(sql).toContain(
+      "current_user::text = any(array['anon', 'anonymous', 'authenticated'])",
+    );
+    expect(sql).toContain("hint = 'system-role'");
+    expect(sql).toContain(
+      'revoke execute on function "permdock".permdock_custom_role_system_guard() from public, anon, authenticated;',
+    );
+    expect(customRoleNameGuardSql(ctx())).not.toContain("system_guard");
+  });
+
   it("emits no trigger without a tenant column", () => {
     expect(
       customRoleNameGuardSql(

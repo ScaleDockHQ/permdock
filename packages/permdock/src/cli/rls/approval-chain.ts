@@ -23,10 +23,11 @@ export const MANAGED_ROW_IDS = "permdock_managed_row_ids";
 export const ACCESSIBLE_ROW_IDS = "permdock_accessible_row_ids";
 
 /**
- * `permdock_request_approver_ids(p_requester, p_tenant)`: the requester's
- * managers up the chain, at most `MAX_MANAGER_LEVELS` steps, plus each delegate
- * inside an active cover of one of them. The requester is never in the set.
- * With a self-referencing manager table the row helpers follow.
+ * `permdock_request_approver_ids(p_requester, p_tenant, p_resource)`: the
+ * requester's managers up the chain, at most `MAX_MANAGER_LEVELS` steps, plus
+ * each delegate inside an active cover of one of them for that tenant and
+ * resource. The requester is never in the set. With a self-referencing manager
+ * table the row helpers follow.
  */
 export function approvalChainSql(
   ctx: RlsSqlContext,
@@ -37,15 +38,27 @@ export function approvalChainSql(
   const user = userTypeOf(ctx);
   const tenantType = tenantTypeOf(ctx);
   const fn = qualified(ctx, REQUEST_APPROVER_IDS);
-  const argTypes = edges.tenant === undefined ? user : `${user}, ${tenantType}`;
-  const args =
+  const oldArgTypes =
+    edges.tenant === undefined ? user : `${user}, ${tenantType}`;
+  const argTypes = delegations ? `${oldArgTypes}, text` : oldArgTypes;
+  const args = `${
     edges.tenant === undefined
       ? `p_requester ${user}`
-      : `p_requester ${user}, p_tenant ${tenantType}`;
+      : `p_requester ${user}, p_tenant ${tenantType}`
+  }${delegations ? ", p_resource text default null" : ""}`;
   const edgeTenant = (alias: string): string =>
     edges.tenant === undefined
       ? ""
       : `\n      and ${alias}.${edges.tenant} = p_tenant`;
+  // A cover counts in the request's tenant and resource only, and never one
+  // limited to permissions; without p_resource only a cover for every resource.
+  const coverScope = `${
+    edges.tenant === undefined
+      ? "\n    and d.tenant is null"
+      : "\n    and (d.tenant is null or d.tenant::text = p_tenant::text)"
+  }
+    and d.permissions is null
+    and (d.resources is null or p_resource = any (d.resources))`;
   const covers = delegations
     ? `
   union
@@ -54,11 +67,11 @@ export function approvalChainSql(
   join up u on u.id = d.delegator
   where d."from" <= now()
     and d."until" > now()
-    and d.delegate <> p_requester`
+    and d.delegate <> p_requester${coverScope}`
     : "";
   const chain = `
 -- approval managers: who may decide a request of p_requester, the managers up the chain and their active covers
-create or replace function ${fn}(${args})
+${delegations ? `drop function if exists ${fn}(${oldArgTypes});\n` : ""}create or replace function ${fn}(${args})
 returns setof ${user}
 language sql
 stable

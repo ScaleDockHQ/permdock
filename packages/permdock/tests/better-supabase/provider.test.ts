@@ -938,6 +938,26 @@ describe(authorizationProvider, () => {
     );
   });
 
+  it("passes the request kind's resource to a cover-aware approverFor", () => {
+    const provider = authorizationProvider({
+      manifest: withRls({
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          {
+            name: "permdock_request_approver_ids",
+            args: "p_requester uuid, p_tenant uuid, p_resource text DEFAULT NULL::text",
+            returns: "setof uuid",
+            execute: ["authenticated"],
+          },
+        ],
+      }),
+      catalog: emptyCatalog,
+    });
+    expect(provider.functions.approverFor).toBe(
+      "permdock.permdock_request_approver_ids({requester}, {tenant}, pg_catalog.split_part({kind}, '.', 1))",
+    );
+  });
+
   it("leaves managedUsers out for a manager table without a tenant column", () => {
     const provider = authorizationProvider({
       manifest: withRls({

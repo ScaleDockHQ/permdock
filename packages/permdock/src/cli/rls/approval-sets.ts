@@ -16,9 +16,11 @@ export const MANAGED_USER_IDS = "permdock_managed_user_ids";
 /**
  * Sets a policy uses to decide an approval in SQL. `permdock_approver_for_ids`
  * is the caller and, with delegations, each active delegator, one hop and no
- * further. `permdock_managed_user_ids` walks down the manager table from the
- * caller. Neither set contains the caller as someone they manage, and a
- * decision still refuses the requester: compare the set with `id <>
+ * further, through a cover for every tenant, permission and resource only; its
+ * two-argument form \`(p_tenant, p_resource)\` also follows a cover for that
+ * tenant and resource. `permdock_managed_user_ids` walks down the manager table
+ * from the caller. Neither set contains the caller as someone they manage, and
+ * a decision still refuses the requester: compare the set with `id <>
  * <requester>`.
  */
 export function approvalSetsSql(
@@ -31,15 +33,45 @@ export function approvalSetsSql(
   const me = subjectIdSql(ctx);
   const user = userTypeOf(ctx);
   const approvers = qualified(ctx, APPROVER_FOR_IDS);
-  const covers = options.delegations
-    ? `
+  const cover = (tenant: string, resource: string): string => `
   union
   select d.delegator
   from ${qualified(ctx, "approval_delegations")} d
   where d.delegate = ${me}
     and d."from" <= now()
     and d."until" > now()
-    and d.delegator <> ${me}`
+    and d.delegator <> ${me}
+    and ${tenant}
+    and d.permissions is null
+    and ${resource}`;
+  const covers = options.delegations
+    ? cover("d.tenant is null", "d.resources is null")
+    : "";
+  // The same set inside one tenant and for one resource: a cover counts in its
+  // own tenant and for a resource it lists; a null p_resource takes only a
+  // cover for every resource.
+  const scoped = options.delegations
+    ? `
+-- approvers in a tenant and for a resource: the caller, plus each delegator whose active cover matches them
+create or replace function ${approvers}(p_tenant text, p_resource text)
+returns setof ${user}
+language sql
+stable
+security definer
+cost 100
+rows 5
+parallel safe
+set search_path = ''
+as $$
+  select ${me}
+  where ${me} is not null${cover(
+    "(d.tenant is null or d.tenant::text = p_tenant)",
+    "(d.resources is null or p_resource = any (d.resources))",
+  )}
+$$;
+revoke execute on function ${approvers}(text, text) from public, anon;
+grant execute on function ${approvers}(text, text) to authenticated;
+`
     : "";
   const managed =
     options.managers === undefined ? "" : managedSql(ctx, options.managers, me);
@@ -60,7 +92,7 @@ as $$
 $$;
 revoke execute on function ${approvers}() from public, anon;
 grant execute on function ${approvers}() to authenticated;
-${managed}`;
+${scoped}${managed}`;
 }
 
 function managedSql(
