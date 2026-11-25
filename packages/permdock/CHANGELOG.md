@@ -1,5 +1,19 @@
 # permdock
 
+## 0.33.0
+
+### Minor Changes
+
+- [#371](https://github.com/ScaleDockHQ/permdock/pull/371) [`a03b4cb`](https://github.com/ScaleDockHQ/permdock/commit/a03b4cb0361e33aba21e92f45852f4ca1605699d) Thanks [@mick340](https://github.com/mick340)! - `permdock_request_approver_ids` and `permdock_approver_for_ids` follow a cover's `tenant`, `resources` and `permissions`, so a cover limited to one kind of request, one tenant or some permissions no longer makes the delegate an approver of every request. `permdock_request_approver_ids` takes an optional `p_resource`, and `authorizationProvider` passes the request kind's resource to it; rerun `permdock rls generate` and `permdock supabase inspect --out`.
+
+- [#371](https://github.com/ScaleDockHQ/permdock/pull/371) [`0268100`](https://github.com/ScaleDockHQ/permdock/commit/02681009b74cb298f53a69f3a7db02082839de46) Thanks [@mick340](https://github.com/mick340)! - `permdock_approver_for_ids(p_tenant, p_resource)` follows the covers of one tenant and resource, next to the argument-less form, which since the cover scope fix follows only covers with no tenant, resources or permissions. Upgrade notes: a policy that relied on `permdock_approver_for_ids()` for tenant covers should call the two-argument form. `permdock_request_approver_ids` gained `p_resource`, and the generated SQL drops the old signature first, so drop or recreate a policy or view that calls `permdock_request_approver_ids(p_requester, p_tenant)` in the same migration.
+
+### Patch Changes
+
+- [#371](https://github.com/ScaleDockHQ/permdock/pull/371) [`2ddc511`](https://github.com/ScaleDockHQ/permdock/commit/2ddc511cd07ee9286ae8ab937a7005bfadb7a2be) Thanks [@mick340](https://github.com/mick340)! - With `rls.customRoleWrites.roles.skip` set, `permdock rls generate` writes `permdock_custom_role_system_guard`, which refuses a signed-in caller that marks a role row as a system role or renames or moves one (`system-role`). Before, the name guard trusted the flag, so a tenant who could edit role rows could mark a custom role it holds as a system role and rename it to `owner`. Rerun `permdock rls generate`.
+
+- [#371](https://github.com/ScaleDockHQ/permdock/pull/371) [`04c20b2`](https://github.com/ScaleDockHQ/permdock/commit/04c20b2b81b2ebb04ef3c871e9f96b372be1b4d7) Thanks [@mick340](https://github.com/mick340)! - `permdock supabase inspect` lists `p_resource` on `permdock_request_approver_ids` when delegations are on, so `authorizationProvider` requires the function with its real signature and passes the request kind's resource to it, and it lists `pg_catalog.split_part` among the functions the template calls.
+
 ## 0.32.0
 
 ### Minor Changes
