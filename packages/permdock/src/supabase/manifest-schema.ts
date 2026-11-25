@@ -302,6 +302,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
             properties: {
               name: { type: "string" },
               keyArgument: { type: "string" },
+              keyPosition: { type: "integer", minimum: 0 },
               tenantArgument: { type: "string" },
             },
           },

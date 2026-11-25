@@ -396,6 +396,11 @@ export type SupabaseManifestTenantHelper = {
   readonly name: string;
   /** The argument that holds the permission or grant key (`text` or `text[]`). */
   readonly keyArgument: string;
+  /**
+   * The zero-based position of `keyArgument`, which better-supabase's
+   * `permissionFilters` names. Absent from a manifest written before 0.33.
+   */
+  readonly keyPosition?: number;
   /** The argument that holds the tenant id; it must be the entry's tenant. */
   readonly tenantArgument: string;
 };

@@ -288,6 +288,26 @@ function tableReads(cwd: string): Json {
   };
 }
 
+const PAYLOAD_PATTERN = "public.*_payload";
+
+/**
+ * `inspect --functions public.*_payload` on the copy: each page payload
+ * function with a pass or every reason it is not shared.
+ */
+function payloadFunctions(cwd: string): Json {
+  const { data } = permdock(
+    ["supabase", "inspect", "--functions", PAYLOAD_PATTERN, "--json"],
+    cwd,
+  );
+  if (!isRecord(data) || !Array.isArray(data["functions"])) return {};
+  return {
+    pattern: PAYLOAD_PATTERN,
+    count: data["functions"].length,
+    passed: data["passed"],
+    functions: data["functions"],
+  };
+}
+
 function findings(data: unknown, codes: readonly string[]): Json {
   const list =
     isRecord(data) && Array.isArray(data["findings"]) ? data["findings"] : [];
@@ -418,6 +438,7 @@ async function dryRun(source: string, root: string): Promise<void> {
       committedToBranch: diff(committed, generated),
       codemods: diff(generated, codemodded),
     },
+    functions: payloadFunctions(identity),
     ...database,
     steps,
   };

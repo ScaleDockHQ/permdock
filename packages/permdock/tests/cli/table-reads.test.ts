@@ -196,6 +196,46 @@ create policy migrated_read on public.migrated for select to authenticated
     );
   });
 
+  it("prints a pass or every reason a function is not shared", async () => {
+    const cwd = project();
+    writeFileSync(
+      join(cwd, "supabase/schemas/fn.sql"),
+      `create function public.a_payload() returns numeric language sql stable as $$ select count(*) from public.invoices $$;
+create function public.b_payload() returns numeric language sql stable as $$ select count(*) from public.profiles $$;
+create function public.c_payload() returns numeric language sql as $$ select count(*) from public.invoices $$;
+create function public.d_payload() returns numeric language sql stable as $$ select auth.uid()::text::numeric from public.invoices $$;
+create function public.other() returns numeric language sql stable as $$ select count(*) from public.invoices $$;
+`,
+    );
+    const result = await run(
+      ["supabase", "inspect", "--functions", "public.*_payload", "--json"],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    const { data } = JSON.parse(result.stdout);
+    expect(data.passed).toBe(1);
+    const reasons = Object.fromEntries(
+      data.functions.map((entry: { function: string; reasons: string[] }) => [
+        entry.function,
+        entry.reasons.join(" | "),
+      ]),
+    );
+    expect(Object.keys(reasons)).toStrictEqual([
+      "public.a_payload",
+      "public.b_payload",
+      "public.c_payload",
+      "public.d_payload",
+    ]);
+    expect(reasons["public.a_payload"]).toBe("");
+    expect(reasons["public.b_payload"]).toContain(
+      "it reads public.profiles, a row table (rule owner)",
+    );
+    expect(reasons["public.c_payload"]).toContain("volatile");
+    expect(reasons["public.d_payload"]).toContain(
+      "it reads the caller through auth.uid()",
+    );
+  });
+
   it("drops a table a later migration drops and follows a rename", async () => {
     const cwd = project();
     mkdirSync(join(cwd, "supabase/migrations"), { recursive: true });
@@ -350,6 +390,17 @@ create function public.note_total() returns numeric language sql stable as $$ se
       "permdock.permitted_organization_permission_keys",
     ]);
     expect(await pd137({ cwd, config: {} })).toStrictEqual([]);
+    expect(authorizationProvider({ manifest })).not.toHaveProperty(
+      "permissionFilters",
+    );
+    expect(
+      authorizationProvider({ manifest, permissionFilters: true }),
+    ).toMatchObject({
+      permissionFilters: {
+        "permdock.permdock_organization_has": { keyArgument: 0 },
+        "permdock.permitted_organization_permission_keys": { keyArgument: 1 },
+      },
+    });
 
     writeFileSync(
       path,
