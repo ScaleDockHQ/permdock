@@ -14,7 +14,7 @@ import { entriesSql, typedSourceUsers } from "./memberships.ts";
 export const MEMBERSHIPS_FOR = "memberships_for";
 export const SUSPENDED_IN_FOR = "suspended_in_for";
 /** The `suspended_in` claim holds at most this many tenant ids. */
-export const SUSPENDED_IN_LIMIT = 16;
+const SUSPENDED_IN_LIMIT = 16;
 const GLOBAL_ROLES_FOR = "global_roles_for";
 
 function qualified(parts: Parts, name: string): string {

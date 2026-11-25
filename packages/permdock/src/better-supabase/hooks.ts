@@ -15,7 +15,6 @@ import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
-import type { Scope } from "../core/scopes.ts";
 import type { Principal } from "../core/subject.ts";
 import type { WarmReport, Warmable } from "../core/warm.ts";
 import type { ProviderApprovers } from "./approvers.ts";
@@ -38,8 +37,11 @@ import {
   findPermission,
   listPermissions,
 } from "../core/permission-registry.ts";
-import { readMemberships } from "../core/read-memberships.ts";
-import { scopeList, tenantOf } from "../core/scopes.ts";
+import { scopeList } from "../core/scopes.ts";
+import {
+  OTHER_TRUNCATED_CLAIMS,
+  holdsActiveTenant,
+} from "../core/share-key-claims.ts";
 import { snapshotTag } from "../core/snapshot-cache.ts";
 import { warmUp } from "../core/warm.ts";
 import { resolverOf } from "./permdock-for.ts";
@@ -58,32 +60,6 @@ const AUTHZ_VERSION_CLAIM = "authz_ver";
 
 /** The marker of a token whose `memberships` the size budget cut. */
 const MEMBERSHIPS_TRUNCATED = "memberships_truncated";
-
-/**
- * Claims that mark a token's other lists as cut. `shareKey` answers for no
- * token that carries one.
- */
-const OTHER_TRUNCATED_CLAIMS = [
-  "team_ids_truncated",
-  "permissions_truncated",
-] as const;
-
-/**
- * Whether a token whose `memberships` the budget cut still holds every
- * membership of `tenant`. The hook ranks the active tenant's entries first and
- * keeps a prefix, so a kept entry outside `tenant` means the prefix passed all
- * of them. With only `tenant` entries, or none, the cut may have fallen inside
- * them and the answer is no.
- */
-function holdsActiveTenant(
-  claims: Claims,
-  tenant: string,
-  scopes: readonly Scope[],
-): boolean {
-  return readMemberships(claims["memberships"]).memberships.some(
-    (membership) => tenantOf(membership, scopes) !== tenant,
-  );
-}
 
 type DelegationHook = {
   readonly permissions?: (

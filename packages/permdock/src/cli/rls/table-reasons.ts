@@ -18,12 +18,12 @@ export type ReadPolicy = Pick<
 type Helpers = { readonly plain: string; readonly byPermission: string };
 
 /** `policy <name>` with the file that defines it. */
-export function policyLabel(policy: ReadPolicy): string {
+function policyLabel(policy: ReadPolicy): string {
   return `policy ${policy.name}${policy.file === undefined ? "" : ` in ${policy.file}`}`;
 }
 
 /** The column names an expression reads, in order of first appearance. */
-export function columnsOf(expr: unknown): readonly string[] {
+function columnsOf(expr: unknown): readonly string[] {
   const found = new Set<string>();
   const visit = (value: unknown): void => {
     if (Array.isArray(value)) {

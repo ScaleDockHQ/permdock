@@ -54,7 +54,7 @@ export function canonOf(
 }
 
 /** The membership a probe holder of `role` has on `scope`, with its ancestors. */
-export function probeMembership(
+function probeMembership(
   policy: Policy,
   role: string,
   scope: string,

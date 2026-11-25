@@ -63,7 +63,14 @@ describe("run: groups", () => {
       reason: "usage",
       data: {
         choices: {
-          "<command>": ["import", "verify", "migrate", "explain", "report"],
+          "<command>": [
+            "import",
+            "verify",
+            "migrate",
+            "explain",
+            "measure",
+            "report",
+          ],
         },
       },
     });

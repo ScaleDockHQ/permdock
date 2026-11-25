@@ -20,6 +20,8 @@ const PRIVATE = "00000000-0000-4000-8000-000000000003";
 const VIEWER = "00000000-0000-4000-8000-000000000004";
 const USERS = [OWNER, STAFF, PRIVATE, VIEWER];
 
+type Claims = Record<string, unknown>;
+
 const values = (rows: readonly Record<string, string>[], keys: string[]) =>
   rows
     .map((row) => `(${keys.map((key) => `'${row[key] ?? ""}'`).join(", ")})`)

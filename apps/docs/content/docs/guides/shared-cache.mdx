@@ -201,9 +201,6 @@ The two members share a `bsb.kept` entry only through the key. The fingerprint c
 
 The 8 keys and 6 roles of the fixture are CentraKit's target model, not its 0.28 policy; the policy module's 35.73 ms is the `zod` import plus `definePolicy`. `warm()` moves `getPermDock` and the first `can` out of the first request and costs the same 1.24 ms at boot.
 
-Not measured:
-
-- `permdock_authz_version_for` over PostgREST and variant C of the helper with its `pg_stat_statements` rank: both need CentraKit's database with its suspension table and a `supabase.hook.api` wrapper. Neither is in this repository; the fixture has no schema. The one-row PostgREST read above is the round trip the wrapper adds.
-- A signed-in Server Action in CentraKit's Next.js app: the app is a separate repository, so the Server Action row models the version reads of its checks.
+Measured on the app's own stack, not here: `permdock_authz_version_for` over PostgREST, the helper without the suspension join, and a signed-in Server Action. Each needs the app's database, its suspension table and its `supabase.hook.api` wrapper, none of which this repository holds. `permdock rls measure --as <user>` runs requests as a user against that database and prints the version reads per request, the helper times from `pg_stat_user_functions` and `pg_stat_statements`, and the share of tenant tokens that get a share key ([`rls measure`](/docs/cli/rls#measure)). The Server Action row above models the version reads of a signed-in action; the command counts them on the database.
 
 An earlier run on the same machine, with other processes busy, gave round trips up to 3.5 times higher. Compare numbers from one run.

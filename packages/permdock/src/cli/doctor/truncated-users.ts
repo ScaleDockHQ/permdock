@@ -6,7 +6,7 @@ import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { quoteIdent } from "../sql/quote.ts";
 
 /** The most users PD138 mints a token for. */
-export const TRUNCATED_USERS_SAMPLE = 5000;
+const TRUNCATED_USERS_SAMPLE = 5000;
 
 /**
  * PD138: with a database URL, how many users the hook's budget truncates. It

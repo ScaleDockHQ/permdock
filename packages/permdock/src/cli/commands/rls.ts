@@ -434,6 +434,76 @@ export const report: Leaf = defineLeaf({
   },
 });
 
+export const measure: Leaf = defineLeaf({
+  flags: {
+    ...dbUrlFlags,
+    as: {
+      type: "string",
+      description: "Auth user id to run requests as; a comma separates several",
+      valueHint: "user",
+    },
+    tenant: {
+      type: "string",
+      description: "Measure one tenant instead of each tenant of the user",
+      valueHint: "id",
+    },
+    requests: {
+      type: "string",
+      description: "Requests per user",
+      valueHint: "count",
+    },
+    tables: {
+      type: "string",
+      description: "Tables of rls.tableReads one request reads",
+      valueHint: "count",
+    },
+  },
+  async run(ctx, { flags }) {
+    const users = (given(flags.as) ?? "")
+      .split(",")
+      .map((user) => user.trim())
+      .filter((user) => user !== "");
+    if (users.length === 0) {
+      throw missingInput("rls measure", ["--as"], "the auth user id to run as");
+    }
+    const db = await dbUrl(ctx, flags, { required: true });
+    if (db === undefined) {
+      throw missingInput(
+        "rls measure",
+        ["--db-url-stdin", "--local"],
+        "the database to run requests against",
+      );
+    }
+    const tenant = given(flags.tenant);
+    // Lazy: the measurement and the pg peer load only when this command runs.
+    const [
+      { runRlsMeasure, DEFAULT_REQUESTS, DEFAULT_TABLES },
+      { pgConnector },
+      { positiveInteger },
+    ] = await Promise.all([
+      import("../rls/measure.ts"),
+      import("../pg.ts"),
+      import("../supabase-hook/memberships.ts"),
+    ]);
+    return runRlsMeasure({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      db,
+      connect: pgConnector("permdock rls measure", ctx.cwd),
+      users,
+      ...(tenant === undefined ? {} : { tenant }),
+      requests: positiveInteger(
+        given(flags.requests) ?? DEFAULT_REQUESTS,
+        "--requests",
+      ),
+      tables: positiveInteger(
+        given(flags.tables) ?? DEFAULT_TABLES,
+        "--tables",
+      ),
+    });
+  },
+});
+
 export const migrate: Leaf = defineLeaf({
   flags: {
     ...shapeFlags,
