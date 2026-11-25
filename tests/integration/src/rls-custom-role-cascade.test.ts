@@ -169,6 +169,22 @@ describe("rls.customRoleWrites.roles", () => {
     expect(await grants()).toStrictEqual(["acme/tenant/reviewer/job.read"]);
   });
 
+  it("never lets a signed-in caller mark a row as skipped or rename a skipped row", async () => {
+    await expect(
+      as(
+        ADMIN,
+        "update public.app_roles set builtin = true, name = 'owner' where name = 'reviewer'",
+      ),
+    ).rejects.toThrow(/system role/u);
+    await expect(
+      as(
+        ADMIN,
+        "update public.app_roles set name = 'owner' where name = 'admin'",
+      ),
+    ).rejects.toThrow(/system role/u);
+    expect(await grants()).toStrictEqual(["acme/tenant/reviewer/job.read"]);
+  });
+
   it("skips rows the skip column marks and deletes the grants with the row", async () => {
     const admin = started().admin;
     await admin.query(
