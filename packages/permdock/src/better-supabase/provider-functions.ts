@@ -478,6 +478,13 @@ export function providerFunctions(
         : ""
     }`,
   );
+  if (approverFor?.includes("pg_catalog.split_part") === true) {
+    requires.push({
+      function: "pg_catalog.split_part",
+      args: "text, text, integer",
+      role: "authenticated",
+    });
+  }
   // better-supabase passes `{tenant}`; a manager table without a tenant column writes no `p_tenant`.
   const managedUsers = /\bp_tenant\b/u.test(
     helpers.get(MANAGED_USERS)?.args ?? "",

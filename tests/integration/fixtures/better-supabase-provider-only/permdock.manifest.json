@@ -165,7 +165,7 @@
       },
       {
         "name": "permdock_request_approver_ids",
-        "args": "p_requester uuid, p_tenant text",
+        "args": "p_requester uuid, p_tenant text, p_resource text",
         "returns": "setof uuid",
         "execute": ["authenticated"]
       },
