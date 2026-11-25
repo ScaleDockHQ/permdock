@@ -91,6 +91,14 @@ export type AuthorizationProviderOptions<P = undefined> = {
    */
   readonly tables?: boolean;
   /**
+   * With `tables`, list a `row` table that has `tableReads[].tenantFor` as
+   * `tenant` under those keys. Sound only with `authorizationHooks({ widened:
+   * widenedKeys(manifest) })`, whose `shareKey` keeps a caller who holds none
+   * of the keys per user; without it two such callers would share rows that
+   * differ.
+   */
+  readonly widened?: boolean;
+  /**
    * Fill better-supabase's `sharedFunctions` from the manifest's
    * `rls.sharedFunctions`, which `permdock supabase inspect` writes: the
    * functions that pass BS430 and read only `tenant` tables. Needs `tables:
@@ -374,7 +382,7 @@ export function authorizationProvider<P = undefined>(
   const tenantScope = tenantScopeOf(manifest, options.scope);
   const tables =
     options.tables === true && catalog !== undefined
-      ? tablesOf(manifest, catalog, tenantScope)
+      ? tablesOf(manifest, catalog, tenantScope, options.widened === true)
       : undefined;
   if (options.sharedFunctions === true && options.tables !== true) {
     problems.push(

@@ -88,6 +88,13 @@ type AuthorizationHooksBase<V extends PolicyVocabulary> = {
    */
   readonly subject?: Omit<BetterSupabaseSubjectOptions, "apiKeys">;
   /**
+   * The keys under which a `row` table reads as `tenant` (`widenedKeys` of the
+   * manifest). `shareKey` answers `null` when the loader's keys include one the
+   * caller does not hold: such a caller reads rows that differ per user, while
+   * every holder reads the whole tenant.
+   */
+  readonly widened?: readonly string[];
+  /**
    * The process-wide instance cache: an instance is reused while the subject's
    * authorization version is unchanged.
    */
@@ -279,6 +286,7 @@ export function authorizationHooks<
     return isRecord(claims) && claims["sub"] === userId ? claims : null;
   };
 
+  const widened: ReadonlySet<string> = new Set(options.widened);
   const shareKey: NonNullable<AuthorizationHooks["shareKey"]> = async (
     _authorizer,
     keys,
@@ -308,7 +316,13 @@ export function authorizationHooks<
         }
       }
       const permdock = await instance(claims, tenant);
-      return permdock === null ? null : grantFingerprint(permdock, keys);
+      if (permdock === null) {
+        return null;
+      }
+      const missing = keys.some(
+        (key) => widened.has(key) && !grants(permdock, key),
+      );
+      return missing ? null : grantFingerprint(permdock, keys);
     } catch {
       return null;
     }

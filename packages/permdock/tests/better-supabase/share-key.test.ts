@@ -129,6 +129,37 @@ describe("shareKey", () => {
   });
 });
 
+describe("shareKey with widened keys", () => {
+  const widened = defined(
+    authorizationHooks({ policy, widened: [doc.update.key] }).shareKey,
+  );
+  const keyFor = (sub: string, roleName: string, keys: readonly string[]) =>
+    widened(undefined, keys, {
+      subject: {
+        type: "user",
+        id: sub,
+        properties: { claims: claims(sub, roleName) },
+      },
+      context: { tenant: ORG },
+    });
+
+  it("shares among holders of a widening key and keeps everyone else per user", async () => {
+    const keys = [doc.update.key];
+    const [one, two, viewer] = await Promise.all([
+      keyFor("u1", "editor", keys),
+      keyFor("u2", "editor", keys),
+      keyFor("u3", "viewer", keys),
+    ]);
+    expect(one).toMatch(/^gf1:/u);
+    expect(one).toBe(two);
+    expect(viewer).toBeNull();
+  });
+
+  it("leaves a loader with no widened key as before", async () => {
+    expect(await keyFor("u3", "viewer", [doc.read.key])).toMatch(/^gf1:/u);
+  });
+});
+
 describe("grant fingerprint", () => {
   it("is stable per grant set and ignores the user", async () => {
     const make = (sub: string, roleName: string) =>

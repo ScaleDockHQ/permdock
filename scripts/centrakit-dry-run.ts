@@ -237,7 +237,7 @@ const RULES = [
 /**
  * `rls.tableReads` of the inspected manifest: counts per share and per rule (a
  * table that breaks two rules counts under both), the `tenant` tables by name
- * and every `row` table with its rules and, for `form`, the reason.
+ * and every `row` table with its rules, its reason and the keys that widen it.
  */
 function tableReads(cwd: string): Json {
   const inspected = permdock(["supabase", "inspect", "--out", "--json"], cwd);
@@ -261,12 +261,28 @@ function tableReads(cwd: string): Json {
         rows.filter((read) => rules(read).includes(rule)).length,
       ]),
     ),
+    rowWithoutReason: rows.filter((read) => read["reason"] === undefined)
+      .length,
+    /** `form` tables nothing blocks: `codemod bsb-access-tags` moves them. */
+    couldShareByCodemod: rows.filter(
+      (read) =>
+        typeof read["reason"] === "string" &&
+        read["reason"].includes("is movable"),
+    ).length,
+    /** `row` tables a holder of a widening key reads whole (`tenantFor`). */
+    couldShareByKey: rows.filter(
+      (read) =>
+        Array.isArray(read["tenantFor"]) && read["tenantFor"].length > 0,
+    ).length,
     tenantTables: reads
       .filter((read) => read["share"] === "tenant")
       .map((read) => read["table"]),
     tables: rows.map((read) => ({
       table: read["table"],
       rules: read["rules"],
+      ...(Array.isArray(read["tenantFor"])
+        ? { tenantFor: read["tenantFor"] }
+        : {}),
       ...(read["reason"] === undefined ? {} : { reason: read["reason"] }),
     })),
   };

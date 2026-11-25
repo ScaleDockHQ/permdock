@@ -128,7 +128,7 @@ export function keyReason(reasons: KeyReasons, key: string): string {
   return (
     reasons.reasons.get(key) ??
     (reasons.swappable.has(key)
-      ? "every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+      ? "every grant of it is unconditional"
       : "the policy declares no grant of it")
   );
 }

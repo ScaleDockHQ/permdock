@@ -20,6 +20,11 @@ const SELECT_ACTIONS: ReadonlySet<string> = new Set(["read", "list", "get"]);
  * qualified table: those entries come from the parsed select policies, which
  * also covers hand-written ones.
  *
+ * With `widened`, a `row` table that has `tenantFor` is listed as `tenant`
+ * under those keys: only for an app whose `shareKey` answers `null` for a
+ * caller who holds none of them (`widenedKeys` and `authorizationHooks({
+ * widened })`).
+ *
  * Doctor BS428 reads the generated select policies and refuses an entry they
  * contradict.
  */
@@ -27,13 +32,16 @@ export function tablesOf(
   manifest: SupabaseManifest,
   catalog: CatalogDocument,
   tenantScope: string,
+  widened = false,
 ): Tables {
   const reads = manifest.rls.tableReads;
   if (reads !== undefined) {
     return Object.fromEntries(
       reads.map((read) => [
         read.table,
-        { share: read.share, permissions: read.permissions ?? [] },
+        widened && read.share === "row" && read.tenantFor !== undefined
+          ? { share: "tenant", permissions: read.tenantFor }
+          : { share: read.share, permissions: read.permissions ?? [] },
       ]),
     );
   }
@@ -67,4 +75,18 @@ export function tablesOf(
     tables[table] = { share: shared ? "tenant" : "row", permissions: keys };
   }
   return tables;
+}
+
+/**
+ * The keys under which some `row` table of the manifest reads as `tenant`
+ * (`tableReads[].tenantFor`). Pass them to `authorizationHooks({ widened })`.
+ */
+export function widenedKeys(manifest: SupabaseManifest): readonly string[] {
+  return [
+    ...new Set(
+      (manifest.rls.tableReads ?? []).flatMap((read) =>
+        read.share === "row" ? (read.tenantFor ?? []) : [],
+      ),
+    ),
+  ].toSorted();
 }

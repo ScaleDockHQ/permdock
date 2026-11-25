@@ -271,6 +271,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
                   ],
                 },
               },
+              tenantFor: { type: "array", items: { type: "string" } },
               reason: { type: "string" },
             },
           },
