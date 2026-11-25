@@ -19,7 +19,7 @@ function decodeExpression(): string {
   const sql = readFileSync(GOLDEN, "utf8");
   const open = "when 'object' then ";
   const close = ") d\n        )";
-  const start = sql.indexOf(open) + open.length;
+  const start = sql.lastIndexOf(open) + open.length;
   return sql.slice(start, sql.indexOf(close, start) + close.length);
 }
 

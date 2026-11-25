@@ -46,6 +46,11 @@
       "budget": false
     },
     {
+      "name": "suspended_in",
+      "source": "permdock",
+      "budget": false
+    },
+    {
       "name": "tenant_id",
       "source": "permdock",
       "budget": false
@@ -264,33 +269,38 @@
       {
         "table": "public.memberships",
         "share": "row",
-        "rules": ["unknown"]
+        "rules": ["unknown"],
+        "reason": "row level security is on and no permissive select policy applies to authenticated or public, so the table is not read through PostgREST by a signed-in role; inspect does not read grants, so a table grant is not checked"
       },
       {
         "table": "public.organizations",
         "share": "row",
-        "rules": ["unknown"]
+        "rules": ["unknown"],
+        "reason": "row level security is on and no permissive select policy applies to authenticated or public, so the table is not read through PostgREST by a signed-in role; inspect does not read grants, so a table grant is not checked"
       },
       {
         "table": "public.platform_roles",
         "share": "row",
-        "rules": ["unknown"]
+        "rules": ["unknown"],
+        "reason": "row level security is on and no permissive select policy applies to authenticated or public, so the table is not read through PostgREST by a signed-in role; inspect does not read grants, so a table grant is not checked"
       },
       {
         "table": "public.profiles",
         "share": "row",
-        "rules": ["unknown"]
+        "rules": ["unknown"],
+        "reason": "row level security is on and no permissive select policy applies to authenticated or public (policies: permdock_auth_admin_read_status_users), so the table is not read through PostgREST by a signed-in role; inspect does not read grants, so a table grant is not checked"
       },
       {
         "table": "public.projects",
         "share": "row",
         "rules": ["form"],
-        "reason": "key projects.list: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it; key projects.read: every grant of it is unconditional; permdock codemod bsb-access-tags moves the policy unless another policy or tenant column on the table prevents it"
+        "reason": "policy projects_select in supabase/schemas/public/policies/permdock.sql uses permdock.permitted_organization_ids inside a larger expression, not as \"<column> in (select permdock.permitted_organization_ids('<key>'))\"; key projects.list: every grant of it is unconditional; key projects.read: every grant of it is unconditional"
       },
       {
         "table": "public.reporting_lines",
         "share": "row",
-        "rules": ["unknown"]
+        "rules": ["unknown"],
+        "reason": "row level security is on and no permissive select policy applies to authenticated or public, so the table is not read through PostgREST by a signed-in role; inspect does not read grants, so a table grant is not checked"
       }
     ],
     "sharedFunctions": [],
@@ -298,11 +308,13 @@
       {
         "name": "permdock.permdock_organization_has",
         "keyArgument": "p_grant",
+        "keyPosition": 0,
         "tenantArgument": "p_tenant"
       },
       {
         "name": "permdock.permitted_organization_permission_keys",
         "keyArgument": "p_keys",
+        "keyPosition": 1,
         "tenantArgument": "p_id"
       }
     ]

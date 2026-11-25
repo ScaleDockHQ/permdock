@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
-import { subjectFromSupabase } from "permdock/supabase";
+import { expandMemberships, subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -165,13 +165,15 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
   }
 
   it("writes the canonical memberships claim, without suspended or lapsed entries", async () => {
-    expect((await mint(OWNER))["memberships"]).toStrictEqual([
-      { scope: "organization", id: "T", roles: ["owner"], via: "staff" },
-    ]);
-    expect((await mint(STAFF))["memberships"]).toStrictEqual([
-      { scope: "organization", id: "T", roles: ["member"], via: "staff" },
-    ]);
-    expect((await mint(PRIVATE))["memberships"]).toStrictEqual([
+    expect(expandMemberships((await mint(OWNER))["memberships"])).toStrictEqual(
+      [{ scope: "organization", id: "T", roles: ["owner"], via: "staff" }],
+    );
+    expect(expandMemberships((await mint(STAFF))["memberships"])).toStrictEqual(
+      [{ scope: "organization", id: "T", roles: ["member"], via: "staff" }],
+    );
+    expect(
+      expandMemberships((await mint(PRIVATE))["memberships"]),
+    ).toStrictEqual([
       {
         scope: "customer",
         id: "A",
@@ -180,8 +182,12 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
         via: "contact",
       },
     ]);
-    expect((await mint(BUSINESS))["memberships"]).toStrictEqual([]);
-    expect((await mint(LAPSED))["memberships"]).toStrictEqual([]);
+    expect(
+      expandMemberships((await mint(BUSINESS))["memberships"]),
+    ).toStrictEqual([]);
+    expect(
+      expandMemberships((await mint(LAPSED))["memberships"]),
+    ).toStrictEqual([]);
   });
 
   it("empties the role and memberships claims of a suspended user", async () => {

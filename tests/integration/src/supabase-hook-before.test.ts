@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expandMemberships } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -107,10 +108,12 @@ describe("supabase.hook.before", () => {
 
   it("runs the before functions first and keeps the event they return", async () => {
     const event = await mint(VERIFIED);
-    expect(event["claims"]).toMatchObject({
-      checked: true,
-      memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
-    });
+    // SAFETY: the hook answers an event whose claims are an object
+    const claims = event["claims"] as Record<string, unknown>;
+    expect(claims).toMatchObject({ checked: true });
+    expect(expandMemberships(claims["memberships"])).toStrictEqual([
+      { scope: "tenant", id: "acme", roles: ["member"] },
+    ]);
   });
 
   it("returns a before function's error without writing claims", async () => {

@@ -8,7 +8,7 @@ import {
   getPermDock,
   memoryCustomRoleSource,
 } from "permdock";
-import { subjectFromSupabase } from "permdock/supabase";
+import { expandMemberships, subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -264,13 +264,15 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     expect(await mint(OTHER)).toMatchObject({ roles: ["support"] });
     expect(await has(PLATFORM, "organizations.read")).toBe(true);
     expect(await has(OTHER, "organizations.read")).toBe(false);
-    expect((await mint(OWNER))["memberships"]).toStrictEqual(
+    expect(expandMemberships((await mint(OWNER))["memberships"])).toStrictEqual(
       expect.arrayContaining([
         { scope: "organization", id: ORG_A, roles: ["owner"], via: "staff" },
         { scope: "organization", id: ORG_B, roles: ["viewer"], via: "staff" },
       ]),
     );
-    expect((await mint(DISPATCH_B))["memberships"]).toStrictEqual([
+    expect(
+      expandMemberships((await mint(DISPATCH_B))["memberships"]),
+    ).toStrictEqual([
       { scope: "organization", id: ORG_B, roles: ["dispatcher"], via: "staff" },
     ]);
   });
@@ -321,9 +323,9 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
         "customers.read",
       ),
     ).toStrictEqual([]);
-    expect(JSON.stringify((await mint(OWNER))["memberships"])).not.toContain(
-      ORG_CLOSED,
-    );
+    expect(
+      JSON.stringify(expandMemberships((await mint(OWNER))["memberships"])),
+    ).not.toContain(ORG_CLOSED);
     expect(await members("permdock", { sub: OWNER })).not.toContain(ORG_CLOSED);
   });
 
@@ -406,7 +408,7 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     expect(
       await permitted("permdock", { sub: OWNER }, "customers.update"),
     ).toStrictEqual([]);
-    expect((await mint(OWNER))["memberships"]).toStrictEqual(
+    expect(expandMemberships((await mint(OWNER))["memberships"])).toStrictEqual(
       expect.arrayContaining([
         {
           scope: "organization",
@@ -425,10 +427,12 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     expect(sql).not.toContain(
       'grant select on table "public"."contact_profiles" to supabase_auth_admin;',
     );
-    expect((await mint(CONTACT))["memberships"]).toStrictEqual([
-      portal(CUST_A, ORG_A),
-    ]);
-    expect((await mint(CONTACT_2))["memberships"]).toStrictEqual([]);
+    expect(
+      expandMemberships((await mint(CONTACT))["memberships"]),
+    ).toStrictEqual([portal(CUST_A, ORG_A)]);
+    expect(
+      expandMemberships((await mint(CONTACT_2))["memberships"]),
+    ).toStrictEqual([]);
   });
 
   it("answers the customer helpers in both modes and drops a suspended organization's contacts", async () => {
@@ -482,9 +486,9 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     );
     expect(await version(CONTACT_2)).toBe(second + 1);
     expect(await version(CONTACT)).toBe(contact);
-    expect((await mint(CONTACT_2))["memberships"]).toStrictEqual([
-      portal(CUST_B, ORG_B),
-    ]);
+    expect(
+      expandMemberships((await mint(CONTACT_2))["memberships"]),
+    ).toStrictEqual([portal(CUST_B, ORG_B)]);
     await db?.admin.query(
       `update contact_profiles set user_id = null where id = $1`,
       [PROFILE_UNLINKED],
@@ -495,10 +499,12 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     );
     expect(await version(CONTACT)).toBe(contact + 1);
     expect(await version(CONTACT_2)).toBe(second + 3);
-    expect((await mint(CONTACT))["memberships"]).toStrictEqual([]);
-    expect((await mint(CONTACT_2))["memberships"]).toStrictEqual([
-      portal(CUST_A, ORG_A),
-    ]);
+    expect(
+      expandMemberships((await mint(CONTACT))["memberships"]),
+    ).toStrictEqual([]);
+    expect(
+      expandMemberships((await mint(CONTACT_2))["memberships"]),
+    ).toStrictEqual([portal(CUST_A, ORG_A)]);
     expect(
       await members("permdock", { sub: CONTACT }, "customer"),
     ).toStrictEqual([]);

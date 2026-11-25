@@ -27,7 +27,7 @@ create table if not exists "app"."user_roles" (
 alter table "app"."user_roles" enable row level security;
 revoke all on table "app"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (jwt: reads the role and memberships claims) sha-256:oZJgLZrrbZvehJaKbZD-Ux-P3BQQoDzPUP6UYHFzHFg
+-- permdock helpers (jwt: reads the role and memberships claims) sha-256:r92AXjgZPcyK7CW8eN-u99OHvDnWqb1ZclNZByG3r18
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "app";
@@ -141,7 +141,29 @@ as $$
   select (m ->> 'id')::uuid
   from (select coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') as v) pdk_c
     cross join lateral jsonb_array_elements(
-      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v when 'object' then (
+          select coalesce(jsonb_agg(d.m), '[]'::jsonb)
+          from (
+            select jsonb_build_object(
+              'scope', c.cl -> 's' ->> (x.e ->> 0)::int,
+              'id', case when left(x.e ->> 1, 1) = '=' then substr(x.e ->> 1, 2)
+                else (encode(decode(translate(x.e ->> 1, '-_', '+/') || '==', 'base64'), 'hex'))::uuid::text end,
+              'roles', (
+                select coalesce(jsonb_agg(c.cl -> 'r' -> ((r.v #>> '{}')::int)), '[]'::jsonb)
+                from jsonb_array_elements(x.e) with ordinality r(v, n)
+                where r.n > 3
+              )
+            ) || case when (x.e ->> 2)::int >= 0
+              then jsonb_build_object('via', c.cl -> 'v' ->> (x.e ->> 2)::int)
+              else '{}'::jsonb end as m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'e', '[]'::jsonb)) x(e)
+            union all
+            select o.m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'o', '[]'::jsonb)) o(m)
+          ) d
+        ) else '[]'::jsonb end
     ) m
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
@@ -202,7 +224,29 @@ as $$
   select distinct (m ->> 'id')::uuid
   from (select coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') as v) pdk_c
   cross join lateral jsonb_array_elements(
-    case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+    case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v when 'object' then (
+          select coalesce(jsonb_agg(d.m), '[]'::jsonb)
+          from (
+            select jsonb_build_object(
+              'scope', c.cl -> 's' ->> (x.e ->> 0)::int,
+              'id', case when left(x.e ->> 1, 1) = '=' then substr(x.e ->> 1, 2)
+                else (encode(decode(translate(x.e ->> 1, '-_', '+/') || '==', 'base64'), 'hex'))::uuid::text end,
+              'roles', (
+                select coalesce(jsonb_agg(c.cl -> 'r' -> ((r.v #>> '{}')::int)), '[]'::jsonb)
+                from jsonb_array_elements(x.e) with ordinality r(v, n)
+                where r.n > 3
+              )
+            ) || case when (x.e ->> 2)::int >= 0
+              then jsonb_build_object('via', c.cl -> 'v' ->> (x.e ->> 2)::int)
+              else '{}'::jsonb end as m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'e', '[]'::jsonb)) x(e)
+            union all
+            select o.m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'o', '[]'::jsonb)) o(m)
+          ) d
+        ) else '[]'::jsonb end
   ) m
   where coalesce((select "app".permdock_user_id())::text, '') <> ''
     and m ->> 'scope' = 'tenant'
@@ -375,7 +419,29 @@ as $$
   select (m ->> 'id')::uuid, rp.grant_key
   from (select coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') as v) pdk_c
     cross join lateral jsonb_array_elements(
-      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v when 'object' then (
+          select coalesce(jsonb_agg(d.m), '[]'::jsonb)
+          from (
+            select jsonb_build_object(
+              'scope', c.cl -> 's' ->> (x.e ->> 0)::int,
+              'id', case when left(x.e ->> 1, 1) = '=' then substr(x.e ->> 1, 2)
+                else (encode(decode(translate(x.e ->> 1, '-_', '+/') || '==', 'base64'), 'hex'))::uuid::text end,
+              'roles', (
+                select coalesce(jsonb_agg(c.cl -> 'r' -> ((r.v #>> '{}')::int)), '[]'::jsonb)
+                from jsonb_array_elements(x.e) with ordinality r(v, n)
+                where r.n > 3
+              )
+            ) || case when (x.e ->> 2)::int >= 0
+              then jsonb_build_object('via', c.cl -> 'v' ->> (x.e ->> 2)::int)
+              else '{}'::jsonb end as m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'e', '[]'::jsonb)) x(e)
+            union all
+            select o.m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'o', '[]'::jsonb)) o(m)
+          ) d
+        ) else '[]'::jsonb end
     ) m
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
@@ -443,7 +509,29 @@ as $$
   select (m ->> 'id')::uuid, rp.grant_key
   from (select coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') as v) pdk_c
     cross join lateral jsonb_array_elements(
-      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v when 'object' then (
+          select coalesce(jsonb_agg(d.m), '[]'::jsonb)
+          from (
+            select jsonb_build_object(
+              'scope', c.cl -> 's' ->> (x.e ->> 0)::int,
+              'id', case when left(x.e ->> 1, 1) = '=' then substr(x.e ->> 1, 2)
+                else (encode(decode(translate(x.e ->> 1, '-_', '+/') || '==', 'base64'), 'hex'))::uuid::text end,
+              'roles', (
+                select coalesce(jsonb_agg(c.cl -> 'r' -> ((r.v #>> '{}')::int)), '[]'::jsonb)
+                from jsonb_array_elements(x.e) with ordinality r(v, n)
+                where r.n > 3
+              )
+            ) || case when (x.e ->> 2)::int >= 0
+              then jsonb_build_object('via', c.cl -> 'v' ->> (x.e ->> 2)::int)
+              else '{}'::jsonb end as m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'e', '[]'::jsonb)) x(e)
+            union all
+            select o.m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'o', '[]'::jsonb)) o(m)
+          ) d
+        ) else '[]'::jsonb end
     ) m
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
@@ -516,7 +604,29 @@ as $$
   select (m ->> 'id')::uuid, rp.grant_key
   from (select coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') as v) pdk_c
     cross join lateral jsonb_array_elements(
-      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v when 'object' then (
+          select coalesce(jsonb_agg(d.m), '[]'::jsonb)
+          from (
+            select jsonb_build_object(
+              'scope', c.cl -> 's' ->> (x.e ->> 0)::int,
+              'id', case when left(x.e ->> 1, 1) = '=' then substr(x.e ->> 1, 2)
+                else (encode(decode(translate(x.e ->> 1, '-_', '+/') || '==', 'base64'), 'hex'))::uuid::text end,
+              'roles', (
+                select coalesce(jsonb_agg(c.cl -> 'r' -> ((r.v #>> '{}')::int)), '[]'::jsonb)
+                from jsonb_array_elements(x.e) with ordinality r(v, n)
+                where r.n > 3
+              )
+            ) || case when (x.e ->> 2)::int >= 0
+              then jsonb_build_object('via', c.cl -> 'v' ->> (x.e ->> 2)::int)
+              else '{}'::jsonb end as m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'e', '[]'::jsonb)) x(e)
+            union all
+            select o.m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'o', '[]'::jsonb)) o(m)
+          ) d
+        ) else '[]'::jsonb end
     ) m
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
@@ -563,7 +673,29 @@ as $$
   select (m ->> 'id')::uuid, rp.grant_key
   from (select coalesce(((select auth.jwt()) -> 'memberships'), (select auth.jwt()) -> 'app_metadata' -> 'memberships') as v) pdk_c
     cross join lateral jsonb_array_elements(
-      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v when 'object' then (
+          select coalesce(jsonb_agg(d.m), '[]'::jsonb)
+          from (
+            select jsonb_build_object(
+              'scope', c.cl -> 's' ->> (x.e ->> 0)::int,
+              'id', case when left(x.e ->> 1, 1) = '=' then substr(x.e ->> 1, 2)
+                else (encode(decode(translate(x.e ->> 1, '-_', '+/') || '==', 'base64'), 'hex'))::uuid::text end,
+              'roles', (
+                select coalesce(jsonb_agg(c.cl -> 'r' -> ((r.v #>> '{}')::int)), '[]'::jsonb)
+                from jsonb_array_elements(x.e) with ordinality r(v, n)
+                where r.n > 3
+              )
+            ) || case when (x.e ->> 2)::int >= 0
+              then jsonb_build_object('via', c.cl -> 'v' ->> (x.e ->> 2)::int)
+              else '{}'::jsonb end as m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'e', '[]'::jsonb)) x(e)
+            union all
+            select o.m
+            from (select pdk_c.v as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'o', '[]'::jsonb)) o(m)
+          ) d
+        ) else '[]'::jsonb end
     ) m
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end

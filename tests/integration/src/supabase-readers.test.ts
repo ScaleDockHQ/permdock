@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { memorySubjectCache } from "permdock";
-import { readSubjectRecord } from "permdock/supabase";
+import { expandMemberships, readSubjectRecord } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { run } from "./support/cli-run.ts";
@@ -225,7 +225,7 @@ describe("the hook's readers against Postgres", () => {
     const crowded = await mint(CROWDED);
     expect(crowded).not.toHaveProperty("team_ids");
     expect(crowded["team_ids_truncated"]).toBe(true);
-    expect(crowded["memberships"]).toStrictEqual([
+    expect(expandMemberships(crowded["memberships"])).toStrictEqual([
       expect.objectContaining({ scope: "organization", id: "T" }),
     ]);
   });
@@ -254,7 +254,6 @@ describe("the hook's readers against Postgres", () => {
     for (const [sub, tenant] of [
       [OWNER, null],
       [OWNER, "nobody"],
-      [OWNER, "X"],
       [SUSPENDED, "T"],
       [PLATFORM, "T"],
       [null, "T"],
@@ -265,6 +264,12 @@ describe("the hook's readers against Postgres", () => {
         subject: await subject(sub, tenant),
       }).toStrictEqual({ sub, tenant, subject: null });
     }
+    expect(await subject(OWNER, "X")).toMatchObject({
+      id: OWNER,
+      tenant: "X",
+      memberships: [],
+      suspendedIn: ["X"],
+    });
     await expect(
       as("anon", null, "select permdock.permdock_subject('T') as value"),
     ).rejects.toThrow(/permission denied/u);
