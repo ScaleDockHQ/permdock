@@ -2563,8 +2563,8 @@
   "sql": {
     "committedToBranch": {
       "hook.sql": {
-        "added": 26,
-        "removed": 0
+        "added": 155,
+        "removed": 7
       }
     },
     "codemods": {}
@@ -2762,28 +2762,177 @@
       }
     ]
   },
+  "timings": {
+    "generateMs": 1563
+  },
   "shadow": "see stack.shadow",
   "stack": {
     "shadow": {
       "code": 0,
+      "ms": 41525,
       "report": {
         "findings": [],
         "ignored": [],
         "stale": []
       }
     },
+    "readOnlyActors": {
+      "policies": 579,
+      "tables": 208,
+      "method": "client round trip of EXPLAIN (parse, rewrite with the policies, plan) as a role in authenticated, median of 15 plans per statement, 2 rounds, two passes with the policies, then two without, policies dropped in a rolled-back transaction; noiseMs is the median difference between the two passes of one state",
+      "insert": {
+        "statements": 206,
+        "medianMsWith": 0.503,
+        "medianMsWithout": 0.426,
+        "medianDeltaMs": 0.062,
+        "maxDeltaMs": 0.421,
+        "noiseMs": -0.109
+      },
+      "update": {
+        "statements": 187,
+        "medianMsWith": 0.585,
+        "medianMsWithout": 0.496,
+        "medianDeltaMs": 0.078,
+        "maxDeltaMs": 0.539,
+        "noiseMs": -0.134
+      },
+      "delete": {
+        "statements": 186,
+        "medianMsWith": 0.502,
+        "medianMsWithout": 0.43,
+        "medianDeltaMs": 0.063,
+        "maxDeltaMs": 0.374,
+        "noiseMs": -0.118
+      },
+      "guardCallMicros": 0.139,
+      "failedPlans": 0,
+      "firstFailures": []
+    },
     "doctor": {
       "counts": {
         "BS409": 0,
-        "BS428": 0,
+        "BS428": 98,
         "BS429": 0,
         "BS430": 0
       },
       "tenantTables": {
         "total": 28,
-        "failingBS428": []
+        "failingBS428": [
+          {
+            "table": "public.asset_identifiers",
+            "message": "the authorization provider (PermDock) declares public.asset_identifiers with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_inspection_types",
+            "message": "the authorization provider (PermDock) declares public.asset_inspection_types with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_inspections",
+            "message": "the authorization provider (PermDock) declares public.asset_inspections with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_meter_readings",
+            "message": "the authorization provider (PermDock) declares public.asset_meter_readings with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_service_plans",
+            "message": "the authorization provider (PermDock) declares public.asset_service_plans with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_tags",
+            "message": "the authorization provider (PermDock) declares public.asset_tags with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.asset_trade_cards",
+            "message": "the authorization provider (PermDock) declares public.asset_trade_cards with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.customer_assets",
+            "message": "the authorization provider (PermDock) declares public.customer_assets with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.inventory_reorder_rules",
+            "message": "the authorization provider (PermDock) declares public.inventory_reorder_rules with permissions [asset.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_charges",
+            "message": "the authorization provider (PermDock) declares public.invoice_charges with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_lines",
+            "message": "the authorization provider (PermDock) declares public.invoice_lines with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_payments",
+            "message": "the authorization provider (PermDock) declares public.invoice_payments with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_reminder_sends",
+            "message": "the authorization provider (PermDock) declares public.invoice_reminder_sends with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_status_history",
+            "message": "the authorization provider (PermDock) declares public.invoice_status_history with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.invoice_tasks",
+            "message": "the authorization provider (PermDock) declares public.invoice_tasks with permissions [invoice.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_digital_grants",
+            "message": "the authorization provider (PermDock) declares public.order_digital_grants with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_lines",
+            "message": "the authorization provider (PermDock) declares public.order_lines with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_status_history",
+            "message": "the authorization provider (PermDock) declares public.order_status_history with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.order_tasks",
+            "message": "the authorization provider (PermDock) declares public.order_tasks with permissions [order.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_accepted_optional_lines",
+            "message": "the authorization provider (PermDock) declares public.quote_accepted_optional_lines with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_assets",
+            "message": "the authorization provider (PermDock) declares public.quote_assets with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_change_requests",
+            "message": "the authorization provider (PermDock) declares public.quote_change_requests with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_lines",
+            "message": "the authorization provider (PermDock) declares public.quote_lines with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_status_history",
+            "message": "the authorization provider (PermDock) declares public.quote_status_history with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_tasks",
+            "message": "the authorization provider (PermDock) declares public.quote_tasks with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_version_lines",
+            "message": "the authorization provider (PermDock) declares public.quote_version_lines with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.quote_versions",
+            "message": "the authorization provider (PermDock) declares public.quote_versions with permissions [quote.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          },
+          {
+            "table": "public.warranty_claims",
+            "message": "the authorization provider (PermDock) declares public.warranty_claims with permissions [task.read], but its select policies check []. A shared entry would be keyed on the wrong grant; make the two lists match."
+          }
+        ]
       },
-      "otherBS428": 0
+      "otherBS428": 70
     },
     "tenantTablesWithTheCastRemoved": {
       "total": 28,
@@ -2807,9 +2956,9 @@
     },
     {
       "command": "better-supabase doctor --json --only BS409,BS428,BS429 --fail-on never --agent no",
-      "code": 2,
+      "code": 1,
       "findings": true,
-      "stderr": "{\"$schema\":\"https://unpkg.com/better-supabase/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"better-supabase.config.ts is not a valid config:\\n  auth.authorization.permissionFilters: Invalid key: Expected never but received \\\"permissionFilters\\\"\",\"type\":\"https://bettersupabase.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{\"issues\":[\"auth.authorization.permissionFilters: Invalid key: Expected never but received \\\"permissionFilters\\\"\"]},\"userActionRequired\":false,\"retryable\":false}\n"
+      "stderr": "Checking the database...\n{\"$schema\":\"https://unpkg.com/better-supabase/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"not_found\",\"message\":\"No database to connect to: supabase/config.toml sets no [db] port, and `supabase status` failed (exit 1). Start the stack, set [db] port, or pass $DATABASE_URL or --db-url-stdin.\",\"type\":\"https://bettersupabase.com/docs/cli/errors#not_found\",\"next\":[],\"data\":{\"suggestion\":\"supabase start\"},\"userActionRequired\":false,\"retryable\":false}\n"
     },
     {
       "command": "permdock generate --yes --agent no",
@@ -2829,8 +2978,7 @@
     },
     {
       "command": "permdock codemod bsb-action-keys --force --yes --agent no",
-      "code": 2,
-      "stderr": "codemod bsb-action-keys: better-supabase refused ../../better-supabase.config.ts: better-supabase.config.ts is not a valid config:\n  auth.authorization.permissionFilters: Invalid key: Expected never but received \"permissionFilters\"\n"
+      "code": 0
     },
     {
       "command": "permdock generate --yes --agent no",
@@ -2851,9 +2999,9 @@
     },
     {
       "command": "better-supabase doctor --json --only BS409,BS428,BS429 --fail-on never --agent no",
-      "code": 2,
+      "code": 1,
       "findings": true,
-      "stderr": "{\"$schema\":\"https://unpkg.com/better-supabase/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"config_invalid\",\"message\":\"better-supabase.config.ts is not a valid config:\\n  auth.authorization.permissionFilters: Invalid key: Expected never but received \\\"permissionFilters\\\"\",\"type\":\"https://bettersupabase.com/docs/cli/errors#config_invalid\",\"next\":[],\"data\":{\"issues\":[\"auth.authorization.permissionFilters: Invalid key: Expected never but received \\\"permissionFilters\\\"\"]},\"userActionRequired\":false,\"retryable\":false}\n"
+      "stderr": "Checking the database...\n{\"$schema\":\"https://unpkg.com/better-supabase/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"not_found\",\"message\":\"No database to connect to: supabase/config.toml sets no [db] port, and `supabase status` failed (exit 1). Start the stack, set [db] port, or pass $DATABASE_URL or --db-url-stdin.\",\"type\":\"https://bettersupabase.com/docs/cli/errors#not_found\",\"next\":[],\"data\":{\"suggestion\":\"supabase start\"},\"userActionRequired\":false,\"retryable\":false}\n"
     },
     {
       "command": "permdock supabase inspect --functions public.*_payload --json --yes --agent no",

@@ -423,7 +423,9 @@ async function dryRun(source: string, root: string): Promise<void> {
   const generated = readSql(join(root, GENERATED_SQL));
 
   for (const codemod of CODEMODS) permdock([...codemod, "--force"], identity);
+  const generateStart = performance.now();
   permdock(["generate"], identity);
+  const generateMs = Math.round(performance.now() - generateStart);
   enableProviderOptions(root);
   const after = measure(root, identity);
   const codemodded = readSql(join(root, GENERATED_SQL));
@@ -439,6 +441,7 @@ async function dryRun(source: string, root: string): Promise<void> {
       codemods: diff(generated, codemodded),
     },
     functions: payloadFunctions(identity),
+    timings: { generateMs },
     ...database,
     steps,
   };
