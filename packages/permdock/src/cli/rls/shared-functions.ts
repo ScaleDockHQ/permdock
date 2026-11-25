@@ -22,6 +22,8 @@ type Definition = {
   readonly name: string;
   readonly body: string;
   readonly eligible: boolean;
+  /** The language, security and volatility the definition states. */
+  readonly header: string;
 };
 
 /** Functions that read who is asking, so the result differs per caller. */
@@ -117,10 +119,12 @@ function definitionOf(
     ? isRecord(security["Boolean"]) && security["Boolean"]["boolval"] === true
     : false;
   const volatility = sval(defs["volatility"]);
+  const language = sval(defs["language"]);
   return {
     schema: schema.toLowerCase(),
     name: name.toLowerCase(),
     body: bodyOf(defs["as"]),
+    header: `language ${language ?? "unstated"}, security ${definer ? "definer" : "invoker"}, ${volatility ?? "volatile"}`,
     eligible:
       sval(defs["language"]) === "sql" &&
       !definer &&
@@ -134,22 +138,22 @@ type Reads = {
 };
 
 /**
- * The tables a body reads and the functions it calls, or `undefined` when it
- * reads the caller, calls a function outside `known`, or reads a relation that
- * is not a table in `reads`.
+ * The tables a body reads and the functions it calls, or why it is not shared:
+ * it reads the caller, calls a function outside `known`, or reads a relation
+ * that is not a table in `reads`.
  */
 async function readsOf(
   definition: Definition,
   defined: ReadonlyMap<string, readonly Definition[]>,
   reads: ReadonlyMap<string, SupabaseManifestTableRead>,
   helperSchema: string,
-): Promise<Reads | undefined> {
+): Promise<Reads | string> {
   let statements: Awaited<ReturnType<typeof parseSqlFile>>;
   try {
     statements = await parseSqlFile(definition.body);
   } catch (error) {
     if (error instanceof SqlSyntaxError) {
-      return undefined;
+      return "the body does not parse";
     }
     throw error;
   }
@@ -157,7 +161,7 @@ async function readsOf(
   const calls = new Set<string>();
   for (const statement of statements) {
     if (statement.kind !== "SelectStmt") {
-      return undefined;
+      return `the body holds a ${statement.kind}, not a select`;
     }
     if (
       collect(statement.node, "SQLValueFunction").some(
@@ -167,7 +171,7 @@ async function readsOf(
           IDENTITY_VALUES.has(value["op"]),
       )
     ) {
-      return undefined;
+      return "it reads current_user, session_user or user";
     }
     const ctes = new Set(
       collect(statement.node, "CommonTableExpr").flatMap((value) =>
@@ -178,7 +182,7 @@ async function readsOf(
     );
     for (const value of collect(statement.node, "RangeVar")) {
       if (!isRecord(value) || typeof value["relname"] !== "string") {
-        return undefined;
+        return "it reads a relation inspect cannot name";
       }
       const relname = value["relname"].toLowerCase();
       const explicit =
@@ -188,15 +192,14 @@ async function readsOf(
       if (explicit === undefined && ctes.has(relname)) {
         continue;
       }
-      const found = (
+      const candidates = (
         explicit === undefined
           ? [definition.schema, DEFAULT_SCHEMA]
           : [explicit]
-      )
-        .map((schema) => `${schema}.${relname}`)
-        .find((table) => reads.has(table));
+      ).map((schema) => `${schema}.${relname}`);
+      const found = candidates.find((table) => reads.has(table));
       if (found === undefined) {
-        return undefined;
+        return `it reads ${candidates[0] ?? relname}, which is no table the schema files create`;
       }
       tables.add(found);
     }
@@ -208,10 +211,10 @@ async function readsOf(
         IDENTITY_FUNCTIONS.has(last) ||
         schema === "auth"
       ) {
-        return undefined;
+        return `it reads the caller through ${call.name.join(".")}()`;
       }
       if (schema === helperSchema) {
-        return undefined;
+        return `it calls the helper ${call.name.join(".")}(), which is not a permissionFilters helper`;
       }
       const target = (
         schema === undefined
@@ -221,11 +224,18 @@ async function readsOf(
       if (target !== undefined) {
         calls.add(target);
       } else if (schema !== undefined && schema !== "pg_catalog") {
-        return undefined;
+        return `it calls ${call.name.join(".")}(), which no schema file defines`;
       }
     }
   }
   return { tables, calls };
+}
+
+/** Why `definition` fails the header checks, or `undefined`. */
+function headerReason(definition: Definition): string | undefined {
+  return definition.eligible
+    ? undefined
+    : `it is not language sql, security invoker and stable or immutable (${definition.header})`;
 }
 
 /**
@@ -239,12 +249,75 @@ async function readsOf(
  * qualifies. A file libpg_query rejects is skipped; the last definition of a
  * function wins.
  */
-export async function sharedFunctionsOf(input: {
+export async function sharedFunctionsOf(
+  input: SharedFunctionsInput,
+): Promise<readonly SupabaseManifestSharedFunction[]> {
+  const outcomes = await analyse(input);
+  return [...outcomes.keys()].toSorted().flatMap((name) => {
+    const shared = outcomes.get(name)?.shared;
+    return shared === undefined ? [] : [shared];
+  });
+}
+
+type SharedFunctionsInput = {
   readonly cwd: string;
   readonly config: PermDockConfig;
   readonly schema: string;
   readonly tableReads: readonly SupabaseManifestTableRead[];
-}): Promise<readonly SupabaseManifestSharedFunction[]> {
+};
+
+/** What `permdock supabase inspect --functions` prints for one function. */
+export type FunctionShare = {
+  /** `schema.name`. */
+  readonly function: string;
+  readonly shared: boolean;
+  /** Every reason the function is not shared; empty when it is. */
+  readonly reasons: readonly string[];
+};
+
+type Outcome = {
+  readonly shared?: SupabaseManifestSharedFunction;
+  readonly reasons: readonly string[];
+};
+
+/** `*` matches any run of characters, every other character itself. */
+function matcher(pattern: string): (name: string) => boolean {
+  const source = pattern
+    .split("*")
+    .map((part) => part.replaceAll(/[.+?^${}()|[\]\\]/gu, String.raw`\$&`))
+    .join(".*");
+  const regex = new RegExp(`^${source}$`, "u");
+  return (name) => regex.test(name);
+}
+
+/**
+ * For each function the schema files define whose `schema.name` matches
+ * `pattern` (`public.*_payload`), a pass or every reason `sharedFunctionsOf`
+ * does not list it: a header it fails, a read of the caller, an unknown call,
+ * or the `row` table it reads with the rules that make it so.
+ */
+export async function functionShares(
+  input: SharedFunctionsInput,
+  pattern: string,
+): Promise<readonly FunctionShare[]> {
+  const matches = matcher(pattern.toLowerCase());
+  const outcomes = await analyse(input);
+  return [...outcomes.keys()]
+    .filter((name) => matches(name))
+    .toSorted()
+    .map((name) => {
+      const outcome = outcomes.get(name);
+      return {
+        function: name,
+        shared: outcome?.shared !== undefined,
+        reasons: outcome?.reasons ?? [],
+      };
+    });
+}
+
+async function analyse(
+  input: SharedFunctionsInput,
+): Promise<ReadonlyMap<string, Outcome>> {
   const reads = new Map(input.tableReads.map((read) => [read.table, read]));
   const byArity = new Map<string, Definition>();
   for (const file of reportFiles(input.cwd, input.config)) {
@@ -285,18 +358,22 @@ export async function sharedFunctionsOf(input: {
   }
   const helperSchema = input.schema.toLowerCase();
   const analysed = new Map<string, Reads>();
+  const reasons = new Map<string, string[]>();
   for (const [name, overloads] of defined) {
     const merged: Reads[] = [];
+    const why: string[] = [];
     for (const definition of overloads) {
-      const found = definition.eligible
-        ? await readsOf(definition, defined, reads, helperSchema)
-        : undefined;
-      if (found === undefined) {
-        break;
+      const found =
+        headerReason(definition) ??
+        (await readsOf(definition, defined, reads, helperSchema));
+      if (typeof found === "string") {
+        why.push(found);
+      } else {
+        merged.push(found);
       }
-      merged.push(found);
     }
-    if (merged.length === overloads.length && merged.length > 0) {
+    reasons.set(name, why);
+    if (why.length === 0 && merged.length > 0) {
       analysed.set(name, {
         tables: new Set(merged.flatMap((entry) => [...entry.tables])),
         calls: new Set(merged.flatMap((entry) => [...entry.calls])),
@@ -306,8 +383,13 @@ export async function sharedFunctionsOf(input: {
   for (let changed = true; changed;) {
     changed = false;
     for (const [name, entry] of analysed) {
-      if ([...entry.calls].some((call) => !analysed.has(call))) {
+      const gone = [...entry.calls].filter((call) => !analysed.has(call));
+      if (gone.length > 0) {
         analysed.delete(name);
+        reasons.set(
+          name,
+          gone.map((call) => `it calls ${call}, which is not shared`),
+        );
         changed = true;
       }
     }
@@ -321,7 +403,12 @@ export async function sharedFunctionsOf(input: {
       close(call, seen);
     }
   };
-  return [...analysed.keys()].toSorted().flatMap((name) => {
+  const outcomes = new Map<string, Outcome>();
+  for (const name of defined.keys()) {
+    if (!analysed.has(name)) {
+      outcomes.set(name, { reasons: reasons.get(name) ?? [] });
+      continue;
+    }
     const reached = new Set<string>();
     close(name, reached);
     const tables = new Set<string>();
@@ -330,14 +417,21 @@ export async function sharedFunctionsOf(input: {
         tables.add(table);
       }
     }
-    if (
-      tables.size === 0 ||
-      [...tables].some((table) => reads.get(table)?.share !== "tenant")
-    ) {
-      return [];
+    const rows = [...tables]
+      .toSorted()
+      .filter((table) => reads.get(table)?.share !== "tenant");
+    if (tables.size === 0 || rows.length > 0) {
+      outcomes.set(name, {
+        reasons:
+          tables.size === 0
+            ? ["it reads no table"]
+            : rows.map((table) => rowReason(table, reads.get(table))),
+      });
+      continue;
     }
-    return [
-      {
+    outcomes.set(name, {
+      reasons: [],
+      shared: {
         function: name,
         tables: [...tables].toSorted(),
         permissions: [
@@ -346,8 +440,19 @@ export async function sharedFunctionsOf(input: {
           ),
         ].toSorted(),
       },
-    ];
-  });
+    });
+  }
+  return outcomes;
+}
+
+/** The `row` table a function reads, under which rule and why. */
+function rowReason(
+  table: string,
+  read: SupabaseManifestTableRead | undefined,
+): string {
+  const rules = read?.rules?.join(", ") ?? "unknown";
+  const why = read?.reason === undefined ? "" : `: ${read.reason}`;
+  return `it reads ${table}, a row table (rule ${rules})${why}`;
 }
 
 /**
@@ -378,11 +483,13 @@ export function tenantPureHelpersOf(
     {
       name: `permdock_${root}_has`,
       keyArgument: "p_grant",
+      keyPosition: 0,
       tenantArgument: "p_tenant",
     },
     {
       name: `${prefix}_permission_keys`,
       keyArgument: "p_keys",
+      keyPosition: 1,
       tenantArgument: "p_id",
     },
   ];

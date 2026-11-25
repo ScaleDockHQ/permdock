@@ -176,11 +176,13 @@ describe("tenant-pure helpers", () => {
       {
         name: "permdock.permdock_tenant_has",
         keyArgument: "p_grant",
+        keyPosition: 0,
         tenantArgument: "p_tenant",
       },
       {
         name: "permdock.permitted_tenant_permission_keys",
         keyArgument: "p_keys",
+        keyPosition: 1,
         tenantArgument: "p_id",
       },
     ]);

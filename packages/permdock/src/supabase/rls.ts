@@ -10,6 +10,7 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
+import { compactMembershipsSql } from "../core/membership-claim-sql.ts";
 import {
   qualifySqlTable,
   quoteQualifiedTable,
@@ -344,9 +345,12 @@ function jwtBody(
   custom: AuthorizeSqlOptions["customRoles"],
   suspension: SupabaseSuspension | undefined,
 ): string {
+  const claimed =
+    "coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships')";
   const memberships = `jsonb_array_elements(
-        case jsonb_typeof(coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships'))
-          when 'array' then coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships')
+        case jsonb_typeof(${claimed})
+          when 'array' then ${claimed}
+          when 'object' then ${compactMembershipsSql(claimed)}
           else '[]'::jsonb
         end
       ) m

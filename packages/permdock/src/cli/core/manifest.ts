@@ -463,6 +463,20 @@ export const SECTIONS: readonly Section[] = [
             },
           ),
           leaf(
+            "measure",
+            "Run requests as a user and count version reads, helper times and share keys",
+            {
+              examples: [
+                "permdock rls measure --as <user-id> --local",
+                "permdock rls measure --as <user-id>,<user-id> --tenant <tenant-id> --requests 50 --db-url-stdin",
+              ],
+              docs: "rls",
+              effects: ["database:read"],
+              config: true,
+              load: async () => (await import("../commands/rls.ts")).measure,
+            },
+          ),
+          leaf(
             "report",
             "List each table's policies by command, role, origin and helper calls",
             {

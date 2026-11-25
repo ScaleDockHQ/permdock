@@ -22,6 +22,7 @@ export type {
 export type { ProviderApprovers } from "./approvers.ts";
 export { authorizationHooks } from "./hooks.ts";
 export { grantFingerprint } from "../core/grant-fingerprint.ts";
+export { widenedKeys } from "./provider-tables.ts";
 export type { AuthorizationHooksOptions } from "./hooks.ts";
 export { authorizationProvider } from "./provider.ts";
 export type { AuthorizationProviderOptions } from "./provider.ts";

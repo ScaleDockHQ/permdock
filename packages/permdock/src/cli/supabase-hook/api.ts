@@ -18,7 +18,7 @@ import {
 } from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
-import { MEMBERSHIPS_FOR, heldSql } from "./entries.ts";
+import { MEMBERSHIPS_FOR, SUSPENDED_IN_FOR, heldSql } from "./entries.ts";
 import { typedUsers } from "./memberships.ts";
 import { hookTeamReader } from "./teams.ts";
 
@@ -115,6 +115,16 @@ function subjectSql(
   end if;`,
     )
     .join("");
+  const suspendedIn =
+    parts.tenants === undefined
+      ? ""
+      : tenant
+        ? `
+  select case when ids ? p_tenant::text then jsonb_build_array(p_tenant::text) else '[]'::jsonb end
+    into suspended
+    from (select ${schema}.${SUSPENDED_IN_FOR}(uid) as ids) s;`
+        : `
+  suspended := ${schema}.${SUSPENDED_IN_FOR}(uid);`;
   const custom =
     customRolesOn(config.rls) && resolveAuthorize(config) === "database"
       ? customRolesOfSql(
@@ -135,7 +145,7 @@ declare
   held jsonb;
   memberships jsonb;
   custom jsonb := '[]'::jsonb;${custom === "" ? "" : "\n  custom_versions jsonb := '{}'::jsonb;"}
-  ver bigint;
+  ver bigint;${parts.tenants === undefined ? "" : "\n  suspended jsonb := '[]'::jsonb;"}
   claims jsonb := '{}'::jsonb;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${typedUsers(parts)}
 begin
   if uid is null or not exists (select 1 from auth.users u where u.id = uid) then
@@ -144,13 +154,13 @@ begin
 ${roles}
   select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
     into memberships
-    from ${entries} x;${custom}${version}${teams}${extra}
+    from ${entries} x;${suspendedIn}${custom}${version}${teams}${extra}
   return jsonb_strip_nulls(jsonb_build_object(
     'claims', case when claims = '{}'::jsonb then null else claims end,
     'id', uid::text,
     'active', true,
     'roles', held,
-    'memberships', memberships,
+    'memberships', memberships,${parts.tenants === undefined ? "" : "\n    'suspendedIn', case when suspended = '[]'::jsonb then null else suspended end,"}
     'customRoles', custom,${custom === "" ? "" : "\n    'customRolesVersions', case when custom_versions = '{}'::jsonb then null else custom_versions end,"}
     'authzVersion', ver
   ));
@@ -226,7 +236,7 @@ begin
   subject := ${quoteIdent(parts.schema)}.${SUBJECT_FOR}((select ${helpers}.${USER_ID_HELPER}()), v_tenant);
   if subject is null
     or (subject ->> 'active') is distinct from 'true'
-    or coalesce(jsonb_array_length(subject -> 'memberships'), 0) = 0 then
+    or (coalesce(jsonb_array_length(subject -> 'memberships'), 0) = 0${parts.tenants === undefined ? "" : " and subject -> 'suspendedIn' is null"}) then
     return null;
   end if;
   return subject || jsonb_build_object('tenant', v_tenant::text);
@@ -287,7 +297,7 @@ ${wrapper(names.membersOf, MEMBERS_OF, "p_scope text, p_id text", "p_scope, p_id
 
 ${wrapper(names.authzVersionFor, AUTHZ_VERSION_FOR, "p_user uuid", "p_user", "uuid", "bigint")}${
     storesCustomRoles(config)
-      ? `\n\n${wrapper(names.rolesVersionFor, CUSTOM_ROLES_VERSION_FOR, `p_tenant ${tenantTypeFor(parts, config)}`, "p_tenant", tenantTypeFor(parts, config), "bigint")}`
+      ? `\n\n${wrapper(names.rolesVersionFor, CUSTOM_ROLES_VERSION_FOR, `p_tenant ${tenantTypeFor(parts, config)}`, "p_tenant", tenantTypeFor(parts, config), "bigint")}\n\n${wrapper(names.versionsFor, AUTHZ_VERSIONS_FOR, `p_user uuid, p_tenant ${tenantTypeFor(parts, config)}`, "p_user, p_tenant", `uuid, ${tenantTypeFor(parts, config)}`, "jsonb")}`
       : ""
   }`;
 }
@@ -338,6 +348,7 @@ revoke execute on function ${fn}(${type}) from public, anon, authenticated;`;
 }
 
 const AUTHZ_VERSION_FOR = "authz_version_for";
+const AUTHZ_VERSIONS_FOR = "authz_versions_for";
 
 /**
  * `authz_version_for(p_user uuid) returns bigint`: the authorization version
@@ -380,6 +391,38 @@ begin
 end;
 $$;
 revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
+}
+
+/**
+ * `authz_versions_for(p_user, p_tenant) returns jsonb`: `{ authz, custom_roles
+ * }`, the results of `authz_version_for` and `custom_roles_version_for` in one
+ * call, for a request that checks a token holding a custom role against both.
+ * No client role may execute it.
+ */
+export function authzVersionsForSql(
+  parts: Parts,
+  config: PermDockConfig,
+): string {
+  if (!storesCustomRoles(config)) {
+    return "";
+  }
+  const schema = quoteIdent(parts.schema);
+  const fn = `${schema}.${AUTHZ_VERSIONS_FOR}`;
+  const type = tenantTypeFor(parts, config);
+  return `-- both versions a token that holds a custom role is checked against, in one call; no client role may execute it
+create or replace function ${fn}(p_user uuid, p_tenant ${type})
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'authz', ${schema}.${AUTHZ_VERSION_FOR}(p_user),
+    'custom_roles', ${schema}.${CUSTOM_ROLES_VERSION_FOR}(p_tenant)
+  )
+$$;
+revoke execute on function ${fn}(uuid, ${type}) from public, anon, authenticated;`;
 }
 
 const MEMBERS_OF = "members_of";

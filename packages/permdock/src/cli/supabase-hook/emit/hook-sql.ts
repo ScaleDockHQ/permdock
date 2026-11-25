@@ -14,6 +14,7 @@ import { splitUndiffed } from "../../sql/statements.ts";
 import {
   apiWrappersSql,
   authzVersionForSql,
+  authzVersionsForSql,
   customRolesVersionForSql,
   membersOfSql,
   permdockSubjectSql,
@@ -141,6 +142,7 @@ ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from t
     permdockSubjectSql(parts),
     authzVersionForSql(parts),
     customRolesVersionForSql(parts, config),
+    authzVersionsForSql(parts, config),
     membersOfSql(parts),
     apiWrappersSql(parts, config),
     grantsSql(parts),

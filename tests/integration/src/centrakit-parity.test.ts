@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { composeMemberships } from "permdock";
-import { subjectFromSupabase } from "permdock/supabase";
+import { expandMemberships, subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -246,7 +246,7 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
 
   // SAFETY: the custom access token hook mints memberships as Membership objects
   const membershipsOf = (claims: Claims) =>
-    claims["memberships"] as Membership[];
+    expandMemberships(claims["memberships"]) as Membership[];
 
   /**
    * What `permitted_<scope>_ids(grant)` must return for these memberships,
@@ -388,7 +388,7 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
     ]);
     const platform = await mint(PLATFORM);
     expect(platform["roles"]).toStrictEqual(["platform-admin"]);
-    expect(platform["memberships"]).toStrictEqual([]);
+    expect(expandMemberships(platform["memberships"])).toStrictEqual([]);
     expect(await mint(SUSPENDED)).toMatchObject({ roles: [], memberships: [] });
     expect(membershipsOf(await mint(LATE))).toStrictEqual([]);
   });

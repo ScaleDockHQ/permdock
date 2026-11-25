@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expandMemberships } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -69,7 +70,7 @@ describe("junctionMembershipSource with several role sources", () => {
           claims: { sub: user, role: "authenticated" },
         }),
       ]);
-      return result.rows[0]?.event.claims["memberships"];
+      return expandMemberships(result.rows[0]?.event.claims["memberships"]);
     });
   }
 

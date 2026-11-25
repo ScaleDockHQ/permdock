@@ -457,6 +457,30 @@ function validStatic(value: unknown, memberships: number): boolean {
   );
 }
 
+function validCustom(value: unknown, memberships: number): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const held: unknown = Reflect.get(value, "held");
+  return (
+    Array.isArray(held) &&
+    held.every(
+      (item: unknown) =>
+        Array.isArray(item) &&
+        item.length === 3 &&
+        typeof item[0] === "string" &&
+        (item[1] === null ||
+          (Number.isInteger(item[1]) &&
+            item[1] >= 0 &&
+            item[1] < memberships)) &&
+        isDigest(item[2]),
+    )
+  );
+}
+
 /**
  * Validates a snapshot document, from JSON text or a value, and returns it
  * frozen. Throws on an unsupported `v`, a malformed time, `typeLevel` or grant
@@ -527,6 +551,16 @@ export function parseSnapshot(json: unknown): Snapshot {
   ) {
     throw new Error(
       "PermDock: snapshot static must list [role, membership index] pairs and sha-256 digests",
+    );
+  }
+  if (
+    !validCustom(
+      record["custom"],
+      Array.isArray(memberships) ? memberships.length : 0,
+    )
+  ) {
+    throw new Error(
+      "PermDock: snapshot custom must list [role, membership index, digest] triples with sha-256 digests",
     );
   }
   // Reading the grants and assignable checks every index now, so a malformed document never parses.

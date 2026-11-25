@@ -184,6 +184,13 @@ export type Principal = {
    * `claimsFirst` source reads the rest.
    */
   readonly membershipsTruncated?: boolean;
+  /**
+   * The tenants where the user holds a membership and the tenant is suspended
+   * (`suspended_in` claim, `permdock_subject()`). A tenant listed here is a
+   * suspension, not a missing membership; RLS still denies. The list is cut at
+   * 16 ids and says nothing about a tenant it leaves out.
+   */
+  readonly suspendedIn?: readonly string[];
   /** The authorization version the token was minted at (`authz_ver`). */
   readonly authzVersion?: number;
   /**

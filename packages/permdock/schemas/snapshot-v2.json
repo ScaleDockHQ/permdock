@@ -276,6 +276,26 @@
         }
       }
     },
+    "custom": {
+      "type": "object",
+      "description": "Grants of custom roles left out of `grants` and listed by name. `held` pairs a role with the index of the principal membership that holds it, or null for a global role, and the digest of the tenant record entry it was checked against. A reader merges the grants from the `CustomRoleRecord` of the tenant; without a record, or with another digest, the role grants nothing.",
+      "required": ["held"],
+      "properties": {
+        "held": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              { "type": "string" },
+              { "type": ["integer", "null"], "minimum": 0 },
+              { "type": "string" }
+            ],
+            "items": false,
+            "minItems": 3
+          }
+        }
+      }
+    },
     "lists": {
       "type": "array",
       "description": "Id lists that `{ \"list\": n }` in an `in` or `notIn` condition value refers to.",

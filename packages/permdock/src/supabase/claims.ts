@@ -2,6 +2,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { isRecord } from "../core/compact.ts";
 import { memoByFrozenObject } from "../core/freeze.ts";
+import { expandMemberships } from "../core/membership-claim.ts";
 import { CUSTOM_ROLES_VERSION_CLAIM, supabaseTenantClaim } from "./budget.ts";
 
 /**
@@ -51,6 +52,11 @@ export type SupabasePermDockClaims<TenantClaim extends string = "tenant_id"> = {
   readonly memberships?: readonly SupabaseMembershipClaim[];
   /** `true` when the size budget cut `memberships` or `attrs`. */
   readonly memberships_truncated?: boolean;
+  /**
+   * The ids of the tenants where the user is a member and the tenant is
+   * suspended, outside the memberships budget and cut at 16.
+   */
+  readonly suspended_in?: readonly string[];
   /**
    * Allow-listed server-owned attributes, read as
    * `principal.claims.attrs.<key>`.
@@ -117,6 +123,7 @@ const KNOWN: ReadonlySet<string> = new Set([
   "roles",
   "memberships",
   "memberships_truncated",
+  "suspended_in",
   "team_ids",
   "attrs",
   "authz_ver",
@@ -252,8 +259,9 @@ function checkPermDockClaims(
   optional(record, "roles", path, issues, isStrings, "an array of strings");
   const memberships = own(record, "memberships");
   if (memberships !== undefined) {
-    if (Array.isArray(memberships)) {
-      for (const [index, item] of memberships.entries()) {
+    const entries = expandMemberships(memberships);
+    if (Array.isArray(entries)) {
+      for (const [index, item] of entries.entries()) {
         checkMembership(item, [...path, "memberships", index], issues);
       }
     } else {
@@ -267,6 +275,14 @@ function checkPermDockClaims(
     issues,
     (value) => typeof value === "boolean",
     "a boolean",
+  );
+  optional(
+    record,
+    "suspended_in",
+    path,
+    issues,
+    isStrings,
+    "an array of strings",
   );
   optional(record, "team_ids", path, issues, isStrings, "an array of strings");
   optional(record, tenantClaim, path, issues, isString, "a string");

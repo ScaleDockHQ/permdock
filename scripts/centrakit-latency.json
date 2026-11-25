@@ -1,10 +1,10 @@
 {
   "machine": {
-    "date": "2026-11-24T20:41:36Z",
+    "date": "2026-11-25T18:21:22Z",
     "node": "v26.13.1",
     "os": "darwin 25.6.0 arm64",
     "cpu": "Apple M5 Max (18 cores)",
-    "commit": "5497d1e56"
+    "commit": "d986eb019"
   },
   "stack": "tests/integration/fixtures/centrakit, no database",
   "versionReadMs": 1.331,
@@ -12,48 +12,48 @@
     "policy": "tests/integration/fixtures/centrakit/policy.ts: 8 keys, 6 roles",
     "policyModule": {
       "runs": 30,
-      "meanMs": 35.729,
-      "p50Ms": 35.531,
-      "p95Ms": 37.105
+      "meanMs": 41.501,
+      "p50Ms": 38.83,
+      "p95Ms": 48.153
     },
     "getPermDock": {
       "runs": 30,
-      "meanMs": 0.879,
-      "p50Ms": 0.862,
-      "p95Ms": 1.025
+      "meanMs": 1.03,
+      "p50Ms": 0.934,
+      "p95Ms": 1.361
     },
     "firstCan": {
       "runs": 30,
-      "meanMs": 1.111,
-      "p50Ms": 1.07,
-      "p95Ms": 1.364
+      "meanMs": 1.285,
+      "p50Ms": 1.166,
+      "p95Ms": 1.962
     },
     "policyToFirstCan": {
       "runs": 30,
-      "meanMs": 37.719,
-      "p50Ms": 37.576,
-      "p95Ms": 39.07
+      "meanMs": 43.817,
+      "p50Ms": 40.833,
+      "p95Ms": 51.229
     }
   },
   "firstRequest": {
     "wiring": "getPermDock for an admin plus one can, in a fresh process after the policy is imported; warmed runs authorizationHooks({ policy }).warm() first",
     "withoutWarm": {
       "runs": 30,
-      "meanMs": 1.949,
-      "p50Ms": 1.914,
-      "p95Ms": 2.063
+      "meanMs": 1.986,
+      "p50Ms": 1.974,
+      "p95Ms": 2.086
     },
     "withWarm": {
       "runs": 30,
-      "meanMs": 1.171,
-      "p50Ms": 1.154,
-      "p95Ms": 1.314
+      "meanMs": 1.176,
+      "p50Ms": 1.165,
+      "p95Ms": 1.263
     },
     "warmCost": {
       "runs": 30,
-      "meanMs": 1.242,
-      "p50Ms": 1.229,
-      "p95Ms": 1.327
+      "meanMs": 1.259,
+      "p50Ms": 1.238,
+      "p95Ms": 1.365
     }
   },
   "serverAction": {
@@ -62,24 +62,46 @@
     "before": {
       "versionReadsFirstAction": 3,
       "versionReadsPerLaterAction": 2,
-      "firstActionMs": 8.726,
+      "firstActionMs": 7.322,
       "laterActions": {
         "runs": 200,
-        "meanMs": 2.759,
-        "p50Ms": 2.744,
-        "p95Ms": 2.841
+        "meanMs": 2.768,
+        "p50Ms": 2.754,
+        "p95Ms": 2.846
       }
     },
     "after": {
       "versionReadsFirstAction": 1,
       "versionReadsPerLaterAction": 0,
-      "firstActionMs": 1.661,
+      "firstActionMs": 1.669,
       "laterActions": {
         "runs": 200,
         "meanMs": 0.063,
-        "p50Ms": 0.06,
-        "p95Ms": 0.089
+        "p50Ms": 0.061,
+        "p95Ms": 0.083
       }
+    }
+  },
+  "customRoleMember": {
+    "versionReadMs": 1.331,
+    "wiring": "four instances per page: read, read, database-write and a derive({ customRoles })",
+    "before": {
+      "versionReadsFirstPage": 6,
+      "versionReadsSecondPage": 6,
+      "authzVersionFor": 6,
+      "customRolesVersionFor": 6,
+      "authzVersionsFor": 0,
+      "firstPageMs": 21.85,
+      "secondPageMs": 20.996
+    },
+    "after": {
+      "versionReadsFirstPage": 1,
+      "versionReadsSecondPage": 0,
+      "authzVersionFor": 0,
+      "customRolesVersionFor": 0,
+      "authzVersionsFor": 1,
+      "firstPageMs": 14.137,
+      "secondPageMs": 12.503
     }
   },
   "sharedEntry": {
@@ -90,9 +112,9 @@
     "fillsForTwoMembersPerUser": 2,
     "shareKeyOnePage": {
       "runs": 10000,
-      "meanMs": 0.024,
-      "p50Ms": 0.023,
-      "p95Ms": 0.033
+      "meanMs": 0.026,
+      "p50Ms": 0.024,
+      "p95Ms": 0.034
     },
     "note": "The fingerprint covers grants, not the tenant id: admins of two organisations share it, so a bsb.kept key adds the tenant when the data differs by tenant"
   },
@@ -100,11 +122,11 @@
     "versionReadMs": 1.331,
     "withoutStore": {
       "versionReads": 1,
-      "ms": 1.433
+      "ms": 1.352
     },
     "storeEmpty": {
       "versionReads": 1,
-      "ms": 1.431
+      "ms": 1.407
     },
     "storeFilledByAnotherInstance": {
       "versionReads": 0,

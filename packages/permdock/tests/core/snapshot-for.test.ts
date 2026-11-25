@@ -1,6 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { customRoleRecord } from "../../src/core/custom-role-record.ts";
 import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import {
   getPermDockSync,
@@ -109,9 +110,19 @@ describe(snapshotFor, () => {
       { tenant: "acme", name: "lead", includes: ["admin"] },
       { tenant: "globex", name: "lead", includes: ["owner"] },
     ];
-    const withLead = fromSnapshot(
-      snapshotFor(policy, lead, { tenant: "acme", customRoles }),
+    const leadSnapshot = snapshotFor(policy, lead, {
+      tenant: "acme",
+      customRoles,
+    });
+    expect(leadSnapshot.custom?.held).toStrictEqual([
+      ["lead", 0, expect.stringMatching(/^sha-256:/u)],
+    ]);
+    expect(fromSnapshot(leadSnapshot).can(permissions.member.invite)).toBe(
+      false,
     );
+    const withLead = fromSnapshot(leadSnapshot, {
+      customRoles: [customRoleRecord(policy, customRoles, "acme")],
+    });
     expect(withLead.can(permissions.member.invite)).toBe(true);
     expect(withLead.can(permissions.billing.manage)).toBe(false);
     expect(

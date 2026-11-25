@@ -201,9 +201,10 @@ export function asMembershipSource(
  * latest membership change is stale for the policy's `fresh` permissions, or
  * with `onStale: 'reread'` has its memberships read from `source` instead. With
  * `versions`, an instance with intent `read` or `database-write` takes the
- * version from that process-wide cache, so concurrent instances share one read;
- * a token's `authz_ver` seeds it dated by `iat`, so a token issued within its
- * `maxStaleMs` needs none. Intent `write` always reads.
+ * version, and the custom-role version of its tenant, from that process-wide
+ * cache, so concurrent instances share one read; a token's `authz_ver` seeds it
+ * dated by `iat`, so a token issued within its `maxStaleMs` needs none. Intent
+ * `write` always reads.
  */
 export function claimsFirst(
   source: MembershipSource | readonly MembershipSource[],
@@ -246,8 +247,19 @@ export function claimsFirst(
     ...(inner.customRolesVersion === undefined
       ? {}
       : {
-          customRolesVersion: (query, context) =>
-            inner.customRolesVersion?.(query, context),
+          customRolesVersion:
+            versions === undefined
+              ? (query, context) => inner.customRolesVersion?.(query, context)
+              : (query, context) =>
+                  versions.current(
+                    { id: `custom-roles:${query.tenant}` },
+                    () => inner.customRolesVersion?.(query, context),
+                    {
+                      live:
+                        context?.intent !== "read" &&
+                        context?.intent !== "database-write",
+                    },
+                  ),
         }),
     ...(inner.globalRolesFor === undefined
       ? {}

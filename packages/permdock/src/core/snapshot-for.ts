@@ -11,6 +11,7 @@ import type { Instant } from "./time.ts";
 
 import { compactWithBundle } from "./client-bundle.ts";
 import { compact } from "./compact.ts";
+import { withoutCustomGrants } from "./custom-role-record.ts";
 import { freezeDeep } from "./freeze.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
 import { resolveSubject } from "./resolve-subject.ts";
@@ -25,7 +26,13 @@ export type SnapshotForOptions = {
   readonly tenant?: string;
   /** Database mode: replaces the memberships carried by the subject. */
   readonly memberships?: readonly Membership[];
-  /** The tenant's custom roles, typically from a shared, tagged cache. */
+  /**
+   * The tenant's custom roles, typically from a shared, tagged cache. The
+   * snapshot names the roles a member holds and leaves their grants to the
+   * `customRoleRecord` of the tenant, which `fromSnapshot` and the client store
+   * take as `customRoles`; a role whose grants the record does not reproduce
+   * stays inline.
+   */
   readonly customRoles?: readonly CustomRole[];
   /**
    * Per tenant, the role names `CustomRoleSource.assignable` returns; narrows
@@ -89,11 +96,17 @@ export function snapshotFor<
       `PermDock: snapshotFor() writes snapshot wire version 2 only, got v: ${String(version)}`,
     );
   }
-  const expanded = expandedSnapshotFor(policy, user, options);
-  // SAFETY: the generics only type the caller's side; the bundle reads the erased policy.
+  const full = expandedSnapshotFor(policy, user, options);
+  // SAFETY: the generics only type the caller's side; the records read the erased policy.
+  const erased = policy as unknown as Policy;
+  const { snapshot: expanded, custom } = withoutCustomGrants(
+    erased,
+    full,
+    options.customRoles ?? [],
+  );
   return options.omitStatic === true
-    ? compactWithBundle(policy as unknown as Policy, expanded)
-    : compactSnapshot(expanded);
+    ? compactWithBundle(erased, expanded, custom)
+    : compactSnapshot(expanded, undefined, undefined, custom);
 }
 
 /** The flat form `snapshotFor` writes, as the server evaluated it. */

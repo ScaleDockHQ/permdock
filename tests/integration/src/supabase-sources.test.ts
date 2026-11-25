@@ -15,7 +15,11 @@ import {
   plan,
   role,
 } from "permdock";
-import { authzVersion, subjectFromSupabase } from "permdock/supabase";
+import {
+  authzVersion,
+  expandMemberships,
+  subjectFromSupabase,
+} from "permdock/supabase";
 import { Client as PgClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -37,8 +41,15 @@ const BIG = "00000000-0000-4000-8000-0000000000a4";
 const ADMIN = "00000000-0000-4000-8000-0000000000a5";
 const SUSPENDED = "00000000-0000-4000-8000-0000000000a6";
 const USERS = [OWNER, CONTACT, SEATED, BIG, ADMIN, SUSPENDED];
+function expectEntries(actual: unknown, expected: readonly unknown[]): void {
+  expect(actual).toHaveLength(expected.length);
+  for (const entry of expected) {
+    expect(actual).toContainEqual(entry);
+  }
+}
+
 const MANY = Array.from(
-  { length: 40 },
+  { length: 150 },
   (_, index) => `O${String(index).padStart(2, "0")}`,
 );
 
@@ -60,7 +71,7 @@ grant select on auth.users to supabase_auth_admin;
 grant usage on schema public to authenticated, anon;
 insert into auth.users (id) values ${USERS.map((id) => `('${id}')`).join(", ")};
 update auth.users set raw_app_meta_data = '{"active_organization": "B"}' where id = '${OWNER}';
-update auth.users set raw_app_meta_data = '{"active_organization": "O39"}' where id = '${BIG}';
+update auth.users set raw_app_meta_data = '{"active_organization": "O149"}' where id = '${BIG}';
 create table memberships (
   user_id uuid not null, scope text not null, scope_id text not null, role text not null,
   via text, expires_at timestamptz, managed_by text, seats text[]
@@ -203,7 +214,7 @@ describe("permdock supabase hook generate against Postgres", () => {
 
   it("writes roles, memberships with via, expiry, owner and seats, attrs and the active tenant", async () => {
     const owner = await mint(OWNER);
-    expect(owner["memberships"]).toStrictEqual([
+    expectEntries(expandMemberships(owner["memberships"]), [
       {
         scope: "organization",
         id: "B",
@@ -221,7 +232,9 @@ describe("permdock supabase hook generate against Postgres", () => {
     expect(owner["roles"]).toStrictEqual([]);
     expect(owner["authz_ver"]).toBeTypeOf("number");
     expect(owner).not.toHaveProperty("memberships_truncated");
-    expect((await mint(CONTACT))["memberships"]).toStrictEqual([
+    expect(
+      expandMemberships((await mint(CONTACT))["memberships"]),
+    ).toStrictEqual([
       {
         scope: "customer",
         id: "A",
@@ -231,7 +244,7 @@ describe("permdock supabase hook generate against Postgres", () => {
       },
     ]);
     const seated = await mint(SEATED);
-    expect(seated["memberships"]).toStrictEqual([
+    expect(expandMemberships(seated["memberships"])).toStrictEqual([
       {
         scope: "organization",
         id: "T",
@@ -256,7 +269,7 @@ describe("permdock supabase hook generate against Postgres", () => {
   it("writes extra claims with or without memberships and omits a null one", async () => {
     expect((await mint(OWNER))["features"]).toStrictEqual({ T: ["export"] });
     const admin = await mint(ADMIN);
-    expect(admin["memberships"]).toStrictEqual([]);
+    expect(expandMemberships(admin["memberships"])).toStrictEqual([]);
     expect(admin["features"]).toStrictEqual({ T: ["export"] });
     expect(await mint(CONTACT)).not.toHaveProperty("features");
   });
@@ -274,12 +287,14 @@ describe("permdock supabase hook generate against Postgres", () => {
   it("puts the active scope first, truncates at the budget and falls back to the source", async () => {
     const claims = await mint(BIG);
     // SAFETY: the custom access token hook mints memberships as Membership objects
-    const kept = claims["memberships"] as Membership[];
+    const kept = expandMemberships(claims["memberships"]) as Membership[];
     expect(claims["memberships_truncated"]).toBe(true);
     expect(kept.length).toBeLessThan(MANY.length);
-    expect(kept[0]?.id).toBe("O39");
-    expect(claims["tenant_id"]).toBe("O39");
-    expect(Buffer.byteLength(JSON.stringify(kept))).toBeLessThanOrEqual(1024);
+    expect(kept[0]?.id).toBe("O149");
+    expect(claims["tenant_id"]).toBe("O149");
+    expect(
+      Buffer.byteLength(JSON.stringify(claims["memberships"])),
+    ).toBeLessThanOrEqual(1024);
     // SAFETY: minted claims always carry a subject, so the principal is set
     const principal = subjectFromSupabase(claims).principal as Principal;
     expect(principal.membershipsTruncated).toBe(true);

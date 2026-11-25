@@ -1,6 +1,7 @@
 import type { CheckedPermission, RlsSqlContext } from "../sql/context.ts";
 import type { RoleRows } from "../sql/global-roles.ts";
 
+import { compactMembershipsSql } from "../../core/membership-claim-sql.ts";
 import { activeInstancesSql, activeUserSql } from "../sql/active.ts";
 import { globalRoleSource } from "../sql/global-roles.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
@@ -118,7 +119,7 @@ export function membershipRows(ctx: RlsSqlContext): string {
       : raw;
   return `(select ${value} as v) pdk_c
     cross join lateral jsonb_array_elements(
-      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+      case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v when 'object' then ${compactMembershipsSql("pdk_c.v")} else '[]'::jsonb end
     ) m
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end

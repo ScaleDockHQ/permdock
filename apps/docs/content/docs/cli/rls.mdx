@@ -1124,6 +1124,26 @@ permdock rls explain --db-url-stdin --json
 
 With `--json`, the report is printed as JSON. `explain` writes no file and reads the database only with `--db-url-stdin`.
 
+## measure
+
+```bash
+permdock rls measure --as <user-id> --local
+permdock rls measure --as <user-id>,<user-id> --tenant <tenant-id> --requests 50 --db-url-stdin
+```
+
+`measure` runs requests as one or more users against the app's own database and prints what Postgres counted. `--as` takes auth user ids, comma-separated; `--tenant` restricts the run to one tenant, otherwise each tenant of the user (up to 20) is measured. `--requests` (default 20) sets the requests per user and `--tables` (default 10) the tables of `rls.tableReads` one request reads.
+
+A request is one transaction. It runs as `authenticated` with the claims `supabase.hook` mints for the user, reads one row from each of the first tables, and rolls back. The command writes nothing, but it needs a role that may `set role authenticated`: the connection string of the local stack or a superuser.
+
+| Output                    | Source                                                                                                                                                                                                                                                |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Version reads per request | `calls` of `authz_version_for`, `authz_versions_for` and `custom_roles_version_for` in `pg_stat_user_functions`, divided by the requests; the command sets `track_functions = 'all'` for its session                                                  |
+| Helper times              | The functions of the `rls.schema` schema from `pg_stat_user_functions`, and the statements that call them from `pg_stat_statements`, as mean and total milliseconds by total time                                                                     |
+| Share key                 | The share of tenant tokens whose claims allow a share key: no other list is cut, and a truncated `memberships` still holds an entry outside the tenant ([why that proves the tenant's entries are whole](/docs/guides/shared-cache#truncated-tokens)) |
+| Request time              | Median and 95th percentile of the table reads, in milliseconds                                                                                                                                                                                        |
+
+Without `pg_stat_statements` the command says so and prints the function times only; create the extension, and on a hosted database add it to `shared_preload_libraries`. The share-key count is an upper bound: the live version check and the `widened` keys can still refuse a key at request time. A user id that is not in `auth.users` is reported as such. With `supabase.hook.activeFrom` reading a table instead of `app_metadata`, the hook gives each user one active tenant and the command measures that one.
+
 ## report
 
 ```bash
@@ -1271,6 +1291,7 @@ What each command may change; [side effects](/docs/cli#side-effects) explains ea
 | `permdock rls verify`  | `files`, `database:read` |
 | `permdock rls migrate` | `rewrite`, `files`       |
 | `permdock rls explain` | `database:read`          |
+| `permdock rls measure` | `database:read`          |
 | `permdock rls report`  | `database:read`          |
 
 ## Related

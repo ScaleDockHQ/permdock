@@ -214,11 +214,19 @@ Both answer for the active tenant unless `tenant` is passed, and both follow the
 
 ## Snapshots
 
-`snapshot()` and `snapshotFor(policy, user, { customRoles, assignable? })` carry the resolved custom-role grants as ordinary `grants` entries: `role` is the custom role name and `membership` is the membership that holds it, so `fromSnapshot` scopes them to the right scope instance. `include` trims them like any grant. `snapshotFor` takes `assignable` as a record of role names per tenant, the values `CustomRoleSource.assignable` would return.
+`snapshot()` carries the resolved custom-role grants as ordinary `grants` entries: `role` is the custom role name and `membership` is the membership that holds it, so `fromSnapshot` scopes them to the right scope instance. `include` trims them like any grant. `snapshotFor` takes `assignable` as a record of role names per tenant, the values `CustomRoleSource.assignable` would return.
 
 Snapshots also carry `assignable`: one `{ tenant, roles, permissions, levels? }` entry per tenant in `tenants`, where `roles` are role names, `permissions` are permission leaves and `levels` maps a permission key to its assignable levels, trimmed by `include`. The snapshot-backed instance reads them for `assignableRoles()`, `assignablePermissions()` and `assignableLevels()`, and `useAssignablePermissions()` reads them on the client. The format stays Snapshot `v: 1` ([snapshots](/docs/concepts/snapshots), [wire formats](/docs/concepts/wire-formats)).
 
 For every custom role, `decide` on the server and `fromSnapshot(snapshot).decide` agree; the parity suite checks includes, own allows, inherited denies, own denies, dropped keys and team scope.
+
+`snapshotFor(policy, user, { customRoles, assignable? })` leaves custom-role grants out and lists the roles the user holds in `custom.held`, each with the digest of its record entry. `customRoleRecord(policy, customRoles, tenant)` writes the grants of one tenant's roles once; it is memoised per policy, role list and tenant. `fromSnapshot(snapshot, { customRoles: [record] })` merges the record. A role without a record, or with a record of another digest, grants nothing. A member with 1, 3 and 10 custom roles of one tenant (`tests/core/snapshot-custom-roles.test.ts`):
+
+| Custom roles | Grants inline | Names only | Tenant record (shared) |
+| ------------ | ------------- | ---------- | ---------------------- |
+| 1            | 3,145 B       | 2,704 B    | 1,395 B                |
+| 3            | 3,943 B       | 2,916 B    | 2,695 B                |
+| 10           | 9,095 B       | 4,975 B    | 10,939 B               |
 
 ## Version and compiled roles
 
@@ -232,10 +240,10 @@ In `database` mode a custom-role edit raises one counter per tenant, so a cached
 | `permdock_recompile_custom_roles()`                                                              | Rebuilds `custom_role_compiled` from the stored rows. Run `select permdock.permdock_recompile_custom_roles()` once after an upgrade or a change to the declared roles; until then a role stored earlier has no compiled row and grants nothing.     |
 | `custom_roles_ver`                                                                               | The token claim: the version of the active tenant when the token was minted. The hook writes it with an active tenant and `rls.customRoles` in `database` mode, and drops it otherwise.                                                             |
 | `Principal.customRolesVersion`                                                                   | The claim as `subjectFromSupabase` reads it.                                                                                                                                                                                                        |
-| `MembershipSource.customRolesVersion(query, context)`                                            | Reads a tenant's current version. `postgrestSources` calls `custom_roles_version_for`.                                                                                                                                                              |
+| `MembershipSource.customRolesVersion(query, context)`                                            | Reads a tenant's current version. `postgrestSources` calls `custom_roles_version_for`, or `authz_versions_for` when the user version is read in the same tick.                                                                                      |
 | `SubjectRecord.customRolesVersions`                                                              | The version of each tenant in which `subject_for` found a held custom role, so a `SubjectCache` serves a record only at the versions it was read at: `SubjectCache.record(id, version, roles?)` takes them as `roles`.                              |
 
-A token that holds a role the policy does not declare is checked against the tenant's current version. A token behind it, or a version that cannot be read, reads the memberships live instead of trusting the claim. The version also joins the keys of the subject cache and the instance cache. Each edited tenant sends one broadcast on `authz-tenant:<tenant>`, in place of two messages per holder ([Supabase token hook](/docs/adapters/supabase-hook#authorization-version)).
+A token that holds a role the policy does not declare is checked against the tenant's current version. A token behind it, or a version that cannot be read, reads the memberships live instead of trusting the claim. With `claimsFirst(source, { versions })` the tenant's version is read at most once per `maxStaleMs` for every instance with intent `read` or `database-write`, derived instances included; intent `write` always reads. A request that needs both versions in the same tick makes one `authz_versions_for` call, and a database without that function keeps the two single reads. The version also joins the keys of the subject cache and the instance cache. Each edited tenant sends one broadcast on `authz-tenant:<tenant>`, in place of two messages per holder ([Supabase token hook](/docs/adapters/supabase-hook#authorization-version)).
 
 ## Row level security
 

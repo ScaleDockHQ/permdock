@@ -380,6 +380,12 @@
                   ]
                 }
               },
+              "tenantFor": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "reason": {
                 "type": "string"
               }
@@ -425,6 +431,10 @@
               },
               "keyArgument": {
                 "type": "string"
+              },
+              "keyPosition": {
+                "type": "integer",
+                "minimum": 0
               },
               "tenantArgument": {
                 "type": "string"

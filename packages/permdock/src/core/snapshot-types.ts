@@ -206,6 +206,12 @@ export type Snapshot = Omit<
    * Absent when every grant is inline.
    */
   readonly static?: SnapshotStatic;
+  /**
+   * Grants of custom roles left out of `grants` and listed by name. A reader
+   * merges them from the `CustomRoleRecord` of each tenant; without one the
+   * role grants nothing. Absent when every custom-role grant is inline.
+   */
+  readonly custom?: SnapshotCustom;
   readonly grants: readonly {
     readonly permission: string;
     /**
@@ -257,6 +263,42 @@ export type SnapshotStatic = {
    * without a role are exactly those.
    */
   readonly shared?: string;
+};
+
+/**
+ * The custom-role grants a snapshot names instead of carrying. `held` lists one
+ * `[role, membership, digest]` per group: the role's grants with that entry of
+ * `subject.principal.memberships` attached, or none for a global role. `digest`
+ * pins the record entry the role was checked against.
+ */
+export type SnapshotCustom = {
+  readonly held: readonly (readonly [
+    role: string,
+    membership: number | null,
+    digest: string,
+  ])[];
+};
+
+/**
+ * The grants of the custom roles one tenant holds, written by
+ * `customRoleRecord` and shared by every member of the tenant. A snapshot names
+ * a role and the record supplies its grants, so the record is cached once per
+ * tenant and version. `tenant` is `null` for the platform's global roles.
+ */
+export type CustomRoleRecord = {
+  readonly v: 1;
+  readonly tenant: string | null;
+  readonly roles: Readonly<
+    Record<
+      string,
+      {
+        readonly digest: string;
+        readonly grants: readonly (SnapshotWireTerms & {
+          readonly permission: string;
+        })[];
+      }
+    >
+  >;
 };
 
 /**

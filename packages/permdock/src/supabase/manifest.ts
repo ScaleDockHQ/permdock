@@ -396,6 +396,11 @@ export type SupabaseManifestTenantHelper = {
   readonly name: string;
   /** The argument that holds the permission or grant key (`text` or `text[]`). */
   readonly keyArgument: string;
+  /**
+   * The zero-based position of `keyArgument`, which better-supabase's
+   * `permissionFilters` names. Absent from a manifest written before 0.33.
+   */
+  readonly keyPosition?: number;
   /** The argument that holds the tenant id; it must be the entry's tenant. */
   readonly tenantArgument: string;
 };
@@ -409,7 +414,7 @@ export type SupabaseManifestTableRead = {
    * `permitted_<root>_ids_by_permission` alone; `row` otherwise.
    */
   readonly share: "tenant" | "row";
-  /** The tenant column, for a `tenant` table. */
+  /** The tenant column, for a `tenant` table or one with `tenantFor`. */
   readonly column?: string;
   /** The keys the select policies pass to `permitted_<root>_ids_by_permission`. */
   readonly permissions?: readonly string[];
@@ -426,8 +431,21 @@ export type SupabaseManifestTableRead = {
     | "unknown"
   )[];
   /**
-   * For a `form` table, the grant of each key its policies pass that keeps
-   * `permitted_<root>_ids_by_permission` from answering as the plain helper.
+   * For a `row` table, the keys under which it reads as `tenant`: a permissive
+   * select policy checks `<column> in (select
+   * permitted_<root>_ids_by_permission('<key>'))` on one column, alone or as an
+   * `or` branch, so a caller who holds one of them reads every row of the
+   * tenant, whatever the other policies add. No restrictive select policy reads
+   * a column, and the table has no field view. A caller who holds none of them
+   * reads rows that differ per user.
+   */
+  readonly tenantFor?: readonly string[];
+  /**
+   * Why the table is `row`: for each policy that makes it so, the policy, the
+   * file and the rule it breaks; for a `form` table, what keeps `codemod
+   * bsb-access-tags` from moving it, or the grant of each key its policies pass
+   * that keeps `permitted_<root>_ids_by_permission` from answering as the plain
+   * helper.
    */
   readonly reason?: string;
 };

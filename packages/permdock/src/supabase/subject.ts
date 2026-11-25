@@ -405,6 +405,14 @@ function subjectActor(
   }
 }
 
+function suspendedClaim(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const ids = value.filter((item): item is string => typeof item === "string");
+  return ids.length === 0 ? undefined : ids;
+}
+
 function mapClaims(
   claims: Record<string, unknown>,
   options: SupabaseSubjectOptions,
@@ -465,6 +473,7 @@ function mapClaims(
     memberships,
     membershipsTruncated:
       claimAt(claims, "memberships_truncated") === true ? true : undefined,
+    suspendedIn: suspendedClaim(claimAt(claims, "suspended_in")),
     authzVersion:
       typeof version === "number" && Number.isInteger(version)
         ? version
