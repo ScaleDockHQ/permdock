@@ -48,6 +48,10 @@ Every other table is `row`, with the rules it breaks:
 
 Tables in the helpers' schema, `better_supabase` and the platform schemas are left out. The manifest is read from the files on disk, so run `permdock supabase inspect --out` after `permdock generate` changes a select policy. [Doctor PD128](/docs/cli/doctor#pd128-a-tenant-table-that-reads-by-row) fails when the committed manifest marks a table `tenant` that the files now make `row`.
 
+### How many CentraKit tables can share
+
+Of the 229 `row` tables in the CentraKit dry run, `permdock codemod bsb-access-tags --check` would move none: a migration, a policy or a tenant column the codemod does not rewrite keeps each of the 66 `form` entries. 59 tables carry a `tenantFor` key, so a read of them can share by key without moving the policy; the other 170 stay per user. A table can break more than one rule, so the rule counts (66 `form`, 54 `owner`, 90 `condition`, 6 `restrictive`, 16 `unknown`) add up to more than 229. `scripts/centrakit-dry-run.json` holds every table with its `reason`.
+
 ## Make a `form` table tenant
 
 A `form` table has a select policy on `permitted_<root>_ids('<key>')`. `permdock codemod bsb-access-tags` moves it to a tag, and the table becomes `tenant`, when every grant of the key is an allow of that key with no condition and no deny. When it leaves the policy, `permdock codemod bsb-access-tags --check`, `permdock rls report` and `permdock rls explain` name the first grant that decides it, and `rls.tableReads[].reason` in the manifest holds the same sentence.
@@ -204,3 +208,23 @@ The 8 keys and 6 roles of the fixture are CentraKit's target model, not its 0.28
 Measured on the app's own stack, not here: `permdock_authz_version_for` over PostgREST, the helper without the suspension join, and a signed-in Server Action. Each needs the app's database, its suspension table and its `supabase.hook.api` wrapper, none of which this repository holds. `permdock rls measure --as <user>` runs requests as a user against that database and prints the version reads per request, the helper times from `pg_stat_user_functions` and `pg_stat_statements`, and the share of tenant tokens that get a share key ([`rls measure`](/docs/cli/rls#measure)). The Server Action row above models the version reads of a signed-in action; the command counts them on the database.
 
 An earlier run on the same machine, with other processes busy, gave round trips up to 3.5 times higher. Compare numbers from one run.
+
+### 0.33 against 0.32
+
+Same machine, versions and fixture as above. The numbers come from `scripts/centrakit-latency.json`, `scripts/centrakit-dry-run.json`, the integration tests and the changesets named in the last column.
+
+| Measurement                                                                  | 0.32              | 0.33                                   | Source                                 |
+| ---------------------------------------------------------------------------- | ----------------- | -------------------------------------- | -------------------------------------- |
+| Page of a member with a custom role (4 instances): version reads, first page | 6 reads, 21.85 ms | 1 read, 14.14 ms                       | `customRoleMember.before/after`        |
+| The same page, second page within the window                                 | 6 reads, 21.00 ms | 0 reads, 12.50 ms                      | `customRoleMember.before/after`        |
+| Memberships that fit the 1,024-byte claim budget (CentraKit user)            | 9                 | 25                                     | `compact-memberships-claim`            |
+| Memberships that fit with 2 custom roles                                     | 8                 | 23                                     | `compact-memberships-claim`            |
+| `row` tables with a `reason`                                                 | 0 of 229          | 229 of 229                             | `tableReads.rowWithoutReason`          |
+| `row` tables that can share by key                                           | not counted       | 59                                     | `tableReads.couldShareByKey`           |
+| `public.*_payload` functions listed with the reason each is not shared       | not listed        | 26, 0 shared                           | `functions` in the dry-run report      |
+| Read-only actor policies: median plan time added per statement               | not measured      | 0.06 to 0.08 ms, noise 0.11 to 0.13 ms | `stack.readOnlyActors`                 |
+| `permdock_actor_may_write()` call                                            | not measured      | 0.139 µs                               | `stack.readOnlyActors.guardCallMicros` |
+| `permdock generate`, 579 policies on 208 tables                              | not measured      | 1.5 s                                  | `timings.generateMs`                   |
+| `permdock rls verify --shadow` on the local stack                            | not measured      | 41.5 s                                 | `stack.shadow.ms`                      |
+
+The read-only actor policies cost less than the run-to-run noise, so 0.33 adds no trigger mode. A suspended tenant now reaches the app through the `suspended_in` claim and `permdock_subject()`; the database still denies it.
