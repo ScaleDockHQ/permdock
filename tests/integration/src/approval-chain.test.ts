@@ -188,6 +188,28 @@ describe("approval managers on a self-referencing table", () => {
     ).map((row) => row.id);
     expect(forTimeOff).toContain(NARROW);
     expect(forTimeOff).not.toContain(ELSEWHERE);
+    const scoped = async (
+      delegate: string,
+      tenant: string,
+      resource: string | null,
+    ): Promise<string[]> =>
+      (
+        await as<{ id: string }>(
+          delegate,
+          "select permdock.permdock_approver_for_ids($1, $2) as id",
+          [tenant, resource],
+        )
+      )
+        .map((row) => row.id)
+        .toSorted();
+    expect(await scoped(COVER, "o1", null)).toStrictEqual(
+      [BEN, COVER].toSorted(),
+    );
+    expect(await scoped(NARROW, "o1", "time_off")).toStrictEqual(
+      [BEN, NARROW].toSorted(),
+    );
+    expect(await scoped(NARROW, "o1", "expense")).toStrictEqual([NARROW]);
+    expect(await scoped(ELSEWHERE, "o1", null)).toStrictEqual([ELSEWHERE]);
     for (const delegate of [NARROW, ELSEWHERE]) {
       expect(
         (

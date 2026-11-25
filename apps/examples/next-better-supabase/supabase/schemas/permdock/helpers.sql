@@ -3655,6 +3655,33 @@ $$;
 revoke execute on function "permdock".permdock_approver_for_ids() from public, anon;
 grant execute on function "permdock".permdock_approver_for_ids() to authenticated;
 
+-- approvers in a tenant and for a resource: the caller, plus each delegator whose active cover matches them
+create or replace function "permdock".permdock_approver_for_ids(p_tenant text, p_resource text)
+returns setof uuid
+language sql
+stable
+security definer
+cost 100
+rows 5
+parallel safe
+set search_path = ''
+as $$
+  select (select "permdock".permdock_user_id())
+  where (select "permdock".permdock_user_id()) is not null
+  union
+  select d.delegator
+  from "permdock".approval_delegations d
+  where d.delegate = (select "permdock".permdock_user_id())
+    and d."from" <= now()
+    and d."until" > now()
+    and d.delegator <> (select "permdock".permdock_user_id())
+    and (d.tenant is null or d.tenant::text = p_tenant)
+    and d.permissions is null
+    and (d.resources is null or p_resource = any (d.resources))
+$$;
+revoke execute on function "permdock".permdock_approver_for_ids(text, text) from public, anon;
+grant execute on function "permdock".permdock_approver_for_ids(text, text) to authenticated;
+
 -- organization: holder counts (min / max) over the membership sources, checked at commit
 create or replace function "permdock".permdock_holders_organization()
 returns trigger
