@@ -1,5 +1,29 @@
 # permdock
 
+## 0.32.0
+
+### Minor Changes
+
+- [#367](https://github.com/ScaleDockHQ/permdock/pull/367) [`5bfc6e5`](https://github.com/ScaleDockHQ/permdock/commit/5bfc6e56e0798c4c4192da26b6cdaf4741564af7) Thanks [@martijn00](https://github.com/martijn00)! - `authorizationProvider` fills `portalSubjects` only with `portalSubjects: true`: in 0.31.0 a contact's `<scope>.read` let them read every comment and internal note on their own record. `portalParties: false` leaves out `portalParties`.
+
+- [#368](https://github.com/ScaleDockHQ/permdock/pull/368) [`bedb84b`](https://github.com/ScaleDockHQ/permdock/commit/bedb84b5d7758aa3babfcd0f8f28e25c8922b8b8) Thanks [@mick340](https://github.com/mick340)! - `rls generate` refuses global grants to delegated tokens in `permdock_has`. A token with an API key claim holds a global grant only when `rls.apiKeys` caps it by its scopes, and a token with a non-empty `client_id` or an `act` only when `rls.tokenScopes` caps it by its `scope` claim. Before, a policy delegation that left platform permissions out did not reach SQL, so an OAuth client a platform admin authorized could insert into a global-roles table or call a definer function gated by `permdock_has` with the admin's own global roles. The helper memo keys those tokens apart from the user's session, and the `_for` helpers, which name their user, are unchanged. `permdock_can_assign` gates its global branches the same way. Regenerate after upgrading. A project that relies on OAuth clients, support sessions or API keys holding global grants sets `rls.tokenScopes` or `rls.apiKeys`. Two more cases change: session tokens from an identity provider that always carry `client_id` (Cognito access tokens, for example) lose global grants without `rls.tokenScopes`, and on the `guc` dialect `permdock_has` now reads `<prefix>.api_key` and `<prefix>.act` as JSON, so a non-JSON value there raises.
+
+- [#369](https://github.com/ScaleDockHQ/permdock/pull/369) [`6e1cbb5`](https://github.com/ScaleDockHQ/permdock/commit/6e1cbb53f669e61f1c53d1ecefae3d9ae07176ec) Thanks [@martijn00](https://github.com/martijn00)! - `permdock supabase inspect` writes `rls.sharedFunctions` (functions that pass better-supabase's BS430 and read only `tenant` tables) and `rls.tenantPureHelpers` (the helpers that answer the same for callers with an equal `grantFingerprint`); `authorizationProvider({ tables: true, sharedFunctions: true })` emits the functions, and doctor PD137 fails for a listed function that now reads a `row` table.
+
+- [#369](https://github.com/ScaleDockHQ/permdock/pull/369) [`0a2d918`](https://github.com/ScaleDockHQ/permdock/commit/0a2d918653857af5dd1a04f138391a350501ef67) Thanks [@martijn00](https://github.com/martijn00)! - `permdock rls report` counts `rls.tableReads` per rule (`form`, `follows`, `via`, `walk`, `owner`, `condition`, `restrictive`, `fields`, `unknown`) and lists each `row` table with its rules. For a `form` table, `permdock codemod bsb-access-tags --check`, `permdock rls explain` and `rls.tableReads[].reason` in the manifest name the grant that keeps the policy off an `@bsb access` tag.
+
+- [#369](https://github.com/ScaleDockHQ/permdock/pull/369) [`ef5e149`](https://github.com/ScaleDockHQ/permdock/commit/ef5e149e43d11a400eed9c7e08f61f40c62b6620) Thanks [@martijn00](https://github.com/martijn00)! - `authorizer(...).warm()`, `authorizationHooks(...).warm()` and `warm(policy)` from `permdock/next` build one anonymous instance and run one `can`, so the first request skips them. They never reject and answer `{ ok, ms }`.
+
+### Patch Changes
+
+- [#369](https://github.com/ScaleDockHQ/permdock/pull/369) [`36c4df0`](https://github.com/ScaleDockHQ/permdock/commit/36c4df014ac46d2a78d3552ef71d8a21e72df780) Thanks [@martijn00](https://github.com/martijn00)! - `permdock codemod 0.31` is the codemod of this release, and `0.32` stays an alias of it. The config error for `doctor.waivers` and `doctor.ignore` says "in 0.31", and the upgrade guide moves from `guides/upgrade-0-32` to `guides/upgrade-0-31`, with the columns "0.30" and "0.31".
+
+- [#369](https://github.com/ScaleDockHQ/permdock/pull/369) [`393314a`](https://github.com/ScaleDockHQ/permdock/commit/393314aee846c2929b740bc41b3e6ffdf27c427b) Thanks [@martijn00](https://github.com/martijn00)! - `scripts/centrakit-latency.ts` measures the Server Action, the shared `bsb.kept` entry, `runtimeCacheVersionStore` and the cold instance on the CentraKit fixture; the Shared cache guide lists the before and after numbers, including 3 to 1 version reads for a Server Action that asks `database-write`.
+
+- [#369](https://github.com/ScaleDockHQ/permdock/pull/369) [`5497d1e`](https://github.com/ScaleDockHQ/permdock/commit/5497d1e56efeb855d21bb18dd2957d191bfd330c) Thanks [@martijn00](https://github.com/martijn00)! - `rls.tableReads` leaves out a table a later migration drops and follows `alter table … rename to`, and `permdock rls verify --shadow` finds `supabase/schemas` above the package directory in a monorepo.
+
+- [#369](https://github.com/ScaleDockHQ/permdock/pull/369) [`36c4df0`](https://github.com/ScaleDockHQ/permdock/commit/36c4df014ac46d2a78d3552ef71d8a21e72df780) Thanks [@martijn00](https://github.com/martijn00)! - The 0.31 upgrade guide opens with one ordered checklist for an app that goes from `permdock` 0.28.0 to 0.31.0 with better-supabase 0.82.0 to 0.85.0, and names for each step the step of better-supabase's guide it comes before or after.
+
 ## 0.31.0
 
 ### Minor Changes
