@@ -4,6 +4,7 @@ import type { PermDockConfig } from "../types.ts";
 import type { HookEvent } from "./hook-role.ts";
 
 import { isRecord } from "../../core/compact.ts";
+import { readMemberships } from "../../core/read-memberships.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { describeError } from "../core/errors.ts";
 import { quoteIdent } from "../sql/quote.ts";
@@ -177,8 +178,7 @@ export async function pd110(
           project.config.rls?.authorize !== "jwt" &&
           isRecord(minted) &&
           minted["memberships_truncated"] === true &&
-          Array.isArray(minted["memberships"]) &&
-          minted["memberships"].length > 0
+          readMemberships(minted["memberships"]).memberships.length > 0
         ) {
           overBudget.push(label);
         }

@@ -62,6 +62,14 @@ export function schemaSql(parts: Parts): string {
   return `create schema if not exists ${schema};\nrevoke all on schema ${schema} from public;`;
 }
 
+/**
+ * The short form of an id (`core/membership-claim.ts`): a UUID as 22 base64url
+ * characters, any other id as `=` and its text.
+ */
+function shortIdSql(id: string): string {
+  return `case when ${id} ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then translate(rtrim(encode(decode(replace(${id}, '-', ''), 'hex'), 'base64'), '='), '+/', '-_') else '=' || ${id} end`;
+}
+
 export function hookSql(parts: Parts): string {
   const schema = quoteIdent(parts.schema);
   const fn = `${schema}.custom_access_token_hook`;
@@ -186,15 +194,52 @@ export function hookSql(parts: Parts): string {
   // user_role repeats the roles (the one role, or the list), and the tenant claim is written whenever a membership is in the active tenant: both count.
   const userRoleBytes =
     "octet_length(case jsonb_array_length(pdk_roles.held) when 0 then '' when 1 then (pdk_roles.held -> 0)::text else pdk_roles.held::text end)";
-  const fixed = `used + octet_length(pdk_roles.held::text) + ${userRoleBytes} + coalesce(octet_length(to_jsonb(active)::text), 0)${parts.customRoles === undefined ? "" : " + 20"}${parts.version ? " + octet_length(pdk_version.ver::text)" : ""}`;
-  const fixedFrom = `pdk_roles${parts.version ? ", pdk_version" : ""}`;
+  const header = parts.membershipsClaim
+    ? " + octet_length(pdk_tables.s::text) + octet_length(pdk_tables.r::text) + octet_length(pdk_tables.v::text) + 44"
+    : "";
+  const fixed = `used + octet_length(pdk_roles.held::text)${header} + ${userRoleBytes} + coalesce(octet_length(to_jsonb(active)::text), 0)${parts.customRoles === undefined ? "" : " + 20"}${parts.version ? " + octet_length(pdk_version.ver::text)" : ""}`;
+  const fixedFrom = `pdk_roles${parts.version ? ", pdk_version" : ""}${parts.membershipsClaim ? ", pdk_tables" : ""}`;
+  const itemsCte = parts.membershipsClaim
+    ? `,
+    pdk_plain as (
+      select x.ord, x.entry, x.root_id,
+        x.entry - 'scope' - 'id' - 'roles' - 'via' = '{}'::jsonb
+          and jsonb_typeof(x.entry -> 'scope') = 'string'
+          and coalesce(jsonb_typeof(x.entry -> 'via'), 'string') = 'string'
+          and jsonb_typeof(x.entry -> 'id') = 'string'
+          and jsonb_typeof(x.entry -> 'roles') = 'array'
+          and not exists (select 1 from jsonb_array_elements(x.entry -> 'roles') v where jsonb_typeof(v) <> 'string') as plain
+      from pdk_entries x
+    ),
+    pdk_tables as (
+      select
+        coalesce((select jsonb_agg(t.v order by t.v collate "C") from (select distinct p.entry ->> 'scope' as v from pdk_plain p where p.plain) t), '[]'::jsonb) as s,
+        coalesce((select jsonb_agg(t.v order by t.v collate "C") from (select distinct r.v from pdk_plain p cross join lateral jsonb_array_elements_text(p.entry -> 'roles') as r(v) where p.plain) t), '[]'::jsonb) as r,
+        coalesce((select jsonb_agg(t.v order by t.v collate "C") from (select distinct p.entry ->> 'via' as v from pdk_plain p where p.plain and p.entry ? 'via') t), '[]'::jsonb) as v
+    ),
+    pdk_items as (
+      select p.ord, p.entry, p.root_id, p.plain,
+        case when p.plain then
+          jsonb_build_array(
+            (select a.n - 1 from jsonb_array_elements_text(t.s) with ordinality as a(v, n) where a.v = p.entry ->> 'scope'),
+            ${shortIdSql("(p.entry ->> 'id')")},
+            coalesce((select a.n - 1 from jsonb_array_elements_text(t.v) with ordinality as a(v, n) where a.v = p.entry ->> 'via'), -1)
+          ) || coalesce((
+            select jsonb_agg(b.n - 1 order by q.o)
+            from jsonb_array_elements_text(p.entry -> 'roles') with ordinality as q(v, o)
+            join jsonb_array_elements_text(t.r) with ordinality as b(v, n) on b.v = q.v
+          ), '[]'::jsonb)
+        else p.entry end as item
+      from pdk_plain p, pdk_tables t
+    )`
+    : "";
   const ranked = parts.membershipsClaim
     ? `,
     pdk_ranked as (
-      select x.entry, x.root_id is not distinct from active as current,
+      select x.entry, x.item, x.plain, x.root_id is not distinct from active as current,
         row_number() over w as n,
-        sum(octet_length(x.entry::text)) over w as bytes
-      from pdk_entries x
+        sum(octet_length(x.item::text)) over w as bytes
+      from pdk_items x
       window w as (
         order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
         rows between unbounded preceding and current row
@@ -205,7 +250,11 @@ export function hookSql(parts: Parts): string {
     )`
     : "";
   const keptSelect = parts.membershipsClaim
-    ? `coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
+    ? `(select case when count(*) = 0 then '[]'::jsonb else jsonb_strip_nulls(jsonb_build_object(
+        's', nullif((select t.s from pdk_tables t), '[]'::jsonb), 'r', nullif((select t.r from pdk_tables t), '[]'::jsonb), 'v', nullif((select t.v from pdk_tables t), '[]'::jsonb),
+        'e', nullif(coalesce(jsonb_agg(k.item order by k.n) filter (where k.plain), '[]'::jsonb), '[]'::jsonb),
+        'o', nullif(coalesce(jsonb_agg(k.item order by k.n) filter (where not k.plain), '[]'::jsonb), '[]'::jsonb)
+      )) end from pdk_kept k),
     truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
     active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),`
     : `'[]'::jsonb,
@@ -218,7 +267,7 @@ export function hookSql(parts: Parts): string {
     pdk_entries as (
       select e.ord, e.entry, ${entryTenantSql(parts, "e")} as root_id
       from ${schemaName}.${MEMBERSHIPS_FOR}(uid) e
-    ),
+    )${itemsCte},
     pdk_fixed as (
       select ${fixed} as bytes from ${fixedFrom}
     )${ranked}
@@ -242,7 +291,7 @@ export function hookSql(parts: Parts): string {
     and not truncated
     and jsonb_typeof(${incoming} -> 'authz_ver') = 'number'
     and jsonb_typeof(${incoming} -> 'roles') = 'array'
-    and jsonb_typeof(${incoming} -> 'memberships') = 'array'
+    and jsonb_typeof(${incoming} -> 'memberships') in ('array', 'object')
     and not (${incoming} ? 'memberships_truncated')${teamsConfig === undefined ? "" : `\n    and not (${incoming} ? 'team_ids_truncated')`} then
     select coalesce((select v.version from ${versionTable} v where v.user_id = uid), 0) into ver;
     if (${incoming} ->> 'authz_ver')::numeric = ver then
@@ -257,8 +306,18 @@ export function hookSql(parts: Parts): string {
   const oneQuery = parts.refreshReuse
     ? `${fastBlock}
   if fast then
-    in_active := active is not null and exists (
-      select 1 from jsonb_array_elements(kept) as e(entry) where ${entryTenantSql(parts, "e")} = active
+    in_active := active is not null and (
+      case jsonb_typeof(kept)
+        when 'object' then exists (
+          select 1 from jsonb_array_elements(coalesce(kept -> 'e', '[]'::jsonb)) as x(e)
+          where kept -> 's' ->> ((x.e ->> 0)::int) = ${quoteLiteral(parts.root)} and x.e ->> 1 = ${shortIdSql("active")}
+        ) or exists (
+          select 1 from jsonb_array_elements(coalesce(kept -> 'o', '[]'::jsonb)) as e(entry) where ${entryTenantSql(parts, "e")} = active
+        )
+        else exists (
+          select 1 from jsonb_array_elements(kept) as e(entry) where ${entryTenantSql(parts, "e")} = active
+        )
+      end
     );
   else
 ${readQuery.replaceAll(/^/gmu, "  ")}

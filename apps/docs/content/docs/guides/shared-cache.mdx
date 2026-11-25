@@ -16,7 +16,13 @@ It returns `null`, and the entry stays per user, for:
 - a grant whose condition is `opaque`, a `sqlFunction`, a `liveSession` check or not portable;
 - an instance that grants none of the permissions.
 
-The hook adds three cases: a token marked truncated (`memberships_truncated`, `team_ids_truncated`, `permissions_truncated`), a token whose `authz_ver` is behind the version in `runtime.versions`, and a subject that is not a user.
+The hook adds three cases: a token marked truncated in `team_ids_truncated` or `permissions_truncated`, a token whose `authz_ver` is behind the version in `runtime.versions`, and a subject that is not a user. A token with `memberships_truncated` answers only in the case described under [truncated tokens](#truncated-tokens).
+
+## Truncated tokens
+
+When the size budget cuts a user's memberships, the token carries `memberships_truncated: true`. `shareKey` still answers for the active tenant when the token holds at least one entry outside that tenant. The hook ranks the active tenant's entries first and keeps a prefix of that order, so a kept entry of another tenant means the prefix passed every entry of the active tenant. The digest then covers exactly the entries the database holds for the tenant. With only active-tenant entries, or none, the cut may have fallen inside them, and `shareKey` returns `null`. A cut that dropped `attrs` does not change the grants, so it does not block a key. `tests/better-supabase/share-key.test.ts` covers the three cases and `tests/integration/src/hook-token-shape.test.ts` the ranking.
+
+Doctor [PD138](/docs/cli/doctor#pd138-users-the-budget-truncates) counts the users the budget truncates, so you can see how many requests skip the key.
 
 ## Provider tables
 

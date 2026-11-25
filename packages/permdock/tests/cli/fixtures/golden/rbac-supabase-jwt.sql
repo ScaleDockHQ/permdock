@@ -665,6 +665,29 @@ begin
       from jsonb_array_elements(
         case jsonb_typeof(coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships'))
           when 'array' then coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships')
+          when 'object' then (
+          select coalesce(jsonb_agg(d.m), '[]'::jsonb)
+          from (
+            select jsonb_build_object(
+              'scope', c.cl -> 's' ->> (x.e ->> 0)::int,
+              'id', case when left(x.e ->> 1, 1) = '=' then substr(x.e ->> 1, 2)
+                else (encode(decode(translate(x.e ->> 1, '-_', '+/') || '==', 'base64'), 'hex'))::uuid::text end,
+              'roles', (
+                select coalesce(jsonb_agg(c.cl -> 'r' -> ((r.v #>> '{}')::int)), '[]'::jsonb)
+                from jsonb_array_elements(x.e) with ordinality r(v, n)
+                where r.n > 3
+              )
+            ) || case when (x.e ->> 2)::int >= 0
+              then jsonb_build_object('via', c.cl -> 'v' ->> (x.e ->> 2)::int)
+              else '{}'::jsonb end as m
+            from (select coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships') as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'e', '[]'::jsonb)) x(e)
+            union all
+            select o.m
+            from (select coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships') as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'o', '[]'::jsonb)) o(m)
+          ) d
+        )
           else '[]'::jsonb
         end
       ) m
@@ -688,6 +711,29 @@ begin
       from jsonb_array_elements(
         case jsonb_typeof(coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships'))
           when 'array' then coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships')
+          when 'object' then (
+          select coalesce(jsonb_agg(d.m), '[]'::jsonb)
+          from (
+            select jsonb_build_object(
+              'scope', c.cl -> 's' ->> (x.e ->> 0)::int,
+              'id', case when left(x.e ->> 1, 1) = '=' then substr(x.e ->> 1, 2)
+                else (encode(decode(translate(x.e ->> 1, '-_', '+/') || '==', 'base64'), 'hex'))::uuid::text end,
+              'roles', (
+                select coalesce(jsonb_agg(c.cl -> 'r' -> ((r.v #>> '{}')::int)), '[]'::jsonb)
+                from jsonb_array_elements(x.e) with ordinality r(v, n)
+                where r.n > 3
+              )
+            ) || case when (x.e ->> 2)::int >= 0
+              then jsonb_build_object('via', c.cl -> 'v' ->> (x.e ->> 2)::int)
+              else '{}'::jsonb end as m
+            from (select coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships') as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'e', '[]'::jsonb)) x(e)
+            union all
+            select o.m
+            from (select coalesce(claims -> 'memberships', claims -> 'app_metadata' -> 'memberships') as cl) c
+            cross join lateral jsonb_array_elements(coalesce(c.cl -> 'o', '[]'::jsonb)) o(m)
+          ) d
+        )
           else '[]'::jsonb
         end
       ) m

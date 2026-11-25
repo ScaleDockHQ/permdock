@@ -1,5 +1,6 @@
 import type { CommandResult } from "./core/result.ts";
 
+import { compactMemberships } from "../core/membership-claim.ts";
 import { supabaseMembershipsBudget } from "../supabase/budget.ts";
 import { tokenChars } from "./doctor/perf-token.ts";
 
@@ -16,6 +17,13 @@ export type ClaimsSizeReport = {
   readonly truncated: boolean;
   /** The most memberships of this shape the budget keeps. */
   readonly fits: number;
+  /**
+   * Bytes of the whole compact claim (`core/membership-claim.ts`), for all
+   * memberships.
+   */
+  readonly compactClaimBytes: number;
+  /** The most memberships of this shape the budget keeps in the compact claim. */
+  readonly compactFits: number;
   /**
    * Characters of the compact token with the kept entries and the Supabase base
    * claims.
@@ -38,6 +46,31 @@ function fitting(entryBytes: number, budget: number): number {
     return 0;
   }
   return Math.max(Math.floor((budget - 1) / (entryBytes + 1)), 0);
+}
+
+function compactBytes(entries: readonly string[]): number {
+  return Buffer.byteLength(
+    JSON.stringify(
+      compactMemberships(
+        entries.map((text) => {
+          const parsed: unknown = JSON.parse(text);
+          return parsed;
+        }),
+      ),
+    ),
+  );
+}
+
+/** The most entries of `entries` whose compact claim fits `budget` bytes. */
+function compactFitting(entries: readonly string[], budget: number): number {
+  let fits = 0;
+  while (
+    fits < entries.length &&
+    compactBytes(entries.slice(0, fits + 1)) <= budget
+  ) {
+    fits += 1;
+  }
+  return fits;
 }
 
 export function claimsSize(input: {
@@ -67,6 +100,8 @@ export function claimsSize(input: {
     kept,
     truncated: kept < input.memberships,
     fits,
+    compactClaimBytes: compactBytes(entries),
+    compactFits: compactFitting(entries, input.budget),
     tokenChars: tokenChars({
       memberships: keptClaims,
       ...(kept < input.memberships ? { memberships_truncated: true } : {}),
@@ -90,6 +125,7 @@ export function runClaimsSize(input: {
     report.truncated
       ? `the ${String(report.budget)} byte budget keeps ${String(report.kept)} and sets memberships_truncated; at most ${String(report.fits)} fit`
       : `all fit the ${String(report.budget)} byte budget (at most ${String(report.fits)})`,
+    `compact claim: ${String(report.compactClaimBytes)} bytes in all; at most ${String(report.compactFits)} fit`,
     `compact token with the Supabase base claims: ${String(report.tokenChars)} characters`,
   ];
   return {

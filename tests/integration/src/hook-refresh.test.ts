@@ -1,5 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expandMemberships } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -167,8 +168,8 @@ describe("the hook on a token refresh and for an OAuth client", () => {
   }
 
   const ids = (claims: Claims): string[] =>
-    // SAFETY: the hook writes memberships as an array of { id, ... } objects.
-    (claims["memberships"] as { id: string }[])
+    // SAFETY: expandMemberships returns the entries as { id, ... } objects.
+    (expandMemberships(claims["memberships"]) as { id: string }[])
       .map((entry) => entry.id)
       .toSorted();
 
@@ -215,9 +216,12 @@ describe("the hook on a token refresh and for an OAuth client", () => {
       `update memberships set role = 'viewer' where user_id = '${USER}' and scope_id = 'T'`,
     );
     const refreshed = await mint({ claims: { ...baseClaims(), ...issued } });
-    // SAFETY: the hook writes memberships as an array of { id, roles, ... } objects.
+    // SAFETY: expandMemberships returns the entries as { id, roles, ... } objects.
     const roles = (
-      refreshed["memberships"] as { id: string; roles: string[] }[]
+      expandMemberships(refreshed["memberships"]) as {
+        id: string;
+        roles: string[];
+      }[]
     )
       .filter((entry) => entry.id === "T")
       .flatMap((entry) => entry.roles);

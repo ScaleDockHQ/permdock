@@ -1,5 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expandMemberships } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -99,13 +100,10 @@ function tokenLength(claims: Claims): number {
   );
 }
 
-/**
- * The kept memberships of a minted token, which the hook always writes as an
- * array.
- */
+/** The kept memberships of a minted token, expanded from the compact claim. */
 function keptOf(claims: Claims): { id: string }[] {
-  // SAFETY: the hook writes memberships as an array of { id, ... } objects.
-  return claims["memberships"] as { id: string }[];
+  // SAFETY: expandMemberships returns the entries as { id, ... } objects.
+  return expandMemberships(claims["memberships"]) as { id: string }[];
 }
 
 const COUNTED = [

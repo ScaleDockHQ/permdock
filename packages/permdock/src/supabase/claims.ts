@@ -2,6 +2,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { isRecord } from "../core/compact.ts";
 import { memoByFrozenObject } from "../core/freeze.ts";
+import { expandMemberships } from "../core/membership-claim.ts";
 import { CUSTOM_ROLES_VERSION_CLAIM, supabaseTenantClaim } from "./budget.ts";
 
 /**
@@ -252,8 +253,9 @@ function checkPermDockClaims(
   optional(record, "roles", path, issues, isStrings, "an array of strings");
   const memberships = own(record, "memberships");
   if (memberships !== undefined) {
-    if (Array.isArray(memberships)) {
-      for (const [index, item] of memberships.entries()) {
+    const entries = expandMemberships(memberships);
+    if (Array.isArray(entries)) {
+      for (const [index, item] of entries.entries()) {
         checkMembership(item, [...path, "memberships", index], issues);
       }
     } else {
