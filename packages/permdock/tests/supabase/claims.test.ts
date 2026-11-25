@@ -92,6 +92,7 @@ const invalid: readonly (readonly [string, unknown])[] = [
     },
   ],
   ["memberships_truncated string", { sub, memberships_truncated: "true" }],
+  ["suspended_in string", { sub, suspended_in: "t" }],
   ["tenant_id number", { sub, tenant_id: 1 }],
   ["attrs array", { sub, attrs: [] }],
   ["authz_ver float", { sub, authz_ver: 1.5 }],
@@ -359,5 +360,18 @@ describe("subjectFromSupabase and the hook claims", () => {
     });
     expect(plain.principal?.membershipsTruncated).toBeUndefined();
     expect(plain.principal?.authzVersion).toBeUndefined();
+  });
+
+  it("reads suspended_in onto the principal", () => {
+    const subject = subjectFromSupabase({
+      sub: "u_1",
+      role: "authenticated",
+      suspended_in: ["t_1", "t_2"],
+    });
+    expect(subject.principal?.suspendedIn).toStrictEqual(["t_1", "t_2"]);
+    expect(
+      subjectFromSupabase({ sub: "u_1", role: "authenticated" }).principal
+        ?.suspendedIn,
+    ).toBeUndefined();
   });
 });

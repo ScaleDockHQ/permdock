@@ -359,6 +359,18 @@ teams: {
 - The table's `user`, `team`, `tenant` and `disabledAt` columns are deciding columns in the manifest. A client role that can write the table can choose its own `team_ids`, so revoke insert and update on it.
 - Without a `team` or `teams` scope that has membership sources, the hook file also writes `member_team_ids_of(p_user uuid) returns setof uuid` in the `rls.schema` from the same table. It answers only for the caller, skips a suspended user, and `authenticated` may execute it; [better-supabase](/docs/adapters/better-supabase#api)'s `teamIdsOf` calls it. The `team` column is a `uuid`.
 
+## Suspended tenants
+
+A user whose tenant is suspended (`rls.suspension.scopes.<root>`, without `keep`) has no entry for it in `memberships`, the same as a user who was never a member. With `rls.suspension.scopes.<root>` set the hook also writes `suspended_in`: the ids of the tenants where the user holds a membership and the tenant is suspended, sorted, at most 16, outside the `memberships` budget. It is absent when there are none.
+
+- `subjectFromSupabase` reads it as `principal.suspendedIn`.
+- `permdock_subject()` and `permdock_subject(p_tenant)` return it as `suspendedIn`. For a tenant, a user with no membership who is suspended there gets the record with `memberships: []` and `suspendedIn: [tenant]` instead of `null`; a user who was never a member still gets `null`.
+- `suspended_in_for(p_user uuid) returns jsonb` is the reader behind both, granted to `supabase_auth_admin` only.
+- RLS is unchanged: the user holds no membership there, so every policy denies. `suspendedIn` only lets the application show "your organisation is suspended" instead of "not a member".
+- A membership the source itself drops because of its own `suspension` option is invisible to the function. Put the suspension in `rls.suspension.scopes.<root>` and leave it off the source.
+- A token refresh that reuses its claims keeps the `suspended_in` it holds until `authz_ver` moves.
+- A tenant beyond the 16th says nothing: `suspendedIn` is not a proof of absence.
+
 ## Claims other packages own
 
 `supabase.hook.claims` adds claims PermDock does not own to the one hook Supabase allows, for example per-tenant plan features from a billing module. PermDock owns the hook and the claims the SQL helpers read; the other package owns its claim and the function that computes it ([better-supabase](/docs/adapters/better-supabase#memberships) shows one such split):
@@ -373,7 +385,7 @@ supabase: {
 ```
 
 - Each value is a schema-qualified function `(user_id uuid) returns jsonb`; the hook runs with `search_path = ''`, so an unqualified name is refused. The hook sets the claim to the result, and a `null` result leaves the claim out.
-- A name PermDock or Supabase Auth writes is refused: `roles`, `user_role`, `memberships`, `memberships_truncated`, `attrs`, `authz_ver`, the tenant claim, and `sub`, `aud`, `role`, `exp`, `iat`, `iss`, `aal`, `amr`, `session_id`, `is_anonymous`, `email`, `phone`, `app_metadata`, `user_metadata`.
+- A name PermDock or Supabase Auth writes is refused: `roles`, `user_role`, `memberships`, `memberships_truncated`, `suspended_in`, `attrs`, `authz_ver`, the tenant claim, and `sub`, `aud`, `role`, `exp`, `iat`, `iss`, `aal`, `amr`, `session_id`, `is_anonymous`, `email`, `phone`, `app_metadata`, `user_metadata`.
 - The hook drops each named claim from the incoming claims before it calls the function, so the value is always the function's.
 - The claims sit outside the size budget: the budget decides which memberships a token keeps, and a claim the hook cannot size must not push memberships out. Keep each one small; the function owns its size.
 - A suspended user gets none of them, and the function is not called. A user with no memberships still gets them.

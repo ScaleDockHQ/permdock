@@ -37,6 +37,7 @@ import {
 } from "./claims.ts";
 import {
   MEMBERSHIPS_FOR,
+  SUSPENDED_IN_FOR,
   entriesGrantsSql,
   entryTenantSql,
 } from "./entries.ts";
@@ -140,6 +141,18 @@ export function hookSql(parts: Parts): string {
   end if;`,
     )
     .join("");
+  const dropSuspendedIn =
+    parts.tenants === undefined ? "" : " - 'suspended_in'";
+  const suspendedIn =
+    parts.tenants === undefined
+      ? ""
+      : `
+  -- outside the memberships budget: the tenants the user is a member of while the tenant is suspended; a token refresh that reuses its claims keeps the claim it holds
+${parts.refreshReuse ? "  if not fast then\n    " : "  "}claims := claims - 'suspended_in';
+${parts.refreshReuse ? "    " : "  "}suspended := ${quoteIdent(parts.schema)}.${SUSPENDED_IN_FOR}(uid);
+${parts.refreshReuse ? "    " : "  "}if suspended <> '[]'::jsonb then
+${parts.refreshReuse ? "      " : "    "}claims := jsonb_set(claims, '{suspended_in}', suspended);
+${parts.refreshReuse ? "    " : "  "}end if;${parts.refreshReuse ? "\n  end if;" : ""}`;
   const dropTeams =
     parts.hook.teams === undefined
       ? ""
@@ -149,7 +162,7 @@ export function hookSql(parts: Parts): string {
       ? ""
       : `
   if not ${activeRowSql(parts.users, "uid")} then
-    claims := claims - 'memberships_truncated' - 'attrs'${dropTeams} - ${quoteLiteral(parts.tenantClaim)}${dropCustom}${dropExtra};
+    claims := claims - 'memberships_truncated' - 'attrs'${dropTeams}${dropSuspendedIn} - ${quoteLiteral(parts.tenantClaim)}${dropCustom}${dropExtra};
     claims := claims || jsonb_build_object('user_role', '[]'::jsonb, 'roles', '[]'::jsonb, 'memberships', '[]'::jsonb);${version}
     return jsonb_set(event, '{claims}', claims);
   end if;`;
@@ -329,7 +342,7 @@ ${applyHeld}`
       ? `
   -- a token for an OAuth client (client_id) gets no memberships, roles or attrs: the client acts for a scope the user granted, not as the user
   if coalesce(claims ->> 'client_id', '') <> '' then
-    claims := claims - 'memberships_truncated' - 'attrs' - 'user_role' - 'authz_ver'${dropTeams} - ${quoteLiteral(parts.tenantClaim)}${dropCustom}${dropExtra};
+    claims := claims - 'memberships_truncated' - 'attrs' - 'user_role' - 'authz_ver'${dropTeams}${dropSuspendedIn} - ${quoteLiteral(parts.tenantClaim)}${dropCustom}${dropExtra};
     claims := claims || jsonb_build_object('roles', '[]'::jsonb, 'memberships', '[]'::jsonb);
     return jsonb_set(event, '{claims}', claims);
   end if;`
@@ -352,11 +365,11 @@ declare
   truncated boolean := false;
   in_active boolean := false;
   budget integer := ${String(parts.budget)};
-  used integer := 0;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;\n  team_truncated boolean := false;"}${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.refreshReuse ? "\n  fast boolean := false;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
+  used integer := 0;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;\n  team_truncated boolean := false;"}${parts.tenants === undefined ? "" : "\n  suspended jsonb;"}${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.refreshReuse ? "\n  fast boolean := false;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
 begin${beforeSql(parts.before)}${suspended}${slim}
   claims := claims - 'attrs'${dropTeams}${dropCustom}${dropExtra}${dropIssued};
   active := ${parts.active.sql};${attrs}
-${oneQuery}${teams}
+${oneQuery}${teams}${suspendedIn}
   if truncated then
     claims := jsonb_set(claims, '{memberships_truncated}', 'true'::jsonb);
   else

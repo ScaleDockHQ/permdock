@@ -53,6 +53,11 @@ export type SupabasePermDockClaims<TenantClaim extends string = "tenant_id"> = {
   /** `true` when the size budget cut `memberships` or `attrs`. */
   readonly memberships_truncated?: boolean;
   /**
+   * The ids of the tenants where the user is a member and the tenant is
+   * suspended, outside the memberships budget and cut at 16.
+   */
+  readonly suspended_in?: readonly string[];
+  /**
    * Allow-listed server-owned attributes, read as
    * `principal.claims.attrs.<key>`.
    */
@@ -118,6 +123,7 @@ const KNOWN: ReadonlySet<string> = new Set([
   "roles",
   "memberships",
   "memberships_truncated",
+  "suspended_in",
   "team_ids",
   "attrs",
   "authz_ver",
@@ -269,6 +275,14 @@ function checkPermDockClaims(
     issues,
     (value) => typeof value === "boolean",
     "a boolean",
+  );
+  optional(
+    record,
+    "suspended_in",
+    path,
+    issues,
+    isStrings,
+    "an array of strings",
   );
   optional(record, "team_ids", path, issues, isStrings, "an array of strings");
   optional(record, tenantClaim, path, issues, isString, "a string");

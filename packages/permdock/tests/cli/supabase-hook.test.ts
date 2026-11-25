@@ -298,7 +298,7 @@ describe("supabase hook", () => {
       expect(code).toBe(0);
       expect(
         sql.match(/'entitlements', s\.seats, 'keep', s\.keep/gu),
-      ).toHaveLength(3);
+      ).toHaveLength(4);
       expect(sql).toContain("null::jsonb as keep");
       const manifest: SupabaseHookManifest = jsonData(
         (await run(["supabase", "inspect", "--json"], { cwd })).stdout,

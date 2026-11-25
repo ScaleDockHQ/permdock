@@ -474,7 +474,7 @@ begin
   subject := "permdock".subject_for((select "permdock".permdock_user_id()), v_tenant);
   if subject is null
     or (subject ->> 'active') is distinct from 'true'
-    or coalesce(jsonb_array_length(subject -> 'memberships'), 0) = 0 then
+    or (coalesce(jsonb_array_length(subject -> 'memberships'), 0) = 0) then
     return null;
   end if;
   return subject || jsonb_build_object('tenant', v_tenant::text);

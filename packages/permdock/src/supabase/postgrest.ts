@@ -696,6 +696,7 @@ export function postgrestSources(
           roles: found.roles,
           memberships: found.memberships,
           authzVersion: found.authzVersion,
+          suspendedIn: found.suspendedIn,
           claims: found.claims,
         }),
         context: {},
@@ -722,6 +723,7 @@ export function postgrestSources(
         roles: found.roles,
         memberships: found.memberships,
         authzVersion: found.authzVersion,
+        suspendedIn: found.suspendedIn,
         claims:
           found.claims === undefined
             ? rest["claims"]
