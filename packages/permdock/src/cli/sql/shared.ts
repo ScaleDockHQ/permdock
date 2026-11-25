@@ -49,6 +49,7 @@ export const CUSTOM_ROLES = {
   trustedReadById: "permdock_trusted_role_permissions_by_id",
   cascade: "permdock_cascade_custom_role",
   nameGuard: "permdock_custom_role_name_guard",
+  systemGuard: "permdock_custom_role_system_guard",
   sync: "permdock_sync_custom_role",
   shared: "permdock_is_shared_role",
   compiled: "custom_role_compiled",
