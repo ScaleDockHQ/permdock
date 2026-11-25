@@ -95,6 +95,9 @@ describe("a tenant row named like a declared role", () => {
       "current_user::text = any(array['anon', 'anonymous', 'authenticated'])",
     );
     expect(sql).toContain("hint = 'system-role'");
+    expect(sql).toContain(
+      'revoke execute on function "permdock".permdock_custom_role_system_guard() from public, anon, authenticated;',
+    );
     expect(customRoleNameGuardSql(ctx())).not.toContain("system_guard");
   });
 

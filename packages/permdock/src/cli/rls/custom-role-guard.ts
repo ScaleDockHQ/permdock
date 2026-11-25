@@ -117,6 +117,7 @@ ${raiseSql("    ", "42501", "'permdock: only trusted SQL writes a system role'",
   return new;
 end;
 $$;
+revoke execute on function ${fn}() from public, anon, authenticated;
 drop trigger if exists "permdock_custom_role_system_guard" on ${target};
 create trigger "permdock_custom_role_system_guard"
   before insert or update on ${target}
