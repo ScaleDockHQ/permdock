@@ -2,6 +2,13 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.33.0 (2026-11-25)
+
+- With `rls.customRoleWrites.roles.skip` set, `permdock rls generate` writes `permdock_custom_role_system_guard`, which refuses a signed-in caller that marks a role row as a system role or renames or moves one (`system-role`). Before, the name guard trusted the flag, so a tenant who could edit role rows could mark a custom role it holds as a system role and rename it to `owner`. Rerun `permdock rls generate`.
+- `permdock supabase inspect` lists `p_resource` on `permdock_request_approver_ids` when delegations are on, so `authorizationProvider` requires the function with its real signature and passes the request kind's resource to it, and it lists `pg_catalog.split_part` among the functions the template calls.
+- `permdock_approver_for_ids(p_tenant, p_resource)` follows the covers of one tenant and resource, next to the argument-less form, which since the cover scope fix follows only covers with no tenant, resources or permissions. Upgrade notes: a policy that relied on `permdock_approver_for_ids()` for tenant covers should call the two-argument form. `permdock_request_approver_ids` gained `p_resource`, and the generated SQL drops the old signature first, so drop or recreate a policy or view that calls `permdock_request_approver_ids(p_requester, p_tenant)` in the same migration.
+- `permdock_request_approver_ids` and `permdock_approver_for_ids` follow a cover's `tenant`, `resources` and `permissions`, so a cover limited to one kind of request, one tenant or some permissions no longer makes the delegate an approver of every request. `permdock_request_approver_ids` takes an optional `p_resource`, and `authorizationProvider` passes the request kind's resource to it; rerun `permdock rls generate` and `permdock supabase inspect --out`.
+
 ## 0.32.0 (2026-11-24)
 
 - The 0.31 upgrade guide opens with one ordered checklist for an app that goes from `permdock` 0.28.0 to 0.31.0 with better-supabase 0.82.0 to 0.85.0, and names for each step the step of better-supabase's guide it comes before or after.
