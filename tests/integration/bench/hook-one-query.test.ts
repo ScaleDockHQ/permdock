@@ -1,5 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expandMemberships } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "../src/support/postgres.ts";
@@ -180,7 +181,9 @@ describe("the token hook against Postgres", () => {
         return answer.rows[0]?.hook.claims;
       },
     );
-    expect(Array.isArray(claims?.["memberships"])).toBe(true);
+    // The hook writes the compact form; expanded, it lists every membership kept.
+    const memberships = expandMemberships(claims?.["memberships"]);
+    expect(Array.isArray(memberships) && memberships.length > 0).toBe(true);
   });
 
   it("reports the plan numbers", async () => {
