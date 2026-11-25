@@ -287,7 +287,7 @@ ${wrapper(names.membersOf, MEMBERS_OF, "p_scope text, p_id text", "p_scope, p_id
 
 ${wrapper(names.authzVersionFor, AUTHZ_VERSION_FOR, "p_user uuid", "p_user", "uuid", "bigint")}${
     storesCustomRoles(config)
-      ? `\n\n${wrapper(names.rolesVersionFor, CUSTOM_ROLES_VERSION_FOR, `p_tenant ${tenantTypeFor(parts, config)}`, "p_tenant", tenantTypeFor(parts, config), "bigint")}`
+      ? `\n\n${wrapper(names.rolesVersionFor, CUSTOM_ROLES_VERSION_FOR, `p_tenant ${tenantTypeFor(parts, config)}`, "p_tenant", tenantTypeFor(parts, config), "bigint")}\n\n${wrapper(names.versionsFor, AUTHZ_VERSIONS_FOR, `p_user uuid, p_tenant ${tenantTypeFor(parts, config)}`, "p_user, p_tenant", `uuid, ${tenantTypeFor(parts, config)}`, "jsonb")}`
       : ""
   }`;
 }
@@ -338,6 +338,7 @@ revoke execute on function ${fn}(${type}) from public, anon, authenticated;`;
 }
 
 const AUTHZ_VERSION_FOR = "authz_version_for";
+const AUTHZ_VERSIONS_FOR = "authz_versions_for";
 
 /**
  * `authz_version_for(p_user uuid) returns bigint`: the authorization version
@@ -380,6 +381,38 @@ begin
 end;
 $$;
 revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
+}
+
+/**
+ * `authz_versions_for(p_user, p_tenant) returns jsonb`: `{ authz, custom_roles
+ * }`, the results of `authz_version_for` and `custom_roles_version_for` in one
+ * call, for a request that checks a token holding a custom role against both.
+ * No client role may execute it.
+ */
+export function authzVersionsForSql(
+  parts: Parts,
+  config: PermDockConfig,
+): string {
+  if (!storesCustomRoles(config)) {
+    return "";
+  }
+  const schema = quoteIdent(parts.schema);
+  const fn = `${schema}.${AUTHZ_VERSIONS_FOR}`;
+  const type = tenantTypeFor(parts, config);
+  return `-- both versions a token that holds a custom role is checked against, in one call; no client role may execute it
+create or replace function ${fn}(p_user uuid, p_tenant ${type})
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'authz', ${schema}.${AUTHZ_VERSION_FOR}(p_user),
+    'custom_roles', ${schema}.${CUSTOM_ROLES_VERSION_FOR}(p_tenant)
+  )
+$$;
+revoke execute on function ${fn}(uuid, ${type}) from public, anon, authenticated;`;
 }
 
 const MEMBERS_OF = "members_of";

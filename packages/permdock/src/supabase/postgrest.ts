@@ -85,6 +85,13 @@ export type PostgrestSourcesOptions = {
    */
   readonly rolesVersionFn?: string;
   /**
+   * The function that returns both versions as `{ authz, custom_roles }`. A
+   * request that needs both in one tick calls it once instead of the two single
+   * functions; a missing function is remembered and the single ones answer.
+   * Default `authz_versions_for`; `false` never calls it.
+   */
+  readonly versionsFn?: string | false;
+  /**
    * The policy whose declared roles tell custom roles apart. With it,
    * `customRoles` reads nothing while every role the subject holds is declared,
    * and `memberships.version` reads the whole subject in one call when the
@@ -175,6 +182,20 @@ function versionOf(value: unknown): number | undefined {
     : undefined;
 }
 
+/** The `{ authz, custom_roles }` an `authz_versions_for` call answers. */
+function combinedOf(
+  data: unknown,
+): { readonly authz: unknown; readonly roles: unknown } | undefined {
+  if (typeof data !== "object" || data === null) {
+    return undefined;
+  }
+  const authz: unknown = Reflect.get(data, "authz");
+  const roles: unknown = Reflect.get(data, "custom_roles");
+  return versionOf(authz) === undefined && versionOf(roles) === undefined
+    ? undefined
+    : { authz, roles };
+}
+
 /**
  * Uncached version reads of one principal closer together than this count as
  * one request reading the version more than once.
@@ -231,7 +252,7 @@ function repeatedVersionReads(): (userId: string, read: VersionRead) => void {
       last.clear();
       // oxlint-disable-next-line no-console -- one development hint per sources object for a repeated version read
       console.warn(
-        `PermDock: the authorization version of one user was read more than once within a second. Share one instance per request through instanceCache and permdockFor, or pass version: { known }.\nFirst read:\n${readLabel(previous.read, previous.stack)}\nSecond read:\n${readLabel(read, stack)}`,
+        `PermDock: the authorization or custom-role version of one user or tenant was read more than once within a second. Share one instance per request through instanceCache and permdockFor, or pass version: { known }.\nFirst read:\n${readLabel(previous.read, previous.stack)}\nSecond read:\n${readLabel(read, stack)}`,
       );
       return;
     }
@@ -274,6 +295,10 @@ export function postgrestSources(
     options.rolesVersionFn ??
     names?.rolesVersionFor ??
     "custom_roles_version_for";
+  const versionsFn =
+    options.versionsFn === false
+      ? undefined
+      : (options.versionsFn ?? names?.versionsFor ?? "authz_versions_for");
   const declared =
     options.policy === undefined
       ? undefined
@@ -296,6 +321,107 @@ export function postgrestSources(
    */
   const pendingRoles = new WeakMap<SourceMemo, Promise<unknown>[]>();
   const noteVersionRead = repeatedVersionReads();
+  type Want = {
+    readonly user: string;
+    readonly tenant?: string;
+    readonly settle: (result: SupabaseRpcResult) => void;
+    readonly fail: (cause: unknown) => void;
+  };
+  const wanted = new WeakMap<
+    SourceMemo,
+    { authz?: Want; roles?: Want; queued: boolean }
+  >();
+  let combinedMissing = false;
+  const single = (want: Want, kind: "authz" | "roles"): void => {
+    Promise.resolve(
+      kind === "authz"
+        ? callRpc(client, schema, versionFn, { p_user: want.user })
+        : callRpc(client, schema, rolesVersionFn, { p_tenant: want.tenant }),
+    ).then(want.settle, want.fail);
+  };
+  const flush = (memo: SourceMemo): void => {
+    const batch = wanted.get(memo);
+    wanted.delete(memo);
+    if (batch === undefined) {
+      return;
+    }
+    const { authz, roles } = batch;
+    if (
+      authz === undefined ||
+      roles === undefined ||
+      versionsFn === undefined ||
+      combinedMissing ||
+      authz.user !== roles.user
+    ) {
+      if (authz !== undefined) {
+        single(authz, "authz");
+      }
+      if (roles !== undefined) {
+        single(roles, "roles");
+      }
+      return;
+    }
+    Promise.resolve(
+      callRpc(client, schema, versionsFn, {
+        p_user: authz.user,
+        p_tenant: roles.tenant,
+      }),
+    ).then(
+      (result) => {
+        const both =
+          result.error === null ? combinedOf(result.data) : undefined;
+        if (both === undefined) {
+          combinedMissing = true;
+          single(authz, "authz");
+          single(roles, "roles");
+          return;
+        }
+        authz.settle({ data: both.authz, error: null });
+        roles.settle({ data: both.roles, error: null });
+      },
+      (cause: unknown) => {
+        authz.fail(cause);
+        roles.fail(cause);
+      },
+    );
+  };
+  /**
+   * A version read of one instance. The user's and the tenant's reads that
+   * start in the same tick leave as one `versionsFn` call.
+   */
+  const versionRpc = (
+    memo: SourceMemo | undefined,
+    kind: "authz" | "roles",
+    user: string,
+    tenant?: string,
+  ): PromiseLike<SupabaseRpcResult> => {
+    if (memo === undefined || versionsFn === undefined || combinedMissing) {
+      return kind === "authz"
+        ? callRpc(client, schema, versionFn, { p_user: user })
+        : callRpc(client, schema, rolesVersionFn, { p_tenant: tenant });
+    }
+    return new Promise<SupabaseRpcResult>((settle, fail) => {
+      const batch = wanted.get(memo) ?? { queued: false };
+      const want: Want = {
+        user,
+        ...(tenant === undefined ? {} : { tenant }),
+        settle,
+        fail,
+      };
+      if (kind === "authz") {
+        batch.authz = want;
+      } else {
+        batch.roles = want;
+      }
+      wanted.set(memo, batch);
+      if (!batch.queued) {
+        batch.queued = true;
+        queueMicrotask(() => {
+          flush(memo);
+        });
+      }
+    });
+  };
   const once = <T>(
     memo: SourceMemo | undefined,
     method: string,
@@ -419,9 +545,7 @@ export function postgrestSources(
       `${schema}.${versionFn}:${userId}`,
       async () => {
         noteVersionRead(userId, { intent, live });
-        const result = await callRpc(client, schema, versionFn, {
-          p_user: userId,
-        });
+        const result = await versionRpc(memo, "authz", userId);
         if (result.error !== null) {
           throw new Error(
             `PermDock: ${schema}.${versionFn} failed: ${result.error.message}`,
@@ -445,8 +569,9 @@ export function postgrestSources(
   const rolesVersion = (
     tenant: string,
     memo?: SourceMemo,
+    user?: string,
   ): Promise<number | undefined> => {
-    const read = rolesVersionOnce(tenant, memo);
+    const read = rolesVersionOnce(tenant, memo, user);
     if (memo !== undefined) {
       pendingRoles.set(memo, [...(pendingRoles.get(memo) ?? []), read]);
     }
@@ -455,15 +580,20 @@ export function postgrestSources(
   const rolesVersionOnce = (
     tenant: string,
     memo?: SourceMemo,
+    user?: string,
   ): Promise<number | undefined> =>
     once(
       memo,
       `${schema}.${rolesVersionFn}`,
       `${schema}.${rolesVersionFn}:${tenant}`,
       async () => {
-        const result = await callRpc(client, schema, rolesVersionFn, {
-          p_tenant: tenant,
+        noteVersionRead(`custom-roles:${tenant}`, {
+          intent: undefined,
+          live: true,
         });
+        const result = await (user === undefined
+          ? callRpc(client, schema, rolesVersionFn, { p_tenant: tenant })
+          : versionRpc(memo, "roles", user, tenant));
         if (result.error !== null) {
           throw new Error(
             `PermDock: ${schema}.${rolesVersionFn} failed: ${result.error.message}`,
@@ -505,7 +635,7 @@ export function postgrestSources(
         ];
       },
       customRolesVersion(query, context) {
-        return rolesVersion(query.tenant, context?.memo);
+        return rolesVersion(query.tenant, context?.memo, query.id);
       },
       version(principal, context) {
         return declared !== undefined &&
@@ -538,7 +668,7 @@ export function postgrestSources(
         }
         if (subjects !== undefined && tenant !== undefined) {
           try {
-            await rolesVersion(tenant, context?.memo);
+            await rolesVersion(tenant, context?.memo, principal.id);
           } catch {
             // Without the tenant's version the cache answers by the user's version alone, as before.
           }
