@@ -227,7 +227,9 @@ export type {
   ExpandedSnapshot,
   SnapshotGrantRef,
   SnapshotListRef,
+  SnapshotCustom,
   SnapshotStatic,
+  CustomRoleRecord,
   SnapshotWireAssignable,
   LocalCustomRoleTable,
   LocalMembershipRows,
@@ -267,6 +269,7 @@ export type {
 } from "./core/arazzo.ts";
 export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
 export { clientBundle } from "./core/client-bundle.ts";
+export { customRoleRecord } from "./core/custom-role-record.ts";
 export { readSnapshot } from "./core/snapshot-compact.ts";
 export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { parseLocalSnapshotManifest } from "./core/parse-local-manifest.ts";

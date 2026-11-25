@@ -21,6 +21,8 @@ export type SubjectRecord = {
    */
   readonly tenant?: string;
   readonly authzVersion?: number;
+  /** The tenants the user is a member of while the tenant is suspended. */
+  readonly suspendedIn?: readonly string[];
   /**
    * The custom-role version of each tenant the user holds a custom role in,
    * read with the record. A cached record answers a read at a tenant version
@@ -185,6 +187,7 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
       typeof version === "number" && Number.isFinite(version)
         ? version
         : undefined,
+    suspendedIn: suspendedOf(value["suspendedIn"]),
     customRolesVersions:
       rolesVersions === undefined || Object.keys(rolesVersions).length === 0
         ? undefined
@@ -194,6 +197,11 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
         ? value["claims"]
         : undefined,
   });
+}
+
+function suspendedOf(value: unknown): readonly string[] | undefined {
+  const ids = strings(value);
+  return ids.length === 0 ? undefined : ids;
 }
 
 function rolesVersionsOf(

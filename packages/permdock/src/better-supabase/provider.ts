@@ -91,6 +91,21 @@ export type AuthorizationProviderOptions<P = undefined> = {
    */
   readonly tables?: boolean;
   /**
+   * With `tables`, list a `row` table that has `tableReads[].tenantFor` as
+   * `tenant` under those keys. Sound only with `authorizationHooks({ widened:
+   * widenedKeys(manifest) })`, whose `shareKey` keeps a caller who holds none
+   * of the keys per user; without it two such callers would share rows that
+   * differ.
+   */
+  readonly widened?: boolean;
+  /**
+   * Fill better-supabase's `permissionFilters` from `rls.tenantPureHelpers`, so
+   * a `sharedFunctions` function may call those helpers with a literal key.
+   * Needs better-supabase 0.86.0: 0.85 refuses the field as an invalid key.
+   * Default `false`.
+   */
+  readonly permissionFilters?: boolean;
+  /**
    * Fill better-supabase's `sharedFunctions` from the manifest's
    * `rls.sharedFunctions`, which `permdock supabase inspect` writes: the
    * functions that pass BS430 and read only `tenant` tables. Needs `tables:
@@ -315,6 +330,28 @@ function permissionsOf(
   });
 }
 
+/** The argument position of the key in a generated helper's signature. */
+const KEY_POSITION: Readonly<Record<string, number>> = {
+  p_grant: 0,
+  p_keys: 1,
+};
+
+/**
+ * better-supabase's `permissionFilters` (0.86.0): the generated helpers whose
+ * answer depends only on the caller's grants of the passed key in the passed
+ * tenant, by `schema.name`, with the position of the key argument.
+ */
+function permissionFiltersOf(
+  helpers: SupabaseManifest["rls"]["tenantPureHelpers"],
+): Readonly<Record<string, { readonly keyArgument: number }>> | undefined {
+  const entries = (helpers ?? []).flatMap((helper) => {
+    const position = helper.keyPosition ?? KEY_POSITION[helper.keyArgument];
+    return position === undefined
+      ? []
+      : [[helper.name, { keyArgument: position }] as const];
+  });
+  return entries.length === 0 ? undefined : Object.fromEntries(entries);
+}
 /**
  * better-supabase's `delegation.scopes`, the same map `rls.tokenScopes`
  * compiles.
@@ -374,7 +411,7 @@ export function authorizationProvider<P = undefined>(
   const tenantScope = tenantScopeOf(manifest, options.scope);
   const tables =
     options.tables === true && catalog !== undefined
-      ? tablesOf(manifest, catalog, tenantScope)
+      ? tablesOf(manifest, catalog, tenantScope, options.widened === true)
       : undefined;
   if (options.sharedFunctions === true && options.tables !== true) {
     problems.push(
@@ -386,6 +423,10 @@ export function authorizationProvider<P = undefined>(
       "sharedFunctions: true needs `rls.sharedFunctions` in the manifest. Run `permdock supabase inspect --out`.",
     );
   }
+  const permissionFilters =
+    options.permissionFilters === true
+      ? permissionFiltersOf(rls.tenantPureHelpers)
+      : undefined;
   const sharedFunctions =
     options.sharedFunctions === true &&
     options.tables === true &&
@@ -498,6 +539,7 @@ export function authorizationProvider<P = undefined>(
     ...(wildcards === undefined ? {} : { wildcards }),
     ...(tables === undefined ? {} : { tables }),
     ...(sharedFunctions === undefined ? {} : { sharedFunctions }),
+    ...(permissionFilters === undefined ? {} : { permissionFilters }),
     ...(Object.keys(delegated).length > 0 || interactiveOnly.length > 0
       ? {
           delegation: {

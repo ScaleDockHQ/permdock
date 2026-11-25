@@ -86,9 +86,25 @@ export const inspect: Leaf = defineLeaf({
       description: "File to write; a bare --out writes permdock.manifest.json",
       valueHint: "file",
     },
+    functions: {
+      type: "string",
+      description:
+        "Print, for each function matching the pattern (public.*_payload), a pass or every reason it is not shared; writes nothing",
+      valueHint: "pattern",
+    },
     ...checkFlag,
   },
   async run(ctx, { flags }) {
+    if (flags.functions !== undefined) {
+      // Lazy: the implementation loads only when this command runs, not for --help.
+      const { inspectFunctions } = await import("../rls/inspect-functions.ts");
+      return inspectFunctions({
+        cwd: ctx.cwd,
+        config: ctx.config,
+        pattern: flags.functions,
+        json: ctx.json,
+      });
+    }
     const out =
       flags.out === "" ? true : flags.out === "-" ? undefined : flags.out;
     // Lazy: the implementation loads only when this command runs, not for --help.

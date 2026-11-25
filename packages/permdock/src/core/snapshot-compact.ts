@@ -2,12 +2,14 @@ import type { Condition } from "../conditions/ast.ts";
 import type { Permission } from "./permission-types.ts";
 import type {
   ClientBundle,
+  CustomRoleRecord,
   Snapshot,
   ExpandedSnapshot,
   SnapshotAssignable,
   SnapshotGrant,
   SnapshotGrantRef,
   SnapshotGrantTerms,
+  SnapshotCustom,
   SnapshotStatic,
   SnapshotTypeLevel,
   SnapshotWireAssignable,
@@ -19,6 +21,7 @@ import type { Membership } from "./subject.ts";
 import { canonicalJson } from "./canonical-json.ts";
 import { isRecord } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
+import { scopeList, tenantOf } from "./scopes.ts";
 import { fromBits, toBits } from "./snapshot-bits.ts";
 import { readMemberships, wireMemberships } from "./snapshot-members.ts";
 import { requirementPlacer, withoutRequirement } from "./snapshot-requires.ts";
@@ -241,6 +244,7 @@ export function compactSnapshot(
   snapshot: ExpandedSnapshot,
   held?: SnapshotStatic,
   bundle?: ClientBundle,
+  custom?: SnapshotCustom,
 ): Snapshot {
   const {
     grants,
@@ -344,6 +348,7 @@ export function compactSnapshot(
       };
     }),
     ...(held === undefined ? {} : { static: held }),
+    ...(custom === undefined ? {} : { custom }),
   });
 }
 
@@ -667,6 +672,48 @@ function staticGrants(
   return out;
 }
 
+/**
+ * The grants `custom` names, from the record of each tenant. A role a record
+ * lacks, or holds under another digest, resolves to nothing, so a stale record
+ * denies.
+ */
+function customGrants(
+  snapshot: Snapshot,
+  header: Omit<ExpandedSnapshot, "grants">,
+  records: readonly CustomRoleRecord[],
+): readonly SnapshotGrant[] {
+  const held = snapshot.custom;
+  if (held === undefined || records.length === 0) {
+    return [];
+  }
+  const memberships = header.subject.principal?.memberships ?? [];
+  const scopes = scopeList(header.scopes);
+  const place = requirementPlacer(header.requires, memberships);
+  const out: SnapshotGrant[] = [];
+  for (const [role, index, digest] of held.held) {
+    const membership = index === null ? undefined : memberships[index];
+    if (index !== null && membership === undefined) {
+      continue;
+    }
+    const tenant =
+      membership === undefined ? null : (tenantOf(membership, scopes) ?? null);
+    const entry = records.find((record) => record.tenant === tenant)?.roles[
+      role
+    ];
+    if (entry === undefined || entry.digest !== digest) {
+      continue;
+    }
+    for (const { permission, ...terms } of entry.grants) {
+      out.push(
+        membership === undefined
+          ? { permission, ...place(terms) }
+          : { permission, ...place(terms), membership },
+      );
+    }
+  }
+  return out;
+}
+
 function readHeader(
   snapshot: Snapshot,
   bundle: ClientBundle | undefined,
@@ -676,6 +723,7 @@ function readHeader(
     lists: _lists,
     grants: _grants,
     static: _static,
+    custom: _custom,
     permissions: _permissions,
     assignable: _assignable,
     shapes: _shapes,
@@ -741,7 +789,10 @@ export function snapshotHeader(
  */
 export function expandSnapshot(
   snapshot: Snapshot,
-  options: { readonly bundle?: ClientBundle | undefined } = {},
+  options: {
+    readonly bundle?: ClientBundle | undefined;
+    readonly customRoles?: readonly CustomRoleRecord[] | undefined;
+  } = {},
 ): ExpandedSnapshot {
   const bundle = bundleFor(snapshot, options.bundle);
   if (bundle === "stale") {
@@ -749,7 +800,10 @@ export function expandSnapshot(
   }
   const header = readHeader(snapshot, bundle);
   const inline = expandGrants(snapshot).grants;
-  const held = staticGrants(snapshot, header, bundle);
+  const held = [
+    ...staticGrants(snapshot, header, bundle),
+    ...customGrants(snapshot, header, options.customRoles ?? []),
+  ];
   return freezeDeep({
     ...header,
     grants: held.length === 0 ? inline : [...inline, ...held],
@@ -762,7 +816,10 @@ export function expandSnapshot(
  */
 export function readSnapshot(
   snapshot: Snapshot,
-  options: { readonly bundle?: ClientBundle | undefined } = {},
+  options: {
+    readonly bundle?: ClientBundle | undefined;
+    readonly customRoles?: readonly CustomRoleRecord[] | undefined;
+  } = {},
 ): ExpandedSnapshot {
   return expandSnapshot(snapshot, options);
 }

@@ -1,6 +1,10 @@
 export { AUTHZ_EVENT, AUTHZ_TOPIC, authzUserTopic } from "./authz-topic.ts";
 export { exchangeCapability } from "./capability.ts";
 export { supabaseClaims } from "./claims.ts";
+export {
+  compactMemberships,
+  expandMemberships,
+} from "../core/membership-claim.ts";
 export type {
   SupabaseActClaim,
   SupabaseClaims,

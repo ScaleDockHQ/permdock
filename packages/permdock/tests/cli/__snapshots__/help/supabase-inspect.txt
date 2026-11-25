@@ -3,8 +3,9 @@ permdock supabase inspect: Print or write the hook and helper manifest
 Usage  permdock supabase inspect [flags]
 
 Flags
-  --out <file>  File to write; a bare --out writes permdock.manifest.json
-  --check       Exit 1 when a file on disk is stale; write nothing
+  --out <file>           File to write; a bare --out writes permdock.manifest.json
+  --functions <pattern>  Print, for each function matching the pattern (public.*_payload), a pass or every reason it is not shared; writes nothing
+  --check                Exit 1 when a file on disk is stale; write nothing
 
 Global flags
   --cwd --config --json --format --yes --effects-digest --agent --debug --color --help; see permdock --help

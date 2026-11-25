@@ -40,12 +40,58 @@
           "items": { "type": "string" }
         },
         "memberships": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/membership" }
+          "description": "The membership entries: an array of entries, or the compact object the hook writes (core/membership-claim.ts).",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "$ref": "#/$defs/membership" }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 1,
+              "properties": {
+                "s": {
+                  "description": "The scopes the rows in e use, by index.",
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "r": {
+                  "description": "The roles the rows in e use, by index.",
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "v": {
+                  "description": "The via labels the rows in e use, by index.",
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "e": {
+                  "description": "One [scope index, id, via index or -1, ...role indexes] row per plain entry. A UUID id is its 22 character base64url form; any other id is = and the text.",
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "minItems": 3,
+                    "items": { "type": ["string", "integer"] }
+                  }
+                },
+                "o": {
+                  "description": "Entries that carry more than a scope, an id, roles and a via, as objects.",
+                  "type": "array",
+                  "items": { "$ref": "#/$defs/membership" }
+                }
+              }
+            }
+          ]
         },
         "memberships_truncated": {
           "description": "true when the size budget cut memberships or attrs.",
           "type": "boolean"
+        },
+        "suspended_in": {
+          "description": "The ids of the tenants where the user is a member and the tenant is suspended (rls.suspension.scopes.<root>). Written outside the memberships budget and cut at 16 ids; the memberships of a suspended tenant are not in memberships.",
+          "type": "array",
+          "items": { "type": "string" }
         },
         "team_ids": {
           "description": "The uuid of every team the user belongs to (supabase.hook.teams). Omitted when the team budget is exceeded.",

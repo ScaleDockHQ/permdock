@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
 import {
+  expandMemberships,
   junctionMembershipSource,
   subjectFromSupabase,
 } from "permdock/supabase";
@@ -25,6 +26,13 @@ import { rlsAndHook } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/named-scopes/keep");
+
+function expectEntries(actual: unknown, expected: readonly unknown[]): void {
+  expect(actual).toHaveLength(expected.length);
+  for (const entry of expected) {
+    expect(actual).toContainEqual(entry);
+  }
+}
 
 const OWNER = "00000000-0000-4000-8000-000000000001";
 const STAFF = "00000000-0000-4000-8000-000000000002";
@@ -135,7 +143,7 @@ describe.each([
   }
 
   it("writes a membership of the suspended organization with the keys it keeps", async () => {
-    expect((await mint(OWNER))["memberships"]).toStrictEqual([
+    expectEntries(expandMemberships((await mint(OWNER))["memberships"]), [
       {
         scope: "organization",
         id: "B",
@@ -145,7 +153,9 @@ describe.each([
       },
       { scope: "organization", id: "T", roles: ["owner"], via: "staff" },
     ]);
-    expect((await mint(STAFF))["memberships"]).toContainEqual({
+    expect(
+      expandMemberships((await mint(STAFF))["memberships"]),
+    ).toContainEqual({
       scope: "customer",
       id: "C",
       within: { organization: "B" },

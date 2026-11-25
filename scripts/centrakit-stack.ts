@@ -5,6 +5,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { Query } from "./centrakit-read-only-actors.ts";
+
+import { measureReadOnlyActors } from "./centrakit-read-only-actors.ts";
+
 /**
  * The database half of the CentraKit dry run: starts the Supabase stack of the
  * copy, loads its declarative schema files with `supabase db schema declarative
@@ -210,13 +214,39 @@ function doctorSection(
   };
 }
 
+/** One connection to `url` for the read-only actor measurement. */
+async function readOnlyActors(url: string): Promise<Json> {
+  // SAFETY: `pg` is a dependency of tests/integration, which this script borrows; `Client` is the part of its API used here.
+  const { Client: Connection } = createRequire(
+    join(ROOT, "tests", "integration", "package.json"),
+  )("pg") as {
+    readonly Client: new (config: { readonly connectionString: string }) => {
+      readonly connect: () => Promise<void>;
+      readonly end: () => Promise<void>;
+      readonly query: Query;
+    };
+  };
+  const client = new Connection({ connectionString: url });
+  await client.connect();
+  try {
+    return await measureReadOnlyActors(async (sql) => {
+      const { rows } = await client.query(sql);
+      return { rows };
+    });
+  } finally {
+    await client.end();
+  }
+}
+
 async function report(input: Input, url: string): Promise<Json> {
+  const started = performance.now();
   const verify = spawn(
     input.permdockBin,
     ["rls", "verify", "--shadow", "stack", "--json", "--yes", "--agent", "no"],
     input.identity,
     url,
   );
+  const verifyMs = Math.round(performance.now() - started);
   const only = CODES.join(",");
   const doctor = spawn(
     input.betterSupabaseBin,
@@ -229,7 +259,8 @@ async function report(input: Input, url: string): Promise<Json> {
   const policies = await selectPolicies(url);
   const checked = tenant.map((read) => matchesWithoutCast(read, policies));
   return {
-    shadow: { code: verify.status, report: json(verify.stdout) },
+    shadow: { code: verify.status, ms: verifyMs, report: json(verify.stdout) },
+    readOnlyActors: await readOnlyActors(url),
     doctor: doctorSection(
       listOf(isRecord(body) ? body["findings"] : undefined),
       tenant,

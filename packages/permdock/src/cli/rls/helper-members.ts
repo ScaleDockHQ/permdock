@@ -3,6 +3,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type { Body } from "./helper-bodies.ts";
 
 import { scopeColumn } from "../../conditions/compile.ts";
+import { compactMembershipsSql } from "../../core/membership-claim-sql.ts";
 import { activeMembershipSql } from "../sql/active.ts";
 import {
   isTeamScope,
@@ -58,7 +59,7 @@ function memberBody(
     return sqlBody(`  select distinct (m ->> 'id')::${type}
   from (select ${membershipClaim(ctx)} as v) pdk_c
   cross join lateral jsonb_array_elements(
-    case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v else '[]'::jsonb end
+    case jsonb_typeof(pdk_c.v) when 'array' then pdk_c.v when 'object' then ${compactMembershipsSql("pdk_c.v")} else '[]'::jsonb end
   ) m
   where ${signedIn(ctx)}
     and m ->> 'scope' = ${quoteLiteral(scope)}

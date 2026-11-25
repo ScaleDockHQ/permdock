@@ -1,0 +1,22 @@
+permdock rls measure: Run requests as a user and count version reads, helper times and share keys
+
+Usage  permdock rls measure [flags]
+
+Flags
+  --db-url-stdin      Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
+  --local             Connect to the local Supabase stack: DB_URL from supabase status in this project
+  --stack <name>      With --local, the named stack of this worktree
+  --as <user>         Auth user id to run requests as; a comma separates several
+  --tenant <id>       Measure one tenant instead of each tenant of the user
+  --requests <count>  Requests per user
+  --tables <count>    Tables of rls.tableReads one request reads
+
+Global flags
+  --cwd --config --json --format --yes --effects-digest --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock rls measure --as <user-id> --local
+  permdock rls measure --as <user-id>,<user-id> --tenant <tenant-id> --requests 50 --db-url-stdin
+
+Side effects  database:read
+Docs  https://permdock.com/docs/cli/rls

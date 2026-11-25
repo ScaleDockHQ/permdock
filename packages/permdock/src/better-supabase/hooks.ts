@@ -37,6 +37,11 @@ import {
   findPermission,
   listPermissions,
 } from "../core/permission-registry.ts";
+import { scopeList } from "../core/scopes.ts";
+import {
+  OTHER_TRUNCATED_CLAIMS,
+  holdsActiveTenant,
+} from "../core/share-key-claims.ts";
 import { snapshotTag } from "../core/snapshot-cache.ts";
 import { warmUp } from "../core/warm.ts";
 import { resolverOf } from "./permdock-for.ts";
@@ -53,12 +58,8 @@ const PERMISSION_CAP_CLAIM = "bsb_permission_cap";
 /** The token's authorization version claim. */
 const AUTHZ_VERSION_CLAIM = "authz_ver";
 
-/** Claims better-supabase sets when a token's lists were cut to fit. */
-const TRUNCATED_CLAIMS = [
-  "memberships_truncated",
-  "team_ids_truncated",
-  "permissions_truncated",
-] as const;
+/** The marker of a token whose `memberships` the size budget cut. */
+const MEMBERSHIPS_TRUNCATED = "memberships_truncated";
 
 type DelegationHook = {
   readonly permissions?: (
@@ -87,6 +88,13 @@ type AuthorizationHooksBase<V extends PolicyVocabulary> = {
    * `subjectFromBetterSupabase`.
    */
   readonly subject?: Omit<BetterSupabaseSubjectOptions, "apiKeys">;
+  /**
+   * The keys under which a `row` table reads as `tenant` (`widenedKeys` of the
+   * manifest). `shareKey` answers `null` when the loader's keys include one the
+   * caller does not hold: such a caller reads rows that differ per user, while
+   * every holder reads the whole tenant.
+   */
+  readonly widened?: readonly string[];
   /**
    * The process-wide instance cache: an instance is reused while the subject's
    * authorization version is unchanged.
@@ -279,6 +287,7 @@ export function authorizationHooks<
     return isRecord(claims) && claims["sub"] === userId ? claims : null;
   };
 
+  const widened: ReadonlySet<string> = new Set(options.widened);
   const shareKey: NonNullable<AuthorizationHooks["shareKey"]> = async (
     _authorizer,
     keys,
@@ -292,7 +301,7 @@ export function authorizationHooks<
         subject.type !== "user" ||
         !isRecord(claims) ||
         claims["sub"] !== subject.id ||
-        TRUNCATED_CLAIMS.some((name) => claims[name] === true)
+        OTHER_TRUNCATED_CLAIMS.some((name) => claims[name] === true)
       ) {
         return null;
       }
@@ -308,7 +317,19 @@ export function authorizationHooks<
         }
       }
       const permdock = await instance(claims, tenant);
-      return permdock === null ? null : grantFingerprint(permdock, keys);
+      if (permdock === null) {
+        return null;
+      }
+      if (
+        claims[MEMBERSHIPS_TRUNCATED] === true &&
+        !holdsActiveTenant(claims, tenant, scopeList(policy.scopes))
+      ) {
+        return null;
+      }
+      const missing = keys.some(
+        (key) => widened.has(key) && !grants(permdock, key),
+      );
+      return missing ? null : grantFingerprint(permdock, keys);
     } catch {
       return null;
     }

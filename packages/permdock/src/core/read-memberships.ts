@@ -1,6 +1,7 @@
 import type { Membership } from "./subject.ts";
 
 import { compact, isRecord } from "./compact.ts";
+import { expandMemberships } from "./membership-claim.ts";
 
 function asStrings(value: unknown): readonly string[] {
   return Array.isArray(value)
@@ -15,10 +16,12 @@ export type ReadMemberships = {
 };
 
 /**
- * Reads the `memberships` claim; an entry it cannot read is dropped and its
+ * Reads the `memberships` claim, an array or the compact object
+ * (`core/membership-claim.ts`); an entry it cannot read is dropped and its
  * index reported.
  */
-export function readMemberships(value: unknown): ReadMemberships {
+export function readMemberships(claim: unknown): ReadMemberships {
+  const value = expandMemberships(claim);
   if (!Array.isArray(value)) {
     return { memberships: [], dropped: [] };
   }

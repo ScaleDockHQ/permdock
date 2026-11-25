@@ -12,6 +12,9 @@ import {
 import { entriesSql, typedSourceUsers } from "./memberships.ts";
 
 export const MEMBERSHIPS_FOR = "memberships_for";
+export const SUSPENDED_IN_FOR = "suspended_in_for";
+/** The `suspended_in` claim holds at most this many tenant ids. */
+const SUSPENDED_IN_LIMIT = 16;
 const GLOBAL_ROLES_FOR = "global_roles_for";
 
 function qualified(parts: Parts, name: string): string {
@@ -29,7 +32,62 @@ function qualified(parts: Parts, name: string): string {
  * `auth.uid()`. Execute belongs to `supabase_auth_admin` only.
  */
 export function membershipEntriesSql(parts: Parts): string {
-  return `${entriesFunction(parts, false)}\n\n${entriesFunction(parts, true)}`;
+  const suspended =
+    parts.tenants === undefined
+      ? ""
+      : `\n\n${suspendedInSql(parts, parts.tenants)}`;
+  return `${entriesFunction(parts, false)}\n\n${entriesFunction(parts, true)}${suspended}`;
+}
+
+/**
+ * `suspended_in_for(p_user uuid) returns jsonb`: the ids of the tenants where
+ * `p_user` holds a membership entry while the tenant is suspended
+ * (`rls.suspension.scopes.<root>`) and the entry keeps nothing, as a sorted
+ * array of at most 16 ids; `[]` for none. It reads the entries that
+ * `memberships_for` drops, so a membership the source itself filters out is no
+ * suspension. A suspended user answers `[]`. `security definer`; execute
+ * belongs to `supabase_auth_admin` only.
+ */
+function suspendedInSql(
+  parts: Parts,
+  tenants: NonNullable<Parts["tenants"]>,
+): string {
+  const fn = qualified(parts, SUSPENDED_IN_FOR);
+  const suspended =
+    parts.users === undefined
+      ? ""
+      : `
+  if not ${activeRowSql(parts.users, "p_user")} then
+    return '[]'::jsonb;
+  end if;`;
+  return `-- the tenants p_user is a member of while the tenant is suspended, so a reader tells a suspension from a missing membership; no client role may execute it
+create or replace function ${fn}(p_user uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+#variable_conflict use_column
+declare${typedSourceUsers(parts)}
+  ids jsonb;
+begin${suspended}
+  select coalesce(jsonb_agg(t.tenant order by t.tenant), '[]'::jsonb) into ids
+  from (
+    select distinct x.tenant
+    from (
+${entriesSql(parts).replaceAll(/^/gmu, "      ")}
+    ) x
+    where x.tenant is not null
+      and not (x.entry ? 'keep')
+      and not ${activeTenantSql(tenants, "x.tenant")}
+    order by x.tenant
+    limit ${String(SUSPENDED_IN_LIMIT)}
+  ) t;
+  return ids;
+end;
+$$;
+revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
 }
 
 /**
@@ -142,6 +200,7 @@ export function entriesGrantsSql(parts: Parts): string {
   const names = [
     MEMBERSHIPS_FOR,
     ...(parts.roles === undefined ? [] : [GLOBAL_ROLES_FOR]),
+    ...(parts.tenants === undefined ? [] : [SUSPENDED_IN_FOR]),
   ];
   return names
     .map(

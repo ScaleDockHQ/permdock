@@ -3,7 +3,7 @@ import type { SupabaseRpcClient } from "permdock/supabase";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { supabaseApprovalStore } from "permdock/supabase";
+import { expandMemberships, supabaseApprovalStore } from "permdock/supabase";
 import { testApprovalStore } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -143,10 +143,11 @@ describe("supabase jsonschema", () => {
     }
 
     it("keeps claims that match supabase-claims-v1.json", async () => {
-      expect(await mint({})).toMatchObject({
-        sub: MEMBER,
-        memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
-      });
+      const claims = await mint({});
+      expect(claims).toMatchObject({ sub: MEMBER });
+      expect(expandMemberships(claims["memberships"])).toStrictEqual([
+        { scope: "tenant", id: "acme", roles: ["member"] },
+      ]);
     });
 
     it("drops every PermDock claim, without an error, when one does not match", async () => {

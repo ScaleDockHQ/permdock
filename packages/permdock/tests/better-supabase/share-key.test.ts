@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { authorizationHooks } from "../../src/better-supabase/index.ts";
 import { grantFingerprint } from "../../src/core/grant-fingerprint.ts";
+import { compactMemberships } from "../../src/core/membership-claim.ts";
 import {
   allow,
   definePermissions,
@@ -102,16 +103,45 @@ describe("shareKey", () => {
     expect(editor).not.toBe(viewer);
   });
 
-  it("answers null without a tenant, for a truncated token and for a stranger", async () => {
+  it("answers null without a tenant and for a stranger", async () => {
     expect(await keyOf("u1", "editor", [doc.read.key], null)).toBeNull();
-    expect(
-      await keyOf("u1", "editor", [doc.read.key], ORG, {
-        memberships_truncated: true,
-      }),
-    ).toBeNull();
     expect(await keyOf("u3", "stranger", [doc.read.key])).toBeNull();
     expect(await keyOf("u1", "editor", ["doc.nope"])).toBeNull();
     expect(await keyOf("u1", "editor", [doc.read.key], OTHER)).toBeNull();
+  });
+
+  it("answers for the active tenant of a truncated token only when the cut passed it", async () => {
+    const keys = [doc.read.key];
+    const whole = await keyOf("u1", "editor", keys);
+    const entry = (id: string) => ({
+      scope: "organization",
+      id,
+      roles: ["editor"],
+    });
+    const cut = (memberships: readonly unknown[]) =>
+      keyOf("u1", "editor", keys, ORG, {
+        memberships,
+        memberships_truncated: true,
+      });
+    // the active tenant's entries come first: one entry of another tenant proves they are all kept
+    expect(await cut([entry(ORG), entry(OTHER)])).toBe(whole);
+    // only the active tenant's entries, or none, may have been cut inside them
+    expect(await cut([entry(ORG)])).toBeNull();
+    expect(await cut([])).toBeNull();
+    // the compact claim reads the same way
+    expect(
+      await cut(
+        // SAFETY: compactMemberships returns the claim object, which `cut` passes through as a claim value.
+        compactMemberships([entry(ORG), entry(OTHER)]) as never,
+      ),
+    ).toBe(whole);
+    // a token cut elsewhere stays unanswered
+    expect(
+      await keyOf("u1", "editor", keys, ORG, {
+        memberships: [entry(ORG), entry(OTHER)],
+        permissions_truncated: true,
+      }),
+    ).toBeNull();
   });
 
   it("answers null for a token behind the live version", async () => {
@@ -126,6 +156,37 @@ describe("shareKey", () => {
       runtime: { versions: { evict: () => undefined, get: () => 2 } as never },
     });
     expect(stale).toBeNull();
+  });
+});
+
+describe("shareKey with widened keys", () => {
+  const widened = defined(
+    authorizationHooks({ policy, widened: [doc.update.key] }).shareKey,
+  );
+  const keyFor = (sub: string, roleName: string, keys: readonly string[]) =>
+    widened(undefined, keys, {
+      subject: {
+        type: "user",
+        id: sub,
+        properties: { claims: claims(sub, roleName) },
+      },
+      context: { tenant: ORG },
+    });
+
+  it("shares among holders of a widening key and keeps everyone else per user", async () => {
+    const keys = [doc.update.key];
+    const [one, two, viewer] = await Promise.all([
+      keyFor("u1", "editor", keys),
+      keyFor("u2", "editor", keys),
+      keyFor("u3", "viewer", keys),
+    ]);
+    expect(one).toMatch(/^gf1:/u);
+    expect(one).toBe(two);
+    expect(viewer).toBeNull();
+  });
+
+  it("leaves a loader with no widened key as before", async () => {
+    expect(await keyFor("u3", "viewer", [doc.read.key])).toMatch(/^gf1:/u);
   });
 });
 

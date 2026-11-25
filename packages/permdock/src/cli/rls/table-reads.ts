@@ -5,9 +5,9 @@ import type {
   SupabaseManifest,
   SupabaseManifestTableRead,
 } from "../../supabase/manifest.ts";
-import type { SqlPolicy } from "../sql/ast.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { KeyReasons } from "./key-reasons.ts";
+import type { ReadPolicy } from "./table-reasons.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { scopeList } from "../../core/scopes.ts";
@@ -28,6 +28,12 @@ import { tenantCheck } from "../sql/tenant-check.ts";
 import { keyReason, tryKeyReasons } from "./key-reasons.ts";
 import { droppedPolicy, reportFiles } from "./report.ts";
 import { sharedFunctionsOf, tenantPureHelpersOf } from "./shared-functions.ts";
+import {
+  formBlockers,
+  restrictiveReason,
+  ruleReason,
+  unknownReason,
+} from "./table-reasons.ts";
 
 type TableRead = SupabaseManifestTableRead;
 
@@ -35,16 +41,6 @@ type TableRead = SupabaseManifestTableRead;
 const LIBRARY_SCHEMAS: ReadonlySet<string> = new Set(["better_supabase"]);
 
 type TableReadRule = NonNullable<TableRead["rules"]>[number];
-
-type ReadPolicy = Pick<
-  SqlPolicy,
-  "name" | "command" | "permissive" | "roles" | "using"
-> & {
-  /** A policy an `@bsb access` tag renders: the tenant form by construction. */
-  readonly tagged?: { readonly column: string; readonly key: string };
-  /** The file that last defined the policy, relative to the project. */
-  readonly file?: string;
-};
 
 type TableFacts = { rls: boolean; readonly policies: Map<string, ReadPolicy> };
 
@@ -164,6 +160,27 @@ function ruleOf(policy: ReadPolicy, plainHelper: string): TableReadRule {
   return policy.using === undefined ? "unknown" : "condition";
 }
 
+/**
+ * The tenant checks a permissive policy ORs in: the expression itself or an
+ * argument of its top-level `or`. Other disjuncts only add rows.
+ */
+function tenantDisjuncts(
+  expr: unknown,
+  helper: string,
+): readonly { readonly column: string; readonly key: string }[] {
+  const bool: unknown = isRecord(expr) ? expr["BoolExpr"] : undefined;
+  const args: unknown[] =
+    isRecord(bool) &&
+    bool["boolop"] === "OR_EXPR" &&
+    Array.isArray(bool["args"])
+      ? bool["args"]
+      : [expr];
+  return args.flatMap((arg) => {
+    const check = tenantCheck(arg, helper);
+    return check === undefined ? [] : [check];
+  });
+}
+
 function keysOf(expr: unknown, helper: string): readonly string[] {
   return sqlCalls(expr).flatMap((call) => {
     if (call.name.join(".") !== helper) {
@@ -193,23 +210,36 @@ function readOf(
   reasons: KeyReasons | undefined,
 ): TableRead {
   if (facts === undefined || !facts.rls) {
-    return { table, share: "row", rules: ["unknown"] };
+    return {
+      table,
+      share: "row",
+      rules: ["unknown"],
+      reason: unknownReason(
+        facts === undefined ? "no-facts" : "no-rls",
+        facts === undefined ? [] : [...facts.policies.values()],
+      ),
+    };
   }
-  const selects = [...facts.policies.values()].filter(appliesToSelect);
+  const all = [...facts.policies.values()];
+  const selects = all.filter(appliesToSelect);
   const permissive = selects.filter((policy) => policy.permissive);
   const rules = new Set<TableReadRule>();
-  const columns = new Set<string>();
+  const columns = new Map<string, string>();
   const keys = new Set<string>();
   const formKeys = new Set<string>();
+  const formPolicies: ReadPolicy[] = [];
+  const parts: string[] = [];
+  const widenKeys = new Set<string>();
+  const widenColumns = new Set<string>();
   const stale: ReadPolicy[] = [];
-  const hasTag = [...facts.policies.values()].some(
-    (p) => p.tagged !== undefined,
-  );
+  const hasTag = all.some((p) => p.tagged !== undefined);
   if (fieldTables.has(table)) {
     rules.add("fields");
+    parts.push("the table has a field view, which reads rows per field grant");
   }
   if (permissive.length === 0) {
     rules.add("unknown");
+    parts.push(unknownReason("no-select", all));
   }
   for (const policy of permissive) {
     const check =
@@ -219,53 +249,91 @@ function readOf(
       : [policy.tagged.key]) {
       keys.add(key);
     }
+    for (const found of policy.tagged === undefined
+      ? tenantDisjuncts(policy.using, helpers.byPermission)
+      : [policy.tagged]) {
+      widenKeys.add(found.key);
+      widenColumns.add(found.column);
+    }
     if (check === undefined) {
       const rule = ruleOf(policy, helpers.plain);
       rules.add(rule);
       if (rule === "form") {
+        formPolicies.push(policy);
         if (hasTag) {
           stale.push(policy);
         }
         for (const key of keysOf(policy.using, helpers.plain)) {
           formKeys.add(key);
         }
+      } else {
+        parts.push(ruleReason(rule, policy, helpers));
       }
-    } else {
-      columns.add(check.column);
+    } else if (!columns.has(check.column)) {
+      columns.set(check.column, policy.name);
     }
   }
-  if (
-    selects.some((policy) => !policy.permissive && readsColumn(policy.using))
-  ) {
-    rules.add("restrictive");
+  for (const policy of selects) {
+    if (!policy.permissive && readsColumn(policy.using)) {
+      rules.add("restrictive");
+      parts.push(restrictiveReason(policy));
+    }
   }
   if (rules.size === 0 && columns.size > 1) {
     rules.add("condition");
+    parts.push(
+      `tenant checks on ${columns.size} columns: ${[...columns].map(([column, name]) => `${name} on ${column}`).join(", ")}`,
+    );
   }
   const permissions = [...keys].toSorted();
   const listed = permissions.length === 0 ? {} : { permissions };
   if (rules.size > 0) {
-    const parts = [
-      ...stale.map(
-        (policy) =>
-          `policy ${policy.name} is still defined${policy.file === undefined ? "" : ` in ${policy.file}`} next to an @bsb access tag that renders the table's policy: write a migration that drops it`,
-      ),
-      ...(reasons === undefined || stale.length > 0
-        ? []
-        : [...formKeys]
-            .toSorted()
-            .map((key) => `key ${key}: ${keyReason(reasons, key)}`)),
-    ];
+    for (const policy of formPolicies) {
+      const blockers = stale.includes(policy)
+        ? [
+            `policy ${policy.name} is still defined${policy.file === undefined ? "" : ` in ${policy.file}`} next to an @bsb access tag that renders the table's policy: write a migration that drops it`,
+          ]
+        : formBlockers(policy, all, helpers);
+      parts.push(...blockers);
+      if (
+        blockers.length === 0 &&
+        reasons !== undefined &&
+        keysOf(policy.using, helpers.plain).every((key) =>
+          reasons.swappable.has(key),
+        )
+      ) {
+        parts.push(
+          `policy ${policy.name} is movable: nothing on the table blocks permdock codemod bsb-access-tags`,
+        );
+      }
+    }
+    if (reasons !== undefined && stale.length === 0) {
+      parts.push(
+        ...[...formKeys]
+          .toSorted()
+          .map((key) => `key ${key}: ${keyReason(reasons, key)}`),
+      );
+    }
     const why = parts.length === 0 ? undefined : parts.join("; ");
+    const [widened] = widenColumns;
+    const holds =
+      widenColumns.size === 1 &&
+      widened !== undefined &&
+      widenKeys.size > 0 &&
+      !rules.has("restrictive") &&
+      !rules.has("fields") &&
+      !rules.has("unknown");
     return {
       table,
       share: "row",
+      ...(holds ? { column: widened } : {}),
       ...listed,
       rules: [...rules].toSorted(),
+      ...(holds ? { tenantFor: [...widenKeys].toSorted() } : {}),
       ...(why === undefined ? {} : { reason: why }),
     };
   }
-  const [column] = columns;
+  const [column] = columns.keys();
   return {
     table,
     share: "tenant",

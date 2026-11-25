@@ -110,6 +110,8 @@ describe(tableReads, () => {
         share: "row",
         permissions: ["invoice.read"],
         rules: ["restrictive"],
+        reason:
+          "restrictive policy audit_hidden in supabase/schemas/app.sql reads column hidden, so the rows it hides differ per row, not per tenant",
       },
       {
         table: "public.invoices",
@@ -117,10 +119,121 @@ describe(tableReads, () => {
         column: "organization_id",
         permissions: ["invoice.read"],
       },
-      { table: "public.logs", share: "row", rules: ["unknown"] },
+      {
+        table: "public.logs",
+        share: "row",
+        rules: ["unknown"],
+        reason: expect.stringContaining(
+          "no policy or enable row level security statement",
+        ),
+      },
       { table: "public.notes", share: "row", rules: ["form"] },
-      { table: "public.profiles", share: "row", rules: ["owner"] },
+      {
+        table: "public.profiles",
+        share: "row",
+        rules: ["owner"],
+        reason:
+          "policy profiles_read in supabase/schemas/app.sql is an owner rule: it calls auth.uid() and reads column user_id, so a row is read by the user it names, not by a tenant grant",
+      },
     ]);
+  });
+
+  it("names what blocks a form policy and which keys widen a row table", async () => {
+    const cwd = project();
+    writeFileSync(
+      join(cwd, "supabase/schemas/more.sql"),
+      `create table public.blocked (id uuid primary key, organization_id uuid not null, owner_id uuid);
+alter table public.blocked enable row level security;
+create policy blocked_read on public.blocked for select to authenticated, anon
+  using (organization_id in (select permdock.permitted_organization_ids('note.read')));
+create policy blocked_extra on public.blocked for select to authenticated
+  using (owner_id = auth.uid());
+
+create table public.wide (id uuid primary key, organization_id uuid not null, owner_id uuid);
+alter table public.wide enable row level security;
+create policy wide_read on public.wide for select to authenticated
+  using (owner_id = auth.uid() or organization_id in (select permdock.permitted_organization_ids_by_permission('invoice.read')));
+
+create table public.narrow (id uuid primary key, organization_id uuid not null, owner_id uuid);
+alter table public.narrow enable row level security;
+create policy narrow_read on public.narrow for select to authenticated
+  using (owner_id = auth.uid());
+create policy narrow_org on public.narrow for select to authenticated
+  using (organization_id in (select permdock.permitted_organization_ids_by_permission('note.read')));
+create policy narrow_hidden on public.narrow as restrictive for select to authenticated
+  using (owner_id is not null);
+`,
+    );
+    mkdirSync(join(cwd, "supabase/migrations"), { recursive: true });
+    writeFileSync(
+      join(cwd, "supabase/migrations/20260101000000_notes.sql"),
+      `create table public.migrated (id uuid primary key, organization_id uuid not null);
+alter table public.migrated enable row level security;
+create policy migrated_read on public.migrated for select to authenticated
+  using (organization_id in (select permdock.permitted_organization_ids('note.read')));
+`,
+    );
+    const tables = await reads(cwd);
+    const by = (name: string) => tables.find((read) => read.table === name);
+    const blocked = by("public.blocked")?.reason ?? "";
+    expect(blocked).toContain(
+      "applies to authenticated, anon, not authenticated alone",
+    );
+    expect(blocked).toContain(
+      "blocked_extra also applies to select on the table",
+    );
+    expect(by("public.migrated")?.reason).toContain("is a migration");
+    expect(by("public.wide")).toMatchObject({
+      share: "row",
+      column: "organization_id",
+      tenantFor: ["invoice.read"],
+      rules: ["owner"],
+    });
+    expect(by("public.wide")?.reason).toContain("is an owner rule");
+    expect(by("public.narrow")?.tenantFor).toBeUndefined();
+    expect(by("public.narrow")?.reason).toContain(
+      "restrictive policy narrow_hidden",
+    );
+  });
+
+  it("prints a pass or every reason a function is not shared", async () => {
+    const cwd = project();
+    writeFileSync(
+      join(cwd, "supabase/schemas/fn.sql"),
+      `create function public.a_payload() returns numeric language sql stable as $$ select count(*) from public.invoices $$;
+create function public.b_payload() returns numeric language sql stable as $$ select count(*) from public.profiles $$;
+create function public.c_payload() returns numeric language sql as $$ select count(*) from public.invoices $$;
+create function public.d_payload() returns numeric language sql stable as $$ select auth.uid()::text::numeric from public.invoices $$;
+create function public.other() returns numeric language sql stable as $$ select count(*) from public.invoices $$;
+`,
+    );
+    const result = await run(
+      ["supabase", "inspect", "--functions", "public.*_payload", "--json"],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    const { data } = JSON.parse(result.stdout);
+    expect(data.passed).toBe(1);
+    const reasons = Object.fromEntries(
+      data.functions.map((entry: { function: string; reasons: string[] }) => [
+        entry.function,
+        entry.reasons.join(" | "),
+      ]),
+    );
+    expect(Object.keys(reasons)).toStrictEqual([
+      "public.a_payload",
+      "public.b_payload",
+      "public.c_payload",
+      "public.d_payload",
+    ]);
+    expect(reasons["public.a_payload"]).toBe("");
+    expect(reasons["public.b_payload"]).toContain(
+      "it reads public.profiles, a row table (rule owner)",
+    );
+    expect(reasons["public.c_payload"]).toContain("volatile");
+    expect(reasons["public.d_payload"]).toContain(
+      "it reads the caller through auth.uid()",
+    );
   });
 
   it("drops a table a later migration drops and follows a rename", async () => {
@@ -209,9 +322,9 @@ alter table public.before_rename rename to after_rename;
     const manifest = parseSupabaseManifest(
       JSON.parse(readFileSync(path, "utf8")),
     );
-    expect(
-      manifest.rls.tableReads?.map(({ reason: _reason, ...read }) => read),
-    ).toStrictEqual(await reads(cwd));
+    expect(manifest.rls.tableReads?.map(({ table }) => table)).toStrictEqual(
+      (await reads(cwd)).map(({ table }) => table),
+    );
     expect(
       authorizationProvider({
         manifest,
@@ -277,6 +390,17 @@ create function public.note_total() returns numeric language sql stable as $$ se
       "permdock.permitted_organization_permission_keys",
     ]);
     expect(await pd137({ cwd, config: {} })).toStrictEqual([]);
+    expect(authorizationProvider({ manifest })).not.toHaveProperty(
+      "permissionFilters",
+    );
+    expect(
+      authorizationProvider({ manifest, permissionFilters: true }),
+    ).toMatchObject({
+      permissionFilters: {
+        "permdock.permdock_organization_has": { keyArgument: 0 },
+        "permdock.permitted_organization_permission_keys": { keyArgument: 1 },
+      },
+    });
 
     writeFileSync(
       path,

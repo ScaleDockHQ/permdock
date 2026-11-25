@@ -74,6 +74,26 @@ type Bsb = {
     ) => Promise<unknown>;
   };
 };
+type Supabase = {
+  readonly postgrestSources: (
+    client: unknown,
+    options: Row,
+  ) => {
+    readonly memberships: unknown;
+    readonly customRoles: (principal: Row) => unknown;
+  };
+};
+type Page = {
+  readonly claimsFirst: (source: unknown, options: Row) => unknown;
+  readonly getPermDock: (
+    policy: unknown,
+    user: Row,
+    options: Row,
+  ) => Promise<{
+    readonly can: (permission: unknown, row?: unknown) => boolean;
+    readonly derive: (options: Row) => Promise<Instance>;
+  }>;
+};
 type PolicyModule = {
   readonly policy: unknown;
   readonly permissions: Readonly<Record<string, Row>>;
@@ -361,6 +381,139 @@ async function runtimeStore(core: Core, latencyMs: number): Promise<Row> {
   };
 }
 
+const VERSION_FUNCTIONS = new Set([
+  "authz_version_for",
+  "custom_roles_version_for",
+  "authz_versions_for",
+]);
+
+/** A PostgREST client over the version functions, with a call log. */
+function rpcClient(latencyMs: number): {
+  readonly client: Row;
+  readonly calls: string[];
+} {
+  const calls: string[] = [];
+  const client = {
+    schema: (): { readonly rpc: (fn: string) => Promise<Row> } => ({
+      rpc: async (fn: string): Promise<Row> => {
+        calls.push(fn);
+        spin(latencyMs);
+        if (fn === "authz_versions_for") {
+          return { data: { authz: 4, custom_roles: 7 }, error: null };
+        }
+        if (fn === "authz_version_for") return { data: 4, error: null };
+        if (fn === "custom_roles_version_for") return { data: 7, error: null };
+        return {
+          data: {
+            id: "u1",
+            active: true,
+            roles: [],
+            memberships: [
+              { scope: "organization", id: ORG, roles: ["custom_auditor"] },
+            ],
+            customRoles: [
+              {
+                name: "custom_auditor",
+                tenant: ORG,
+                scope: "organization",
+                grants: [{ permission: "quotes.read" }],
+              },
+            ],
+            customRolesVersions: { [ORG]: 7 },
+            authzVersion: 4,
+          },
+          error: null,
+        };
+      },
+    }),
+  };
+  return { client, calls };
+}
+
+/**
+ * A page of a member who holds a custom role: three instances (two `read`, one
+ * `database-write`) and a derived one. Before, no version cache and the two
+ * single functions; after, `memoryVersionCache` and the combined function.
+ */
+async function customRoleMember(
+  core: Core,
+  page: Page,
+  sources: Supabase,
+  policy: unknown,
+  permissions: PolicyModule["permissions"],
+  latencyMs: number,
+): Promise<Row> {
+  const user = {
+    principal: {
+      id: "u1",
+      tenant: ORG,
+      memberships: [
+        { scope: "organization", id: ORG, roles: ["custom_auditor"] },
+      ],
+      authzVersion: 4,
+      customRolesVersion: 7,
+    },
+    context: {},
+  };
+  const run = async (after: boolean): Promise<Row> => {
+    const { client, calls } = rpcClient(latencyMs);
+    const source = sources.postgrestSources(client, {
+      policy,
+      ...(after ? {} : { versionsFn: false }),
+    });
+    const versions = core.memoryVersionCache();
+    const samples: number[] = [];
+    const onePage = async (): Promise<number> => {
+      const before = calls.filter((call) => VERSION_FUNCTIONS.has(call)).length;
+      const start = performance.now();
+      for (const intent of ["read", "read", "database-write"]) {
+        const instance = await page.getPermDock(policy, user, {
+          tenant: ORG,
+          intent,
+          memberships: page.claimsFirst(source.memberships, {
+            onStale: "reread",
+            ...(after ? { versions } : {}),
+          }),
+          customRoles: source.customRoles(user.principal),
+        });
+        instance.can(permissions["quotes"]?.["read"], {
+          id: "q",
+          organization_id: ORG,
+          customer_id: ORG,
+        });
+        await instance.derive({
+          customRoles: source.customRoles(user.principal),
+        });
+      }
+      const ms = performance.now() - start;
+      samples.push(ms);
+      return (
+        calls.filter((call) => VERSION_FUNCTIONS.has(call)).length - before
+      );
+    };
+    const first = await onePage();
+    const second = await onePage();
+    const counts = (name: string): number =>
+      calls.filter((call) => call === name).length;
+    return {
+      versionReadsFirstPage: first,
+      versionReadsSecondPage: second,
+      authzVersionFor: counts("authz_version_for"),
+      customRolesVersionFor: counts("custom_roles_version_for"),
+      authzVersionsFor: counts("authz_versions_for"),
+      firstPageMs: round(samples[0] ?? 0),
+      secondPageMs: round(samples[1] ?? 0),
+    };
+  };
+  return {
+    versionReadMs: latencyMs,
+    wiring:
+      "four instances per page: read, read, database-write and a derive({ customRoles })",
+    before: await run(false),
+    after: await run(true),
+  };
+}
+
 function machine(): Row {
   const cpu = cpus();
   const git = spawnSync("git", ["rev-parse", "--short", "HEAD"], {
@@ -380,6 +533,8 @@ function machine(): Row {
 const core = (await load("permdock")) as Core;
 // SAFETY: as above.
 const bsb = (await load("permdock/better-supabase")) as Bsb;
+// SAFETY: as above.
+const supabase = (await load("permdock/supabase")) as Supabase;
 // SAFETY: the fixture exports `policy` and `permissions`.
 const fixture = (await import(
   pathToFileURL(join(FIXTURE_DIR, "policy.ts")).href
@@ -400,6 +555,15 @@ const record = {
   serverAction: await serverAction(
     core,
     bsb,
+    fixture.policy,
+    fixture.permissions,
+    latency,
+  ),
+  customRoleMember: await customRoleMember(
+    core,
+    // SAFETY: the built root entry exports claimsFirst and getPermDock.
+    core as unknown as Page,
+    supabase,
     fixture.policy,
     fixture.permissions,
     latency,

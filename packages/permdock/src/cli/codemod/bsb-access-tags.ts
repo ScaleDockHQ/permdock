@@ -37,6 +37,15 @@ export type AccessTagReport = {
     readonly reason: string;
   }[];
   readonly files: readonly string[];
+  /**
+   * Tables with a plain tenant policy, how many move and how many stay with
+   * every blocker listed in `kept`.
+   */
+  readonly summary: {
+    readonly tables: number;
+    readonly moved: number;
+    readonly kept: number;
+  };
 };
 
 type Operation = "read" | "create" | "update" | "delete";
@@ -419,10 +428,20 @@ export async function runAccessTags(options: {
     });
     applyFiles(options.cwd, planned);
   }
+  const movedTables = new Set(moved.map((entry) => entry.table));
+  const keptTables = new Set(
+    kept.map((entry) => entry.table).filter((table) => !movedTables.has(table)),
+  );
+  const summary = {
+    tables: movedTables.size + keptTables.size,
+    moved: movedTables.size,
+    kept: keptTables.size,
+  };
   const report: AccessTagReport = {
     moved,
     kept,
     files: planned.map((file) => rel(options.cwd, file.path)),
+    summary,
   };
   const code = options.check === true && moved.length > 0 ? 1 : 0;
   if (options.json) {
@@ -432,6 +451,7 @@ export async function runAccessTags(options: {
     code,
     output: [
       `permdock codemod bsb-access-tags: ${dryRun ? "would move" : "moved"} ${String(moved.length)} ${moved.length === 1 ? "table" : "tables"} to @bsb access tags`,
+      `  ${dryRun ? "would move" : "moved"} ${String(summary.moved)} of ${String(summary.tables)} ${summary.tables === 1 ? "table" : "tables"} with a plain tenant policy; ${String(summary.kept)} stay${summary.kept === 1 ? "s" : ""} with the blocker below`,
       ...moved.map(
         (entry) =>
           `  ${entry.table}: ${Object.entries(entry.operations)

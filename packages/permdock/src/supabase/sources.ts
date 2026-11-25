@@ -826,12 +826,14 @@ export function hookApiNames(prefix: string = HOOK_API_PREFIX): {
   readonly membersOf: string;
   readonly authzVersionFor: string;
   readonly rolesVersionFor: string;
+  readonly versionsFor: string;
 } {
   return {
     subjectFor: `${prefix}subject_for`,
     membersOf: `${prefix}members_of`,
     authzVersionFor: `${prefix}authz_version_for`,
     rolesVersionFor: `${prefix}custom_roles_version_for`,
+    versionsFor: `${prefix}authz_versions_for`,
   };
 }
 
