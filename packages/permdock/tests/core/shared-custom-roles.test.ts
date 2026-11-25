@@ -6,6 +6,7 @@ import type {
   Subject,
 } from "../../src/core/subject.ts";
 
+import { customRoleRecord } from "../../src/core/custom-role-record.ts";
 import { customRoleSource } from "../../src/core/custom-role-source.ts";
 import {
   customRoleClaim,
@@ -323,7 +324,9 @@ describe("shared custom roles", () => {
       tenant: "acme",
       customRoles: [viewer, tenantViewer],
     });
-    const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
+    const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)), {
+      customRoles: [customRoleRecord(policy, [viewer, tenantViewer], "acme")],
+    });
     expect(client.can(permissions.post.read)).toBe(true);
     expect(client.can(permissions.post.update)).toBe(false);
   });

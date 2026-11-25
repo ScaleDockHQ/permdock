@@ -8,6 +8,7 @@ import type {
 import type { Permission } from "./permission-types.ts";
 import type {
   ClientBundle,
+  CustomRoleRecord,
   ExpandedSnapshot,
   Snapshot,
 } from "./snapshot-types.ts";
@@ -63,10 +64,19 @@ export function fromSnapshot(
     readonly team?: string;
     /** The `clientBundle(policy)` of a snapshot built with `omitStatic`. */
     readonly bundle?: ClientBundle;
+    /**
+     * The `customRoleRecord` of each tenant the snapshot names custom roles of,
+     * and of the global roles (`null`). A role without its record grants
+     * nothing.
+     */
+    readonly customRoles?: readonly CustomRoleRecord[];
   } = {},
 ): PermDock {
   const wire = parseSnapshot(input);
-  const snapshot = expandSnapshot(wire, compact({ bundle: options.bundle }));
+  const snapshot = expandSnapshot(
+    wire,
+    compact({ bundle: options.bundle, customRoles: options.customRoles }),
+  );
   const subject = subjectFromSnapshot(snapshot, options.tenant);
   const team = options.team;
 
@@ -288,13 +298,23 @@ export function fromSnapshot(
     tenant(id: string): PermDock {
       return fromSnapshot(
         wire,
-        compact({ tenant: id, team, bundle: options.bundle }),
+        compact({
+          tenant: id,
+          team,
+          bundle: options.bundle,
+          customRoles: options.customRoles,
+        }),
       );
     },
     team(id: string): PermDock {
       return fromSnapshot(
         wire,
-        compact({ tenant: options.tenant, team: id, bundle: options.bundle }),
+        compact({
+          tenant: options.tenant,
+          team: id,
+          bundle: options.bundle,
+          customRoles: options.customRoles,
+        }),
       );
     },
     grantedPermissions() {

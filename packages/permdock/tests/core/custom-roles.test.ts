@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { CustomRole, Membership } from "../../src/core/subject.ts";
 
 import { principal } from "../../src/conditions/refs.ts";
+import { customRoleRecord } from "../../src/core/custom-role-record.ts";
 import {
   customRoleClaim,
   parseCustomRoleEntry,
@@ -918,8 +919,19 @@ describe("snapshot parity", () => {
         customRoles: [fixture.custom],
         now: Temporal.Instant.from(snapshot.issuedAt),
       });
-      expect(cached).toStrictEqual(snapshot);
-      const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
+      // snapshotFor names the custom roles; the records supply what they grant
+      const records = [
+        customRoleRecord(policy, [fixture.custom], "acme"),
+        customRoleRecord(policy, [fixture.custom], null),
+      ];
+      const grantsOf = (value: typeof snapshot, roleRecords: typeof records) =>
+        expandSnapshot(value, { customRoles: roleRecords })
+          .grants.map((grant) => JSON.stringify(grant))
+          .toSorted();
+      expect(grantsOf(cached, records)).toStrictEqual(grantsOf(snapshot, []));
+      const client = fromSnapshot(JSON.parse(JSON.stringify(cached)), {
+        customRoles: records,
+      });
       for (const leaf of listPermissions(permissions)) {
         for (const row of leaf.kind === "collection" ? [undefined] : rows) {
           expect(

@@ -15,7 +15,7 @@ import type {
 import type { POLICY_X } from "./policy-fingerprint.ts";
 import type { ResolveIndex } from "./resolve-index.ts";
 import type { Scope, PolicyScopesInput, ScopeNames } from "./scopes.ts";
-import type { ClientBundle } from "./snapshot-types.ts";
+import type { ClientBundle, CustomRoleRecord } from "./snapshot-types.ts";
 import type { Principal, Actor, Delegation } from "./subject.ts";
 import type { Instant } from "./time.ts";
 import type { RoleMeta, RoleTree, PlanTree } from "./vocabulary.ts";
@@ -648,6 +648,18 @@ export type PolicyIndex = {
    * leaves it writable.
    */
   readonly bundle: WeakMap<object, BundleMemo>;
+  /**
+   * The `customRoleRecord` of each tenant (`null` for the global roles), filled
+   * on first use under the list of custom roles it was built from.
+   */
+  readonly customRecords: WeakMap<object, Map<string | null, CustomRecordMemo>>;
+};
+
+/** What `customRoleRecord` derives once per list of roles and tenant. */
+export type CustomRecordMemo = {
+  readonly record: CustomRoleRecord;
+  /** The canon of each role's grants, in grant order. */
+  readonly expected: ReadonlyMap<string, readonly string[]>;
 };
 
 /** What `clientBundle` derives once per policy. */

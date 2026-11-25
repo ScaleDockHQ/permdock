@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CustomRole, Subject } from "../../src/core/subject.ts";
 
+import { customRoleRecord } from "../../src/core/custom-role-record.ts";
 import {
   customRoleClaim,
   resolveCustomRole,
@@ -173,7 +174,9 @@ describe("global custom roles", () => {
     const snapshot = snapshotFor(policy, subject(["tier2"]), {
       customRoles: [platformRole],
     });
-    const client = fromSnapshot(snapshot);
+    const client = fromSnapshot(snapshot, {
+      customRoles: [customRoleRecord(policy, [platformRole], null)],
+    });
     expect(client.can(permissions.tenant.suspend)).toBe(true);
     expect(client.can(permissions.tenant.delete)).toBe(false);
     expect(client.assignablePermissions({ scope: "global" })).toStrictEqual([]);

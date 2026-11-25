@@ -3,11 +3,12 @@ import type {
   ClientBundle,
   ExpandedSnapshot,
   Snapshot,
+  SnapshotCustom,
   SnapshotGrant,
   SnapshotStatic,
   SnapshotWireTerms,
 } from "./snapshot-types.ts";
-import type { Membership, Principal } from "./subject.ts";
+import type { CustomRole, Membership, Principal } from "./subject.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -23,7 +24,7 @@ import { snapshotVocabulary } from "./snapshot.ts";
 import { findRole } from "./vocabulary.ts";
 
 /** What a role holder is checked against; no real id can equal it. */
-const PROBE = "$probe";
+export const PROBE = "$probe";
 
 /**
  * A grant's terms as the wire writes them: without its membership, and without
@@ -44,13 +45,16 @@ function wireTerms(
   };
 }
 
-function canonOf(grant: SnapshotGrant, snapshot: ExpandedSnapshot): string {
+export function canonOf(
+  grant: SnapshotGrant,
+  snapshot: ExpandedSnapshot,
+): string {
   const { permission, ...terms } = wireTerms(grant, snapshot);
   return canonicalJson([permission, terms]);
 }
 
 /** The membership a probe holder of `role` has on `scope`, with its ancestors. */
-function probeMembership(
+export function probeMembership(
   policy: Policy,
   role: string,
   scope: string,
@@ -71,28 +75,27 @@ function probeMembership(
   };
 }
 
-function probeSnapshot(policy: Policy, principal: Principal): ExpandedSnapshot {
+export function probeSnapshot(
+  policy: Policy,
+  principal: Principal,
+  customRoles: readonly CustomRole[] = [],
+): ExpandedSnapshot {
   return snapshotOf(
     policy,
     { principal, context: {} },
-    {
-      customRoles: [],
-      omitAssignable: true,
-      omitTypeLevel: true,
-      tenants: "all",
-    },
+    { customRoles, omitAssignable: true, omitTypeLevel: true, tenants: "all" },
   );
 }
 
 /** A probe group as the bundle stores it: wire terms and their canon. */
-type ProbeGroup = {
+export type ProbeGroup = {
   readonly terms: readonly (SnapshotWireTerms & {
     readonly permission: string;
   })[];
   readonly canon: readonly string[];
 };
 
-function probeGroup(
+export function probeGroup(
   snapshot: ExpandedSnapshot,
   keep: (grant: SnapshotGrant) => boolean,
 ): ProbeGroup | undefined {
@@ -217,7 +220,7 @@ function memoOf(policy: Policy): BundleMemo {
   return memo;
 }
 
-function sameList(a: readonly string[], b: readonly string[]): boolean {
+export function sameList(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((item, at) => item === b[at]);
 }
 
@@ -230,6 +233,7 @@ function sameList(a: readonly string[], b: readonly string[]): boolean {
 export function compactWithBundle(
   policy: Policy,
   expanded: ExpandedSnapshot,
+  custom?: SnapshotCustom,
 ): Snapshot {
   const { bundle, expected: expectedByRole, shared } = memoOf(policy);
   const memberships = expanded.subject.principal?.memberships ?? [];
@@ -303,7 +307,7 @@ export function compactWithBundle(
     }
   }
   if (held.length === 0 && sharedDigest === undefined) {
-    return compactSnapshot(expanded, undefined, bundle);
+    return compactSnapshot(expanded, undefined, bundle, custom);
   }
   const wire: SnapshotStatic = {
     held,
@@ -317,5 +321,6 @@ export function compactWithBundle(
     },
     wire,
     bundle,
+    custom,
   );
 }
