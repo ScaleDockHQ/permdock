@@ -16,10 +16,11 @@ export const MANAGED_USER_IDS = "permdock_managed_user_ids";
 /**
  * Sets a policy uses to decide an approval in SQL. `permdock_approver_for_ids`
  * is the caller and, with delegations, each active delegator, one hop and no
- * further. `permdock_managed_user_ids` walks down the manager table from the
- * caller. Neither set contains the caller as someone they manage, and a
- * decision still refuses the requester: compare the set with `id <>
- * <requester>`.
+ * further, through a cover for every tenant, permission and resource only: the
+ * set has no tenant or resource to match a narrower cover against.
+ * `permdock_managed_user_ids` walks down the manager table from the caller.
+ * Neither set contains the caller as someone they manage, and a decision still
+ * refuses the requester: compare the set with `id <> <requester>`.
  */
 export function approvalSetsSql(
   ctx: RlsSqlContext,
@@ -39,7 +40,10 @@ export function approvalSetsSql(
   where d.delegate = ${me}
     and d."from" <= now()
     and d."until" > now()
-    and d.delegator <> ${me}`
+    and d.delegator <> ${me}
+    and d.tenant is null
+    and d.permissions is null
+    and d.resources is null`
     : "";
   const managed =
     options.managers === undefined ? "" : managedSql(ctx, options.managers, me);

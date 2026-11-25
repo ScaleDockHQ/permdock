@@ -468,11 +468,15 @@ export function providerFunctions(
       ? undefined
       : call(name, sql, "authenticated", argTypes(helper.args));
   };
+  const requestArgs = helpers.get(REQUEST_APPROVERS)?.args ?? "";
+  // A cover names resources by the request kind's first segment, as for isApprover.
   const approverFor = setTemplate(
     REQUEST_APPROVERS,
-    /\bp_tenant\b/u.test(helpers.get(REQUEST_APPROVERS)?.args ?? "")
-      ? "{requester}, {tenant}"
-      : "{requester}",
+    `${/\bp_tenant\b/u.test(requestArgs) ? "{requester}, {tenant}" : "{requester}"}${
+      /\bp_resource\b/u.test(requestArgs)
+        ? ", pg_catalog.split_part({kind}, '.', 1)"
+        : ""
+    }`,
   );
   // better-supabase passes `{tenant}`; a manager table without a tenant column writes no `p_tenant`.
   const managedUsers = /\bp_tenant\b/u.test(

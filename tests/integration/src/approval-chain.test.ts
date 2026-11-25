@@ -17,6 +17,8 @@ const CLEO = "00000000-0000-4000-8000-000000000003";
 const DAN = "00000000-0000-4000-8000-000000000004";
 const COVER = "00000000-0000-4000-8000-000000000005";
 const GONE = "00000000-0000-4000-8000-000000000006";
+const NARROW = "00000000-0000-4000-8000-000000000007";
+const ELSEWHERE = "00000000-0000-4000-8000-000000000008";
 
 // Anna manages Ben, Ben manages Cleo; Dan reported to Gone, whose row has ended.
 const SETUP = `
@@ -94,8 +96,10 @@ describe("approval managers on a self-referencing table", () => {
     }
     await started().admin.query(
       `insert into permdock.approval_delegations (id, delegator, delegate, tenant, resources, "from", "until") values
-      ('ben-away', $1, $2, 'o1', null, now() - interval '1 day', now() + interval '1 day')`,
-      [BEN, COVER],
+      ('ben-away', $1, $2, 'o1', null, now() - interval '1 day', now() + interval '1 day'),
+      ('ben-leave-only', $1, $3, 'o1', array['time_off'], now() - interval '1 day', now() + interval '1 day'),
+      ('ben-other-org', $1, $4, 'o2', null, now() - interval '1 day', now() + interval '1 day')`,
+      [BEN, COVER, NARROW, ELSEWHERE],
     );
   }, 120_000);
 
@@ -163,5 +167,36 @@ describe("approval managers on a self-referencing table", () => {
         [DAN],
       ),
     ).toStrictEqual([]);
+  });
+
+  it("leaves out a cover limited to other resources or another tenant", async () => {
+    const approvers = (
+      await as<{ id: string }>(
+        CLEO,
+        "select permdock.permdock_request_approver_ids($1, 'o1') as id",
+        [CLEO],
+      )
+    ).map((row) => row.id);
+    expect(approvers).not.toContain(NARROW);
+    expect(approvers).not.toContain(ELSEWHERE);
+    const forTimeOff = (
+      await as<{ id: string }>(
+        CLEO,
+        "select permdock.permdock_request_approver_ids($1, 'o1', 'time_off') as id",
+        [CLEO],
+      )
+    ).map((row) => row.id);
+    expect(forTimeOff).toContain(NARROW);
+    expect(forTimeOff).not.toContain(ELSEWHERE);
+    for (const delegate of [NARROW, ELSEWHERE]) {
+      expect(
+        (
+          await as<{ id: string }>(
+            delegate,
+            "select permdock.permdock_approver_for_ids() as id",
+          )
+        ).map((row) => row.id),
+      ).toStrictEqual([delegate]);
+    }
   });
 });

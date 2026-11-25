@@ -3619,6 +3619,9 @@ as $$
     and d."from" <= now()
     and d."until" > now()
     and d.delegator <> (select "permdock".permdock_user_id())
+    and d.tenant is null
+    and d.permissions is null
+    and d.resources is null
 $$;
 revoke execute on function "permdock".permdock_approver_for_ids() from public, anon;
 grant execute on function "permdock".permdock_approver_for_ids() to authenticated;
