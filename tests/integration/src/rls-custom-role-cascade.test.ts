@@ -47,7 +47,8 @@ create table public.app_roles (
   name text not null,
   builtin boolean not null default false
 );
-grant select, update, delete on public.app_roles to authenticated;
+grant select, insert, update, delete on public.app_roles to authenticated;
+grant usage on sequence public.app_roles_id_seq to authenticated;
 `;
 
 const SEED = `
@@ -225,6 +226,42 @@ describe("rls.customRoleWrites.roles", () => {
       await admin.query(
         "delete from public.app_roles where name = 'auditor' and organization_id is null",
       );
+    }
+  });
+
+  it("lets a signed-in caller write a skipped platform row but not move one into or out of a tenant", async () => {
+    const admin = started().admin;
+    await admin.query(
+      "insert into permdock.user_roles (user_id, role) values ($1, 'operator')",
+      [ADMIN],
+    );
+    await admin.query(
+      "insert into public.app_roles (organization_id, name, builtin) values (null, 'catalog', true)",
+    );
+    try {
+      await expect(
+        as(
+          STAFF,
+          "insert into public.app_roles (organization_id, name, builtin) values (null, 'curator', true)",
+        ),
+      ).resolves.toBeDefined();
+      await expect(
+        as(
+          ADMIN,
+          "update public.app_roles set organization_id = 'acme' where name = 'catalog'",
+        ),
+      ).rejects.toThrow(/system role/u);
+      await expect(
+        as(
+          ADMIN,
+          "update public.app_roles set organization_id = null where organization_id = 'acme' and builtin",
+        ),
+      ).rejects.toThrow(/system role/u);
+    } finally {
+      await admin.query("delete from public.app_roles where name = 'catalog'");
+      await admin.query("delete from permdock.user_roles where user_id = $1", [
+        ADMIN,
+      ]);
     }
   });
 });
