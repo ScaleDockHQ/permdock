@@ -13,7 +13,7 @@ export default defineConfig({
   extends: [core, react, playwright, example],
   ignorePatterns: [
     ...ignorePatterns,
-    "src/lib/supabase/{generated.*,generated-schema.ts,blocks.generated.ts,blocks.config.ts,database.types.ts}",
+    "src/lib/supabase/{generated.*,generated-schema.ts,blocks.generated.ts,blocks.config.ts,blocks.reads.ts,database.types.ts}",
     "src/lib/supabase/{tables,blocks}/**",
     // Vendored as published; see docs/decisions/0082-example-vendored-ui-tsconfig.md.
     "src/components/{ui,reui}/**",

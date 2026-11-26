@@ -1,6 +1,6 @@
 -- better-supabase module: permissions
 -- @bsb-block permissions@1 managed
--- @bsb-hash sha256:e260a4a4c4e40d365621a1921017b55a6a8ad1f2efed54b4270d7b5322d32c51
+-- @bsb-hash sha256:583ac44d913729a5485b3c34cadd7e366938bdab4efcbba3f13f86325789a1f1
 -- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.permissions.model).
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -319,7 +319,7 @@ as $$
     when member is not null
       and not better_supabase.user_disabled(member)
       and not better_supabase.tenant_disabled(tenant)
-    then coalesce(array(select k from unnest(coalesce((array(select permdock.permitted_organization_permission_keys_for(member, tenant))), '{}'::text[])) as k where k = any(array['access_requests.create', 'access_requests.emergency', 'access_requests.manage', 'access_requests.read', 'access_requests.review', 'api_keys.manage', 'api_keys.own', 'approvals.manage', 'approvals.read', 'approvals.request', 'audit.read', 'audit.revert', 'automations.manage', 'automations.publish', 'automations.read', 'automations.write', 'impersonation.read', 'impersonation.revoke', 'impersonation.start', 'members.invite', 'members.read', 'members.remove', 'members.update_role', 'organization.delete', 'organization.transfer_ownership', 'organization.update', 'quotes.read', 'quotes.update', 'relations.manage', 'relations.read', 'roles.manage', 'service_accounts.manage', 'service_accounts.read', 'settings.manage', 'settings.read', 'settings.update', 'sso.manage', 'staff.list', 'staff.read', 'teams.manage', 'teams.read', 'usage.read', 'usage.record']::text[])), '{}'::text[])
+    then coalesce(array(select k from unnest(coalesce((array(select permdock.permitted_organization_permission_keys_for(member, tenant))), '{}'::text[])) as k where k = any(array['access_requests.create', 'access_requests.emergency', 'access_requests.manage', 'access_requests.read', 'access_requests.review', 'api_keys.manage', 'api_keys.own', 'approvals.manage', 'approvals.read', 'approvals.request', 'audit.read', 'audit.revert', 'automations.manage', 'automations.publish', 'automations.read', 'automations.write', 'billing.read', 'impersonation.read', 'impersonation.revoke', 'impersonation.start', 'members.invite', 'members.read', 'members.remove', 'members.update_role', 'organization.delete', 'organization.transfer_ownership', 'organization.update', 'quotes.create', 'quotes.read', 'quotes.update', 'relations.manage', 'relations.read', 'roles.manage', 'service_accounts.manage', 'service_accounts.read', 'settings.manage', 'settings.read', 'settings.update', 'sso.manage', 'staff.list', 'staff.read', 'teams.manage', 'teams.read', 'usage.read', 'usage.record']::text[])), '{}'::text[])
     else '{}'::text[]
   end
 $$;

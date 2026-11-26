@@ -1,6 +1,6 @@
 -- better-supabase module: impersonation
 -- @bsb-block impersonation@3 managed
--- @bsb-hash sha256:d212e7f634260d7a0db91869eb2aed154be51922170520c58aaf0a6acc4b4fa3
+-- @bsb-hash sha256:38789cf8eb75569bd08d9c5bb7236229ab6f9aec1ebe4d27c0080dfbb9d29460
 -- Lets platform staff view the app as a user: time-limited, read-only by default, gated by is_platform() and a second admin's approval, recorded in the audit log, with the target's claims built by your access token hook.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -418,11 +418,13 @@ begin
     raise exception 'ttl must be between 0 and %', '4 hours' using errcode = '22023', hint = 'IMPERSONATION_TTL';
   end if;
   -- Viewing the app as platform staff would hand the admin that staff's reach.
-  if exists (
+  if (exists (
     select 1 from auth.users u
     where u.id = target and jsonb_typeof(u.raw_app_meta_data -> 'platform_permissions') = 'array'
       and jsonb_array_length(u.raw_app_meta_data -> 'platform_permissions') > 0
-  ) then
+  ) or exists (
+    select 1 from "permdock"."user_roles" a where a."user_id" = target
+  )) then
     raise exception 'A support session cannot target platform staff' using errcode = '42501', hint = 'IMPERSONATION_TARGET_PLATFORM';
   end if;
   if not coalesce(read_only, true) then
@@ -1045,7 +1047,7 @@ begin
   if base is null then
     raise exception 'No user %', target using errcode = 'P0002', hint = 'IMPERSONATION_TARGET_MISSING';
   end if;
-  return base -> 'claims';
+  return coalesce(permdock.custom_access_token_hook(base) -> 'claims', base -> 'claims');
 end;
 $$;
 

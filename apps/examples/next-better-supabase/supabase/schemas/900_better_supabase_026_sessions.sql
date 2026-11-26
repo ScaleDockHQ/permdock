@@ -1,6 +1,6 @@
 -- better-supabase module: sessions
 -- @bsb-block sessions@1 managed
--- @bsb-hash sha256:c3c98debd0dfbb0f4ea92294a652ee09c58239b648dc54ec326f8a5533f741ec
+-- @bsb-hash sha256:84970d54c6abe809822a43de8adbcb3b5899de50689bed3f8e3ef427be84da46
 -- session_active() for restrictive policies: false once the caller's session was signed out or expired, or the user was banned or deleted, so revoked access tokens stop working before they expire. options.policies writes the policy on every table.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -204,3 +204,39 @@ $$;
 
 revoke execute on function better_supabase.caller_authz_version() from public, anon;
 grant execute on function better_supabase.caller_authz_version() to authenticated;
+
+-- blocks['sessions'].options.bootstrap: bsb.bootstrap({ rpc }) calls these.
+-- Each checks the session and returns the caller's authorization version
+-- (the live one when the database keeps it, and the token's) with the app
+-- function's data, so a cache miss is one query.
+create or replace function better_supabase.bootstrap_app(args jsonb default '{}'::jsonb)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if not (select better_supabase.session_active()) then
+    return jsonb_build_object(
+      'session_active', false,
+      'end_reason', better_supabase.session_end_reason(),
+      'authz_version', auth.jwt() -> 'authz_ver',
+      'token_authz_version', auth.jwt() -> 'authz_ver',
+      'tenant', args ->> 'tenant',
+      'data', null
+    );
+  end if;
+  return jsonb_build_object(
+    'session_active', true,
+    'authz_version', to_jsonb(better_supabase.caller_authz_version()),
+    'token_authz_version', auth.jwt() -> 'authz_ver',
+    'tenant', args ->> 'tenant',
+    'data', to_jsonb(public.sample_authz_version(args)),
+    'subject', case when nullif(args ->> 'tenant', '') is null then to_jsonb(permdock.permdock_subject()) else to_jsonb(permdock.permdock_subject(((args ->> 'tenant'))::text)) end,
+    'subject_tenant', nullif(args ->> 'tenant', '')
+  );
+end;
+$$;
+
+revoke execute on function better_supabase.bootstrap_app(jsonb) from public, anon;
+grant execute on function better_supabase.bootstrap_app(jsonb) to authenticated;

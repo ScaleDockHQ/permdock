@@ -6,14 +6,78 @@
  * @public
  */
 export const permissions = {
+  "access-requests": {
+    read: "access_requests.read",
+    create: "access_requests.create",
+    manage: "access_requests.manage",
+    approve: "members.update_role",
+  },
+  "api-keys": {
+    manage: "api_keys.manage",
+    own: "api_keys.own",
+  },
+  approvals: {
+    read: "approvals.read",
+    request: "approvals.request",
+    manage: "approvals.manage",
+  },
   audit: {
     read: "audit.read",
     readAll: "audit.read",
     revert: "audit.revert",
   },
+  automations: {
+    read: "automations.read",
+    write: "automations.write",
+    publish: "automations.publish",
+    manage: "automations.manage",
+  },
+  impersonation: {
+    start: "impersonation.start",
+    read: "impersonation.read",
+    revoke: "impersonation.revoke",
+  },
+  invitations: {
+    invite: "members.invite",
+    revoke: "members.invite",
+    read: "members.invite",
+  },
+  organizations: {
+    update: "organization.update",
+    delete: "organization.delete",
+    listMembers: "members.read",
+    removeMember: "members.remove",
+    suspendMember: "members.remove",
+    updateRole: "members.update_role",
+    transferOwnership: "organization.transfer_ownership",
+  },
+  relations: {
+    read: "relations.read",
+    manage: "relations.manage",
+  },
+  "service-accounts": {
+    read: "service_accounts.read",
+    manage: "service_accounts.manage",
+  },
+  settings: {
+    read: "settings.read",
+    update: "settings.update",
+    platform: "settings.manage",
+  },
   "share-links": {
     create: "quotes.update",
     read: "quotes.read",
+  },
+  sso: {
+    manage: "sso.manage",
+  },
+  teams: {
+    manage: "teams.manage",
+    read: "teams.read",
+  },
+  usage: {
+    read: "usage.read",
+    record: "usage.record",
   },
 } as const;
 
@@ -22,4 +86,4 @@ export const permissions = {
  * the `permission` of actions and routes.
  * @public
  */
-export type PermissionKey = "audit.read" | "audit.revert" | "quotes.read" | "quotes.update";
+export type PermissionKey = "access_requests.create" | "access_requests.manage" | "access_requests.read" | "api_keys.manage" | "api_keys.own" | "approvals.manage" | "approvals.read" | "approvals.request" | "audit.read" | "audit.revert" | "automations.manage" | "automations.publish" | "automations.read" | "automations.write" | "impersonation.read" | "impersonation.revoke" | "impersonation.start" | "members.invite" | "members.read" | "members.remove" | "members.update_role" | "organization.delete" | "organization.transfer_ownership" | "organization.update" | "quotes.read" | "quotes.update" | "relations.manage" | "relations.read" | "service_accounts.manage" | "service_accounts.read" | "settings.manage" | "settings.read" | "settings.update" | "sso.manage" | "teams.manage" | "teams.read" | "usage.read" | "usage.record";

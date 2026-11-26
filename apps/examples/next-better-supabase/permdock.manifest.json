@@ -17,6 +17,8 @@
       "permitted_organization_ids",
       "member_organization_ids",
       "member_organization_ids_for",
+      "permitted_team_ids",
+      "member_team_ids",
       "permitted_customer_ids",
       "member_customer_ids",
       "member_customer_ids_for"
@@ -127,6 +129,11 @@
         "type": "uuid"
       },
       {
+        "name": "team",
+        "type": "uuid",
+        "within": "organization"
+      },
+      {
         "name": "customer",
         "type": "uuid",
         "within": "organization"
@@ -156,6 +163,18 @@
         "args": "p_user uuid",
         "returns": "setof uuid",
         "execute": ["supabase_auth_admin"]
+      },
+      {
+        "name": "permitted_team_ids",
+        "args": "p_grant text",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "member_team_ids",
+        "args": "",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
       },
       {
         "name": "permitted_customer_ids",
@@ -200,6 +219,12 @@
         "execute": ["authenticated"]
       },
       {
+        "name": "permdock_api_key_allows",
+        "args": "p_grant text",
+        "returns": "boolean",
+        "execute": ["authenticated"]
+      },
+      {
         "name": "permdock_actor_may_write",
         "args": "",
         "returns": "boolean",
@@ -230,6 +255,12 @@
         "execute": []
       },
       {
+        "name": "permitted_team_ids_for",
+        "args": "p_user uuid, p_grant text",
+        "returns": "setof uuid",
+        "execute": []
+      },
+      {
         "name": "permitted_customer_ids_for",
         "args": "p_user uuid, p_grant text",
         "returns": "setof uuid",
@@ -237,6 +268,12 @@
       },
       {
         "name": "permitted_organization_permission_keys_for",
+        "args": "p_user uuid, p_id uuid",
+        "returns": "setof text",
+        "execute": []
+      },
+      {
+        "name": "permitted_team_permission_keys_for",
         "args": "p_user uuid, p_id uuid",
         "returns": "setof text",
         "execute": []
@@ -319,6 +356,16 @@
         "column": "role"
       }
     },
+    "assignments": {
+      "tables": ["better_supabase.invitations"]
+    },
+    "apiKeys": {
+      "claim": "api_key",
+      "scopes": "scopes",
+      "tenant": "tenant",
+      "roles": "roles",
+      "serviceRoles": []
+    },
     "tableReads": [
       {
         "table": "public.contacts",
@@ -360,7 +407,7 @@
         "table": "public.quotes",
         "share": "row",
         "rules": ["condition"],
-        "reason": "policy quotes_select in supabase/schemas/public/policies/permdock.sql is a row condition: it calls permdock.permitted_organization_ids(), permdock.permitted_customer_ids() and reads column organization_id, customer_id, which no tenant check of permdock.permitted_organization_ids_by_permission covers"
+        "reason": "policy quotes_select in supabase/schemas/public/policies/permdock.sql is a row condition: it calls permdock.permitted_organization_ids(), permdock.permitted_customer_ids(), permdock.permdock_api_key_allows(), permdock.member_customer_ids() and reads column organization_id, customer_id, which no tenant check of permdock.permitted_organization_ids_by_permission covers"
       },
       {
         "table": "public.role_permissions",
@@ -440,6 +487,7 @@
       "tenant": "tenant_id",
       "role": "user_role"
     },
+    "teamScope": "team",
     "scopes": {
       "organization": {
         "permittedIds": "permitted_organization_ids",
@@ -447,6 +495,14 @@
         "memberIds": "member_organization_ids",
         "memberIdsFor": "member_organization_ids_for",
         "permittedUsers": "permitted_organization_users"
+      },
+      "team": {
+        "permittedIds": "permitted_team_ids",
+        "permittedIdsFor": "permitted_team_ids_for",
+        "memberIds": "member_team_ids",
+        "memberIdsFor": "member_team_ids_for",
+        "memberIdsOf": "member_team_ids_of",
+        "permittedUsers": "permitted_team_users"
       },
       "customer": {
         "permittedIds": "permitted_customer_ids",
@@ -465,7 +521,7 @@
       }
     }
   },
-  "fixtureRoles": ["member", "owner"],
+  "fixtureRoles": ["admin", "member", "owner"],
   "managementApi": {
     "hook_custom_access_token_enabled": true,
     "hook_custom_access_token_uri": "pg-functions://postgres/permdock/custom_access_token_hook",

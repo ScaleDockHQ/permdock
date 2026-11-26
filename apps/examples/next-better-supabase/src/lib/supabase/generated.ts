@@ -19,6 +19,9 @@ export type Database = EnrichDatabase<
         week_start: "monday" | "sunday";
         time_format: "12h" | "24h";
       };
+      quotes: {
+        status: "draft" | "sent" | "approved";
+      };
     };
   }
 >;
@@ -27,6 +30,8 @@ export const datetime_preferencesWeekStartValues = ["monday", "sunday"] as const
 export type DatetimePreferencesWeekStart = (typeof datetime_preferencesWeekStartValues)[number];
 export const datetime_preferencesTimeFormatValues = ["12h", "24h"] as const;
 export type DatetimePreferencesTimeFormat = (typeof datetime_preferencesTimeFormatValues)[number];
+export const quotesStatusValues = ["draft", "sent", "approved"] as const;
+export type QuotesStatus = (typeof quotesStatusValues)[number];
 export type Models = {
   contacts: {
     Row: {
@@ -254,6 +259,8 @@ export type Models = {
       currency: string;
       created_at: string;
       updated_at: string;
+      status: "draft" | "sent" | "approved";
+      team_id: string | null;
     };
     Insert: {
       id?: string;
@@ -264,6 +271,8 @@ export type Models = {
       currency: string;
       created_at?: string;
       updated_at?: string;
+      status?: "draft" | "sent" | "approved";
+      team_id?: string | null;
     };
     Update: {
       id?: string;
@@ -274,6 +283,8 @@ export type Models = {
       currency?: string;
       created_at?: string;
       updated_at?: string;
+      status?: "draft" | "sent" | "approved";
+      team_id?: string | null;
     };
     Relations: {
       customer: { table: "customers"; kind: "one"; nullable: false };
@@ -281,7 +292,7 @@ export type Models = {
     };
     PrimaryKey: "id";
     UniqueKeys: Record<never, never>;
-    Checks: "quotes_amount_minor_check" | "quotes_currency_check";
+    Checks: "quotes_amount_minor_check" | "quotes_currency_check" | "quotes_status_check";
     ForeignKeys: "quotes_customer_id_organization_id_fkey" | "quotes_organization_id_fkey";
     Flags: {
       timestamps: true;

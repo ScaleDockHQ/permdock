@@ -71,7 +71,15 @@ export default defineConfig({
     "entitlements",
     "impersonation",
     "organizations",
-    "sessions",
+    {
+      block: "sessions",
+      options: {
+        authzVersions: true,
+        bootstrap: {
+          app: { function: "public.sample_authz_version", permissions: false },
+        },
+      },
+    },
     "api-keys",
     "settings",
     "usage",

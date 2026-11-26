@@ -4,11 +4,39 @@ import {
   type Events,
 } from "better-supabase/blocks";
 import { blockConfig } from "./blocks.config.ts";
+import type { AccessRequestsEvents } from "better-supabase/blocks/access-requests";
+import type { ApiKeysEvents } from "better-supabase/blocks/api-keys";
+import type { ApprovalsEvents } from "better-supabase/blocks/approvals";
 import type { AuditEvents } from "better-supabase/blocks/audit";
+import type { OrganizationsEvents } from "better-supabase/blocks/organizations";
+import type { RelationsEvents } from "better-supabase/blocks/relations";
+import type { AutomationsEvents } from "better-supabase/blocks/automations";
+import type { ServiceAccountsEvents } from "better-supabase/blocks/service-accounts";
+import type { SettingsEvents } from "better-supabase/blocks/settings";
 import type { ShareLinksEvents } from "better-supabase/blocks/share-links";
+import type { SecurityEventsEvents } from "better-supabase/blocks/security-events";
+import type { SsoEvents } from "better-supabase/blocks/sso";
+import type { ImpersonationEvents } from "better-supabase/blocks/impersonation";
+import type { TeamsEvents } from "better-supabase/blocks/teams";
 import { permissionsBlock as permissionsBlockInstance } from "better-supabase/blocks/permissions";
+import { accessRequestsBlock as accessRequestsBlockInstance } from "better-supabase/blocks/access-requests";
+import { apiKeysBlock as apiKeysBlockInstance } from "better-supabase/blocks/api-keys";
+import { approvalsBlock as approvalsBlockInstance } from "better-supabase/blocks/approvals";
 import { auditBlock as auditBlockInstance } from "better-supabase/blocks/audit";
+import { entitlementsBlock as entitlementsBlockInstance } from "better-supabase/blocks/entitlements";
+import { queueBlock as queueBlockInstance } from "better-supabase/blocks/queue";
+import { organizationsBlock as organizationsBlockInstance } from "better-supabase/blocks/organizations";
+import { relationsBlock as relationsBlockInstance } from "better-supabase/blocks/relations";
+import { automationsBlock as automationsBlockInstance } from "better-supabase/blocks/automations";
+import { serviceAccountsBlock as serviceAccountsBlockInstance } from "better-supabase/blocks/service-accounts";
+import { sessionsBlock as sessionsBlockInstance } from "better-supabase/blocks/sessions";
+import { settingsBlock as settingsBlockInstance } from "better-supabase/blocks/settings";
 import { shareLinksBlock as shareLinksBlockInstance } from "better-supabase/blocks/share-links";
+import { securityEventsBlock as securityEventsBlockInstance } from "better-supabase/blocks/security-events";
+import { ssoBlock as ssoBlockInstance } from "better-supabase/blocks/sso";
+import { impersonationBlock as impersonationBlockInstance } from "better-supabase/blocks/impersonation";
+import { teamsBlock as teamsBlockInstance } from "better-supabase/blocks/teams";
+import { usageBlock as usageBlockInstance } from "better-supabase/blocks/usage";
 
 /** Re-exported for server code; client code imports `blocks.config.ts`. */
 export { blockConfig };
@@ -23,12 +51,28 @@ export { permissions, type PermissionKey } from "./blocks.config.ts";
  */
 export const blocks = {
   permissions: permissionsBlockInstance,
+  "access-requests": accessRequestsBlockInstance,
+  "api-keys": apiKeysBlockInstance,
+  approvals: approvalsBlockInstance,
   audit: auditBlockInstance,
+  entitlements: entitlementsBlockInstance,
+  queue: queueBlockInstance,
+  organizations: organizationsBlockInstance,
+  relations: relationsBlockInstance,
+  automations: automationsBlockInstance,
+  "service-accounts": serviceAccountsBlockInstance,
+  sessions: sessionsBlockInstance,
+  settings: settingsBlockInstance,
   "share-links": shareLinksBlockInstance,
+  "security-events": securityEventsBlockInstance,
+  sso: ssoBlockInstance,
+  impersonation: impersonationBlockInstance,
+  teams: teamsBlockInstance,
+  usage: usageBlockInstance,
 } as const;
 
 /** Every installed block's events: type to data. @public */
-export type BlockEvents = AuditEvents & ShareLinksEvents;
+export type BlockEvents = AccessRequestsEvents & ApiKeysEvents & ApprovalsEvents & AuditEvents & OrganizationsEvents & RelationsEvents & AutomationsEvents & ServiceAccountsEvents & SettingsEvents & ShareLinksEvents & SecurityEventsEvents & SsoEvents & ImpersonationEvents & TeamsEvents;
 
 /**
  * The installed blocks' event types under the configured names, for
@@ -37,10 +81,88 @@ export type BlockEvents = AuditEvents & ShareLinksEvents;
  */
 export const blockEvents: Events<BlockEvents> = {
   types: [
+    "access_request.approved",
+    "access_request.emergency_opened",
+    "access_request.emergency_reviewed",
+    "access_request.ended",
+    "access_request.requested",
+    "api_key.created",
+    "api_key.revoked",
+    "api_key.rotated",
+    "approval.approved",
+    "approval.cancelled",
+    "approval.consumed",
+    "approval.delegated",
+    "approval.escalated",
+    "approval.expired",
+    "approval.rejected",
+    "approval.requested",
+    "approval_policy.created",
+    "approval_policy.deleted",
+    "approval_policy.updated",
     "audit.revealed",
+    "automation.created",
+    "automation.deleted",
+    "automation.disabled",
+    "automation.enabled",
+    "automation.matched",
+    "automation.updated",
+    "invitation.accepted",
+    "invitation.created",
+    "invitation.declined",
+    "invitation.resent",
+    "invitation.revoked",
+    "invitation.updated",
+    "organization.created",
+    "organization.deleted",
+    "organization.member_added",
+    "organization.member_left",
+    "organization.member_removed",
+    "organization.member_resumed",
+    "organization.member_suspended",
+    "organization.ownership_transferred",
+    "organization.role_added",
+    "organization.role_changed",
+    "organization.role_removed",
+    "organization.switched",
+    "organization.updated",
+    "organization_setting.reset",
+    "organization_setting.updated",
+    "platform_setting.reset",
+    "platform_setting.updated",
+    "scim_group.created",
+    "scim_group.deleted",
+    "scim_group.updated",
+    "scim_user.created",
+    "scim_user.deleted",
+    "scim_user.updated",
+    "service_principal.created",
+    "service_principal.disabled",
+    "service_principal.role_changed",
     "share_link.created",
     "share_link.revoked",
+    "ssf_stream.created",
+    "ssf_stream.deleted",
+    "ssf_stream.status_changed",
+    "sso_domain.created",
+    "sso_domain.deleted",
+    "sso_domain.updated",
+    "sso_domain.verified",
+    "sso_provider.registered",
+    "sso_provider.unregistered",
+    "subject.linked",
+    "subject.unlinked",
     "subject.viewed",
+    "support_session.denied",
+    "support_session.ended",
+    "support_session.started",
+    "team.archived",
+    "team.created",
+    "team.purged",
+    "team.restored",
+    "team.updated",
+    "team_member.added",
+    "team_member.deleted",
   ],
 };
 
@@ -49,8 +171,89 @@ export const blockEvents: Events<BlockEvents> = {
  * @public
  */
 export const blockEventSchemas = {
+  "access_request.approved": true,
+  "access_request.emergency_opened": true,
+  "access_request.emergency_reviewed": true,
+  "access_request.ended": true,
+  "access_request.requested": true,
+  "api_key.created": true,
+  "api_key.revoked": true,
+  "api_key.rotated": true,
+  "approval.approved": true,
+  "approval.cancelled": true,
+  "approval.consumed": true,
+  "approval.delegated": true,
+  "approval.escalated": true,
+  "approval.expired": true,
+  "approval.rejected": true,
+  "approval.requested": true,
+  "approval_policy.created": true,
+  "approval_policy.deleted": true,
+  "approval_policy.updated": true,
   "audit.revealed": true,
+  "automation.created": true,
+  "automation.deleted": true,
+  "automation.disabled": true,
+  "automation.enabled": true,
+  "automation.matched": true,
+  "automation.updated": true,
+  "invitation.accepted": true,
+  "invitation.created": true,
+  "invitation.declined": true,
+  "invitation.resent": true,
+  "invitation.revoked": true,
+  "invitation.updated": true,
+  "organization.created": true,
+  "organization.deleted": true,
+  "organization.member_added": true,
+  "organization.member_left": true,
+  "organization.member_removed": true,
+  "organization.member_resumed": true,
+  "organization.member_suspended": true,
+  "organization.ownership_transferred": true,
+  "organization.role_added": true,
+  "organization.role_changed": true,
+  "organization.role_removed": true,
+  "organization.switched": true,
+  "organization.updated": true,
+  "organization_setting.reset": true,
+  "organization_setting.updated": true,
+  "platform_setting.reset": true,
+  "platform_setting.updated": true,
+  "scim_group.created": true,
+  "scim_group.deleted": true,
+  "scim_group.updated": true,
+  "scim_user.created": true,
+  "scim_user.deleted": true,
+  "scim_user.updated": true,
+  "service_principal.created": true,
+  "service_principal.disabled": true,
+  "service_principal.role_changed": true,
   "share_link.created": true,
   "share_link.revoked": true,
+  "ssf_stream.created": true,
+  "ssf_stream.deleted": true,
+  "ssf_stream.status_changed": true,
+  "sso_domain.created": true,
+  "sso_domain.deleted": true,
+  "sso_domain.updated": true,
+  "sso_domain.verified": true,
+  "sso_provider.registered": true,
+  "sso_provider.unregistered": true,
+  "subject.linked": true,
+  "subject.unlinked": true,
   "subject.viewed": true,
+  "support_session.denied": true,
+  "support_session.ended": true,
+  "support_session.started": true,
+  "team.archived": true,
+  "team.created": true,
+  "team.purged": true,
+  "team.restored": true,
+  "team.updated": true,
+  "team_member.added": true,
+  "team_member.deleted": true,
 } as const;
+
+/** The composed reads, written to `blocks.reads.ts`, which imports no block. */
+export * from "./blocks.reads.ts";

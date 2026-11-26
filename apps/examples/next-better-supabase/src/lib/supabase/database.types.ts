@@ -214,6 +214,8 @@ export type Database = {
           customer_id: string
           id: string
           organization_id: string
+          status: string
+          team_id: string | null
           title: string
           updated_at: string
         }
@@ -225,6 +227,8 @@ export type Database = {
           customer_id: string
           id?: string
           organization_id: string
+          status?: string
+          team_id?: string | null
           title: string
           updated_at?: string
         }
@@ -235,6 +239,8 @@ export type Database = {
           customer_id?: string
           id?: string
           organization_id?: string
+          status?: string
+          team_id?: string | null
           title?: string
           updated_at?: string
         }

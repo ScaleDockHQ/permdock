@@ -4,27 +4,29 @@ DROP POLICY "quotes_select" ON "public"."quotes";
 
 DROP POLICY "quotes_update" ON "public"."quotes";
 
-DROP POLICY "permdock_authz_version_receive" ON "realtime"."messages";
-
-DROP POLICY "permdock_realtime_org_organization_quotes_insert" ON "realtime"."messages";
-
-DROP POLICY "permdock_realtime_org_organization_quotes_select" ON "realtime"."messages";
-
-DROP POLICY "realtime_messages_insert_read_only_actors" ON "realtime"."messages";
-
-DROP POLICY "permdock_storage_quote_files_delete" ON "storage"."objects";
-
-DROP POLICY "permdock_storage_quote_files_insert" ON "storage"."objects";
-
-DROP POLICY "permdock_storage_quote_files_select" ON "storage"."objects";
-
-DROP POLICY "permdock_storage_quote_files_update" ON "storage"."objects";
-
-DROP POLICY "storage_objects_delete_read_only_actors" ON "storage"."objects";
-
-DROP POLICY "storage_objects_insert_read_only_actors" ON "storage"."objects";
-
-DROP POLICY "storage_objects_update_read_only_actors" ON "storage"."objects";
+-- Realtime and Storage exist on the Supabase stack, not on the throwaway
+-- Postgres the generators use. The policies are absent from the declarative
+-- schema, so a stack reset still drops them; serve applies the service SQL
+-- again afterwards.
+DO $$
+BEGIN
+  IF to_regclass('realtime.messages') IS NOT NULL THEN
+    DROP POLICY "permdock_authz_version_receive" ON "realtime"."messages";
+    DROP POLICY "permdock_realtime_org_organization_quotes_insert" ON "realtime"."messages";
+    DROP POLICY "permdock_realtime_org_organization_quotes_select" ON "realtime"."messages";
+    DROP POLICY "realtime_messages_insert_read_only_actors" ON "realtime"."messages";
+  END IF;
+  IF to_regclass('storage.objects') IS NOT NULL THEN
+    DROP POLICY "permdock_storage_quote_files_delete" ON "storage"."objects";
+    DROP POLICY "permdock_storage_quote_files_insert" ON "storage"."objects";
+    DROP POLICY "permdock_storage_quote_files_select" ON "storage"."objects";
+    DROP POLICY "permdock_storage_quote_files_update" ON "storage"."objects";
+    DROP POLICY "storage_objects_delete_read_only_actors" ON "storage"."objects";
+    DROP POLICY "storage_objects_insert_read_only_actors" ON "storage"."objects";
+    DROP POLICY "storage_objects_update_read_only_actors" ON "storage"."objects";
+  END IF;
+END
+$$;
 
 DROP VIEW "permdock"."permdock_ceiling";
 

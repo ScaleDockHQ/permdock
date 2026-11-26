@@ -4,11 +4,27 @@ import type { GeneratedBlocks } from "better-supabase/blocks";
 
 import {
   permissionsConfig,
+  accessRequestsConfig,
+  apiKeysConfig,
+  approvalsConfig,
   auditConfig,
+  entitlementsConfig,
+  queueConfig,
+  organizationsConfig,
   pgtapConfig,
+  relationsConfig,
+  automationsConfig,
+  serviceAccountsConfig,
+  sessionsConfig,
+  settingsConfig,
   shareLinksConfig,
+  securityEventsConfig,
+  ssoConfig,
+  impersonationConfig,
+  teamsConfig,
   membershipsConfig,
   updatedAtConfig,
+  usageConfig,
 } from "./blocks/slices.ts";
 
 /** The permission keys, re-exported from `blocks/permissions.ts`. @public */
@@ -20,9 +36,25 @@ export { permissions, type PermissionKey } from "./blocks/permissions.ts";
  */
 export const blockConfig = {
   permissions: permissionsConfig,
+  "access-requests": accessRequestsConfig,
+  "api-keys": apiKeysConfig,
+  approvals: approvalsConfig,
   audit: auditConfig,
+  entitlements: entitlementsConfig,
+  queue: queueConfig,
+  organizations: organizationsConfig,
   pgtap: pgtapConfig,
+  relations: relationsConfig,
+  automations: automationsConfig,
+  "service-accounts": serviceAccountsConfig,
+  sessions: sessionsConfig,
+  settings: settingsConfig,
   "share-links": shareLinksConfig,
+  "security-events": securityEventsConfig,
+  sso: ssoConfig,
+  impersonation: impersonationConfig,
+  teams: teamsConfig,
   memberships: membershipsConfig,
   "updated-at": updatedAtConfig,
+  usage: usageConfig,
 } as const satisfies GeneratedBlocks;

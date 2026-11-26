@@ -17,7 +17,7 @@ alter table public.quotes enable row level security;
 -- Supabase's default privileges grant every table to the API roles; grant back only what clients read.
 revoke all on public.quotes from anon, authenticated;
 
-grant select on public.quotes to authenticated;
+grant select, insert, update, delete on public.quotes to authenticated;
 
 create trigger bsb_updated_at before update on public.quotes
   for each row execute function better_supabase.set_updated_at('updated_at');
