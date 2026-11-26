@@ -136,54 +136,62 @@ insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-000000000201', 'roles-1@persona.test'),
   ('00000000-0000-4000-8000-000000000203', 'roles-3@persona.test'),
   ('00000000-0000-4000-8000-000000000210', 'roles-10@persona.test'),
-  ('00000000-0000-4000-8000-000000000301', 'suspended@persona.test');
+  ('00000000-0000-4000-8000-000000000301', 'suspended@persona.test'),
+  ('00000000-0000-4000-8000-000000000401', 'owner@persona.test');
 
 insert into public.organization_memberships (organization_id, user_id, role)
 select
   ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
-  '00000000-0000-4000-8000-000000000101',
+  '00000000-0000-4000-8000-000000000401'::uuid,
+  'owner'
+from generate_series(1, 50) as n;
+
+insert into public.organization_memberships (organization_id, user_id, role)
+select
+  ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  '00000000-0000-4000-8000-000000000101'::uuid,
   'member'
 from generate_series(1, 1) as n
 union all
 select
   ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
-  '00000000-0000-4000-8000-000000000113',
+  '00000000-0000-4000-8000-000000000113'::uuid,
   'member'
 from generate_series(1, 13) as n
 union all
 select
   ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
-  '00000000-0000-4000-8000-000000000125',
+  '00000000-0000-4000-8000-000000000125'::uuid,
   'member'
 from generate_series(1, 25) as n
 union all
 select
   ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
-  '00000000-0000-4000-8000-000000000150',
+  '00000000-0000-4000-8000-000000000150'::uuid,
   'member'
 from generate_series(1, 50) as n
 union all
 select
   ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
-  '00000000-0000-4000-8000-000000000201',
+  '00000000-0000-4000-8000-000000000201'::uuid,
   'desk'
 from generate_series(1, 1) as n
 union all
 select
   ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
-  '00000000-0000-4000-8000-000000000203',
+  '00000000-0000-4000-8000-000000000203'::uuid,
   'desk'
 from generate_series(1, 3) as n
 union all
 select
   ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
-  '00000000-0000-4000-8000-000000000210',
+  '00000000-0000-4000-8000-000000000210'::uuid,
   'desk'
 from generate_series(1, 10) as n
 union all
 select
   '00000000-0000-4000-8100-000000000050'::uuid,
-  '00000000-0000-4000-8000-000000000301',
+  '00000000-0000-4000-8000-000000000301'::uuid,
   'member';
 
 do $$
