@@ -185,7 +185,7 @@ begin
   return coalesce((
     select to_jsonb(v.version) = (c.j -> 'authz_ver')
       and coalesce(c.j -> 'memberships_truncated', 'false'::jsonb) <> 'true'::jsonb
-      and jsonb_typeof(c.j -> 'memberships') = 'array'
+      and jsonb_typeof(c.j -> 'memberships') in ('array', 'object')
     from ${version} v
     cross join (select auth.jwt() as j) c
     where v.user_id = ${subjectIdSql(ctx)}
