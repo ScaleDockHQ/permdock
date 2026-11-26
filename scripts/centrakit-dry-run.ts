@@ -23,8 +23,10 @@ import { runStack } from "./centrakit-stack.ts";
  * <url|stack>] [--stack] [--centrakit <dir>] [--keep]`. It copies
  * `../CentraKit` to a temp directory, never writing to the original, and links
  * the copy's `permdock` and `better-supabase` to this checkout's build and
- * installed copy. It runs `codemod 0.31`, `codemod config --prune`, `codemod
- * bsb-access-tags` and `codemod bsb-action-keys` on the copy and writes
+ * installed copy. `BSB_CHECKOUT` points `better-supabase` at another build,
+ * which is how a check runs against a newer doctor than the catalog pin. It
+ * runs `codemod 0.31`, `codemod config --prune`, `codemod bsb-access-tags` and
+ * `codemod bsb-action-keys` on the copy and writes
  * `scripts/centrakit-dry-run.json`: config lines per section, the generated SQL
  * diff, `rls report` totals, `rls.tableReads` counts per rule with the table
  * list and the reason of each `form` table, PD128 and better-supabase BS409,
@@ -37,7 +39,11 @@ import { runStack } from "./centrakit-stack.ts";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGE = join(ROOT, "packages", "permdock");
 const BIN = join(PACKAGE, "dist", "cli", "bin.js");
-const BSB = realpathSync(join(PACKAGE, "node_modules", "better-supabase"));
+const BSB = realpathSync(
+  // oxlint-disable-next-line turbo/no-undeclared-env-vars -- a maintainer script, not a Turbo task
+  process.env["BSB_CHECKOUT"] ??
+    join(PACKAGE, "node_modules", "better-supabase"),
+);
 const OUT = join(ROOT, "scripts", "centrakit-dry-run.json");
 const FIXTURE = join(ROOT, "tests", "integration", "fixtures", "centrakit");
 const IDENTITY = join("packages", "identity");
@@ -138,7 +144,10 @@ function copy(from: string, to: string): void {
     filter: (src) => {
       const name = basename(src);
       if (SKIP.has(name) || name.startsWith(".env")) return false;
-      if (src === join(from, "node_modules")) return false;
+      // Nested app installs are not what the schema dry run reads, and copying
+      // them makes the temp tree tens of gigabytes. The root install is linked
+      // below, with permdock and better-supabase pointed at this checkout.
+      if (name === "node_modules") return false;
       if (basename(dirname(src)) === "node_modules" && name in OVERRIDES) {
         linked.push(join(to, relative(from, src)));
         return false;
