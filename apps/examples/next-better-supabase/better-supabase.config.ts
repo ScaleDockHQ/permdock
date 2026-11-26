@@ -78,7 +78,6 @@ export default defineConfig({
     {
       block: "sessions",
       options: {
-        authzVersions: true,
         bootstrap: {
           app: { function: "public.sample_authz_version", permissions: false },
         },
@@ -112,11 +111,26 @@ export default defineConfig({
       // BS428: pg_get_expr prints ::text on a text argument, and the doctor's call
       // pattern stops before the cast, so quote_overviews and role_permissions
       // look like they check no key. Both policies pass permitted_organization_ids_by_permission.
+      // BS320: the sample does not install the sessions block's restrictive
+      // session_active() policy. Table access is the PermDock policies.
+      // BS408: the hook fills `features` from public.feature_claims.
+      // BS411: canAssignFor is written only when every scope has a membership
+      // source, and the team scope has none.
+      // BS417: team_ids_of reads better_supabase.team_members. An empty
+      // member_team_ids_of would make that function return no rows.
+      // BS507: the sample has no outbox worker that builds an action registry.
+      // BS647: the quote overview cache is in-process; the sample runs one instance.
       ignore: [
         "BS107",
         "BS243",
+        "BS320",
+        "BS408",
+        "BS411",
+        "BS417",
         "BS428",
+        "BS507",
         "BS601",
+        "BS647",
         "BS705",
         "BS721",
         "BS722",
