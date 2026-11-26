@@ -1,12 +1,12 @@
 -- better-supabase module: permissions
 -- @bsb-block permissions@1 managed
--- @bsb-hash sha256:583ac44d913729a5485b3c34cadd7e366938bdab4efcbba3f13f86325789a1f1
+-- @bsb-hash sha256:b0ddf093a650b28032c509478c9e29fad1b724f5a26098ea2875f62b44cd1f9c
 -- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.permissions.model).
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 grant usage on schema better_supabase to supabase_auth_admin;
-set check_function_bodies = off;
+
 -- Disabled tenants and users get no permissions and no membership claims
 -- (blocks.permissions.disabled; with the managed organizations module, its
 -- disabled_at and deleted_at columns).
@@ -17,7 +17,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select exists (select 1 from "better_supabase"."organizations" t where t."id" = tenant_disabled.tenant and (t."disabled_at" is not null or t."deleted_at" is not null))
+  select not exists (select 1 from "public"."organizations" t where t."id" = tenant_disabled.tenant and t."status"::text in ('active'))
 $$;
 
 create or replace function better_supabase.user_disabled(user_id uuid)
@@ -34,7 +34,6 @@ revoke execute on function better_supabase.tenant_disabled(uuid) from public, an
 revoke execute on function better_supabase.user_disabled(uuid) from public, anon, authenticated;
 grant execute on function better_supabase.tenant_disabled(uuid) to service_role, supabase_auth_admin;
 grant execute on function better_supabase.user_disabled(uuid) to service_role, supabase_auth_admin;
-reset check_function_bodies;
 
 -- A granted key matches only itself; the provider honours no wildcards.
 create or replace function better_supabase.permission_matches(granted text, wanted text)

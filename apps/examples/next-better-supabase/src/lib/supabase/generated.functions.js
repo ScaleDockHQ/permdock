@@ -27,5 +27,21 @@ export default {
     "returns": "jsonb",
     "returnsSet": false,
     "volatility": "stable"
+  },
+  "quotes_overview_payload": {
+    "name": "quotes_overview_payload",
+    "schema": "public",
+    "args": [],
+    "returns": "int4",
+    "returnsSet": false,
+    "volatility": "stable"
+  },
+  "sample_authz_version": {
+    "name": "sample_authz_version",
+    "schema": "public",
+    "args": [{"name":"args","type":"jsonb"}],
+    "returns": "int8",
+    "returnsSet": false,
+    "volatility": "stable"
   }
 };

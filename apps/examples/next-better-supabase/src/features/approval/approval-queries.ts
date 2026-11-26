@@ -1,11 +1,21 @@
 import "server-only";
-import { approvalStore } from "../../permdock/request.ts";
+import {
+  createApprovals,
+  sqlTransport,
+} from "better-supabase/blocks/approvals";
 
+import { postgres } from "../../lib/supabase/server.ts";
+
+/** Pending requests in one organization. The block client needs that tenant. */
 export async function pendingApprovals(organizationId: string) {
-  const page = await approvalStore.list({
-    status: "pending",
+  const listed = await createApprovals({
+    transport: sqlTransport(postgres.admin),
     tenant: organizationId,
-    limit: 50,
-  });
-  return page.items;
+  }).list({ status: "pending", pageSize: 50 });
+  if (!listed.ok) {
+    throw new Error("PermDock: the approvals block's list failed", {
+      cause: listed.error,
+    });
+  }
+  return listed.data.map((item) => ({ id: item.id, status: item.status }));
 }
