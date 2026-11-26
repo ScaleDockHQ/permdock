@@ -182,7 +182,7 @@ export function conditionShown(
   return equalities && relations;
 }
 
-export function whereConjoined(
+function whereConjoined(
   expression: string,
   key: string,
   equalities: readonly string[],
