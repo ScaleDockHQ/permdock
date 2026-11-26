@@ -82,4 +82,5 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0076](./0076-better-supabase-main-tarball.md)                    | Superseded by 0079: better-supabase from a tarball of a pinned `main` commit                                                         |
 | [0077](./0077-cli-parsers-as-dependencies.md)                     | `oxc-parser`, `pgsql-parser` and `libpg-query` are exact-pinned dependencies of the CLI; pg-delta and pg-topo peers stop below 1.0.0 |
 | [0078](./0078-supabase-cli-floor-without-a-ci-job.md)             | Supabase CLI 3.2.0 is the supported floor; CI runs the 3.3.0 pin only                                                                |
-| [0079](./0079-better-supabase-0-85-0-floor-and-release-age.md)    | better-supabase 0.85.0 is the peer floor and catalog pin, and skips the release age                                                  |
+| [0079](./0079-better-supabase-0-85-0-floor-and-release-age.md)    | Superseded by 0080: better-supabase 0.85.0 is the peer floor and catalog pin, and skips the release age                              |
+| [0080](./0080-better-supabase-0-87-0-floor-and-release-age.md)    | better-supabase 0.87.0 is the peer floor and catalog pin, and skips the release age                                                  |
