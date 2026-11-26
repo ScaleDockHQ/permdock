@@ -378,6 +378,8 @@ overrides:
   next: "catalog:"
   react: "catalog:"
   react-dom: "catalog:"
+  # `@ai-sdk/react` and `@ai-sdk/otel` depend on the `ai` they shipped with. The catalog is newer, and two copies give the chat example two incompatible `chat` types.
+  ai: "catalog:"
   # Expo SDK 57 packages ask for their own copies; one version keeps the Expo example on one Metro and worklets runtime.
   "@react-native/metro-config": "catalog:"
   react-native-worklets: "catalog:"

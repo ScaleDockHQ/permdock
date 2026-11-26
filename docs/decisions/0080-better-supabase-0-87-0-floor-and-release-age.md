@@ -20,6 +20,10 @@ It peers on `workflow >=5.8.0`, `eve >=1.5.0`, `ai >=7.0.181`, `hono >=4.13.21`,
 
 Remove the better-supabase exclude from 21:43 UTC on 2026-11-26. Adopters on better-supabase older than 0.87.0 must upgrade; the changeset marks the floor as breaking.
 
+An `ai` override of `catalog:` keeps one copy. `@ai-sdk/react` and `@ai-sdk/otel` depend on the `ai` they shipped with, and two copies give the chat example two incompatible `chat` types.
+
+svelte 5.59.1's client compiler imports `svelte/internal/init-operations`, which reads `window`. The precompiled `permdock/svelte` entry imports that module only when `window` exists.
+
 ## Alternatives considered
 
 - Wait for the 24-hour age: the pull request would sit until 21:43 UTC on 2026-11-26.

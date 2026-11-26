@@ -54,7 +54,14 @@ function sveltePlugin(): {
         return undefined;
       }
       const result = compile(code, { filename: id, css: "injected" });
-      return { code: result.js.code, map: result.js.map };
+      // svelte 5.59 runs `init_operations` when this module is imported, and that
+      // reads `window`. The precompiled entry imports it only in a browser, so a
+      // Node import of `permdock/svelte` does not throw.
+      const codeWithoutWindow = result.js.code.replace(
+        "import 'svelte/internal/init-operations';\n",
+        "if (typeof window !== \"undefined\") {\n\tawait import('svelte/internal/init-operations');\n}\n",
+      );
+      return { code: codeWithoutWindow, map: result.js.map };
     },
   };
 }
