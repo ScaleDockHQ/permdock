@@ -1,5 +1,39 @@
 # permdock
 
+## 0.34.0
+
+### Minor Changes
+
+- [#377](https://github.com/ScaleDockHQ/permdock/pull/377) [`b082562`](https://github.com/ScaleDockHQ/permdock/commit/b082562a1aaacb27f622da57ad09304898157723) Thanks [@martijn00](https://github.com/martijn00)! - `permdock` now requires better-supabase 0.87.0 or newer. The previous floor was 0.85.0. A project on 0.85 or 0.86 has to upgrade: 0.85 rejects `permissionFilters` as an unknown provider key.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`74bafcd`](https://github.com/ScaleDockHQ/permdock/commit/74bafcd608a20da6de32e784238f6df043511c37) Thanks [@martijn00](https://github.com/martijn00)! - Breaking: the hook writes `memberships` as `{ s, r, v, e, o }`, with 22 character ids and role indexes, so the 1,024-byte budget keeps 25 CentraKit memberships instead of 9. `readMemberships`, `subjectFromSupabase` and the `jwt`-mode `authorize` read both forms; code that reads the raw claim as an array uses `expandMemberships` from `permdock/supabase`. `permdock claims size` reports the compact fit.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`ab8a9bc`](https://github.com/ScaleDockHQ/permdock/commit/ab8a9bcc8c7f743b594f9916c326095a37ac82f9) Thanks [@martijn00](https://github.com/martijn00)! - `claimsFirst(source, { versions })` serves the custom-role version of a tenant from the version cache, so a page of a member with a custom role reads it at most once per `maxStaleMs`. `permdock supabase hook generate` adds `authz_versions_for(p_user, p_tenant)`, which `postgrestSources` calls when both versions are needed in one tick, and a development warning names a custom-role version read twice within a second.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`2572c97`](https://github.com/ScaleDockHQ/permdock/commit/2572c9725231c0a595af460cd2c6124ca5db37ce) Thanks [@martijn00](https://github.com/martijn00)! - `permdock supabase inspect --functions <pattern>` prints, for each function the schema files define that matches the pattern (`public.*_payload`), a pass or every reason it is not shared: its header, a read of the caller, an unknown call, or the `row` table it reads with the rule behind it.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`2572c97`](https://github.com/ScaleDockHQ/permdock/commit/2572c9725231c0a595af460cd2c6124ca5db37ce) Thanks [@martijn00](https://github.com/martijn00)! - `permdock supabase inspect` writes `rls.permissionFilters`: `permdock_<root>_has_active(p_grant)` and `permitted_<root>_permission_keys_active(p_keys)`, which call the two-argument helpers with the tenant the token names. `authorizationProvider` fills better-supabase's `permissionFilters` from that list. Passing `permissionFilters: true` is no longer accepted. The two-argument helpers stay out of the list, because better-supabase 0.87 checks the key argument only.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`9dfa9c1`](https://github.com/ScaleDockHQ/permdock/commit/9dfa9c139c0e81013fd1a3b53d4aa1787d4558fa) Thanks [@martijn00](https://github.com/martijn00)! - `rls.readOnlyActors` keeps its restrictive policies: on CentraKit's schema 579 of them add a median 0.06 to 0.08 ms to parsing, rewriting and planning a write, inside the 0.11 to 0.13 ms noise of the measurement, and the function they call takes 0.14 µs. No trigger-function mode is added.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`6a69f5d`](https://github.com/ScaleDockHQ/permdock/commit/6a69f5d9855e740c0be1f71c071dfa17cb95e458) Thanks [@martijn00](https://github.com/martijn00)! - `permdock rls measure --as <user>` runs requests as a user against the app's database and prints the version reads per request, the helper times from `pg_stat_user_functions` and `pg_stat_statements`, and the share of tenant tokens that get a share key.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`74bafcd`](https://github.com/ScaleDockHQ/permdock/commit/74bafcd608a20da6de32e784238f6df043511c37) Thanks [@martijn00](https://github.com/martijn00)! - `authorizationHooks().shareKey` answers for the active tenant of a token with `memberships_truncated` when the token holds an entry of another tenant, because the hook keeps the active tenant's entries first. Doctor `PD138` counts the users the hook budget truncates.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`356f82f`](https://github.com/ScaleDockHQ/permdock/commit/356f82f86d187089925411e2e8dc9ae5b8d0fd39) Thanks [@martijn00](https://github.com/martijn00)! - Breaking: `snapshotFor` leaves custom-role grants out of the snapshot and names the roles in `custom.held`; `customRoleRecord(policy, customRoles, tenant)` writes the tenant-level record and `fromSnapshot(snapshot, { customRoles })` merges it. A snapshot read without the record grants nothing from custom roles. A member with 10 custom roles drops from 9,095 to 4,975 bytes.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`71bd1fe`](https://github.com/ScaleDockHQ/permdock/commit/71bd1fee31434ecbf3b2428a4225c9a400a9a19d) Thanks [@martijn00](https://github.com/martijn00)! - The Supabase hook writes `suspended_in`, the tenants where the user is a member and the tenant is suspended, outside the memberships budget; `permdock_subject()` returns it as `suspendedIn` and `principal.suspendedIn` exposes it. RLS still denies.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`41746ab`](https://github.com/ScaleDockHQ/permdock/commit/41746abec0f3e5e9a88a30d1290020d8db5a566b) Thanks [@martijn00](https://github.com/martijn00)! - `rls.tableReads` gives every `row` table a `reason`: the policy and file behind each `owner`, `condition` and `restrictive` entry, what `permdock supabase inspect` could not read for an `unknown` one, and for a `form` table the policy, tenant column or migration that keeps `permdock codemod bsb-access-tags` from moving it. `codemod bsb-access-tags --check` prints `would move N of M tables`.
+
+- [#372](https://github.com/ScaleDockHQ/permdock/pull/372) [`41746ab`](https://github.com/ScaleDockHQ/permdock/commit/41746abec0f3e5e9a88a30d1290020d8db5a566b) Thanks [@martijn00](https://github.com/martijn00)! - `rls.tableReads[].tenantFor` lists the keys under which a `row` table reads as `tenant`. `authorizationProvider({ tables: true, widened: true })` lists such a table as `tenant`, and `authorizationHooks({ widened: widenedKeys(manifest) })` makes `shareKey` answer `null` for a caller who holds none of them.
+
+### Patch Changes
+
+- [#376](https://github.com/ScaleDockHQ/permdock/pull/376) [`7c4e181`](https://github.com/ScaleDockHQ/permdock/commit/7c4e18100885d248f8989cf481293bfac0a3f5d5) Thanks [@mick340](https://github.com/mick340)! - The generated `permdock_token_current()` accepts the compact `memberships` object the hook writes as well as the older array, so the claims-first helpers take the token again instead of always reading the database. Rerun `permdock rls generate`.
+
+- [#376](https://github.com/ScaleDockHQ/permdock/pull/376) [`6bf1c43`](https://github.com/ScaleDockHQ/permdock/commit/6bf1c43716db84299b76e77114f6f811652e79ca) Thanks [@mick340](https://github.com/mick340)! - `postgrestSources` turns a client that throws synchronously during a batched version read into a rejected read, so the caller's check settles and denies instead of hanging with an uncaught error.
+
 ## 0.33.0
 
 ### Minor Changes

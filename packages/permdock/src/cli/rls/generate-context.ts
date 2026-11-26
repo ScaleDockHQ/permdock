@@ -53,7 +53,7 @@ import { interactiveOnlyKeys } from "./interactive-only.ts";
 import { ownershipRules, unsatisfiedKinds } from "./ownership.ts";
 import { resolveAuthorize } from "./rbac.ts";
 import { inheritTargets } from "./rows.ts";
-import { tokenScopesPlan } from "./token-scopes.ts";
+import { isTokenScopesSetting, tokenScopesPlan } from "./token-scopes.ts";
 
 /**
  * The scopes an `rls.migrate` `role` helper names, so `rls generate` writes
@@ -442,11 +442,11 @@ export function buildContext(
     Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
   );
   const tokenScopesSetting: unknown = rls?.tokenScopes;
-  if (
-    tokenScopesSetting !== undefined &&
-    typeof tokenScopesSetting !== "boolean"
-  ) {
-    return { refusal: "rls.tokenScopes must be true or false" };
+  if (!isTokenScopesSetting(tokenScopesSetting)) {
+    return {
+      refusal:
+        "rls.tokenScopes must be true, false or { delegations: boolean }",
+    };
   }
   const tokenScopes = tokenScopesPlan(tokenScopesSetting, policy);
   const interactiveOnly = interactiveOnlyKeys(policy);

@@ -528,9 +528,10 @@ function tablePart(raw: string): {
   readonly indexed: boolean;
 } {
   const part = raw.replace(/^constraint\s+(?:"[^"]+"|\w+)\s+/iu, "");
-  const listed = /^(foreign\s+key|primary\s+key|unique)\s*\(([^)]*)\)/iu.exec(
-    part,
-  );
+  const listed =
+    /^(foreign\s+key|primary\s+key|unique(?:\s+nulls\s+(?:not\s+)?distinct)?)\s*\(([^)]*)\)/iu.exec(
+      part,
+    );
   if (listed !== null) {
     const foreign = /^foreign/iu.test(group(listed, 1));
     return {
@@ -556,7 +557,7 @@ type ForeignKey = SqlStatement & {
 };
 
 const ADD_CONSTRAINT = new RegExp(
-  String.raw`^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?${NAME}\s+add\s+(?:constraint\s+${IDENT}\s+)?(foreign\s+key|primary\s+key|unique)\s*\(([^)]*)\)`,
+  String.raw`^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?${NAME}\s+add\s+(?:constraint\s+${IDENT}\s+)?(foreign\s+key|primary\s+key|unique(?:\s+nulls\s+(?:not\s+)?distinct)?)\s*\(([^)]*)\)`,
   "iu",
 );
 const CREATE_INDEX = new RegExp(

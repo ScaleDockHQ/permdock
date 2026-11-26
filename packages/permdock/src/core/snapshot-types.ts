@@ -442,7 +442,7 @@ export type LocalSnapshotManifest = {
   readonly custom: Readonly<Record<string, LocalCustomRoleTable>>;
   /**
    * The synced tables a device reads the user's memberships, roles and custom
-   * roles from; `permdock powersync generate` adds it.
+   * roles from; `permdock generate --only powersync` adds it.
    */
   readonly rows?: LocalSnapshotRows;
   /**

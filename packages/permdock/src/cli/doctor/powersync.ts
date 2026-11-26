@@ -11,6 +11,7 @@ import { scopeList } from "../../core/scopes.ts";
 import { policyModel } from "../generate/model.ts";
 import { powersyncOut } from "../powersync/emit/files.ts";
 import { powersyncFiles, staleFiles } from "../powersync/powersync.ts";
+import { publicationPath } from "../powersync/publication-path.ts";
 import { roleSources, scopeSourcesOf, streamOf } from "../powersync/sources.ts";
 import { filesOf } from "../shared/doctor-files.ts";
 import { calledNames } from "../source/calls.ts";
@@ -60,16 +61,17 @@ export async function pd058(
   if (policy === undefined) {
     return [];
   }
+  const publicationAt = await publicationPath(cwd, config);
   let compiled: ReturnType<typeof powersyncFiles>;
   try {
-    compiled = powersyncFiles(policy, config);
+    compiled = powersyncFiles(policy, config, undefined, publicationAt);
   } catch (cause) {
     return [
       {
         code: "PD058",
         severity: "warning",
         message: `the policy does not compile to Sync Streams: ${cause instanceof Error ? cause.message : String(cause)}`,
-        fix: "fix the powersync and rls config, then run permdock powersync generate",
+        fix: "fix the powersync and rls config, then run permdock generate --only powersync",
       },
     ];
   }
@@ -85,7 +87,7 @@ export async function pd058(
     message: file.missing
       ? `${file.path} is missing, so ${file.path === config.powersync?.manifest ? "the device builds no local snapshot" : "PowerSync syncs no stream the policy compiles to"}`
       : `${file.path} is not what the policy compiles to, so ${file.path === config.powersync?.manifest ? "the device builds snapshots" : "PowerSync syncs rows"} by an older policy`,
-    fix: "run permdock powersync generate and deploy the files",
+    fix: "run permdock generate --only powersync and deploy the files",
   }));
   return [
     ...stale,
@@ -237,7 +239,7 @@ export function pd102(input: DoctorInput): readonly DoctorFinding[] {
             severity: "warning" as const,
             target: path,
             message: `${path} filters ${stale} while the membership source reads roles: "many", so a member syncs only their own role rows`,
-            fix: "run permdock powersync generate and deploy the file",
+            fix: "run permdock generate --only powersync and deploy the file",
           },
         ]
       : [];

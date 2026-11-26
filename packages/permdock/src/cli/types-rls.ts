@@ -402,9 +402,13 @@ export type RlsConfig = {
    * or impersonation session) by its `scope` claim in every helper and policy:
    * a grant passes only when one of the token's scopes reaches its permission
    * (the permission's own scope, a former scope, or a policy `oauthScopes`
-   * entry). Denies always apply. Off by default.
+   * entry). Denies always apply. Off by default. With `{ delegations: true }`
+   * an OAuth client token (a `client_id` and no `act`) also reaches the keys a
+   * policy delegation to `actor('oauth-client')` from `authenticated()` hands
+   * over, so a token whose scopes are identity-only is capped at the delegation
+   * in Postgres too.
    */
-  readonly tokenScopes?: boolean;
+  readonly tokenScopes?: boolean | { readonly delegations?: boolean };
   /**
    * Supabase Realtime: policies on `realtime.messages` for private channels.
    * Supabase dialect only.

@@ -837,7 +837,7 @@ export const policy = definePolicy(permissions, {
           severity: "warning",
           message:
             "the policy does not compile to Sync Streams: PermDock CLI: 'bad name' is not a plain identifier, which Sync Streams need",
-          fix: "fix the powersync and rls config, then run permdock powersync generate",
+          fix: "fix the powersync and rls config, then run permdock generate --only powersync",
         },
       ]);
       expect(

@@ -19,15 +19,24 @@ describe("rls token scopes", () => {
   oauthScopes: { 'posts:write': [permissions.post.read, permissions.post.update] },
   scopes: { tenant: { key: 'orgId' } },`;
 
+  const DELEGATED = `${POLICY}
+  delegations: [
+    { from: authenticated(), to: 'oauth-client', permissions: [permissions.post.read] },
+    { from: authenticated(), to: { kind: 'oauth-client', id: 'docs' }, permissions: [permissions.note.read] },
+    { from: authenticated(), to: 'oauth-client', permissions: [permissions.post.delete], validUntil: '2099-01-01T00:00:00Z' },
+    { from: authenticated(), to: 'agent', permissions: [permissions.post.update] },
+  ],`;
+
   function generate(
     rls: Readonly<Record<string, unknown>>,
+    policy = POLICY,
   ): Promise<{
     readonly code: number;
     readonly sql: string;
     readonly out: string;
   }> {
     const cwd = policyProject(
-      { policy: POLICY },
+      { policy },
       {
         "permdock.config.ts": `export default ${JSON.stringify({
           permissions: "./src/permissions.ts",
@@ -163,13 +172,48 @@ describe("rls token scopes", () => {
       expect(sql).not.toContain("permdock_token_scope_allows");
     });
 
+    it("caps an OAuth client token at the delegations Postgres can decide", async () => {
+      const { code, sql } = await generate(
+        { dialect: "supabase", tokenScopes: { delegations: true } },
+        DELEGATED,
+      );
+      expect(code).toBe(0);
+      expect(sql).toContain(
+        'create or replace function "permdock".permdock_token_delegation_map()\nreturns jsonb\nlanguage sql\nimmutable',
+      );
+      expect(sql).toContain(
+        'revoke execute on function "permdock".permdock_token_delegation_map() from public, anon, authenticated;',
+      );
+      expect(sql).toContain(
+        `'{"all":["post.read"],"clients":{"docs":["note.read"]}}'::jsonb`,
+      );
+      expect(sql).toContain(
+        `|| coalesce("permdock".permdock_token_delegation_map() -> 'clients' -> ((select auth.jwt()) ->> 'client_id'), '[]'::jsonb))`,
+      );
+      expect(sql).toContain(
+        `s.scope <> all (array['openid', 'profile', 'email', 'address', 'phone', 'offline_access'])`,
+      );
+    });
+
+    it("keeps delegations out of SQL unless asked", async () => {
+      const { code, sql } = await generate(
+        { dialect: "supabase", tokenScopes: true },
+        DELEGATED,
+      );
+      expect(code).toBe(0);
+      expect(sql).toContain("permdock_token_scope_allows");
+      expect(sql).not.toContain("permdock_token_delegation_map");
+    });
+
     it("refuses a value that is not a boolean", async () => {
       const { code, out } = await generate({
         dialect: "supabase",
         tokenScopes: "yes",
       });
       expect(code).not.toBe(0);
-      expect(out).toContain("rls.tokenScopes must be a boolean, not a string");
+      expect(out).toContain(
+        "rls.tokenScopes must be a boolean or an object, not a string",
+      );
     });
   });
 });
