@@ -9,8 +9,10 @@ import {
 } from "@/components/reui/frame";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { cachedAccess } from "../../../../../features/access/access-cache.ts";
 import { organizationBySlug } from "../../../../../features/organization/organization-queries.ts";
 import { requirePermission } from "../../../../../permdock/server.ts";
+import { tenantSettings } from "../../../../../permdock/settings.ts";
 import { permissions } from "../../../../../policy.ts";
 
 export const prefetch = "force-disabled";
@@ -24,6 +26,11 @@ async function SettingsBody(props: { readonly orgSlug: string }) {
   await requirePermission(permissions.settings.read, undefined, {
     tenant: organization.id,
   });
+  const [access, settings] = await Promise.all([
+    cachedAccess(organization.id),
+    tenantSettings.settingsFor(organization.id),
+  ]);
+  const ttl = settings?.credentials?.maxTtl;
   return (
     <Frame spacing="sm">
       <FramePanel>
@@ -31,6 +38,9 @@ async function SettingsBody(props: { readonly orgSlug: string }) {
           <FrameTitle data-testid="page-title">Settings</FrameTitle>
         </FrameHeader>
         <p className="text-sm">{organization.name}</p>
+        <p className="text-sm" data-testid="cached-access">
+          {access.read} {String(access.list)} {ttl ?? "no key limit"}
+        </p>
       </FramePanel>
     </Frame>
   );

@@ -6,7 +6,10 @@ import {
   sqlTransport,
 } from "better-supabase/blocks/approvals";
 import { headers } from "next/headers";
-import { blockApprovalStore } from "permdock/better-supabase";
+import {
+  blockApprovalPolicySource,
+  blockApprovalStore,
+} from "permdock/better-supabase";
 import { tenantFromPath } from "permdock/next";
 
 import { postgres } from "../lib/supabase/server.ts";
@@ -102,3 +105,8 @@ const approvals = createApprovals({ transport: sqlTransport(postgres.admin) });
  * role.
  */
 export const approvalStore = blockApprovalStore(approvals);
+
+/** Tenant and platform approval policies from the approvals block. */
+export const approvalPolicySource = blockApprovalPolicySource(approvals, {
+  platform: true,
+});

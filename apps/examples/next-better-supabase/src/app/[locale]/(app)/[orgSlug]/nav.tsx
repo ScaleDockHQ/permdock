@@ -8,7 +8,15 @@ import { use } from "react";
 
 import { permissions } from "../../../../permissions.ts";
 
-type NavPath = "/staff" | "/quotes" | "/settings" | "/billing";
+type NavPath =
+  | "/staff"
+  | "/quotes"
+  | "/approvals"
+  | "/members"
+  | "/roles"
+  | "/teams"
+  | "/settings"
+  | "/billing";
 type NavBase = `/${string}/${string}`;
 type NavHref = `${NavBase}${NavPath}`;
 
@@ -31,6 +39,30 @@ const items: readonly Item[] = [
     label: "Quotes",
     path: "/quotes",
     permission: permissions.quotes.list,
+  },
+  {
+    id: "approvals",
+    label: "Approvals",
+    path: "/approvals",
+    permission: permissions.approvals.read,
+  },
+  {
+    id: "members",
+    label: "Members",
+    path: "/members",
+    permission: permissions.members.read,
+  },
+  {
+    id: "roles",
+    label: "Roles",
+    path: "/roles",
+    permission: permissions.roles.manage,
+  },
+  {
+    id: "teams",
+    label: "Teams",
+    path: "/teams",
+    permission: permissions.teams.read,
   },
   {
     id: "settings",

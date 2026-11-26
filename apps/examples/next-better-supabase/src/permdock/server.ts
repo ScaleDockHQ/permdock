@@ -1,6 +1,7 @@
 import "server-only";
 import { forbidden } from "next/navigation";
 import {
+  approvalPolicies,
   limits,
   memoryDecisionSink,
   memoryLimitStore,
@@ -13,6 +14,7 @@ import { withOtel } from "permdock/otel";
 import { bsb, freshMemberships } from "../lib/supabase/server.ts";
 import { appPolicy } from "../policy.ts";
 import {
+  approvalPolicySource,
   approvalStore,
   compiledRoles,
   stripeEntitlements,
@@ -37,6 +39,7 @@ export const {
     forbidden();
   },
   store: approvalStore,
+  approvalPolicies: approvalPolicies(approvalPolicySource),
   memberships: freshMemberships,
   customRoles: compiledRoles,
   entitlements: stripeEntitlements,

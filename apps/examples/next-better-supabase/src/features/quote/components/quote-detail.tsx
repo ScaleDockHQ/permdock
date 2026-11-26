@@ -15,6 +15,7 @@ import { permissions } from "../../../policy.ts";
 import { organizationBySlug } from "../../organization/organization-queries.ts";
 import { quoteById } from "../quote-store.ts";
 import { QuoteActions } from "./quote-actions.tsx";
+import { ShareActions } from "./share-actions.tsx";
 
 /** One quote, who may read it, and the writes the caller may run. */
 export async function QuoteDetail(props: {
@@ -48,6 +49,7 @@ export async function QuoteDetail(props: {
           {quote.status}
         </Badge>
         <QuoteActions quote={quote} />
+        <ShareActions organizationId={organization.id} quoteId={quote.id} />
       </FramePanel>
     </Frame>
   );
