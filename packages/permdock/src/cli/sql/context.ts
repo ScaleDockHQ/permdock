@@ -299,6 +299,21 @@ export type TokenScopesPlan = {
    * `delegatedScopeMap`.
    */
   readonly scopes: Readonly<Record<string, readonly string[]>>;
+  /**
+   * With `rls.tokenScopes: { delegations: true }`: the keys an OAuth client
+   * token reaches through policy delegations.
+   */
+  readonly delegated?: DelegatedKeys;
+};
+
+/**
+ * Delegated keys: `all` for every OAuth client (absent when no delegation names
+ * every client), `clients` by client id. Kept apart so no client id can stand
+ * for every client.
+ */
+export type DelegatedKeys = {
+  readonly all?: readonly string[];
+  readonly clients: Readonly<Record<string, readonly string[]>>;
 };
 
 /** The policy's role ownership rules as the SQL generator needs them. */

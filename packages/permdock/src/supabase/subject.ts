@@ -20,6 +20,7 @@ import { readMemberships } from "../core/read-memberships.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { validateRecord } from "../core/thenable.ts";
 import { CUSTOM_ROLES_VERSION_CLAIM, supabaseTenantClaim } from "./budget.ts";
+import { IDENTITY_SCOPES } from "./identity-scopes.ts";
 
 /**
  * Claim names Supabase Auth or the OAuth server issues; the hook may not
@@ -300,15 +301,6 @@ export function actorOf(claims: unknown): SupabaseActorResult {
     return INVALID_CHAIN;
   }
 }
-
-const IDENTITY_SCOPES: ReadonlySet<string> = new Set([
-  "openid",
-  "profile",
-  "email",
-  "address",
-  "phone",
-  "offline_access",
-]);
 
 /**
  * The OAuth `scope` claim (a space-separated string or a list) as `scopes`,
