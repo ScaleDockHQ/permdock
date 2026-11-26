@@ -8,28 +8,24 @@ update public.quotes
 set status = 'sent'
 where id = '00000000-0000-4000-8000-0000000000f1';
 
+with deleted as (
+  delete from public.quotes
+  where id = '00000000-0000-4000-8000-0000000000f1'
+  returning 1
+)
 select extensions.is(
-  (
-    with deleted as (
-      delete from public.quotes
-      where id = '00000000-0000-4000-8000-0000000000f1'
-      returning 1
-    )
-    select count(*)::int from deleted
-  ),
+  (select count(*)::int from deleted),
   0,
   'an owner cannot delete a sent quote'
 );
 
+with deleted as (
+  delete from public.quotes
+  where id = '00000000-0000-4000-8000-0000000000f2'
+  returning 1
+)
 select extensions.is(
-  (
-    with deleted as (
-      delete from public.quotes
-      where id = '00000000-0000-4000-8000-0000000000f2'
-      returning 1
-    )
-    select count(*)::int from deleted
-  ),
+  (select count(*)::int from deleted),
   1,
   'an owner can delete a draft quote'
 );
