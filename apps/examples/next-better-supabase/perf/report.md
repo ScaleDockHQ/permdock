@@ -99,6 +99,71 @@ Before is a same-session rebuild of the tooling commit. After is the branch head
 
 Before commit 9605cf83c, after commit 3f3e221b0fb96cda57f2a3b9964447919e29c1c7. Node v26.13.1 on darwin arm64.
 
+### Pages and the membership scenario
+
+These pages have no before column. The five routes above stay the comparison. Membership rows are the quotes page for a user in 1, 13, 25 or 50 organizations, with 1, 3 or 10 custom roles, or in a suspended organization. The hook stops the membership list at a 1,024 byte budget.
+
+| Route          | Status | Warm TTFB ms | Warm LCP ms | HTML bytes | RSC bytes | Statements | Requests                                             |
+| -------------- | ------ | ------------ | ----------- | ---------- | --------- | ---------- | ---------------------------------------------------- |
+| quote-detail   | 200    | 2.8          | 332         | 18056      | 62217     | 14         | document 1, prefetch 2, other 30, rsc 44             |
+| approvals      | 200    | 2.1          | 360         | 16755      | 58996     | 5          | document 1, prefetch 2, other 29, rsc 41             |
+| member-admin   | 200    | 2.1          | 352         | 18665      | 63203     | 5          | document 1, prefetch 2, other 29, rsc 41             |
+| settings       | 200    | 2.1          | 56          | 15549      | 56165     | 3          | document 1, prefetch 2, other 17                     |
+| access         | 200    | 2            | 44          | 18830      | 64984     | 5          | document 1, prefetch 2, other 30, permdock 1, rsc 41 |
+| roles          | 200    | 2.6          | 356         | 17473      | 59576     | 5          | document 1, prefetch 2, other 29, rsc 41             |
+| teams          | 200    | 2.6          | 360         | 17055      | 59432     | 5          | document 1, prefetch 2, other 29, rsc 41             |
+| billing        | 200    | 2.7          | 328         | 17557      | 62257     | 3          | document 1, prefetch 2, other 29, rsc 42             |
+| developers     | 200    | 2.4          | 336         | 18187      | 62484     | 3          | document 1, prefetch 2, other 29, rsc 41             |
+| support        | 200    | 3            | 340         | 18287      | 62793     | 3          | document 1, prefetch 2, other 29, rsc 41             |
+| automations    | 200    | 2.4          | 356         | 18153      | 62491     | 3          | document 1, prefetch 2, other 29, rsc 41             |
+| audit          | 200    | 2.7          | 348         | 17738      | 60271     | 5          | document 1, prefetch 2, other 29, rsc 41             |
+| access-reviews | 200    | 3            | 340         | 18298      | 62784     | 3          | document 1, prefetch 2, other 29, rsc 41             |
+| saas-orgs-1    | 200    | 3.4          | 40          | 14874      | 38446     | 5          | document 1, prefetch 2, other 19, rsc 5              |
+| saas-orgs-13   | 200    | 4            | 40          | 14873      | 38446     | 5          | document 1, prefetch 2, other 19, rsc 5              |
+| saas-orgs-25   | 200    | 3.3          | 40          | 14874      | 38446     | 5          | document 1, prefetch 2, other 19, rsc 5              |
+| saas-orgs-50   | 200    | 3.6          | 40          | 14875      | 38446     | 5          | document 1, prefetch 2, other 19, rsc 5              |
+| saas-roles-1   | 200    | 3.6          | 40          | 14874      | 38446     | 5          | document 1, prefetch 2, other 19, rsc 5              |
+| saas-roles-3   | 200    | 3.3          | 40          | 14875      | 38446     | 5          | document 1, prefetch 2, other 19, rsc 5              |
+| saas-roles-10  | 200    | 3.4          | 44          | 14873      | 38446     | 5          | document 1, prefetch 2, other 19, rsc 5              |
+| saas-suspended | 200    | 2.8          | 40          | 14882      | 38451     | 5          | document 1, prefetch 2, other 19, rsc 5              |
+
+### JWT
+
+Byte lengths of the Supabase access token, its claims, and the session cookie. A null token means sign-in returned no session.
+
+| User      | Token bytes | Claim bytes | Cookie bytes |
+| --------- | ----------- | ----------- | ------------ |
+| Olivia    | 1284        | 825         | 3163         |
+| Carla     | 1194        | 757         | 3051         |
+| orgs1     | 902         | 538         | 2656         |
+| orgs13    | 1447        | 947         | 3416         |
+| orgs25    | 1984        | 1350        | 4132         |
+| orgs50    | 2059        | 1406        | 4231         |
+| roles1    | 900         | 537         | 2659         |
+| roles3    | 991         | 605         | 2780         |
+| roles10   | 1310        | 844         | 3237         |
+| suspended | 880         | 522         | 2640         |
+
+### Proxy
+
+The after build's proxy bundle is 260 gzip bytes.
+
+Quotes list, 50 probes, at commit f134f0abccb585730d960d6c798548d7c0c06f1a. Wall time is the document response. Proxy time is the `bsb-proxy` server timing.
+
+| Proxy | Wall p50 ms | Wall p95 ms | Proxy p50 ms | Proxy p95 ms | Statements p50 | Gzip bytes |
+| ----- | ----------- | ----------- | ------------ | ------------ | -------------- | ---------- |
+| on    | 16.7        | 21          | 0.7          | 0.9          | 8              | 259        |
+| off   | 16.4        | 24.9        | n/a          | n/a          | 7              | 259        |
+
+Same-session rebuilds with one feature off. `bsb-proxy` is absent when the proxy is off, so that row's proxy timing is n/a. Gzip is the built `proxy.js`.
+
+| Build            | Runs | Proxy p50 ms | Proxy p95 ms | Gzip bytes |
+| ---------------- | ---- | ------------ | ------------ | ---------- |
+| proxy off        | 0    | n/a          | n/a          | 260        |
+| may-access off   | 200  | 0.1          | 0.2          | 260        |
+| shared-cache off | 200  | 0.6          | 0.9          | 260        |
+| warm off         | 200  | 0.6          | 0.9          | 260        |
+
 Not measured:
 
 - the four-way split matches chunk file names, which do not name source packages

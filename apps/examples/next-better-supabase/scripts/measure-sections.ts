@@ -54,7 +54,7 @@ export function pageSection(after: Json): string[] {
   const lines = [
     "### Pages and the membership scenario",
     "",
-    "These pages have no before column. The five routes above stay the comparison. Membership rows are the quotes page for a user in 1, 13, 25 or 50 organizations, with 1, 3 or 10 custom roles, or in a suspended organization. The access-token hook stops claims at 1,024 bytes.",
+    "These pages have no before column. The five routes above stay the comparison. Membership rows are the quotes page for a user in 1, 13, 25 or 50 organizations, with 1, 3 or 10 custom roles, or in a suspended organization. The hook stops the membership list at a 1,024 byte budget.",
     "",
     "| Route | Status | Warm TTFB ms | Warm LCP ms | HTML bytes | RSC bytes | Statements | Requests |",
     "| --- | --- | --- | --- | --- | --- | --- | --- |",
