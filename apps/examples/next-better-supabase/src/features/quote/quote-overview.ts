@@ -1,6 +1,7 @@
 import "server-only";
 import { env } from "../../env.ts";
 import { betterSupabase } from "../../lib/supabase/index.ts";
+import { postgres } from "../../lib/supabase/runtime.ts";
 import { bsb } from "../../lib/supabase/server.ts";
 import { quote_overviewsTable } from "../../lib/supabase/tables/quote-overviews.ts";
 
@@ -16,17 +17,15 @@ betterSupabase.registerTable(quote_overviewsTable);
  */
 export const quotesOverview = bsb.kept(
   async (ctx, organization: string) => {
-    const sql = ctx.sql;
-    if (sql === undefined) {
-      throw new Error("quotes_overview_payload needs the postgres client");
-    }
-    const result = await sql.$rpc("quotes_overview_payload");
-    if (!result.ok) {
-      throw new Error("quotes_overview_payload failed", {
-        cause: result.error,
-      });
-    }
-    return { organization, total: result.data };
+    const claims =
+      ctx.auth.kind === "user" ? ctx.auth.claims : { role: "anon" };
+    const rows = await postgres
+      .asUser(claims)
+      .queryRaw<{ readonly total: number | null }>(
+        "select public.quotes_overview_payload() as total",
+      );
+    const total = rows[0]?.total;
+    return { organization, total: typeof total === "number" ? total : 0 };
   },
   {
     share: env.without === "shared-cache" ? "user" : "tenant",
