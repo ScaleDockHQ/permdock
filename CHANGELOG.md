@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.35.1 (2026-11-26)
+
+- `permdock_custom_role_system_guard` lets a signed-in caller insert or update a platform role row, one with no tenant, that has the `skip` column set, as long as the row stays a platform row. Since 0.34 it refused these writes with `42501` `system-role`, so platform staff could no longer create platform catalog roles through the Data API under the app's own policies. `skip` has no effect on a platform row, so the guard did not need to cover it. Moving a row that has `skip` into or out of a tenant is still refused. Rerun `permdock rls generate`.
+
 ## 0.35.0 (2026-11-26)
 
 - `rls.tokenScopes: { delegations: true }` compiles policy delegations to `actor('oauth-client')` (every client, or `{ kind: 'oauth-client', id }`) from `authenticated()` into the SQL helpers, so an OAuth client token whose scopes are identity-only (as Supabase Auth issues them) is capped at the delegation on the Data API too, instead of holding nothing. A token with other scopes needs both the delegation and a covering scope, as in process. `tokenScopes: true` is unchanged.
