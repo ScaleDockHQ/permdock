@@ -5,7 +5,7 @@ import { locale } from "next/root-params";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { OfflineBadge } from "./offline-badge.tsx";
-import "./globals.css";
+import "../globals.css";
 
 export const metadata = {
   title: "PermDock with better-supabase",
