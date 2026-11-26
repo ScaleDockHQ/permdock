@@ -50,6 +50,10 @@ jobs:
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
+      # config validate and start both read signing_keys_path. The file is git-ignored.
+      - name: Write the local signing key
+        run: node scripts/signing-key.ts
+
       # Native runtime; Postgres comes up while permdock builds.
       - name: Start the local stack
         id: stack

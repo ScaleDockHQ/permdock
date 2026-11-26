@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { defaultsFor, seedScaleAt } from "./seed-scale.ts";
 import { applyServiceSql } from "./service-sql.ts";
+import { ensureSigningKey } from "./signing-key.ts";
 import { stackStatus, statementsEnabled } from "./stack.ts";
 
 const cwd = path.join(import.meta.dirname, "..");
@@ -21,23 +22,6 @@ function supabase(args: readonly string[], fail: boolean): void {
   });
   if (fail && result.status !== 0) {
     throw new Error(`supabase ${args[0] ?? ""} failed`);
-  }
-}
-
-/**
- * Auth's ES256 key. Git-ignored; `config.toml` points at the file. The stack
- * reads an array, which `gen signing-key --append` writes.
- */
-function writeSigningKey(): void {
-  const file = path.join(cwd, "supabase/signing_keys.json");
-  writeFileSync(file, "[]\n");
-  const result = spawnSync(
-    bin("supabase"),
-    ["gen", "signing-key", "--append"],
-    { cwd, stdio: "inherit" },
-  );
-  if (result.status !== 0) {
-    throw new Error("supabase gen signing-key failed");
   }
 }
 
@@ -91,7 +75,7 @@ async function authJwks(apiUrl: string): Promise<string> {
  * then `next build` and `next start`.
  */
 async function main(): Promise<void> {
-  writeSigningKey();
+  ensureSigningKey(cwd);
   supabase(["stop"], false);
   supabase(["start", "--runtime", "native"], true);
   supabase(["db", "reset", "--yes"], true);
