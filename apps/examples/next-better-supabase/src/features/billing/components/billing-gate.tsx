@@ -1,6 +1,7 @@
 "use client";
 
-import { useGate } from "permdock/react";
+import { requiredPlans } from "permdock";
+import { useDecision, useGate } from "permdock/react";
 
 import { permissions } from "../../../policy.ts";
 
@@ -10,11 +11,11 @@ import { permissions } from "../../../policy.ts";
  */
 export function BillingGate() {
   const gate = useGate(permissions.billing.read);
+  const plans = requiredPlans(useDecision(permissions.billing.read).decision);
+  const names = gate.upgrade.length === 0 ? plans : gate.upgrade;
   return (
     <p className="text-sm" data-testid="billing-gate">
-      {gate.upgrade.length === 0
-        ? "Included"
-        : `Upgrade to ${gate.upgrade.join(", ")}`}
+      {names.length === 0 ? "Included" : `Upgrade to ${names.join(", ")}`}
     </p>
   );
 }

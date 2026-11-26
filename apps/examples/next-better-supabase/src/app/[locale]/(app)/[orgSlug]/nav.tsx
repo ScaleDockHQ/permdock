@@ -15,6 +15,12 @@ type NavPath =
   | "/members"
   | "/roles"
   | "/teams"
+  | "/developers"
+  | "/support"
+  | "/automations"
+  | "/audit"
+  | "/access-reviews"
+  | "/access"
   | "/settings"
   | "/billing";
 type NavBase = `/${string}/${string}`;
@@ -63,6 +69,42 @@ const items: readonly Item[] = [
     label: "Teams",
     path: "/teams",
     permission: permissions.teams.read,
+  },
+  {
+    id: "developers",
+    label: "Developers",
+    path: "/developers",
+    permission: permissions.api_keys.manage,
+  },
+  {
+    id: "support",
+    label: "Support",
+    path: "/support",
+    permission: permissions.impersonation.start,
+  },
+  {
+    id: "automations",
+    label: "Automations",
+    path: "/automations",
+    permission: permissions.automations.read,
+  },
+  {
+    id: "audit",
+    label: "Audit",
+    path: "/audit",
+    permission: permissions.audit.read,
+  },
+  {
+    id: "access-reviews",
+    label: "Access reviews",
+    path: "/access-reviews",
+    permission: permissions.members.read,
+  },
+  {
+    id: "access",
+    label: "Access",
+    path: "/access",
+    permission: permissions.organization.update,
   },
   {
     id: "settings",
