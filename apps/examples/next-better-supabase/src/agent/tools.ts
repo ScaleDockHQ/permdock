@@ -26,7 +26,8 @@ export type QuoteAgentContext = {
 
 /**
  * `pg` returns `bigint` as a string; the `Quote` schema the decision validates
- * wants a number.
+ * wants a number. The columns are that schema's fields: a partial row fails
+ * boundary validation.
  */
 const QuoteRecord = z.object({
   id: z.uuid(),
@@ -35,12 +36,14 @@ const QuoteRecord = z.object({
   title: z.string(),
   amount_minor: z.coerce.number().int(),
   currency: z.string(),
+  status: z.enum(["draft", "sent", "approved"]),
+  team_id: z.uuid().nullable(),
 });
 
 export type QuoteRow = z.infer<typeof QuoteRecord>;
 
 const COLUMNS =
-  "id, organization_id, customer_id, title, amount_minor, currency";
+  "id, organization_id, customer_id, title, amount_minor, currency, status, team_id";
 
 const RenameQuote = z.object({ id: z.uuid(), title: z.string().min(1) });
 
