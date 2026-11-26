@@ -8,7 +8,7 @@ import type {
 import { delegatedScopeMap } from "../../core/oauth-scopes.ts";
 import { formerKeys } from "../../core/permission-leaf.ts";
 import { listPermissions } from "../../index.ts";
-import { IDENTITY_SCOPES } from "../../supabase/subject.ts";
+import { IDENTITY_SCOPES } from "../../supabase/identity-scopes.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { subjectClaimJsonSql, subjectClaimSql } from "../sql/subject.ts";
 
