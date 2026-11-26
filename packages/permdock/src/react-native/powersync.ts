@@ -34,8 +34,8 @@ export type PowerSyncQuery = {
 export type PowerSyncSourceOptions<Q extends string> =
   | {
       /**
-       * `localSnapshotManifest(policy)`, as `permdock powersync generate`
-       * writes it to `powersync.manifest`.
+       * `localSnapshotManifest(policy)`, as `permdock generate --only
+       * powersync` writes it to `powersync.manifest`.
        */
       readonly manifest: LocalSnapshotManifest;
       /** The queries over the `permdock_*` streams' tables; each one is watched. */
@@ -50,8 +50,8 @@ export type PowerSyncSourceOptions<Q extends string> =
     }
   | {
       /**
-       * The manifest `permdock powersync generate` writes, with its `rows`
-       * section.
+       * The manifest `permdock generate --only powersync` writes, with its
+       * `rows` section.
        */
       readonly manifest: LocalSnapshotManifest;
       /**
@@ -117,7 +117,7 @@ function planOf<Q extends string>(options: PowerSyncSourceOptions<Q>): Plan {
   const { rows } = options.manifest;
   if (rows === undefined) {
     throw new TypeError(
-      "PermDock: powerSyncSource needs queries and read, or a manifest with rows (run permdock powersync generate with powersync.manifest)",
+      "PermDock: powerSyncSource needs queries and read, or a manifest with rows (run permdock generate --only powersync with powersync.manifest)",
     );
   }
   const principal = compact<RowPrincipal>({

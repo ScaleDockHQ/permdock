@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
+import { pd058 } from "../../src/cli/doctor/powersync.ts";
 import { runPowerSync } from "../../src/cli/powersync/powersync.ts";
 import { junctionMembershipSource } from "../../src/supabase/index.ts";
 
@@ -106,6 +107,7 @@ describe("powersync generate: the publication under pg-delta", () => {
     });
     expect(check.code).toBe(0);
     expect(check.output).toContain(`${FILE} is current`);
+    expect(await pd058({ cwd, config })).toStrictEqual([]);
   });
 
   it("keeps the yaml comment without a schema directory", async () => {

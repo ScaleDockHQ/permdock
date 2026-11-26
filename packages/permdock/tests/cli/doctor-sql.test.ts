@@ -209,6 +209,17 @@ alter table public.notes add constraint notes_author foreign key (author_id) ref
 alter table only public.notes add constraint notes_author_key unique (author_id, id);`);
       expect(pd053(cwd, config)).toStrictEqual([]);
     });
+
+    it("counts a unique nulls not distinct constraint as the index", () => {
+      const cwd = migration(`create table public.prefs (
+  id uuid primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  org_id uuid references public.orgs (id),
+  unique nulls not distinct ("user_id", "org_id")
+);
+alter table public.prefs add constraint prefs_org_key unique nulls distinct (org_id);`);
+      expect(pd053(cwd, config)).toStrictEqual([]);
+    });
   });
 
   describe("PD062 legacy request.jwt.claim settings", () => {

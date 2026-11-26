@@ -44,9 +44,9 @@ export type NativeRefreshPowerSync<K> = {
   /** The connector the app connects with; a reconnect fetches a new token. */
   readonly connector: K;
   /**
-   * The manifest `permdock powersync generate` writes. With its `rows.version`,
-   * a synced version above the token's `authz_ver` runs a refresh, which covers
-   * a message sent while the app was closed.
+   * The manifest `permdock generate --only powersync` writes. With its
+   * `rows.version`, a synced version above the token's `authz_ver` runs a
+   * refresh, which covers a message sent while the app was closed.
    */
   readonly manifest?: LocalSnapshotManifest;
   /**
