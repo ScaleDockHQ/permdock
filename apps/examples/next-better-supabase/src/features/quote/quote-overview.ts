@@ -1,6 +1,12 @@
 import "server-only";
 import { env } from "../../env.ts";
+import { betterSupabase } from "../../lib/supabase/index.ts";
 import { bsb } from "../../lib/supabase/server.ts";
+import { quote_overviewsTable } from "../../lib/supabase/tables/quote-overviews.ts";
+
+// Lazy table metadata is empty until a query registers the table. The shared
+// fill checks it before the function runs, so register the tenant table first.
+betterSupabase.registerTable(quote_overviewsTable);
 
 /**
  * One entry for every caller in the tenant who holds `quotes.list` on the same
