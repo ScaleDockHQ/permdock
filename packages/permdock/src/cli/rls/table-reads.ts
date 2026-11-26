@@ -27,7 +27,11 @@ import { isPlatformSchema } from "../sql/platform.ts";
 import { tenantCheck } from "../sql/tenant-check.ts";
 import { keyReason, tryKeyReasons } from "./key-reasons.ts";
 import { droppedPolicy, reportFiles } from "./report.ts";
-import { sharedFunctionsOf, tenantPureHelpersOf } from "./shared-functions.ts";
+import {
+  permissionFiltersOf,
+  sharedFunctionsOf,
+  tenantPureHelpersOf,
+} from "./shared-functions.ts";
 import {
   formBlockers,
   restrictiveReason,
@@ -509,7 +513,11 @@ export async function withTableReads<M extends SupabaseManifest>(
 ): Promise<M> {
   const reads = await manifestTableReads(cwd, config, manifest, reasons);
   const tenantPureHelpers = tenantPureHelpersOf(manifest);
-  const pure = tenantPureHelpers.length === 0 ? {} : { tenantPureHelpers };
+  const permissionFilters = permissionFiltersOf(manifest);
+  const pure = {
+    ...(tenantPureHelpers.length === 0 ? {} : { tenantPureHelpers }),
+    ...(permissionFilters.length === 0 ? {} : { permissionFilters }),
+  };
   if (reads.length === 0) {
     return { ...manifest, rls: { ...manifest.rls, ...pure } };
   }

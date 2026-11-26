@@ -114,6 +114,7 @@ describe("tenant-pure helpers", () => {
         keyArgument: string;
         tenantArgument: string;
       }[];
+      permissionFilters?: { name: string; keyPosition: number }[];
     };
   };
 
@@ -144,7 +145,11 @@ describe("tenant-pure helpers", () => {
     await lite?.close();
   });
 
-  const ask = async (caller: Caller, expression: string): Promise<unknown> => {
+  const ask = async (
+    caller: Caller,
+    expression: string,
+    claims?: Readonly<Record<string, string>>,
+  ): Promise<unknown> => {
     if (lite === undefined) {
       throw new Error("PermDock: PGlite did not start");
     }
@@ -152,7 +157,7 @@ describe("tenant-pure helpers", () => {
     try {
       await lite.exec("set local role authenticated");
       await lite.query("select set_config('request.jwt.claims', $1, true)", [
-        JSON.stringify({ sub: caller.id, role: "authenticated" }),
+        JSON.stringify({ sub: caller.id, role: "authenticated", ...claims }),
       ]);
       return (
         await lite.query<{ ok: unknown }>(`select to_json(${expression}) as ok`)
@@ -166,6 +171,9 @@ describe("tenant-pure helpers", () => {
     has: (key: string) => `permdock.permdock_tenant_has('${key}', 'acme')`,
     keys: (key: string) =>
       `permdock.permitted_tenant_permission_keys('acme', array['${key}'])`,
+    hasActive: (key: string) => `permdock.permdock_tenant_has_active('${key}')`,
+    keysActive: (key: string) =>
+      `permdock.permitted_tenant_permission_keys_active(array['${key}'])`,
   };
 
   const idsByPermission = (key: string): string =>
@@ -184,6 +192,13 @@ describe("tenant-pure helpers", () => {
         keyArgument: "p_keys",
         keyPosition: 1,
         tenantArgument: "p_id",
+      },
+    ]);
+    expect(manifest.rls.permissionFilters).toStrictEqual([
+      { name: "permdock.permdock_tenant_has_active", keyPosition: 0 },
+      {
+        name: "permdock.permitted_tenant_permission_keys_active",
+        keyPosition: 0,
       },
     ]);
   });
@@ -206,8 +221,11 @@ describe("tenant-pure helpers", () => {
       }
       for (const callers of groups.values()) {
         for (const helper of Object.values(LISTED)) {
+          const token = helper.name.endsWith("Active")
+            ? { tenant_id: "acme" }
+            : undefined;
           const answers = await Promise.all(
-            callers.map((caller) => ask(caller, helper(permission.key))),
+            callers.map((caller) => ask(caller, helper(permission.key), token)),
           );
           expect(new Set(answers.map((a) => JSON.stringify(a))).size).toBe(1);
         }
@@ -243,5 +261,24 @@ describe("tenant-pure helpers", () => {
       "beta",
       "delta",
     ]);
+    const acme = { tenant_id: "acme" };
+    const beta = { tenant_id: "beta" };
+    const file = permissions.file.read.key;
+    expect(await ask(CALLERS.plain, LISTED.hasActive(file), acme)).toBe(true);
+    expect(await ask(CALLERS.wide, LISTED.hasActive(file), acme)).toBe(true);
+    expect(await ask(CALLERS.plain, LISTED.hasActive(file), beta)).toBe(false);
+    expect(await ask(CALLERS.wide, LISTED.hasActive(file), beta)).toBe(true);
+    expect(await ask(CALLERS.plain, LISTED.keysActive(key), acme)).toBe(
+      "doc.read",
+    );
+    expect(await ask(CALLERS.wide, LISTED.keysActive(key), acme)).toBe(
+      "doc.read",
+    );
+    expect(
+      await ask(CALLERS.plain, LISTED.keysActive(key), beta),
+    ).toBeUndefined();
+    expect(await ask(CALLERS.wide, LISTED.keysActive(key), beta)).toBe(
+      "doc.read",
+    );
   });
 });

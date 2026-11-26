@@ -55,13 +55,28 @@ export async function pd137(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
   const manifest = committedManifest(input.cwd);
-  const recorded = manifest?.rls.sharedFunctions;
-  if (
-    manifest === undefined ||
-    recorded === undefined ||
-    recorded.length === 0
-  ) {
-    return [];
+  if (manifest === undefined) return [];
+  const twoArgument = (manifest.rls.permissionFilters ?? []).flatMap(
+    (filter) => {
+      const takesTenant = (manifest.rls.tenantPureHelpers ?? []).some(
+        (helper) => helper.name === filter.name,
+      );
+      return takesTenant
+        ? [
+            {
+              code: "PD137" as const,
+              severity: "error" as const,
+              target: `${MANIFEST_FILE}:rls.permissionFilters:${filter.name}`,
+              message: `${MANIFEST_FILE} lists ${filter.name} in rls.permissionFilters, but it takes a tenant argument, so the share key would not cover another tenant`,
+              fix: "list the one-argument helper that reads the tenant from the token, or run permdock supabase inspect --out",
+            },
+          ]
+        : [];
+    },
+  );
+  const recorded = manifest.rls.sharedFunctions;
+  if (recorded === undefined || recorded.length === 0) {
+    return twoArgument;
   }
   const reads = await manifestTableReads(input.cwd, input.config, manifest);
   const now = new Map(reads.map((read) => [read.table, read]));
@@ -75,25 +90,28 @@ export async function pd137(
       })
     ).map((entry) => entry.function),
   );
-  return recorded.flatMap((entry) => {
-    if (valid.has(entry.function)) {
-      return [];
-    }
-    const rows = entry.tables.filter(
-      (table) => now.get(table)?.share !== "tenant",
-    );
-    const why =
-      rows.length > 0
-        ? `it reads ${rows.join(", ")}, which ${rows.length === 1 ? "is" : "are"} not a tenant table`
-        : "the schema files no longer define it as a stable, security invoker SQL function that reads no caller";
-    return [
-      {
-        code: "PD137",
-        severity: "error" as const,
-        target: `${MANIFEST_FILE}:rls.sharedFunctions:${entry.function}`,
-        message: `${MANIFEST_FILE} lists ${entry.function} in rls.sharedFunctions, but ${why}`,
-        fix: "run permdock supabase inspect --out to rewrite the list, or restore the function",
-      },
-    ];
-  });
+  return [
+    ...twoArgument,
+    ...recorded.flatMap((entry) => {
+      if (valid.has(entry.function)) {
+        return [];
+      }
+      const rows = entry.tables.filter(
+        (table) => now.get(table)?.share !== "tenant",
+      );
+      const why =
+        rows.length > 0
+          ? `it reads ${rows.join(", ")}, which ${rows.length === 1 ? "is" : "are"} not a tenant table`
+          : "the schema files no longer define it as a stable, security invoker SQL function that reads no caller";
+      return [
+        {
+          code: "PD137" as const,
+          severity: "error" as const,
+          target: `${MANIFEST_FILE}:rls.sharedFunctions:${entry.function}`,
+          message: `${MANIFEST_FILE} lists ${entry.function} in rls.sharedFunctions, but ${why}`,
+          fix: "run permdock supabase inspect --out to rewrite the list, or restore the function",
+        },
+      ];
+    }),
+  ];
 }

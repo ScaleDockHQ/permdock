@@ -99,13 +99,6 @@ export type AuthorizationProviderOptions<P = undefined> = {
    */
   readonly widened?: boolean;
   /**
-   * Fill better-supabase's `permissionFilters` from `rls.tenantPureHelpers`, so
-   * a `sharedFunctions` function may call those helpers with a literal key.
-   * Needs better-supabase 0.86.0: 0.85 refuses the field as an invalid key.
-   * Default `false`.
-   */
-  readonly permissionFilters?: boolean;
-  /**
    * Fill better-supabase's `sharedFunctions` from the manifest's
    * `rls.sharedFunctions`, which `permdock supabase inspect` writes: the
    * functions that pass BS430 and read only `tenant` tables. Needs `tables:
@@ -330,27 +323,24 @@ function permissionsOf(
   });
 }
 
-/** The argument position of the key in a generated helper's signature. */
-const KEY_POSITION: Readonly<Record<string, number>> = {
-  p_grant: 0,
-  p_keys: 1,
-};
-
 /**
- * better-supabase's `permissionFilters` (0.86.0): the generated helpers whose
- * answer depends only on the caller's grants of the passed key in the passed
- * tenant, by `schema.name`, with the position of the key argument.
+ * better-supabase's `permissionFilters`: the one-argument helpers in
+ * `rls.permissionFilters`, by `schema.name`. The two-argument helpers are never
+ * listed: 0.87 checks the key argument only, so a caller could pass another
+ * tenant and share the result.
  */
 function permissionFiltersOf(
-  helpers: SupabaseManifest["rls"]["tenantPureHelpers"],
+  filters: SupabaseManifest["rls"]["permissionFilters"],
 ): Readonly<Record<string, { readonly keyArgument: number }>> | undefined {
-  const entries = (helpers ?? []).flatMap((helper) => {
-    const position = helper.keyPosition ?? KEY_POSITION[helper.keyArgument];
-    return position === undefined
-      ? []
-      : [[helper.name, { keyArgument: position }] as const];
-  });
-  return entries.length === 0 ? undefined : Object.fromEntries(entries);
+  const entries = filters ?? [];
+  return entries.length === 0
+    ? undefined
+    : Object.fromEntries(
+        entries.map((filter) => [
+          filter.name,
+          { keyArgument: filter.keyPosition },
+        ]),
+      );
 }
 /**
  * better-supabase's `delegation.scopes`, the same map `rls.tokenScopes`
@@ -423,10 +413,7 @@ export function authorizationProvider<P = undefined>(
       "sharedFunctions: true needs `rls.sharedFunctions` in the manifest. Run `permdock supabase inspect --out`.",
     );
   }
-  const permissionFilters =
-    options.permissionFilters === true
-      ? permissionFiltersOf(rls.tenantPureHelpers)
-      : undefined;
+  const permissionFilters = permissionFiltersOf(rls.permissionFilters);
   const sharedFunctions =
     options.sharedFunctions === true &&
     options.tables === true &&

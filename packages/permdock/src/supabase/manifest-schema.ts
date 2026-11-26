@@ -291,6 +291,20 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
             },
           },
         },
+        permissionFilters: {
+          description:
+            "One-argument helpers a shared function may call with a literal key. Each reads the tenant from the token. Absent from a manifest written before 0.34.",
+          type: "array",
+          items: {
+            type: "object",
+            required: ["name", "keyPosition"],
+            additionalProperties: false,
+            properties: {
+              name: { type: "string" },
+              keyPosition: { type: "integer", minimum: 0 },
+            },
+          },
+        },
         tenantPureHelpers: {
           description:
             "Generated helpers whose answer for one tenant and key depends only on the caller's grants of that key in the tenant. Absent from a manifest written before 0.31.",

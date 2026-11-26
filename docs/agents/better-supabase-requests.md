@@ -44,6 +44,26 @@ Docs. Describe `tenantHelpers` next to `sharedFunctions` and name PermDock's two
 
 Why only these two helpers: `docs/guides/shared-cache.mdx`, "Helpers that answer the same for equal grants".
 
+0.87.0 shipped the key half of this as `permissionFilters: { keyArgument: number }`. It checks that the argument is a string literal and does not check a tenant argument. The tenant half, and a `text[]` key, are the next request.
+
+## BS430 checks a tenant argument on a permission filter
+
+Needs: `permdock` 0.34 `rls.permissionFilters`.
+
+```text
+AuthorizationPermissionFilter is `{ keyArgument: number }`. BS430 (`literal()` in function-shares) accepts the call when that argument is a string const and adds the key to the share key. It never checks a tenant argument, so listing `permdock_tenant_has(p_grant, p_tenant)` would let a caller pass another tenant and share the result. `literal()` also reads only a string const, so `permitted_tenant_permission_keys_active(array['orders.read'])` fails with "isn't a string literal".
+
+PermDock 0.34 therefore emits one-argument wrappers that read the tenant from the token, `permdock_<root>_has_active(p_grant text)` and `permitted_<root>_permission_keys_active(p_keys text[])`, and lists only those. The `has_active` call with a string literal passes BS430. The keys call does not, until a `text[]` literal is accepted.
+
+Add `tenantArgument?: number` to AuthorizationPermissionFilter, checked the same way the 0.31 `tenantHelpers` request checks a tenant argument: the argument is the function's own tenant parameter or the tenant the fill passes. A literal, a column, a subquery or any other expression fails, and the message names the argument.
+
+Also accept a `text[]` literal at `keyArgument` when every element is a string literal and every element is in the entry's `permissions`. Add each element to the share key.
+
+Tests. `select permdock.permdock_tenant_has('orders.read', p_tenant)` passes when `keyArgument` is 0 and `tenantArgument` is 1; the same call with another tenant or a non-literal key fails. `select permdock.permitted_tenant_permission_keys_active(array['orders.read'])` passes and adds `orders.read` to the share key; an array that holds a non-literal or a key outside `permissions` fails.
+
+Docs. Describe `tenantArgument` next to `keyArgument`.
+```
+
 ## An "authorization" warm step from `warm(bsb)`
 
 Needs: `permdock` 0.31 `authorizer(...).warm()` and `authorizationHooks(...).warm()`.

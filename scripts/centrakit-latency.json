@@ -1,10 +1,10 @@
 {
   "machine": {
-    "date": "2026-11-25T18:21:22Z",
+    "date": "2026-11-26T08:51:44Z",
     "node": "v26.13.1",
     "os": "darwin 25.6.0 arm64",
     "cpu": "Apple M5 Max (18 cores)",
-    "commit": "d986eb019"
+    "commit": "29124e944"
   },
   "stack": "tests/integration/fixtures/centrakit, no database",
   "versionReadMs": 1.331,
@@ -12,48 +12,48 @@
     "policy": "tests/integration/fixtures/centrakit/policy.ts: 8 keys, 6 roles",
     "policyModule": {
       "runs": 30,
-      "meanMs": 41.501,
-      "p50Ms": 38.83,
-      "p95Ms": 48.153
+      "meanMs": 36.142,
+      "p50Ms": 36.142,
+      "p95Ms": 36.966
     },
     "getPermDock": {
       "runs": 30,
-      "meanMs": 1.03,
-      "p50Ms": 0.934,
-      "p95Ms": 1.361
+      "meanMs": 0.894,
+      "p50Ms": 0.89,
+      "p95Ms": 0.959
     },
     "firstCan": {
       "runs": 30,
-      "meanMs": 1.285,
-      "p50Ms": 1.166,
-      "p95Ms": 1.962
+      "meanMs": 1.1,
+      "p50Ms": 1.093,
+      "p95Ms": 1.167
     },
     "policyToFirstCan": {
       "runs": 30,
-      "meanMs": 43.817,
-      "p50Ms": 40.833,
-      "p95Ms": 51.229
+      "meanMs": 38.136,
+      "p50Ms": 38.157,
+      "p95Ms": 39.065
     }
   },
   "firstRequest": {
     "wiring": "getPermDock for an admin plus one can, in a fresh process after the policy is imported; warmed runs authorizationHooks({ policy }).warm() first",
     "withoutWarm": {
       "runs": 30,
-      "meanMs": 1.986,
-      "p50Ms": 1.974,
-      "p95Ms": 2.086
+      "meanMs": 1.965,
+      "p50Ms": 1.949,
+      "p95Ms": 2.087
     },
     "withWarm": {
       "runs": 30,
-      "meanMs": 1.176,
-      "p50Ms": 1.165,
-      "p95Ms": 1.263
+      "meanMs": 1.186,
+      "p50Ms": 1.176,
+      "p95Ms": 1.283
     },
     "warmCost": {
       "runs": 30,
-      "meanMs": 1.259,
-      "p50Ms": 1.238,
-      "p95Ms": 1.365
+      "meanMs": 1.263,
+      "p50Ms": 1.254,
+      "p95Ms": 1.35
     }
   },
   "serverAction": {
@@ -62,23 +62,23 @@
     "before": {
       "versionReadsFirstAction": 3,
       "versionReadsPerLaterAction": 2,
-      "firstActionMs": 7.322,
+      "firstActionMs": 7.325,
       "laterActions": {
         "runs": 200,
-        "meanMs": 2.768,
-        "p50Ms": 2.754,
-        "p95Ms": 2.846
+        "meanMs": 2.758,
+        "p50Ms": 2.742,
+        "p95Ms": 2.832
       }
     },
     "after": {
       "versionReadsFirstAction": 1,
       "versionReadsPerLaterAction": 0,
-      "firstActionMs": 1.669,
+      "firstActionMs": 1.671,
       "laterActions": {
         "runs": 200,
-        "meanMs": 0.063,
-        "p50Ms": 0.061,
-        "p95Ms": 0.083
+        "meanMs": 0.066,
+        "p50Ms": 0.063,
+        "p95Ms": 0.088
       }
     }
   },
@@ -91,8 +91,8 @@
       "authzVersionFor": 6,
       "customRolesVersionFor": 6,
       "authzVersionsFor": 0,
-      "firstPageMs": 21.85,
-      "secondPageMs": 20.996
+      "firstPageMs": 21.697,
+      "secondPageMs": 20.386
     },
     "after": {
       "versionReadsFirstPage": 1,
@@ -100,8 +100,8 @@
       "authzVersionFor": 0,
       "customRolesVersionFor": 0,
       "authzVersionsFor": 1,
-      "firstPageMs": 14.137,
-      "secondPageMs": 12.503
+      "firstPageMs": 13.722,
+      "secondPageMs": 12.147
     }
   },
   "sharedEntry": {
@@ -114,7 +114,7 @@
       "runs": 10000,
       "meanMs": 0.026,
       "p50Ms": 0.024,
-      "p95Ms": 0.034
+      "p95Ms": 0.035
     },
     "note": "The fingerprint covers grants, not the tenant id: admins of two organisations share it, so a bsb.kept key adds the tenant when the data differs by tenant"
   },
@@ -122,15 +122,15 @@
     "versionReadMs": 1.331,
     "withoutStore": {
       "versionReads": 1,
-      "ms": 1.352
+      "ms": 1.354
     },
     "storeEmpty": {
       "versionReads": 1,
-      "ms": 1.407
+      "ms": 1.406
     },
     "storeFilledByAnotherInstance": {
       "versionReads": 0,
-      "ms": 0.012
+      "ms": 0.011
     }
   }
 }
