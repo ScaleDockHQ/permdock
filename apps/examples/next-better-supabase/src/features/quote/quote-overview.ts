@@ -17,10 +17,18 @@ betterSupabase.registerTable(quote_overviewsTable);
  */
 export const quotesOverview = bsb.kept(
   async (ctx, organization: string) => {
-    const claims =
-      ctx.auth.kind === "user" ? ctx.auth.claims : { role: "anon" };
+    // The session token names no tenant, and has_active reads tenant_id.
+    // A signed-out render has no execute grant; shareKey stores nothing for it.
+    if (ctx.auth.kind !== "user") {
+      return { organization, total: 0 };
+    }
     const rows = await postgres
-      .asUser(claims)
+      .asUser({
+        ...ctx.auth.claims,
+        sub: ctx.auth.user.id,
+        role: "authenticated",
+        tenant_id: organization,
+      })
       .queryRaw<{ readonly total: number | null }>(
         "select public.quotes_overview_payload() as total",
       );
