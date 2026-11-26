@@ -23,7 +23,10 @@ import {
 // the authorizer and `permdock generate` keep `policy`.
 export const {
   getPermDock,
+  getPermission,
+  getPermissions,
   getSnapshot,
+  requirePermission,
   PermDockProvider,
   permdockHandler,
   protectAction,

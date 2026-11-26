@@ -8,7 +8,7 @@ import { use } from "react";
 
 import { permissions } from "../../../../permissions.ts";
 
-type NavPath = "/staff" | "/quotes";
+type NavPath = "/staff" | "/quotes" | "/settings" | "/billing";
 type NavBase = `/${string}/${string}`;
 type NavHref = `${NavBase}${NavPath}`;
 
@@ -31,6 +31,18 @@ const items: readonly Item[] = [
     label: "Quotes",
     path: "/quotes",
     permission: permissions.quotes.list,
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    path: "/settings",
+    permission: permissions.settings.read,
+  },
+  {
+    id: "billing",
+    label: "Billing",
+    path: "/billing",
+    permission: permissions.billing.read,
   },
 ];
 
