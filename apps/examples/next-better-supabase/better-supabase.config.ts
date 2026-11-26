@@ -64,6 +64,26 @@ export default defineConfig({
       block: "share-links",
       permissions: { create: "quotes.update", read: "quotes.read" },
     },
+    // SCIM and auto-join assign these, highest first. The provider model
+    // keeps the role list out of the permissions block.
+    { block: "sso", options: { roleOrder: ["admin", "member"] } },
+    "invitations",
+    "entitlements",
+    "impersonation",
+    "organizations",
+    "sessions",
+    "api-keys",
+    "settings",
+    "usage",
+    "teams",
+    "relations",
+    "approvals",
+    "access-requests",
+    "service-accounts",
+    "security-events",
+    "automations",
+    "housekeeping",
+    "seeds",
   ],
   tooling: {
     doctor: {

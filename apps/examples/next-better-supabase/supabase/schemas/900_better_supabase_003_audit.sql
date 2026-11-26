@@ -1,6 +1,6 @@
 -- better-supabase module: audit
 -- @bsb-block audit@16 managed
--- @bsb-hash sha256:543680f17c6ccdc9673dcca203992fbc78c5c9b267374fa6fbb54bd3ee799106
+-- @bsb-hash sha256:5951b237c42c4806671dba8b8b80f216088ffb36efabd9d90594fe9153674d40
 -- Records inserts, updates and deletes with the actor and changed columns for tables you register, plus semantic events through audit_event(), with redaction, an append-only guard, a tenant read policy and per-tenant retention as options.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -201,6 +201,13 @@ begin
     execute format('select %s($1)::text', (entry.tenant_function::regprocedure)::oid::regproc) into path_value using row_data;
     row_tenant := case when path_value ~* '^[0-9a-f-]{36}$' then (path_value)::uuid end;
   end if;
+  if row_tenant is not null then
+    v_label := better_supabase.memo_slot_get('audit.tenant_label.t' || replace(row_tenant::text, '-', ''));
+    if v_label is null then
+      v_label := (select o."name"::text from "better_supabase"."organizations" o where o."id" = row_tenant);
+      perform better_supabase.memo_slot_set('audit.tenant_label.t' || replace(row_tenant::text, '-', ''), coalesce(v_label, ''));
+    end if;
+  end if;
   old_row := old_row - entry.ignore;
   new_row := new_row - entry.ignore;
   if tg_op = 'UPDATE' then
@@ -244,7 +251,7 @@ begin
       else 'system'
     end,
     coalesce(v_jwt -> 'user_metadata' ->> 'full_name', v_jwt ->> 'email'),
-    null,
+    v_label,
     row_data ->> entry.label_column,
     null,
     null,
@@ -333,6 +340,9 @@ begin
         k.old_row || coalesce((select jsonb_object_agg(r, '"[redacted]"'::jsonb) from unnest(entry.redact) r where k.old_row ? r), '{}') as old_row,
         k.new_row || coalesce((select jsonb_object_agg(r, '"[redacted]"'::jsonb) from unnest(entry.redact) r where k.new_row ? r), '{}') as new_row
       from kept k
+    ), labels as (
+      select t.row_tenant as tenant_key, (select o."name"::text from "better_supabase"."organizations" o where o."id" = t.row_tenant) as label
+      from (select distinct row_tenant from kept) t
     )
     insert into "better_supabase"."audit_events" ("table_name", "record_id", "op", "old_record", "new_record", "changed", "actor_id", "actor_role", "tenant_id", "impersonated_by", "impersonation_reason", "support_session_id", "event_type", "category", "outcome", "source", "target_type", "actor_kind", "actor_label", "tenant_label", "target_label", "summary", "summary_key", "summary_params", "request_id", "correlation_id", "scope")
     select tg_table_schema || '.' || tg_table_name,
@@ -363,7 +373,7 @@ begin
       else 'system'
     end,
     coalesce(v_jwt -> 'user_metadata' ->> 'full_name', v_jwt ->> 'email'),
-    null,
+    l.label,
     row_data ->> entry.label_column,
     null,
     null,
@@ -371,7 +381,8 @@ begin
     coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.request_id', true)), better_supabase.request_id_or_null((v_headers ->> 'x-request-id'))),
     coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.correlation_id', true)), better_supabase.request_id_or_null((v_headers ->> 'x-correlation-id'))),
     case when row_tenant is null then 'platform' else 'tenant' end
-    from final;
+    from final
+    left join labels l on l.tenant_key is not distinct from final.row_tenant;
   elsif tg_op = 'DELETE' then
     with src as (
       select to_jsonb(o) as old_row, null::jsonb as new_row from old_rows o
@@ -396,6 +407,9 @@ begin
         k.old_row || coalesce((select jsonb_object_agg(r, '"[redacted]"'::jsonb) from unnest(entry.redact) r where k.old_row ? r), '{}') as old_row,
         k.new_row || coalesce((select jsonb_object_agg(r, '"[redacted]"'::jsonb) from unnest(entry.redact) r where k.new_row ? r), '{}') as new_row
       from kept k
+    ), labels as (
+      select t.row_tenant as tenant_key, (select o."name"::text from "better_supabase"."organizations" o where o."id" = t.row_tenant) as label
+      from (select distinct row_tenant from kept) t
     )
     insert into "better_supabase"."audit_events" ("table_name", "record_id", "op", "old_record", "new_record", "changed", "actor_id", "actor_role", "tenant_id", "impersonated_by", "impersonation_reason", "support_session_id", "event_type", "category", "outcome", "source", "target_type", "actor_kind", "actor_label", "tenant_label", "target_label", "summary", "summary_key", "summary_params", "request_id", "correlation_id", "scope")
     select tg_table_schema || '.' || tg_table_name,
@@ -426,7 +440,7 @@ begin
       else 'system'
     end,
     coalesce(v_jwt -> 'user_metadata' ->> 'full_name', v_jwt ->> 'email'),
-    null,
+    l.label,
     row_data ->> entry.label_column,
     null,
     null,
@@ -434,7 +448,8 @@ begin
     coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.request_id', true)), better_supabase.request_id_or_null((v_headers ->> 'x-request-id'))),
     coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.correlation_id', true)), better_supabase.request_id_or_null((v_headers ->> 'x-correlation-id'))),
     case when row_tenant is null then 'platform' else 'tenant' end
-    from final;
+    from final
+    left join labels l on l.tenant_key is not distinct from final.row_tenant;
   else
     with src as (
       select o.j as old_row, n.j as new_row
@@ -461,6 +476,9 @@ begin
         k.old_row || coalesce((select jsonb_object_agg(r, '"[redacted]"'::jsonb) from unnest(entry.redact) r where k.old_row ? r), '{}') as old_row,
         k.new_row || coalesce((select jsonb_object_agg(r, '"[redacted]"'::jsonb) from unnest(entry.redact) r where k.new_row ? r), '{}') as new_row
       from kept k
+    ), labels as (
+      select t.row_tenant as tenant_key, (select o."name"::text from "better_supabase"."organizations" o where o."id" = t.row_tenant) as label
+      from (select distinct row_tenant from kept) t
     )
     insert into "better_supabase"."audit_events" ("table_name", "record_id", "op", "old_record", "new_record", "changed", "actor_id", "actor_role", "tenant_id", "impersonated_by", "impersonation_reason", "support_session_id", "event_type", "category", "outcome", "source", "target_type", "actor_kind", "actor_label", "tenant_label", "target_label", "summary", "summary_key", "summary_params", "request_id", "correlation_id", "scope")
     select tg_table_schema || '.' || tg_table_name,
@@ -491,7 +509,7 @@ begin
       else 'system'
     end,
     coalesce(v_jwt -> 'user_metadata' ->> 'full_name', v_jwt ->> 'email'),
-    null,
+    l.label,
     row_data ->> entry.label_column,
     null,
     null,
@@ -499,7 +517,8 @@ begin
     coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.request_id', true)), better_supabase.request_id_or_null((v_headers ->> 'x-request-id'))),
     coalesce(better_supabase.request_id_or_null(current_setting('better_supabase.correlation_id', true)), better_supabase.request_id_or_null((v_headers ->> 'x-correlation-id'))),
     case when row_tenant is null then 'platform' else 'tenant' end
-    from final;
+    from final
+    left join labels l on l.tenant_key is not distinct from final.row_tenant;
   end if;
   return null;
 end;
@@ -923,7 +942,7 @@ begin
       else 'system'
     end),
     coalesce(actor_label, coalesce(auth.jwt() -> 'user_metadata' ->> 'full_name', auth.jwt() ->> 'email')),
-    null,
+    (select o."name"::text from "better_supabase"."organizations" o where o."id" = tenant),
     target_label,
     summary,
     coalesce(summary_key, event_type),
@@ -1107,7 +1126,7 @@ begin
       else 'system'
     end),
     coalesce(actor_label, coalesce(auth.jwt() -> 'user_metadata' ->> 'full_name', auth.jwt() ->> 'email')),
-    null,
+    (select o."name"::text from "better_supabase"."organizations" o where o."id" = tenant),
     target_label,
     summary,
     coalesce(summary_key, event_type),

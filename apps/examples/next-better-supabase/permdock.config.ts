@@ -24,10 +24,45 @@ export default defineConfig({
     actions: { manage: "none", revert: "none" },
     scopeTypes: { tenant: "uuid" },
     // `audit` names better-supabase's audit block keys; the block owns its table and policies.
-    tables: { staff: "staff", quotes: "quotes", audit: false },
+    // The blocks own their tables and policies. These resources exist so the
+    // provider can name their keys; they are not public tables.
+    tables: {
+      staff: "staff",
+      quotes: "quotes",
+      audit: false,
+      members: false,
+      organization: false,
+      teams: false,
+      settings: false,
+      approvals: false,
+      access_requests: false,
+      impersonation: false,
+      api_keys: false,
+      service_accounts: false,
+      usage: false,
+      sso: false,
+      relations: false,
+      automations: false,
+      billing: false,
+    },
     readOnlyActors: true,
     // Out-of-office covers: a delegate approves for the delegator inside a window.
-    approvals: { delegations: true },
+    // The store is the approvals block's table, not a second one.
+    approvals: {
+      delegations: true,
+      table: "better_supabase.approval_requests",
+    },
+    apiKeys: true,
+    assignments: {
+      tables: [
+        {
+          table: "better_supabase.invitations",
+          scope: "organization",
+          id: "tenant_id",
+          role: "role",
+        },
+      ],
+    },
     // The guest quote page reads through an exchanged share-link capability.
     capabilities: true,
     // The app keeps each custom role's entries in `public.role_permissions`; a trigger copies them.
