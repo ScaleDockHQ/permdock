@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { createPermDockPlugin } from "permdock/next/plugin";
+
 const config: NextConfig = {
   reactStrictMode: true,
   reactCompiler: true,
@@ -23,4 +25,4 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default createPermDockPlugin()(config);

@@ -49,6 +49,13 @@ export const freshMemberships = claimsFirst(memberships, {
   versions,
 });
 
+export const authorization = authorizer({
+  policy,
+  memberships,
+  version,
+  intent,
+});
+
 export const bsb = createNext(betterSupabase, {
   env: {
     url: env.supabaseUrl,
@@ -57,7 +64,7 @@ export const bsb = createNext(betterSupabase, {
   },
   postgres,
   versions,
-  authorizer: authorizer({ policy, memberships, version, intent }),
+  authorizer: authorization,
   auth: {
     ...(env.verificationKeys && { jwks: env.verificationKeys }),
     issuer,
