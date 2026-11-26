@@ -1,0 +1,2630 @@
+{
+  "sample": "supabase",
+  "seed": 100000,
+  "base": "http://127.0.0.1:3489",
+  "started": "2026-11-26T11:28:03.027Z",
+  "runsPerRoute": 5,
+  "results": {
+    "quotes-list": {
+      "user": "Olivia",
+      "url": "http://127.0.0.1:3489/en/acme/quotes",
+      "cold": {
+        "ttfbMs": 7.1,
+        "lcpMs": 116,
+        "fcpMs": 64,
+        "facts": {
+          "ttfbMs": 8,
+          "domContentLoadedMs": 106,
+          "loadMs": 106.10000002384186,
+          "htmlEncodedBytes": 9261,
+          "htmlDecodedBytes": 28416,
+          "rscPayloadBytes": 24654,
+          "snapshotBytes": null,
+          "domNodes": 51,
+          "links": 2,
+          "heapMB": 8,
+          "serverReads": [],
+          "rscRequests": [
+            {
+              "encodedBytes": 223,
+              "decodedBytes": 403,
+              "serverMs": 12
+            },
+            {
+              "encodedBytes": 223,
+              "decodedBytes": 403,
+              "serverMs": 12
+            },
+            {
+              "encodedBytes": 2296,
+              "decodedBytes": 8425,
+              "serverMs": 1
+            },
+            {
+              "encodedBytes": 1451,
+              "decodedBytes": 3052,
+              "serverMs": 10
+            },
+            {
+              "encodedBytes": 2266,
+              "decodedBytes": 5634,
+              "serverMs": 14
+            }
+          ],
+          "serverTiming": [],
+          "requests": [
+            {
+              "kind": "document",
+              "count": 1
+            },
+            {
+              "kind": "prefetch",
+              "count": 1
+            },
+            {
+              "kind": "other",
+              "count": 13
+            },
+            {
+              "kind": "rsc",
+              "count": 5
+            }
+          ]
+        }
+      },
+      "warmMedian": {
+        "ttfbMs": 1.9,
+        "lcpMs": 36,
+        "fcpMs": 24,
+        "cls": 0.01,
+        "loadMs": 15.100000023841858,
+        "htmlEncodedBytes": 9285,
+        "htmlDecodedBytes": 28416,
+        "rscPayloadBytes": 24654,
+        "snapshotBytes": null,
+        "domNodes": 51,
+        "heapMB": 11.8
+      },
+      "serverReads": [],
+      "serverTiming": [],
+      "requests": [
+        {
+          "kind": "document",
+          "count": 1
+        },
+        {
+          "kind": "prefetch",
+          "count": 1
+        },
+        {
+          "kind": "other",
+          "count": 13
+        },
+        {
+          "kind": "rsc",
+          "count": 5
+        }
+      ],
+      "spread": {
+        "ttfbMs": {
+          "min": 1.6,
+          "max": 1.9
+        },
+        "lcpMs": {
+          "min": 24,
+          "max": 44
+        },
+        "fcpMs": {
+          "min": 16,
+          "max": 24
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 364.6,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 64,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3888,
+              "startTime": 116,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 7.1,
+            "url": "http://127.0.0.1:3489/en/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 8,
+            "domContentLoadedMs": 106,
+            "loadMs": 106.10000002384186,
+            "htmlEncodedBytes": 9261,
+            "htmlDecodedBytes": 28416,
+            "rscPayloadBytes": 24654,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 8,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 12
+              },
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 12
+              },
+              {
+                "encodedBytes": 2296,
+                "decodedBytes": 8425,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 1451,
+                "decodedBytes": 3052,
+                "serverMs": 10
+              },
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 14
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 5
+              }
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 312.4,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 16,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3888,
+              "startTime": 32,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.9,
+            "url": "http://127.0.0.1:3489/en/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 3.1999999284744263,
+            "domContentLoadedMs": 17.59999990463257,
+            "loadMs": 17.699999928474426,
+            "htmlEncodedBytes": 9284,
+            "htmlDecodedBytes": 28416,
+            "rscPayloadBytes": 24654,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 11.8,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 2296,
+                "decodedBytes": 8425,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 1450,
+                "decodedBytes": 3052,
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 12
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 5
+              }
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 323.9,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3888,
+              "startTime": 44,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.9,
+            "url": "http://127.0.0.1:3489/en/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.899999976158142,
+            "domContentLoadedMs": 15,
+            "loadMs": 15.100000023841858,
+            "htmlEncodedBytes": 9285,
+            "htmlDecodedBytes": 28416,
+            "rscPayloadBytes": 24654,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 12.3,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 2296,
+                "decodedBytes": 8425,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 1450,
+                "decodedBytes": 3052,
+                "serverMs": 8
+              },
+              {
+                "encodedBytes": 2267,
+                "decodedBytes": 5634,
+                "serverMs": 12
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 5
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 317.2,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 20,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3888,
+              "startTime": 36,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.7,
+            "url": "http://127.0.0.1:3489/en/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.5999999046325684,
+            "domContentLoadedMs": 14.399999976158142,
+            "loadMs": 14.399999976158142,
+            "htmlEncodedBytes": 9285,
+            "htmlDecodedBytes": 28416,
+            "rscPayloadBytes": 24654,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 6.1,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 2296,
+                "decodedBytes": 8425,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 1451,
+                "decodedBytes": 3052,
+                "serverMs": 8
+              },
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 11
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 5
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 322.2,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3888,
+              "startTime": 24,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.6,
+            "url": "http://127.0.0.1:3489/en/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.5,
+            "domContentLoadedMs": 14.200000047683716,
+            "loadMs": 14.200000047683716,
+            "htmlEncodedBytes": 9284,
+            "htmlDecodedBytes": 28416,
+            "rscPayloadBytes": 24654,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 11.2,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 2296,
+                "decodedBytes": 8425,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 1447,
+                "decodedBytes": 3052,
+                "serverMs": 8
+              },
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 12
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 5
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "members": {
+      "user": "Olivia",
+      "url": "http://127.0.0.1:3489/en/acme/staff",
+      "cold": {
+        "ttfbMs": 1.8,
+        "lcpMs": 36,
+        "fcpMs": 20,
+        "facts": {
+          "ttfbMs": 2.700000047683716,
+          "domContentLoadedMs": 15.399999976158142,
+          "loadMs": 15.5,
+          "htmlEncodedBytes": 9274,
+          "htmlDecodedBytes": 28396,
+          "rscPayloadBytes": 24636,
+          "snapshotBytes": null,
+          "domNodes": 51,
+          "links": 2,
+          "heapMB": 10.5,
+          "serverReads": [],
+          "rscRequests": [
+            {
+              "encodedBytes": 2265,
+              "decodedBytes": 5634,
+              "serverMs": 7
+            }
+          ],
+          "serverTiming": [],
+          "requests": [
+            {
+              "kind": "document",
+              "count": 1
+            },
+            {
+              "kind": "prefetch",
+              "count": 1
+            },
+            {
+              "kind": "other",
+              "count": 13
+            },
+            {
+              "kind": "rsc",
+              "count": 1
+            }
+          ]
+        }
+      },
+      "warmMedian": {
+        "ttfbMs": 1.8,
+        "lcpMs": 36,
+        "fcpMs": 24,
+        "cls": 0.01,
+        "loadMs": 16.600000023841858,
+        "htmlEncodedBytes": 9273,
+        "htmlDecodedBytes": 28396,
+        "rscPayloadBytes": 24636,
+        "snapshotBytes": null,
+        "domNodes": 51,
+        "heapMB": 8.9
+      },
+      "serverReads": [],
+      "serverTiming": [],
+      "requests": [
+        {
+          "kind": "document",
+          "count": 1
+        },
+        {
+          "kind": "prefetch",
+          "count": 1
+        },
+        {
+          "kind": "other",
+          "count": 13
+        },
+        {
+          "kind": "rsc",
+          "count": 1
+        }
+      ],
+      "spread": {
+        "ttfbMs": {
+          "min": 1.5,
+          "max": 1.9
+        },
+        "lcpMs": {
+          "min": 32,
+          "max": 44
+        },
+        "fcpMs": {
+          "min": 16,
+          "max": 28
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 316.2,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 20,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3582,
+              "startTime": 36,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.8,
+            "url": "http://127.0.0.1:3489/en/acme/staff"
+          },
+          "facts": {
+            "ttfbMs": 2.700000047683716,
+            "domContentLoadedMs": 15.399999976158142,
+            "loadMs": 15.5,
+            "htmlEncodedBytes": 9274,
+            "htmlDecodedBytes": 28396,
+            "rscPayloadBytes": 24636,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 10.5,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 2265,
+                "decodedBytes": 5634,
+                "serverMs": 7
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 312.8,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 16,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3582,
+              "startTime": 32,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.9,
+            "url": "http://127.0.0.1:3489/en/acme/staff"
+          },
+          "facts": {
+            "ttfbMs": 3,
+            "domContentLoadedMs": 17.100000023841858,
+            "loadMs": 17.100000023841858,
+            "htmlEncodedBytes": 9271,
+            "htmlDecodedBytes": 28396,
+            "rscPayloadBytes": 24636,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 6.2,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 7
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 323.9,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 28,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3582,
+              "startTime": 44,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.5,
+            "url": "http://127.0.0.1:3489/en/acme/staff"
+          },
+          "facts": {
+            "ttfbMs": 2.5,
+            "domContentLoadedMs": 15.600000023841858,
+            "loadMs": 15.700000047683716,
+            "htmlEncodedBytes": 9272,
+            "htmlDecodedBytes": 28396,
+            "rscPayloadBytes": 24636,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 8.9,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 7
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 312.3,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 16,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3582,
+              "startTime": 32,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.8,
+            "url": "http://127.0.0.1:3489/en/acme/staff"
+          },
+          "facts": {
+            "ttfbMs": 2.5,
+            "domContentLoadedMs": 16.5,
+            "loadMs": 16.600000023841858,
+            "htmlEncodedBytes": 9273,
+            "htmlDecodedBytes": 28396,
+            "rscPayloadBytes": 24636,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 11.2,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 7
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 317.3,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3582,
+              "startTime": 36,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.5,
+            "url": "http://127.0.0.1:3489/en/acme/staff"
+          },
+          "facts": {
+            "ttfbMs": 2.399999976158142,
+            "domContentLoadedMs": 14.799999952316284,
+            "loadMs": 14.899999976158142,
+            "htmlEncodedBytes": 9275,
+            "htmlDecodedBytes": 28396,
+            "rscPayloadBytes": 24636,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 7.4,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 7
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "denied-staff": {
+      "user": "Carla",
+      "url": "http://127.0.0.1:3489/en/acme/staff",
+      "cold": {
+        "ttfbMs": 1.1,
+        "lcpMs": 28,
+        "fcpMs": 12,
+        "facts": {
+          "ttfbMs": 1.8000000715255737,
+          "domContentLoadedMs": 14.700000047683716,
+          "loadMs": 14.700000047683716,
+          "htmlEncodedBytes": 9272,
+          "htmlDecodedBytes": 28396,
+          "rscPayloadBytes": 24636,
+          "snapshotBytes": null,
+          "domNodes": 51,
+          "links": 2,
+          "heapMB": 7.1,
+          "serverReads": [],
+          "rscRequests": [
+            {
+              "encodedBytes": 2268,
+              "decodedBytes": 5634,
+              "serverMs": 7
+            }
+          ],
+          "serverTiming": [],
+          "requests": [
+            {
+              "kind": "document",
+              "count": 1
+            },
+            {
+              "kind": "prefetch",
+              "count": 1
+            },
+            {
+              "kind": "other",
+              "count": 13
+            },
+            {
+              "kind": "rsc",
+              "count": 1
+            }
+          ]
+        }
+      },
+      "warmMedian": {
+        "ttfbMs": 1.5,
+        "lcpMs": 36,
+        "fcpMs": 20,
+        "cls": 0.01,
+        "loadMs": 15.299999952316284,
+        "htmlEncodedBytes": 9276,
+        "htmlDecodedBytes": 28396,
+        "rscPayloadBytes": 24636,
+        "snapshotBytes": null,
+        "domNodes": 51,
+        "heapMB": 9.2
+      },
+      "serverReads": [],
+      "serverTiming": [],
+      "requests": [
+        {
+          "kind": "document",
+          "count": 1
+        },
+        {
+          "kind": "prefetch",
+          "count": 1
+        },
+        {
+          "kind": "other",
+          "count": 13
+        },
+        {
+          "kind": "rsc",
+          "count": 1
+        }
+      ],
+      "spread": {
+        "ttfbMs": {
+          "min": 1.3,
+          "max": 1.7
+        },
+        "lcpMs": {
+          "min": 28,
+          "max": 36
+        },
+        "fcpMs": {
+          "min": 16,
+          "max": 24
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 325,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 12,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3582,
+              "startTime": 28,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.1,
+            "url": "http://127.0.0.1:3489/en/acme/staff"
+          },
+          "facts": {
+            "ttfbMs": 1.8000000715255737,
+            "domContentLoadedMs": 14.700000047683716,
+            "loadMs": 14.700000047683716,
+            "htmlEncodedBytes": 9272,
+            "htmlDecodedBytes": 28396,
+            "rscPayloadBytes": 24636,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 7.1,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 2268,
+                "decodedBytes": 5634,
+                "serverMs": 7
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 315.7,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 20,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3582,
+              "startTime": 36,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.3,
+            "url": "http://127.0.0.1:3489/en/acme/staff"
+          },
+          "facts": {
+            "ttfbMs": 2.1999999284744263,
+            "domContentLoadedMs": 14.199999928474426,
+            "loadMs": 14.199999928474426,
+            "htmlEncodedBytes": 9273,
+            "htmlDecodedBytes": 28396,
+            "rscPayloadBytes": 24636,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 9.2,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 7
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 325.8,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 16,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3582,
+              "startTime": 28,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.7,
+            "url": "http://127.0.0.1:3489/en/acme/staff"
+          },
+          "facts": {
+            "ttfbMs": 2.700000047683716,
+            "domContentLoadedMs": 15.200000047683716,
+            "loadMs": 15.299999952316284,
+            "htmlEncodedBytes": 9276,
+            "htmlDecodedBytes": 28396,
+            "rscPayloadBytes": 24636,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 11.5,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 2268,
+                "decodedBytes": 5634,
+                "serverMs": 7
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 316.1,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 20,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3582,
+              "startTime": 36,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.5,
+            "url": "http://127.0.0.1:3489/en/acme/staff"
+          },
+          "facts": {
+            "ttfbMs": 2.3000000715255737,
+            "domContentLoadedMs": 14.5,
+            "loadMs": 14.5,
+            "htmlEncodedBytes": 9276,
+            "htmlDecodedBytes": 28396,
+            "rscPayloadBytes": 24636,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 7.2,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 2269,
+                "decodedBytes": 5634,
+                "serverMs": 7
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 1
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 317.1,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3582,
+              "startTime": 36,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.5,
+            "url": "http://127.0.0.1:3489/en/acme/staff"
+          },
+          "facts": {
+            "ttfbMs": 2.5,
+            "domContentLoadedMs": 16.200000047683716,
+            "loadMs": 16.399999976158142,
+            "htmlEncodedBytes": 9276,
+            "htmlDecodedBytes": 28396,
+            "rscPayloadBytes": 24636,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 7.2,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 2267,
+                "decodedBytes": 5634,
+                "serverMs": 8
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "unauthorized": {
+      "user": null,
+      "url": "http://127.0.0.1:3489/en/acme/quotes",
+      "cold": {
+        "ttfbMs": 1.3,
+        "lcpMs": 36,
+        "fcpMs": 20,
+        "facts": {
+          "ttfbMs": 2,
+          "domContentLoadedMs": 12.300000071525574,
+          "loadMs": 12.300000071525574,
+          "htmlEncodedBytes": 9284,
+          "htmlDecodedBytes": 28416,
+          "rscPayloadBytes": 24654,
+          "snapshotBytes": null,
+          "domNodes": 51,
+          "links": 2,
+          "heapMB": 8.3,
+          "serverReads": [],
+          "rscRequests": [
+            {
+              "encodedBytes": 223,
+              "decodedBytes": 403,
+              "serverMs": 1
+            },
+            {
+              "encodedBytes": 223,
+              "decodedBytes": 403,
+              "serverMs": 1
+            },
+            {
+              "encodedBytes": 2296,
+              "decodedBytes": 8425,
+              "serverMs": 1
+            },
+            {
+              "encodedBytes": 1449,
+              "decodedBytes": 3052,
+              "serverMs": 8
+            },
+            {
+              "encodedBytes": 2266,
+              "decodedBytes": 5634,
+              "serverMs": 12
+            }
+          ],
+          "serverTiming": [],
+          "requests": [
+            {
+              "kind": "document",
+              "count": 1
+            },
+            {
+              "kind": "prefetch",
+              "count": 1
+            },
+            {
+              "kind": "other",
+              "count": 13
+            },
+            {
+              "kind": "rsc",
+              "count": 5
+            }
+          ]
+        }
+      },
+      "warmMedian": {
+        "ttfbMs": 1.8,
+        "lcpMs": 36,
+        "fcpMs": 24,
+        "cls": 0.01,
+        "loadMs": 15,
+        "htmlEncodedBytes": 9286,
+        "htmlDecodedBytes": 28416,
+        "rscPayloadBytes": 24654,
+        "snapshotBytes": null,
+        "domNodes": 51,
+        "heapMB": 11
+      },
+      "serverReads": [],
+      "serverTiming": [],
+      "requests": [
+        {
+          "kind": "document",
+          "count": 1
+        },
+        {
+          "kind": "prefetch",
+          "count": 1
+        },
+        {
+          "kind": "other",
+          "count": 13
+        },
+        {
+          "kind": "rsc",
+          "count": 5
+        }
+      ],
+      "spread": {
+        "ttfbMs": {
+          "min": 1.6,
+          "max": 2.1
+        },
+        "lcpMs": {
+          "min": 32,
+          "max": 44
+        },
+        "fcpMs": {
+          "min": 16,
+          "max": 24
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 315.7,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 20,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3888,
+              "startTime": 36,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.3,
+            "url": "http://127.0.0.1:3489/en/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2,
+            "domContentLoadedMs": 12.300000071525574,
+            "loadMs": 12.300000071525574,
+            "htmlEncodedBytes": 9284,
+            "htmlDecodedBytes": 28416,
+            "rscPayloadBytes": 24654,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 8.3,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 2296,
+                "decodedBytes": 8425,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 1449,
+                "decodedBytes": 3052,
+                "serverMs": 8
+              },
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 12
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 5
+              }
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 318.2,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3888,
+              "startTime": 36,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.8,
+            "url": "http://127.0.0.1:3489/en/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.5,
+            "domContentLoadedMs": 14.599999904632568,
+            "loadMs": 14.599999904632568,
+            "htmlEncodedBytes": 9288,
+            "htmlDecodedBytes": 28416,
+            "rscPayloadBytes": 24654,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 11,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 2296,
+                "decodedBytes": 8425,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 1449,
+                "decodedBytes": 3052,
+                "serverMs": 8
+              },
+              {
+                "encodedBytes": 2267,
+                "decodedBytes": 5634,
+                "serverMs": 13
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 5
+              }
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 326.6,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 16,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3888,
+              "startTime": 32,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 2.1,
+            "url": "http://127.0.0.1:3489/en/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.899999976158142,
+            "domContentLoadedMs": 16.200000047683716,
+            "loadMs": 16.300000071525574,
+            "htmlEncodedBytes": 9285,
+            "htmlDecodedBytes": 28416,
+            "rscPayloadBytes": 24654,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 12.7,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 2296,
+                "decodedBytes": 8425,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 1447,
+                "decodedBytes": 3052,
+                "serverMs": 7
+              },
+              {
+                "encodedBytes": 2267,
+                "decodedBytes": 5634,
+                "serverMs": 11
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 5
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 322.8,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3888,
+              "startTime": 44,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.8,
+            "url": "http://127.0.0.1:3489/en/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.6999999284744263,
+            "domContentLoadedMs": 15,
+            "loadMs": 15,
+            "htmlEncodedBytes": 9286,
+            "htmlDecodedBytes": 28416,
+            "rscPayloadBytes": 24654,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 8.1,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 2
+              },
+              {
+                "encodedBytes": 2296,
+                "decodedBytes": 8425,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 1450,
+                "decodedBytes": 3052,
+                "serverMs": 7
+              },
+              {
+                "encodedBytes": 2266,
+                "decodedBytes": 5634,
+                "serverMs": 10
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 5
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [
+                {
+                  "startTime": 316.7,
+                  "value": 0.009
+                }
+              ],
+              "score": 0.01
+            },
+            "fcp": 20,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "p",
+              "size": 3888,
+              "startTime": 36,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.6,
+            "url": "http://127.0.0.1:3489/en/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.399999976158142,
+            "domContentLoadedMs": 14.5,
+            "loadMs": 14.599999904632568,
+            "htmlEncodedBytes": 9284,
+            "htmlDecodedBytes": 28416,
+            "rscPayloadBytes": 24654,
+            "snapshotBytes": null,
+            "domNodes": 51,
+            "links": 2,
+            "heapMB": 10.4,
+            "serverReads": [],
+            "rscRequests": [
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 223,
+                "decodedBytes": 403,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 2296,
+                "decodedBytes": 8425,
+                "serverMs": 1
+              },
+              {
+                "encodedBytes": 1449,
+                "decodedBytes": 3052,
+                "serverMs": 9
+              },
+              {
+                "encodedBytes": 2265,
+                "decodedBytes": 5634,
+                "serverMs": 12
+              }
+            ],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 13
+              },
+              {
+                "kind": "rsc",
+                "count": 5
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "portal-quotes": {
+      "user": "Carla",
+      "url": "http://127.0.0.1:3489/en/portal/acme/quotes",
+      "cold": {
+        "ttfbMs": 5.2,
+        "lcpMs": 16,
+        "fcpMs": 16,
+        "facts": {
+          "ttfbMs": 6,
+          "domContentLoadedMs": 17.100000023841858,
+          "loadMs": 17.200000047683716,
+          "htmlEncodedBytes": 7970,
+          "htmlDecodedBytes": 25626,
+          "rscPayloadBytes": 23502,
+          "snapshotBytes": null,
+          "domNodes": 40,
+          "links": 0,
+          "heapMB": 8.7,
+          "serverReads": [],
+          "rscRequests": [],
+          "serverTiming": [],
+          "requests": [
+            {
+              "kind": "document",
+              "count": 1
+            },
+            {
+              "kind": "prefetch",
+              "count": 1
+            },
+            {
+              "kind": "other",
+              "count": 11
+            }
+          ]
+        }
+      },
+      "warmMedian": {
+        "ttfbMs": 1.5,
+        "lcpMs": 24,
+        "fcpMs": 24,
+        "cls": 0,
+        "loadMs": 12.800000071525574,
+        "htmlEncodedBytes": 7977,
+        "htmlDecodedBytes": 25626,
+        "rscPayloadBytes": 23502,
+        "snapshotBytes": null,
+        "domNodes": 40,
+        "heapMB": 12.1
+      },
+      "serverReads": [],
+      "serverTiming": [],
+      "requests": [
+        {
+          "kind": "document",
+          "count": 1
+        },
+        {
+          "kind": "prefetch",
+          "count": 1
+        },
+        {
+          "kind": "other",
+          "count": 11
+        }
+      ],
+      "spread": {
+        "ttfbMs": {
+          "min": 1.4,
+          "max": 1.7
+        },
+        "lcpMs": {
+          "min": 16,
+          "max": 24
+        },
+        "fcpMs": {
+          "min": 16,
+          "max": 24
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 16,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "h1",
+              "size": 6068,
+              "startTime": 16,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 5.2,
+            "url": "http://127.0.0.1:3489/en/portal/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 6,
+            "domContentLoadedMs": 17.100000023841858,
+            "loadMs": 17.200000047683716,
+            "htmlEncodedBytes": 7970,
+            "htmlDecodedBytes": 25626,
+            "rscPayloadBytes": 23502,
+            "snapshotBytes": null,
+            "domNodes": 40,
+            "links": 0,
+            "heapMB": 8.7,
+            "serverReads": [],
+            "rscRequests": [],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 11
+              }
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "h1",
+              "size": 6068,
+              "startTime": 24,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.7,
+            "url": "http://127.0.0.1:3489/en/portal/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.8000000715255737,
+            "domContentLoadedMs": 12.800000071525574,
+            "loadMs": 12.800000071525574,
+            "htmlEncodedBytes": 7978,
+            "htmlDecodedBytes": 25626,
+            "rscPayloadBytes": 23502,
+            "snapshotBytes": null,
+            "domNodes": 40,
+            "links": 0,
+            "heapMB": 12.2,
+            "serverReads": [],
+            "rscRequests": [],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 11
+              }
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 20,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "h1",
+              "size": 6068,
+              "startTime": 20,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.4,
+            "url": "http://127.0.0.1:3489/en/portal/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.1999999284744263,
+            "domContentLoadedMs": 11.199999928474426,
+            "loadMs": 11.199999928474426,
+            "htmlEncodedBytes": 7976,
+            "htmlDecodedBytes": 25626,
+            "rscPayloadBytes": 23502,
+            "snapshotBytes": null,
+            "domNodes": 40,
+            "links": 0,
+            "heapMB": 8.7,
+            "serverReads": [],
+            "rscRequests": [],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 11
+              }
+            ]
+          }
+        },
+        {
+          "run": 4,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 24,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "h1",
+              "size": 6068,
+              "startTime": 24,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.5,
+            "url": "http://127.0.0.1:3489/en/portal/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.200000047683716,
+            "domContentLoadedMs": 15.100000023841858,
+            "loadMs": 15.100000023841858,
+            "htmlEncodedBytes": 7976,
+            "htmlDecodedBytes": 25626,
+            "rscPayloadBytes": 23502,
+            "snapshotBytes": null,
+            "domNodes": 40,
+            "links": 0,
+            "heapMB": 10.2,
+            "serverReads": [],
+            "rscRequests": [],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 11
+              }
+            ]
+          }
+        },
+        {
+          "run": 5,
+          "vitals": {
+            "cls": {
+              "entries": [],
+              "score": 0
+            },
+            "fcp": 16,
+            "hydratedComponents": [],
+            "hydration": null,
+            "inp": null,
+            "lcp": {
+              "element": "h1",
+              "size": 6068,
+              "startTime": 16,
+              "url": null
+            },
+            "lifecycle": {
+              "effectiveLaunch": {
+                "browserLaunched": true,
+                "engine": "chrome",
+                "launchHash": 15610629847005235000
+              },
+              "launched": false,
+              "relaunchedBrowser": false,
+              "restartedBackground": false,
+              "restoreStatus": "not_configured",
+              "reused": true,
+              "saveStatus": "not_configured"
+            },
+            "phases": [],
+            "ttfb": 1.5,
+            "url": "http://127.0.0.1:3489/en/portal/acme/quotes"
+          },
+          "facts": {
+            "ttfbMs": 2.100000023841858,
+            "domContentLoadedMs": 12,
+            "loadMs": 12,
+            "htmlEncodedBytes": 7977,
+            "htmlDecodedBytes": 25626,
+            "rscPayloadBytes": 23502,
+            "snapshotBytes": null,
+            "domNodes": 40,
+            "links": 0,
+            "heapMB": 12.1,
+            "serverReads": [],
+            "rscRequests": [],
+            "serverTiming": [],
+            "requests": [
+              {
+                "kind": "document",
+                "count": 1
+              },
+              {
+                "kind": "prefetch",
+                "count": 1
+              },
+              {
+                "kind": "other",
+                "count": 11
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "offline": {
+      "badge": true,
+      "title": "PermDock with better-supabase",
+      "navLinks": 2,
+      "wallMs": 1525
+    }
+  },
+  "notMeasured": [
+    "approve: the sample has no approve action",
+    "delete: the sample has no delete action or detail route"
+  ]
+}
