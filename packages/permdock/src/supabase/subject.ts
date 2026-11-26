@@ -301,7 +301,8 @@ export function actorOf(claims: unknown): SupabaseActorResult {
   }
 }
 
-const IDENTITY_SCOPES: ReadonlySet<string> = new Set([
+/** OpenID Connect identity scopes, which delegate no permission. */
+export const IDENTITY_SCOPES: ReadonlySet<string> = new Set([
   "openid",
   "profile",
   "email",

@@ -1,9 +1,14 @@
 import type { Policy, PolicyDelegation } from "../../index.ts";
-import type { RlsSqlContext, TokenScopesPlan } from "../sql/context.ts";
+import type {
+  DelegatedKeys,
+  RlsSqlContext,
+  TokenScopesPlan,
+} from "../sql/context.ts";
 
 import { delegatedScopeMap } from "../../core/oauth-scopes.ts";
 import { formerKeys } from "../../core/permission-leaf.ts";
 import { listPermissions } from "../../index.ts";
+import { IDENTITY_SCOPES } from "../../supabase/subject.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { subjectClaimJsonSql, subjectClaimSql } from "../sql/subject.ts";
 
@@ -45,8 +50,10 @@ export function tokenScopesOn(
  */
 function delegatedKeys(
   delegations: readonly PolicyDelegation[] | undefined,
-): Readonly<Record<string, readonly string[]>> {
-  const keys: Record<string, Set<string>> = {};
+): DelegatedKeys {
+  const all = new Set<string>();
+  const clients = new Map<string, Set<string>>();
+  let everyClient = false;
   for (const delegation of delegations ?? []) {
     const from = Array.isArray(delegation.from)
       ? delegation.from
@@ -63,15 +70,24 @@ function delegatedKeys(
     ) {
       continue;
     }
-    const target = delegation.to.id ?? "*";
-    keys[target] ??= new Set();
+    const id = delegation.to.id;
+    let target = all;
+    if (id === undefined) {
+      everyClient = true;
+    } else {
+      target = clients.get(id) ?? new Set();
+      clients.set(id, target);
+    }
     for (const key of delegation.permissions) {
-      keys[target].add(key);
+      target.add(key);
     }
   }
-  return Object.fromEntries(
-    Object.entries(keys).map(([target, set]) => [target, [...set].toSorted()]),
-  );
+  return {
+    ...(everyClient ? { all: [...all].toSorted() } : {}),
+    clients: Object.fromEntries(
+      [...clients].map(([id, set]) => [id, [...set].toSorted()]),
+    ),
+  };
 }
 
 /**
@@ -152,15 +168,31 @@ grant execute on function ${fn}(text) to authenticated;`;
   const client = subjectClaimSql(ctx, "client_id");
   const act = subjectClaimJsonSql(ctx, "act");
   const key = "split_part(split_part(p_grant, '#', 1), '@', 1)";
+  const covered = `exists (
+      select 1
+      from ${tokenScopeRows(ctx)}
+      where s.scope <> ''
+        and coalesce(${map}() -> s.scope, '[]'::jsonb)
+          ? ${key}
+    )`;
+  const identity = [...IDENTITY_SCOPES].map(quoteLiteral).join(", ");
   const delegated =
     plan.delegated === undefined
       ? ""
       : `
     when coalesce(${client}, '') <> ''
       and (${act} is null or ${act} = 'null'::jsonb)
-      and (coalesce(${delegationMap}() -> '*', '[]'::jsonb)
-        || coalesce(${delegationMap}() -> ${client}, '[]'::jsonb))
-        ? ${key} then true`;
+      and (${delegationMap}() ? 'all'
+        or ${delegationMap}() -> 'clients' ? ${client})
+    then (coalesce(${delegationMap}() -> 'all', '[]'::jsonb)
+        || coalesce(${delegationMap}() -> 'clients' -> ${client}, '[]'::jsonb))
+        ? ${key}
+      and (not exists (
+          select 1
+          from ${tokenScopeRows(ctx)}
+          where s.scope <> '' and s.scope <> all (array[${identity}])
+        )
+        or ${covered})`;
   const delegationFunction =
     plan.delegated === undefined
       ? ""
@@ -201,13 +233,7 @@ begin
       select 1 from ${qualified(ctx, "role_permissions")} rp
       where rp.grant_key = p_grant and rp.effect = 'deny'
     ) then true${delegated}
-    else exists (
-      select 1
-      from ${tokenScopeRows(ctx)}
-      where s.scope <> ''
-        and coalesce(${map}() -> s.scope, '[]'::jsonb)
-          ? ${key}
-    )
+    else ${covered}
   end
   );
 end;

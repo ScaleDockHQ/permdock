@@ -185,10 +185,13 @@ describe("rls token scopes", () => {
         'revoke execute on function "permdock".permdock_token_delegation_map() from public, anon, authenticated;',
       );
       expect(sql).toContain(
-        `'{"*":["post.read"],"docs":["note.read"]}'::jsonb`,
+        `'{"all":["post.read"],"clients":{"docs":["note.read"]}}'::jsonb`,
       );
       expect(sql).toContain(
-        `|| coalesce("permdock".permdock_token_delegation_map() -> ((select auth.jwt()) ->> 'client_id'), '[]'::jsonb))`,
+        `|| coalesce("permdock".permdock_token_delegation_map() -> 'clients' -> ((select auth.jwt()) ->> 'client_id'), '[]'::jsonb))`,
+      );
+      expect(sql).toContain(
+        `s.scope <> all (array['openid', 'profile', 'email', 'address', 'phone', 'offline_access'])`,
       );
     });
 

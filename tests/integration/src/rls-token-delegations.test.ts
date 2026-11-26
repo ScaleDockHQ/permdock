@@ -90,13 +90,36 @@ describe("rls.tokenScopes with delegations", () => {
     }
   };
 
-  it("caps an OAuth client token with identity scopes at the delegation", async () => {
-    expect(await rows({})).toStrictEqual({ read: 1, updated: 1 });
-    expect(
-      await rows({ client_id: "mcp-client", scope: "openid email" }),
-    ).toStrictEqual({ read: 1, updated: 0 });
-    expect(
-      await rows({ act: { sub: "agent-1" }, scope: "openid" }),
-    ).toStrictEqual({ read: 0, updated: 0 });
+  it("caps an OAuth client token at the delegation, and at its scopes when it has any", async () => {
+    const tokens = {
+      user: {},
+      identityOnly: { client_id: "mcp", scope: "openid email" },
+      perClient: { client_id: "docs", scope: "openid" },
+      otherClient: { client_id: "other", scope: ["openid"] },
+      scopeOutsideDelegation: { client_id: "mcp", scope: "mcp:write" },
+      delegationOutsideScope: { client_id: "docs", scope: "mcp:read" },
+      wildcardId: { client_id: "*", scope: "openid" },
+      clientWithAct: {
+        client_id: "docs",
+        act: { sub: "agent-1" },
+        scope: "openid",
+      },
+      apiKey: { api_key: { id: "key-1" } },
+    } as const;
+    const answers: Record<string, { read: number; updated: number }> = {};
+    for (const [name, claims] of Object.entries(tokens)) {
+      answers[name] = await rows(claims);
+    }
+    expect(answers).toStrictEqual({
+      user: { read: 1, updated: 1 },
+      identityOnly: { read: 1, updated: 0 },
+      perClient: { read: 1, updated: 1 },
+      otherClient: { read: 1, updated: 0 },
+      scopeOutsideDelegation: { read: 1, updated: 0 },
+      delegationOutsideScope: { read: 1, updated: 0 },
+      wildcardId: { read: 1, updated: 0 },
+      clientWithAct: { read: 0, updated: 0 },
+      apiKey: { read: 1, updated: 1 },
+    });
   });
 });
