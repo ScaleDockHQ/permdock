@@ -5,11 +5,13 @@ import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import { helpersSql } from "../../src/cli/rls/helpers.ts";
 import { assemblePolicies } from "../../src/cli/rls/policies.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
+import { rowConditionCoverage } from "../../src/core/row-conditions.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
   definePermissions,
   definePolicy,
+  relation,
   resource,
   role,
 } from "../../src/index.ts";
@@ -211,5 +213,36 @@ describe("rls generate with resource roles that set for", () => {
     }).policies.find((item) => item.name === "quote_select")?.using;
     expect(quote).toContain("quote_members");
     expect(quote).not.toContain("coalesce");
+  });
+});
+
+describe(rowConditionCoverage, () => {
+  it("lists a string where and a relation named after a scope", () => {
+    expect(rowConditionCoverage(policy)["quote.read"]).toStrictEqual({
+      equalities: ["status = 'sent'"],
+      relations: [],
+    });
+    const related = definePolicy(permissions, {
+      subject: () => null,
+      scopes: { org: { key: "orgId" } },
+      grants: [
+        allow(permissions.quote.read, {
+          to: relation(permissions.quote, "org"),
+        }),
+      ],
+    });
+    expect(rowConditionCoverage(related)).toStrictEqual({
+      "quote.read": { equalities: [], relations: ["org"] },
+    });
+    const unnamed = definePolicy(permissions, {
+      subject: () => null,
+      scopes: { tenant: { key: "orgId" } },
+      grants: [
+        allow(permissions.quote.read, {
+          to: relation(permissions.quote, "org"),
+        }),
+      ],
+    });
+    expect(rowConditionCoverage(unnamed)).toStrictEqual({});
   });
 });

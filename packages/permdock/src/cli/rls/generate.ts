@@ -1,3 +1,4 @@
+import type { RowConditionCoverage } from "../../core/row-conditions.ts";
 import type { ExitCode } from "../core/errors.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { RlsExplain } from "./explain.ts";
@@ -7,7 +8,10 @@ import type { IndexTarget } from "./indexes.ts";
 import type { LevelKey } from "./rows.ts";
 
 import { renamedKeys } from "../../core/permission-registry.ts";
-import { policyRowConditionKeys } from "../../core/row-conditions.ts";
+import {
+  policyRowConditionKeys,
+  rowConditionCoverage,
+} from "../../core/row-conditions.ts";
 import { listPermissions } from "../../index.ts";
 import { describeError, exitCodeOfError } from "../core/errors.ts";
 import { withSchemaDefaults } from "../sql/schema-tables.ts";
@@ -56,6 +60,8 @@ export type GenerateOutcome = {
   readonly keys?: {
     readonly permissions: readonly string[];
     readonly rowConditions: readonly string[];
+    /** Row conditions a policy expression can show it applies. */
+    readonly coverage?: Readonly<Record<string, RowConditionCoverage>>;
     /** Declared `<permission>@<level>` keys of levelled resources. */
     readonly levels: readonly LevelKey[];
     /** Former key to current key (`definePermissions` `renamed`). */
@@ -208,6 +214,7 @@ export async function runRlsGenerate(
           (leaf) => leaf.key,
         ),
         rowConditions: [...policyRowConditionKeys(policy)],
+        coverage: rowConditionCoverage(policy),
         levels: levelKeys(policy),
         renamed: Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
       },

@@ -1,3 +1,4 @@
+import type { RowConditionCoverage } from "../../core/row-conditions.ts";
 import type { SqlClient, SqlConnect } from "../pg.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { RolePermission } from "./helpers.ts";
@@ -11,6 +12,7 @@ import { beforeFirst } from "../shared/text.ts";
 import {
   callsHelper,
   HELPER_TABLES,
+  conditionShown,
   helperCallKeys,
 } from "../sql/helper-calls.ts";
 import { isPlatformSchema } from "../sql/platform.ts";
@@ -630,6 +632,11 @@ export type ExpectedMixed = {
    * `permdock_actor_may_write()`.
    */
   readonly readOnlyActors?: boolean;
+  /**
+   * Row conditions the policy expression can show it applies, so the helper
+   * call is not condition-blind.
+   */
+  readonly coverage?: Readonly<Record<string, RowConditionCoverage>>;
 };
 
 /** Every policy and RLS table outside the system schemas, and the seeded rows. */
@@ -803,7 +810,11 @@ export function diffMixed(
             `${policy.table}: policy ${policy.name} passes ${key}, which the policy does not declare, so it always denies`,
           ),
         );
-      } else if (conditioned.has(key) && blind.has(key)) {
+      } else if (
+        conditioned.has(key) &&
+        blind.has(key) &&
+        !conditionShown(policy.expression, key, expected.coverage?.[key])
+      ) {
         drift.push(
           rlsFinding(
             "condition-blind",

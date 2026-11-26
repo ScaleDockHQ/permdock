@@ -334,6 +334,21 @@ describe(authorizationProvider, () => {
       args: "uuid, text",
       role: "postgres",
     });
+    expect(provider.requires).toContainEqual({
+      function: "permdock.member_organization_ids_for",
+      args: "uuid",
+      role: "supabase_auth_admin",
+    });
+    expect(provider.requires).toContainEqual({
+      function: "permdock.member_team_ids_for",
+      args: "uuid, text",
+      role: "supabase_auth_admin",
+    });
+    expect(provider.requires).toContainEqual({
+      function: "permdock.permitted_team_ids_by_permission",
+      args: "text",
+      role: "authenticated",
+    });
     expect(provider.permissions).toContainEqual({
       key: "quotes.read",
       sqlComplete: true,

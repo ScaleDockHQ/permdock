@@ -643,6 +643,65 @@ describe("diffMixed", () => {
     ]);
   });
 
+  it("accepts a helper call that ands the where equalities and rejects one that ors them", () => {
+    const expression =
+      "((organization_id = ANY (ARRAY (SELECT public.permitted_organization_ids('quote.read'::text)))) AND (status = 'sent'::text))";
+    const covered = {
+      ...mixed,
+      seeds: [seed],
+      coverage: {
+        "quote.read": { equalities: ["status = 'sent'"], relations: [] },
+      },
+    };
+    const policy = { table: "public.quote", name: "quotes_select", expression };
+    expect(
+      diffMixed(covered, {
+        seeds: [seed],
+        policies: [policy],
+        rlsTables: ["public.quote"],
+      }).drift,
+    ).toStrictEqual([]);
+    expect(
+      diffMixed(covered, {
+        seeds: [seed],
+        policies: [
+          {
+            ...policy,
+            expression:
+              "(organization_id = ANY (ARRAY (SELECT public.permitted_organization_ids('quote.read'::text)))) OR (status = 'sent'::text)",
+          },
+        ],
+        rlsTables: ["public.quote"],
+      }).drift,
+    ).toStrictEqual([
+      "public.quote: policy quotes_select passes quote.read, whose grants carry row conditions the helpers do not check: the policy grants more than the application does",
+    ]);
+  });
+
+  it("accepts a scope relation when the policy calls member_<scope>_ids", () => {
+    const coverage = {
+      ...mixed,
+      seeds: [seed],
+      coverage: { "quote.read": { equalities: [], relations: ["customer"] } },
+    };
+    const listed = (expression: string) =>
+      diffMixed(coverage, {
+        seeds: [seed],
+        policies: [
+          { table: "public.quote", name: "quotes_select", expression },
+        ],
+        rlsTables: ["public.quote"],
+      }).drift;
+    expect(
+      listed(
+        "permitted_organization_ids('quote.read') or customer_id = any(array(select member_customer_ids()))",
+      ),
+    ).toStrictEqual([]);
+    expect(listed("permitted_organization_ids('quote.read')")).toStrictEqual([
+      "public.quote: policy quotes_select passes quote.read, whose grants carry row conditions the helpers do not check: the policy grants more than the application does",
+    ]);
+  });
+
   it("accepts declared <permission>@<level> keys and points a conditioned one to the row helper", () => {
     const level = (key: string, conditioned: boolean) => ({
       key,

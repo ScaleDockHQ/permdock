@@ -174,9 +174,9 @@ export function hasMemberOf(
 }
 
 /**
- * Whether `member_<scope>_ids_for` is generated for `name`: Supabase only (its
- * one caller is `supabase_auth_admin`), and only where `memberships` maps a
- * table for the scope or a membership source can hold it.
+ * Whether scope `name` has a membership table or source on Supabase.
+ * `member_<scope>_ids_for` is also written for a scope without one when another
+ * scope has one, and then returns no rows.
  */
 export function hasMemberFor(
   input: {
