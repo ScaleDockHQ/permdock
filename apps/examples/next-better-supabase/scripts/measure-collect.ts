@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
@@ -6,11 +5,16 @@ import { z } from "zod";
 
 import type { PerfRoute } from "../perf/routes.ts";
 
-import { extraRoutes, personas, routes, users } from "../perf/routes.ts";
+import {
+  extraRoutes,
+  personas,
+  routes,
+  saasRoutes,
+  users,
+} from "../perf/routes.ts";
+import { runBrowser } from "./measure-browser.ts";
 import { bundleSizes, proxyGzip } from "./measure-bundle.ts";
 import { signIn, tokenSizes } from "./measure-session.ts";
-const sampleRoot = path.join(import.meta.dirname, "..");
-const repoRoot = path.join(sampleRoot, "../../..");
 async function pause(ms: number): Promise<void> {
   await new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
@@ -74,6 +78,7 @@ type Probe = {
   readonly dbCalls: string | null;
   readonly statements: number | null;
   readonly verifyMs: number | null;
+  readonly elapsedMs: number;
 };
 
 export async function probeRoute(
@@ -91,8 +96,10 @@ export async function probeRoute(
     cookie === ""
       ? { redirect: "manual" }
       : { redirect: "manual", headers: { cookie } };
+  const started = performance.now();
   const response = await fetch(`${base}${routePath}`, init);
   await response.arrayBuffer();
+  const elapsedMs = Math.round((performance.now() - started) * 10) / 10;
   const verify = await fetch(`${base}/api/measure`, {
     headers: cookie === "" ? {} : { cookie },
   });
@@ -110,41 +117,8 @@ export async function probeRoute(
     dbCalls: response.headers.get("x-bsb-db-calls"),
     statements: databaseUrl === null ? null : await statementCount(databaseUrl),
     verifyMs,
+    elapsedMs,
   };
-}
-
-function runBrowser(
-  base: string,
-  seed: string,
-  out: string,
-  runs: string,
-  session: string,
-  includeNew: boolean,
-): void {
-  execFileSync(
-    "node",
-    [
-      path.join(repoRoot, "scripts/next-baseline.ts"),
-      "--sample",
-      "supabase",
-      "--base",
-      base,
-      "--seed",
-      seed,
-      "--runs",
-      runs,
-      "--session",
-      session,
-      "--out",
-      out,
-    ],
-    {
-      cwd: repoRoot,
-      env: includeNew ? { ...process.env, MEASURE_NEW: "1" } : process.env,
-      stdio: "inherit",
-      timeout: 45 * 60 * 1000,
-    },
-  );
 }
 
 const NAMES = ["Olivia", "Carla"] as const;
@@ -249,26 +223,31 @@ export async function measureSeed(input: {
   readonly session: string;
   readonly rawDir: string;
   readonly includeNew: boolean;
+  readonly listed?: readonly PerfRoute[];
+  readonly only?: string;
 }): Promise<unknown> {
   mkdirSync(input.rawDir, { recursive: true });
   const browserFile = path.join(input.rawDir, `${input.session}.json`);
   let browserError: string | null = null;
   try {
-    runBrowser(
-      input.base,
-      input.seed,
-      browserFile,
-      input.runs,
-      input.session,
-      input.includeNew,
-    );
+    runBrowser({
+      base: input.base,
+      seed: input.seed,
+      out: browserFile,
+      runs: input.runs,
+      session: input.session,
+      includeNew: input.includeNew,
+      only: input.only,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     browserError = `browser run failed: ${message.slice(0, 500)}`;
   }
   const bundles = bundleSizes();
   const proxy = proxyGzip();
-  const listed = input.includeNew ? [...routes, ...extraRoutes] : routes;
+  const listed =
+    input.listed ??
+    (input.includeNew ? [...routes, ...extraRoutes, ...saasRoutes] : routes);
   return {
     seed: Number(input.seed),
     routes: await routesFor(

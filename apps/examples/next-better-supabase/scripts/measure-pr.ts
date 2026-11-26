@@ -14,6 +14,7 @@ import {
   objectAt,
   text,
 } from "./measure-report.ts";
+import { pageSection, proxySection, tokenSection } from "./measure-sections.ts";
 
 function table(before: Json, after: Json, seed: string): string[] {
   const lines = [
@@ -78,6 +79,9 @@ export function renderPrBody(baseline: Json): string {
     "",
     `Before commit ${text(before["commit"], "unknown")}, after commit ${text(after["commit"], "unknown")}. Node ${text(after["node"], "unknown")} on ${text(after["platform"], "unknown")} ${text(after["arch"], "")}.`,
     "",
+    ...pageSection(after),
+    ...tokenSection(after),
+    ...proxySection(after),
     ...missingList(after),
   ].join("\n");
 }

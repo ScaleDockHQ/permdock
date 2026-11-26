@@ -319,20 +319,32 @@ function isStep(value: unknown): value is Step {
     typeof value === "object" &&
     value !== null &&
     typeof Reflect.get(value, "name") === "string" &&
-    typeof Reflect.get(value, "path") === "string"
+    typeof Reflect.get(value, "path") === "string" &&
+    (Reflect.get(value, "user") === null ||
+      typeof Reflect.get(value, "user") === "string")
   );
 }
 
-function extraSteps(file: RouteFile | null): readonly Step[] {
+function namedSteps(file: RouteFile | null, key: string): readonly Step[] {
   // oxlint-disable-next-line turbo/no-undeclared-env-vars -- set by measure.ts for one browser run
   if (process.env["MEASURE_NEW"] !== "1" || file === null) {
     return [];
   }
-  const extra: unknown = Reflect.get(file, "extraRoutes");
+  const extra: unknown = Reflect.get(file, key);
   if (!Array.isArray(extra)) {
     return [];
   }
   return extra.filter((step): step is Step => isStep(step));
+}
+
+function selected(steps: readonly Step[]): readonly Step[] {
+  // oxlint-disable-next-line turbo/no-undeclared-env-vars -- set by measure-saas.ts to skip routes already recorded
+  const only = process.env["MEASURE_ONLY"];
+  if (only === undefined || only === "") {
+    return steps;
+  }
+  const names = new Set(only.split(",").filter((name) => name !== ""));
+  return steps.filter((step) => names.has(step.name));
 }
 
 const supabaseSample: Sample = {
@@ -351,7 +363,11 @@ const supabaseSample: Sample = {
     );
     ab("wait", "--load", "load");
   },
-  steps: [...(routeFile?.routes ?? []), ...extraSteps(routeFile)],
+  steps: selected([
+    ...(routeFile?.routes ?? []),
+    ...namedSteps(routeFile, "extraRoutes"),
+    ...namedSteps(routeFile, "saasRoutes"),
+  ]),
   approve: null,
   remove: null,
   offline: routeFile?.offline ?? null,

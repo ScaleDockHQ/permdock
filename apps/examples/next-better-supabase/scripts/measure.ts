@@ -242,4 +242,6 @@ async function main(): Promise<void> {
   process.stdout.write(`${baselineFile}\n`);
 }
 
-await main();
+if (import.meta.filename === path.resolve(process.argv[1])) {
+  await main();
+}
