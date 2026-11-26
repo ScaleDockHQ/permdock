@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
-const repoRoot = path.join(import.meta.dirname, "../../..");
+const repoRoot = path.join(import.meta.dirname, "../../../..");
 
 /**
  * One agent-browser pass. `only` limits the routes when a checkpoint already

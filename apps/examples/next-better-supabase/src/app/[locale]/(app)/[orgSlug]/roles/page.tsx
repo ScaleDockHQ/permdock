@@ -4,11 +4,13 @@ import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { organizationBySlug } from "../../../../../features/organization/organization-queries.ts";
+import {
+  loadSnapshot,
+  organizationBySlug,
+} from "../../../../../features/organization/organization-queries.ts";
 import { RolePanel } from "../../../../../features/role/components/role-panel.tsx";
 import { OrgFrame } from "../../../../../features/shell/org-frame.tsx";
 import { compiledRoles } from "../../../../../permdock/request.ts";
-import { getSnapshot } from "../../../../../permdock/server.ts";
 import { appPolicy } from "../../../../../policy.ts";
 
 export const instant = true;
@@ -20,10 +22,7 @@ async function RolesBody(props: { readonly orgSlug: string }) {
   }
   const roles = await compiledRoles.rolesFor(organization.id);
   const record = customRoleRecord(appPolicy, roles, organization.id);
-  const snapshot = await getSnapshot({
-    tenant: organization.id,
-    omitAssignable: true,
-  });
+  const snapshot = await loadSnapshot(organization.id);
   const merged = fromSnapshot(snapshot, {
     tenant: organization.id,
     customRoles: [record],

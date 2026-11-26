@@ -24,6 +24,33 @@ function accessToken(encoded: string): string | null {
   return null;
 }
 
+const COOKIE = "sb-example-auth-token";
+
+function chunkIndex(
+  part: string,
+): { readonly index: number; readonly value: string } | null {
+  const match = new RegExp(`^${COOKIE}\\.(\\d+)=(.*)$`, "u").exec(part);
+  const index = match?.[1];
+  const value = match?.[2];
+  if (index === undefined || value === undefined) {
+    return null;
+  }
+  return { index: Number(index), value };
+}
+
+/** Supabase splits a session past ~3,180 characters into `name.0`, `name.1`. */
+function sessionValue(parts: readonly string[]): string {
+  const whole = parts.find((part) => part.startsWith(`${COOKIE}=`));
+  if (whole !== undefined) {
+    return whole.slice(COOKIE.length + 1);
+  }
+  return parts
+    .map(chunkIndex)
+    .filter((chunk) => chunk !== null)
+    .toSorted((left, right) => left.index - right.index)
+    .map((chunk) => chunk.value)
+    .join("");
+}
 export async function signIn(
   base: string,
   userId: string,
@@ -36,10 +63,7 @@ export async function signIn(
     return line.split(";")[0];
   });
   const cookie = parts.filter((part) => part !== "").join("; ");
-  const encoded =
-    parts
-      .find((part) => part.startsWith("sb-example-auth-token="))
-      ?.slice(22) ?? "";
+  const encoded = sessionValue(parts);
   return { cookie, token: accessToken(encoded) };
 }
 
