@@ -2,6 +2,14 @@ import Link from "next/link";
 import { locale } from "next/root-params";
 import { Suspense } from "react";
 
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
+
 import { snapshotForSlug } from "../../../../features/organization/organization-queries.ts";
 import { PermDockProvider } from "../../../../permdock/server.ts";
 import { Nav, NavSkeleton } from "./nav.tsx";
@@ -21,6 +29,7 @@ async function OrganizationSwitch() {
             key={organization.slug}
             href={`${prefix}/${organization.slug}/staff`}
             prefetch
+            className="text-sm"
             data-switch={organization.slug}
           >
             {organization.name}
@@ -44,11 +53,21 @@ export default function OrganizationLayout(
     .then(snapshotForSlug);
   return (
     <PermDockProvider snapshot={snapshot}>
-      <OrganizationSwitch />
-      <Suspense fallback={<NavSkeleton />}>
-        <Nav base={base} />
-      </Suspense>
-      <main>{props.children}</main>
+      <SidebarProvider>
+        <Sidebar>
+          <SidebarHeader>
+            <OrganizationSwitch />
+          </SidebarHeader>
+          <SidebarContent>
+            <Suspense fallback={<NavSkeleton />}>
+              <Nav base={base} />
+            </Suspense>
+          </SidebarContent>
+        </Sidebar>
+        <SidebarInset>
+          <main className="flex flex-col gap-4 p-4">{props.children}</main>
+        </SidebarInset>
+      </SidebarProvider>
     </PermDockProvider>
   );
 }

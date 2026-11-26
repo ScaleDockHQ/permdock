@@ -33,6 +33,8 @@ export async function visibleStaff(
         where: { organization_id: organization },
         select: ["id", "name", "title"],
         orderBy: { name: "asc" },
+        // A read without a limit is cut at 1,000 rows.
+        limit: 50,
       })
       .orThrow();
     return rows;

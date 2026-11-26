@@ -13,7 +13,7 @@ export default function PortalLayout(
     .then(snapshotForSlug);
   return (
     <PermDockProvider snapshot={snapshot}>
-      <main>{props.children}</main>
+      <main className="flex flex-col gap-4 p-4">{props.children}</main>
     </PermDockProvider>
   );
 }
