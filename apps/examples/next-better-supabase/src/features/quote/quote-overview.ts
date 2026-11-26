@@ -16,16 +16,13 @@ betterSupabase.registerTable(quote_overviewsTable);
  */
 export const quotesOverview = bsb.kept(
   async (ctx, organization: string) => {
-    // SAFETY: quotes_overview_payload is granted to authenticated. The generated
-    // Database type lists only the functions better-supabase gen saw.
-    const call = ctx.supabase.rpc.bind(ctx.supabase) as unknown as (
-      fn: string,
-    ) => Promise<{ readonly data: unknown }>;
-    const result = await call("quotes_overview_payload");
-    return {
-      organization,
-      total: typeof result.data === "number" ? result.data : 0,
-    };
+    const result = await ctx.db.$rpc("quotes_overview_payload");
+    if (!result.ok) {
+      throw new Error("quotes_overview_payload failed", {
+        cause: result.error,
+      });
+    }
+    return { organization, total: result.data };
   },
   {
     share: env.without === "shared-cache" ? "user" : "tenant",
