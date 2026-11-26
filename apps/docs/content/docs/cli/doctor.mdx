@@ -497,7 +497,7 @@ Supabase runs the supautils extension, which refuses some role statements to `po
 - `drop role` on a reserved role.
 - A grant of a reserved membership, through `grant … to` or `create role … in role`: `authenticator`, `dashboard_user`, `pgbouncer`, the `supabase_*` admin roles and `pg_read_server_files`, `pg_write_server_files` and `pg_execute_server_program`.
 
-The lists are those of `supabase/postgres` 17.11.0.002 (supautils 3.4.4), and are unchanged in 17.11.0.006, which Supabase CLI 3.3.0 runs. Grant your own role to `authenticator` instead: `grant app_reader to authenticator` is allowed. `permdock rls generate` refuses to write a rejected statement. `--only sql` (or `--only supabase`) runs PD063.
+The lists are those of `supabase/postgres` 17.11.0.002 (supautils 3.4.4), and are unchanged in 17.11.0.006 and on the PostgreSQL 17.11 native stack that Supabase CLI 3.4.0 runs. Grant your own role to `authenticator` instead: `grant app_reader to authenticator` is allowed. `permdock rls generate` refuses to write a rejected statement. `--only sql` (or `--only supabase`) runs PD063.
 
 ### PD064: assignment trigger missing
 
@@ -889,7 +889,7 @@ better-supabase measured a 1,000-row read at 0.92 ms with nine policies and 1.00
 
 ### PD136: Supabase CLI below 3.2.0
 
-PermDock supports Supabase CLI 3.2.0 and later, the floor better-supabase's BS710 names. `--local` and the `config.jsonc` reader were checked on 3.2.0 once; CI runs the 3.3.0 pin only ([decision 0078](https://github.com/ScaleDockHQ/permdock/blob/main/docs/decisions/0078-supabase-cli-floor-without-a-ci-job.md)). PD136 reads the version of the `supabase` package the project installs and warns below 3.2.0. A project that runs a global `supabase` binary gets no finding. `--only supabase` runs PD136.
+PermDock supports Supabase CLI 3.2.0 and later, the floor better-supabase's BS710 names. `--local` and the `config.jsonc` reader were checked on 3.2.0 once; CI runs the 3.4.0 pin only ([decision 0081](https://github.com/ScaleDockHQ/permdock/blob/main/docs/decisions/0081-supabase-cli-3-4-0-pin.md)). PD136 reads the version of the `supabase` package the project installs and warns below 3.2.0. A project that runs a global `supabase` binary gets no finding. `--only supabase` runs PD136.
 
 ### PD137: a shared function that reads a row table
 

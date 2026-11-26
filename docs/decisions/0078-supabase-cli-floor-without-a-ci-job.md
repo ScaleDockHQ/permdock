@@ -1,6 +1,6 @@
 # 0078. Supabase CLI 3.2.0 is the supported floor; CI runs the 3.3.0 pin only
 
-- Status: accepted
+- Status: accepted, amended by [0081](./0081-supabase-cli-3-4-0-pin.md)
 - Date: 2026-11-24
 - Amends: [0051](./0051-better-supabase-0-29-0-floor-and-release-age.md) (the stack job runs the catalog pin only), for the Supabase CLI
 

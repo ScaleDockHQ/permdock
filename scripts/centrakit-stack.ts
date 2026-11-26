@@ -17,7 +17,7 @@ import { measureReadOnlyActors } from "./centrakit-read-only-actors.ts";
  * tables of `rls.tableReads` against BS428.
  */
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SUPABASE = "supabase@3.3.0";
+const SUPABASE = "supabase@3.4.0";
 /** Services the dry run does not read. */
 const EXCLUDED = "functions,studio,mail,analytics,pooler";
 const CODES = ["BS409", "BS428", "BS429", "BS430"] as const;
@@ -45,7 +45,7 @@ const isRecord = (value: unknown): value is Json =>
 const escaped = (text: string): string =>
   text.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
 
-/** `npx supabase@3.3.0` from the temp directory: the repository pins pnpm. */
+/** `npx supabase@3.4.0` from the temp directory: the repository pins pnpm. */
 function cli(args: readonly string[], workdir: string): string {
   const result = spawnSync(
     "npx",
