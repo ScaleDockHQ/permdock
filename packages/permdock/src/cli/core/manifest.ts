@@ -542,6 +542,21 @@ export const SECTIONS: readonly Section[] = [
         "openapi",
         [
           leaf(
+            "emit",
+            "Write security and securitySchemes into an OpenAPI document or an Overlay",
+            {
+              examples: [
+                "permdock openapi emit --doc openapi.json --kind overlay --out openapi.overlay.json --check",
+              ],
+              docs: "openapi",
+              effects: ["files"],
+              config: true,
+              findings: true,
+              load: async () =>
+                (await import("../commands/openapi.ts")).emitDocument,
+            },
+          ),
+          leaf(
             "annotate",
             "Write an operations map from @permission comments or an OpenAPI document",
             {
