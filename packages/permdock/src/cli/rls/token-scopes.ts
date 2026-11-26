@@ -1,4 +1,4 @@
-import type { Policy } from "../../index.ts";
+import type { Policy, PolicyDelegation } from "../../index.ts";
 import type { RlsSqlContext, TokenScopesPlan } from "../sql/context.ts";
 
 import { delegatedScopeMap } from "../../core/oauth-scopes.ts";
@@ -11,15 +11,78 @@ export const TOKEN_SCOPE_ALLOWS = "permdock_token_scope_allows";
 
 const TOKEN_SCOPE_MAP = "permdock_token_scope_map";
 
+const TOKEN_DELEGATION_MAP = "permdock_token_delegation_map";
+
+type TokenScopesSetting = boolean | { readonly delegations?: boolean };
+
+export function isTokenScopesSetting(
+  value: unknown,
+): value is TokenScopesSetting | undefined {
+  if (value === undefined || typeof value === "boolean") {
+    return true;
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  return Object.entries(value).every(
+    ([key, flag]) =>
+      key === "delegations" &&
+      (flag === undefined || typeof flag === "boolean"),
+  );
+}
+
+/** Whether `rls.tokenScopes` turns the helpers' token narrowing on. */
+export function tokenScopesOn(
+  setting: TokenScopesSetting | undefined,
+): boolean {
+  return setting === true || (typeof setting === "object" && setting !== null);
+}
+
+/**
+ * Delegations Postgres can decide from the token alone: to `oauth-client`, from
+ * `authenticated()` only, without a validity window. Others hand over nothing
+ * in SQL, so the token stays capped by its scopes.
+ */
+function delegatedKeys(
+  delegations: readonly PolicyDelegation[] | undefined,
+): Readonly<Record<string, readonly string[]>> {
+  const keys: Record<string, Set<string>> = {};
+  for (const delegation of delegations ?? []) {
+    const from = Array.isArray(delegation.from)
+      ? delegation.from
+      : [delegation.from];
+    if (
+      delegation.to.kind !== "oauth-client" ||
+      delegation.to.client !== undefined ||
+      delegation.validity !== undefined ||
+      from.length === 0 ||
+      !from.every(
+        (grantee: { readonly kind: string }) =>
+          grantee.kind === "authenticated",
+      )
+    ) {
+      continue;
+    }
+    const target = delegation.to.id ?? "*";
+    keys[target] ??= new Set();
+    for (const key of delegation.permissions) {
+      keys[target].add(key);
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(keys).map(([target, set]) => [target, [...set].toSorted()]),
+  );
+}
+
 /**
  * `rls.tokenScopes` as the SQL generator needs it, or `undefined` when it is
  * off.
  */
 export function tokenScopesPlan(
-  setting: boolean | undefined,
+  setting: TokenScopesSetting | undefined,
   policy: Policy,
 ): TokenScopesPlan | undefined {
-  if (setting !== true) {
+  if (!tokenScopesOn(setting)) {
     return undefined;
   }
   const permissions = listPermissions(policy.permissions).map((leaf) => ({
@@ -28,7 +91,11 @@ export function tokenScopesPlan(
     renamedFrom: formerKeys(leaf),
     meta: leaf.meta,
   }));
-  return { scopes: delegatedScopeMap(permissions, policy.oauthScopes) };
+  const scopes = delegatedScopeMap(permissions, policy.oauthScopes);
+  if (typeof setting !== "object" || setting.delegations !== true) {
+    return { scopes };
+  }
+  return { scopes, delegated: delegatedKeys(policy.delegations) };
 }
 
 export function tokenScopeUnlimitedSql(ctx: RlsSqlContext): string {
@@ -81,6 +148,33 @@ export function tokenScopeAllowsSql(
 grant execute on function ${fn}(text) to anon, authenticated;`
     : `revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;`;
+  const delegationMap = qualified(ctx, TOKEN_DELEGATION_MAP);
+  const client = subjectClaimSql(ctx, "client_id");
+  const act = subjectClaimJsonSql(ctx, "act");
+  const key = "split_part(split_part(p_grant, '#', 1), '@', 1)";
+  const delegated =
+    plan.delegated === undefined
+      ? ""
+      : `
+    when coalesce(${client}, '') <> ''
+      and (${act} is null or ${act} = 'null'::jsonb)
+      and (coalesce(${delegationMap}() -> '*', '[]'::jsonb)
+        || coalesce(${delegationMap}() -> ${client}, '[]'::jsonb))
+        ? ${key} then true`;
+  const delegationFunction =
+    plan.delegated === undefined
+      ? ""
+      : `
+create or replace function ${delegationMap}()
+returns jsonb
+language sql
+immutable
+set search_path = ''
+as $$
+  select ${quoteLiteral(JSON.stringify(plan.delegated))}::jsonb
+$$;
+revoke execute on function ${delegationMap}() from public, anon, authenticated;
+`;
   return `create or replace function ${map}()
 returns jsonb
 language sql
@@ -90,7 +184,7 @@ as $$
   select ${quoteLiteral(JSON.stringify(plan.scopes))}::jsonb
 $$;
 revoke execute on function ${map}() from public, anon, authenticated;
-
+${delegationFunction}
 -- Token scopes: a delegated token holds only the permissions its scope claim maps to; denies always apply, and a token without client_id or an agent act is not limited
 create or replace function ${fn}(p_grant text)
 returns boolean
@@ -106,13 +200,13 @@ begin
     when exists (
       select 1 from ${qualified(ctx, "role_permissions")} rp
       where rp.grant_key = p_grant and rp.effect = 'deny'
-    ) then true
+    ) then true${delegated}
     else exists (
       select 1
       from ${tokenScopeRows(ctx)}
       where s.scope <> ''
         and coalesce(${map}() -> s.scope, '[]'::jsonb)
-          ? split_part(split_part(p_grant, '#', 1), '@', 1)
+          ? ${key}
     )
   end
   );

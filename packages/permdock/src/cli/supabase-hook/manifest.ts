@@ -37,7 +37,7 @@ import { permittedUsersHelper } from "../rls/permission-holders.ts";
 import { permissionKeysForHelper } from "../rls/permission-keys.ts";
 import { ACTOR_MAY_WRITE, readOnlyActorKinds } from "../rls/policies.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
-import { TOKEN_SCOPE_ALLOWS } from "../rls/token-scopes.ts";
+import { TOKEN_SCOPE_ALLOWS, tokenScopesOn } from "../rls/token-scopes.ts";
 import { checkSuspension } from "../sql/active.ts";
 import { firstScopeType, scopeTypeOf, tenantTypeOf } from "../sql/columns.ts";
 import { decidingColumns } from "../sql/deciding-columns.ts";
@@ -188,7 +188,7 @@ function trustedHelpers(
     ...(config.rls?.apiKeys === undefined
       ? []
       : [helperEntry(API_KEY_ALLOWS, "p_grant text", "boolean", client)]),
-    ...(config.rls?.tokenScopes === true
+    ...(tokenScopesOn(config.rls?.tokenScopes)
       ? [helperEntry(TOKEN_SCOPE_ALLOWS, "p_grant text", "boolean", client)]
       : []),
     ...(policy === undefined || interactiveOnlyKeys(policy) === undefined
@@ -397,7 +397,7 @@ function rlsSettings(
     ...(rls?.apiKeys === undefined
       ? {}
       : { apiKeys: apiKeyFields(rls.apiKeys) }),
-    ...(rls?.tokenScopes === true ? { tokenScopes: true } : {}),
+    ...(tokenScopesOn(rls?.tokenScopes) ? { tokenScopes: true } : {}),
   };
 }
 

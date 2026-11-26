@@ -112,7 +112,7 @@ const RLS = {
   ownershipTriggers: BOOLEAN_OR_OBJECT,
   readOnlyActors: BOOLEAN_OR_ARRAY,
   apiKeys: BOOLEAN_OR_OBJECT,
-  tokenScopes: BOOLEAN,
+  tokenScopes: BOOLEAN_OR_OBJECT,
   realtime: OBJECT,
   storage: OBJECT,
 } as const satisfies Record<keyof RlsConfig, KeyShape>;
