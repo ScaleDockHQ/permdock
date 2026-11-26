@@ -19,6 +19,7 @@
       "member_organization_ids_for",
       "permitted_team_ids",
       "member_team_ids",
+      "member_team_ids_for",
       "permitted_customer_ids",
       "member_customer_ids",
       "member_customer_ids_for"
@@ -180,6 +181,12 @@
         "args": "",
         "returns": "setof uuid",
         "execute": ["authenticated"]
+      },
+      {
+        "name": "member_team_ids_for",
+        "args": "p_user uuid, p_active text",
+        "returns": "setof uuid",
+        "execute": ["supabase_auth_admin"]
       },
       {
         "name": "permitted_customer_ids",

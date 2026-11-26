@@ -4,8 +4,8 @@ import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
 import { helpersSql } from "../../src/cli/rls/helpers.ts";
 import { assemblePolicies } from "../../src/cli/rls/policies.ts";
+import { rowConditionCoverage } from "../../src/cli/rls/row-coverage.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
-import { rowConditionCoverage } from "../../src/core/row-conditions.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,

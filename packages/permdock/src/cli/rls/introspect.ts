@@ -1,8 +1,8 @@
-import type { RowConditionCoverage } from "../../core/row-conditions.ts";
 import type { SqlClient, SqlConnect } from "../pg.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { RolePermission } from "./helpers.ts";
 import type { IndexTarget } from "./indexes.ts";
+import type { RowConditionCoverage } from "./row-coverage.ts";
 import type { LevelKey } from "./rows.ts";
 import type { RlsFinding } from "./verify-findings.ts";
 

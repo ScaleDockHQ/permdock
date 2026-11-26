@@ -1,17 +1,14 @@
-import type { RowConditionCoverage } from "../../core/row-conditions.ts";
 import type { ExitCode } from "../core/errors.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { RlsExplain } from "./explain.ts";
 import type { RlsGenerateInput } from "./generate-options.ts";
 import type { RolePermission } from "./helpers.ts";
 import type { IndexTarget } from "./indexes.ts";
+import type { RowConditionCoverage } from "./row-coverage.ts";
 import type { LevelKey } from "./rows.ts";
 
 import { renamedKeys } from "../../core/permission-registry.ts";
-import {
-  policyRowConditionKeys,
-  rowConditionCoverage,
-} from "../../core/row-conditions.ts";
+import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { listPermissions } from "../../index.ts";
 import { describeError, exitCodeOfError } from "../core/errors.ts";
 import { withSchemaDefaults } from "../sql/schema-tables.ts";
@@ -36,6 +33,7 @@ import {
 } from "./index-scan.ts";
 import { pruneIndexTargets, readTableIndexFacts } from "./indexes.ts";
 import { readOnlyActorKinds } from "./policies.ts";
+import { rowConditionCoverage } from "./row-coverage.ts";
 import { levelKeys } from "./rows.ts";
 import { triggerNotes } from "./trigger-notes.ts";
 
