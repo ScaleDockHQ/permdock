@@ -45,4 +45,9 @@ export const env = {
    * the measurement routes. A normal build leaves both off.
    */
   measure: read("MEASURE") === "1",
+  /**
+   * Set by a measurement build that turns one feature off: `proxy`,
+   * `may-access`, `shared-cache` or `warm`. A normal build leaves it empty.
+   */
+  without: read("MEASURE_WITHOUT") ?? "",
 };

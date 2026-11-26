@@ -3,7 +3,7 @@
 import { requiredPlans } from "permdock";
 import { useDecision, useGate } from "permdock/react";
 
-import { permissions } from "../../../policy.ts";
+import { permissions } from "../../../permissions.ts";
 
 /**
  * `billing.read` is granted only on the pro plan, so a denial offers an

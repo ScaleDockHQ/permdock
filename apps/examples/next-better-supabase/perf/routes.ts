@@ -27,5 +27,30 @@ export const routes = [
   { name: "portal-quotes", user: "Carla", path: "/en/portal/acme/quotes" },
 ] as const satisfies readonly PerfRoute[];
 
+/** Pages this branch adds. Measured on `after` only; the before column is `new`. */
+export const extraRoutes = [
+  {
+    name: "quote-detail",
+    user: "Olivia",
+    path: "/en/acme/quotes/00000000-0000-4000-8000-0000000000f1",
+  },
+  { name: "approvals", user: "Olivia", path: "/en/acme/approvals" },
+  { name: "member-admin", user: "Olivia", path: "/en/acme/members" },
+  { name: "settings", user: "Olivia", path: "/en/acme/settings" },
+  { name: "access", user: "Olivia", path: "/en/acme/access" },
+] as const satisfies readonly PerfRoute[];
+
+/** Seeded users whose tokens are measured and never compared with `main`. */
+export const personas = {
+  orgs1: "00000000-0000-4000-8000-000000000101",
+  orgs13: "00000000-0000-4000-8000-000000000113",
+  orgs25: "00000000-0000-4000-8000-000000000125",
+  orgs50: "00000000-0000-4000-8000-000000000150",
+  roles1: "00000000-0000-4000-8000-000000000201",
+  roles3: "00000000-0000-4000-8000-000000000203",
+  roles10: "00000000-0000-4000-8000-000000000210",
+  suspended: "00000000-0000-4000-8000-000000000301",
+} as const;
+
 /** Soft navigation measured with the network off. */
 export const offline = { path: "/en/acme/staff", link: "Quotes" } as const;

@@ -46,6 +46,17 @@ export default defineConfig({
       billing: false,
     },
     readOnlyActors: true,
+    // A suspended organization drops its memberships and lists the tenant in `suspended_in`.
+    suspension: {
+      scopes: {
+        organization: {
+          table: "organizations",
+          id: "id",
+          status: "status",
+          active: ["active"],
+        },
+      },
+    },
     // Out-of-office covers: a delegate approves for the delegator inside a window.
     // The store is the approvals block's table, not a second one.
     approvals: {

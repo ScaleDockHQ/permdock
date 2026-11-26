@@ -99,3 +99,119 @@ insert into permdock.approval_delegations (delegator, delegate, tenant, "from", 
 -- A guest link to the Initech quote: /en/share/acme-initech-rollout. Only the token's hash is stored.
 insert into better_supabase.share_links (tenant_id, subject_type, subject_id, token_hash, role, created_by) values
   ('00000000-0000-4000-8000-0000000000b1', 'quote', '00000000-0000-4000-8000-0000000000f1', encode(sha256(convert_to('acme-initech-rollout', 'utf8')), 'hex'), 'view', '00000000-0000-4000-8000-0000000000a1');
+
+-- Personas for token size: users in 1, 13, 25 and 50 organizations, members
+-- holding 1, 3 and 10 custom roles, and one member of a suspended organization.
+insert into public.quote_overviews (organization_id, total) values
+  ('00000000-0000-4000-8000-0000000000b1', 2),
+  ('00000000-0000-4000-8000-0000000000b2', 1);
+
+insert into public.organizations (id, slug, name, status)
+select
+  ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  'persona-' || n,
+  'Persona ' || n,
+  case when n = 50 then 'suspended' else 'active' end
+from generate_series(1, 50) as n;
+
+insert into public.roles (id, organization_id, key, is_system)
+select
+  ('00000000-0000-4000-8200-' || lpad(n::text, 12, '0'))::uuid,
+  ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  'desk',
+  false
+from generate_series(1, 10) as n;
+
+insert into public.role_permissions (role_id, permission)
+select
+  ('00000000-0000-4000-8200-' || lpad(n::text, 12, '0'))::uuid,
+  'quotes.read'
+from generate_series(1, 10) as n;
+
+insert into auth.users (id, email) values
+  ('00000000-0000-4000-8000-000000000101', 'orgs-1@persona.test'),
+  ('00000000-0000-4000-8000-000000000113', 'orgs-13@persona.test'),
+  ('00000000-0000-4000-8000-000000000125', 'orgs-25@persona.test'),
+  ('00000000-0000-4000-8000-000000000150', 'orgs-50@persona.test'),
+  ('00000000-0000-4000-8000-000000000201', 'roles-1@persona.test'),
+  ('00000000-0000-4000-8000-000000000203', 'roles-3@persona.test'),
+  ('00000000-0000-4000-8000-000000000210', 'roles-10@persona.test'),
+  ('00000000-0000-4000-8000-000000000301', 'suspended@persona.test');
+
+insert into public.organization_memberships (organization_id, user_id, role)
+select
+  ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  '00000000-0000-4000-8000-000000000101',
+  'member'
+from generate_series(1, 1) as n
+union all
+select
+  ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  '00000000-0000-4000-8000-000000000113',
+  'member'
+from generate_series(1, 13) as n
+union all
+select
+  ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  '00000000-0000-4000-8000-000000000125',
+  'member'
+from generate_series(1, 25) as n
+union all
+select
+  ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  '00000000-0000-4000-8000-000000000150',
+  'member'
+from generate_series(1, 50) as n
+union all
+select
+  ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  '00000000-0000-4000-8000-000000000201',
+  'desk'
+from generate_series(1, 1) as n
+union all
+select
+  ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  '00000000-0000-4000-8000-000000000203',
+  'desk'
+from generate_series(1, 3) as n
+union all
+select
+  ('00000000-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  '00000000-0000-4000-8000-000000000210',
+  'desk'
+from generate_series(1, 10) as n
+union all
+select
+  '00000000-0000-4000-8100-000000000050'::uuid,
+  '00000000-0000-4000-8000-000000000301',
+  'member';
+
+do $$
+begin
+  if to_regclass('auth.identities') is null then
+    return;
+  end if;
+  update auth.users set
+    instance_id = '00000000-0000-0000-0000-000000000000',
+    aud = 'authenticated',
+    role = 'authenticated',
+    encrypted_password = extensions.crypt('local-demo', extensions.gen_salt('bf')),
+    email_confirmed_at = now(),
+    created_at = coalesce(created_at, now()),
+    updated_at = coalesce(updated_at, now()),
+    raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
+    confirmation_token = '',
+    recovery_token = '',
+    email_change_token_new = '',
+    email_change = ''
+  where email like '%@persona.test';
+  insert into auth.identities (
+    user_id, provider_id, identity_data, provider,
+    last_sign_in_at, created_at, updated_at
+  )
+  select
+    id, id::text, jsonb_build_object('sub', id::text, 'email', email),
+    'email', now(), now(), now()
+  from auth.users
+  where email like '%@persona.test';
+end $$;

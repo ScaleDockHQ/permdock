@@ -30,6 +30,10 @@ export default defineConfig({
         new URL("permissions.catalog.json", import.meta.url),
         "utf8",
       ),
+      // `tables` needs the catalog; `sharedFunctions` needs `tables`.
+      tables: true,
+      widened: true,
+      sharedFunctions: true,
     }),
   },
   database: {

@@ -16,6 +16,7 @@ import { z } from "zod";
 import { measureSeed, waitForHttp } from "./measure-collect.ts";
 import { writeReport } from "./measure-pr.ts";
 import { loadBaseline } from "./measure-report.ts";
+import { runVariants, sessionBefore } from "./measure-variants.ts";
 
 const sampleRoot = path.join(import.meta.dirname, "..");
 const repoRoot = path.join(sampleRoot, "../../..");
@@ -110,16 +111,19 @@ function remember(
   writeReport(baselineFile, reportFile);
 }
 
-async function withServe(
+export async function withServe(
   seed: string,
   port: string,
+  extra: Readonly<Record<string, string | undefined>>,
   run: (base: string, databaseUrl: string | null) => Promise<void>,
+  cwd = sampleRoot,
 ): Promise<void> {
   const base = `http://127.0.0.1:${port}`;
   const child = spawn("node", ["scripts/serve.ts"], {
-    cwd: sampleRoot,
+    cwd,
     env: {
       ...process.env,
+      ...extra,
       MEASURE: "1",
       SEED_QUOTES: seed,
       PORT: port,
@@ -156,7 +160,7 @@ async function oneSeed(
   const session = `perf-${checkpoint}-${seed}`;
   const attached = values.base;
   if (attached === undefined) {
-    await withServe(seed, port, async (base, databaseUrl) => {
+    await withServe(seed, port, {}, async (base, databaseUrl) => {
       remember(
         checkpoint,
         seed,
@@ -167,6 +171,7 @@ async function oneSeed(
           runs: values.runs,
           session,
           rawDir,
+          includeNew: checkpoint === "after",
         }),
       );
     });
@@ -183,6 +188,7 @@ async function oneSeed(
       runs: values.runs,
       session,
       rawDir,
+      includeNew: checkpoint === "after",
     }),
   );
 }
@@ -193,12 +199,19 @@ async function eachSeed(
   index: number,
   port: string,
 ): Promise<void> {
-  const seed = seeds[index];
-  if (seed === undefined) {
+  if (index >= seeds.length) {
     return;
   }
+  const seed = seeds[index];
   await oneSeed(checkpoint, seed, port);
   await eachSeed(checkpoint, seeds, index + 1, port);
+}
+
+function seedList(): string[] {
+  return values.seeds
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part !== "");
 }
 
 async function main(): Promise<void> {
@@ -206,22 +219,26 @@ async function main(): Promise<void> {
     process.stdout.write(writeReport(baselineFile, reportFile));
     return;
   }
-  if (values.before !== undefined) {
-    throw new Error(
-      "--before runs at the final checkpoint, from a worktree of the tooling commit. Record --checkpoint main first.",
-    );
-  }
   const checkpoint = values.checkpoint ?? "";
   if (!isCheckpoint(checkpoint)) {
     throw new Error(
       "Pass --checkpoint main|native-stack|interface-kit|after, or --pr-body",
     );
   }
-  const seeds = values.seeds
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part !== "");
+  const seeds = seedList();
+  if (checkpoint === "after" && values.before !== undefined) {
+    await sessionBefore({
+      sha: values.before,
+      seeds,
+      port: values.port,
+      runs: values.runs,
+      serve: withServe,
+    });
+  }
   await eachSeed(checkpoint, seeds, 0, values.port);
+  if (checkpoint === "after") {
+    await runVariants(values.port, withServe);
+  }
   process.stdout.write(`${baselineFile}\n`);
 }
 

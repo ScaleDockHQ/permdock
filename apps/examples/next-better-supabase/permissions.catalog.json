@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v2.json",
   "version": 2,
-  "generatedAt": "2026-11-26T10:27:31.572Z",
+  "generatedAt": "2026-11-26T11:21:36.919Z",
   "generator": "permdock@0.33.0",
   "fingerprint": "sha-256:M593lHf0ftevbsfKu2CkUl3B4SoeyQsVA44CfveAd0w",
   "resources": {
@@ -272,7 +272,18 @@
       "action": "manage",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 77,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/developer/credential-actions.ts",
+          "line": 12,
+          "call": "protectAction"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -302,7 +313,13 @@
       "action": "read",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 53,
+          "call": "tools"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -324,6 +341,11 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 95,
+          "call": "tools"
+        },
+        {
           "file": "src/policy.ts",
           "line": 68,
           "call": "reference"
@@ -338,7 +360,13 @@
       "action": "revert",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/features/audit/audit-actions.ts",
+          "line": 14,
+          "call": "protectAction"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -358,7 +386,13 @@
       "action": "publish",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/features/automation/automation-actions.ts",
+          "line": 12,
+          "call": "protectAction"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -368,7 +402,13 @@
       "action": "read",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 89,
+          "call": "tools"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -390,8 +430,28 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 119,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/access/components/access-panel.tsx",
+          "line": 36,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/billing/components/billing-gate.tsx",
+          "line": 13,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/billing/components/billing-gate.tsx",
+          "line": 14,
+          "call": "reference"
+        },
+        {
           "file": "src/policy.ts",
-          "line": 121,
+          "line": 122,
           "call": "allow"
         }
       ],
@@ -424,7 +484,18 @@
       "action": "start",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 83,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/support/support-actions.ts",
+          "line": 32,
+          "call": "protectAction"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -435,6 +506,11 @@
       "arity": "collection",
       "meta": {},
       "usages": [
+        {
+          "file": "src/features/member/member-role.ts",
+          "line": 57,
+          "call": "protectAction"
+        },
         {
           "file": "src/policy.ts",
           "line": 63,
@@ -452,6 +528,16 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 59,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 101,
+          "call": "tools"
+        },
+        {
           "file": "src/policy.ts",
           "line": 62,
           "call": "reference"
@@ -466,7 +552,18 @@
       "action": "remove",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/features/access-review/review-actions.ts",
+          "line": 13,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/features/member/member-role.ts",
+          "line": 43,
+          "call": "protectAction"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -476,7 +573,13 @@
       "action": "update_role",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/features/member/member-role.ts",
+          "line": 35,
+          "call": "protectAction"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -496,7 +599,13 @@
       "action": "transfer_ownership",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/features/member/member-actions.ts",
+          "line": 18,
+          "call": "protectAction"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -506,7 +615,13 @@
       "action": "update",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 107,
+          "call": "tools"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -517,6 +632,16 @@
       "arity": "instance",
       "meta": {},
       "usages": [
+        {
+          "file": "src/features/quote/components/quote-actions.tsx",
+          "line": 77,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 76,
+          "call": "protectAction"
+        },
         {
           "file": "src/policy.ts",
           "line": 44,
@@ -537,13 +662,18 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 29,
+          "call": "protectAction"
+        },
+        {
           "file": "src/policy.ts",
           "line": 61,
           "call": "reference"
         },
         {
           "file": "src/policy.ts",
-          "line": 122,
+          "line": 123,
           "call": "allow"
         }
       ],
@@ -557,6 +687,16 @@
       "arity": "instance",
       "meta": {},
       "usages": [
+        {
+          "file": "src/features/quote/components/quote-actions.tsx",
+          "line": 100,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 88,
+          "call": "protectAction"
+        },
         {
           "file": "src/policy.ts",
           "line": 49,
@@ -579,8 +719,13 @@
           "call": "tools"
         },
         {
+          "file": "src/app/[locale]/(app)/[orgSlug]/access/page.tsx",
+          "line": 23,
+          "call": "reference"
+        },
+        {
           "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
-          "line": 33,
+          "line": 47,
           "call": "tools"
         },
         {
@@ -592,6 +737,36 @@
           "file": "src/app/[locale]/(portal)/portal/[orgSlug]/quotes/page.tsx",
           "line": 30,
           "call": "reference"
+        },
+        {
+          "file": "src/app/api/mcp/route.ts",
+          "line": 29,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/api/v1/quotes/route.ts",
+          "line": 15,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/access/access-cache.ts",
+          "line": 16,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/access/components/access-panel.tsx",
+          "line": 26,
+          "call": "usePermission"
+        },
+        {
+          "file": "src/features/access/components/access-panel.tsx",
+          "line": 28,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 21,
+          "call": "protectAction"
         },
         {
           "file": "src/policy.ts",
@@ -610,8 +785,13 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 105,
+          "line": 103,
           "call": "allow"
+        },
+        {
+          "file": "src/proxy.ts",
+          "line": 65,
+          "call": "reference"
         }
       ],
       "rowConditions": true
@@ -624,6 +804,46 @@
       "arity": "instance",
       "meta": {},
       "usages": [
+        {
+          "file": "src/app/api/v1/quotes/route.ts",
+          "line": 15,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/access/access-cache.ts",
+          "line": 11,
+          "call": "getPermission"
+        },
+        {
+          "file": "src/features/access/components/access-panel.tsx",
+          "line": 27,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/access/components/access-panel.tsx",
+          "line": 29,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/automation/automation-actions.ts",
+          "line": 22,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/developer/credential-actions.ts",
+          "line": 22,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/developer/credential-actions.ts",
+          "line": 40,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/components/quote-detail.tsx",
+          "line": 36,
+          "call": "reference"
+        },
         {
           "file": "src/lib/share.ts",
           "line": 54,
@@ -661,6 +881,16 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/features/quote/components/quote-actions.tsx",
+          "line": 57,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 64,
+          "call": "protectAction"
+        },
+        {
           "file": "src/policy.ts",
           "line": 43,
           "call": "allow"
@@ -680,6 +910,26 @@
           "file": "src/agent/tools.ts",
           "line": 88,
           "call": "tools"
+        },
+        {
+          "file": "src/features/quote/components/quote-actions.tsx",
+          "line": 34,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 43,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/features/quote/share-actions.ts",
+          "line": 18,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/features/quote/share-actions.ts",
+          "line": 30,
+          "call": "protectAction"
         },
         {
           "file": "src/policy.ts",
@@ -721,7 +971,18 @@
       "action": "manage",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 65,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/role/role-actions.ts",
+          "line": 11,
+          "call": "protectAction"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -731,7 +992,13 @@
       "action": "manage",
       "arity": "collection",
       "meta": {},
-      "usages": [],
+      "usages": [
+        {
+          "file": "src/features/developer/credential-actions.ts",
+          "line": 30,
+          "call": "protectAction"
+        }
+      ],
       "rowConditions": false
     },
     {
@@ -762,6 +1029,16 @@
       "arity": "collection",
       "meta": {},
       "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 113,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/settings/page.tsx",
+          "line": 26,
+          "call": "requirePermission"
+        },
         {
           "file": "src/policy.ts",
           "line": 65,
@@ -806,7 +1083,7 @@
       "usages": [
         {
           "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
-          "line": 27,
+          "line": 41,
           "call": "tools"
         },
         {
@@ -861,6 +1138,11 @@
       "arity": "collection",
       "meta": {},
       "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 71,
+          "call": "tools"
+        },
         {
           "file": "src/policy.ts",
           "line": 78,

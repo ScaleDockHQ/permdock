@@ -44,11 +44,10 @@ async function hookClaims(user: string): Promise<Record<string, unknown>> {
       claims: { sub: user, role: "authenticated", aal: "aal1" },
     }),
   ]);
-  const claims = rows[0]?.event.claims;
-  if (claims === undefined) {
+  if (rows.length === 0) {
     throw new Error("the access-token hook returned no claims");
   }
-  return claims;
+  return rows[0].event.claims;
 }
 
 type Act = { readonly read_only: boolean; readonly tools: readonly string[] };

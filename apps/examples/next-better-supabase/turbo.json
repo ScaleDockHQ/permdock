@@ -12,6 +12,7 @@
         "DEMO_SIGNING_JWK",
         "EXPOSE_TESTING_API",
         "MEASURE",
+        "MEASURE_WITHOUT",
         "SEED_QUOTES",
         "SUPABASE_JWKS",
         "SUPABASE_PUBLISHABLE_KEY",

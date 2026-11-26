@@ -14,7 +14,7 @@ import { getPermDock } from "../../../permdock/server.ts";
 import { permissions } from "../../../policy.ts";
 import { organizationBySlug } from "../../organization/organization-queries.ts";
 import { quoteById } from "../quote-store.ts";
-import { QuoteActions } from "./quote-actions.tsx";
+import { QuoteActions, QuoteTools } from "./quote-actions.tsx";
 import { ShareActions } from "./share-actions.tsx";
 
 /** One quote, who may read it, and the writes the caller may run. */
@@ -48,6 +48,7 @@ export async function QuoteDetail(props: {
         <Badge variant="outline" size="sm">
           {quote.status}
         </Badge>
+        <QuoteTools organizationId={organization.id} quoteId={quote.id} />
         <QuoteActions quote={quote} />
         <ShareActions organizationId={organization.id} quoteId={quote.id} />
       </FramePanel>

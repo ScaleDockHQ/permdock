@@ -91,10 +91,10 @@ export async function seedScale(
     "select id from public.organizations where slug = $1",
     [options.tenant],
   );
-  const organization = found.rows[0]?.id;
-  if (organization === undefined) {
+  if (found.rows.length === 0) {
     throw new Error(`No organization with slug ${options.tenant}`);
   }
+  const organization = found.rows[0].id;
   await client.query("begin");
   try {
     await clearScaleRows(client);

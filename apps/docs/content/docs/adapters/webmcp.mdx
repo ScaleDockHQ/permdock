@@ -73,6 +73,8 @@ function PostTools() {
 
 `apps/examples/webmcp`: a Vite React app at `http://127.0.0.1:3484/` with `post` tools registered from a snapshot. The in-memory tool list includes snapshot-allowed tools and excludes `post_publish`. Serve the page with a `Permissions-Policy: tools=*` header when using a native or polyfill `document.modelContext`.
 
+`apps/examples/next-better-supabase` registers the quotes tools on the quotes list and the quote page with `registerTools`, and sends `Permissions-Policy: tools=*` on those routes. Each handler calls the page's `protectAction` Server Action.
+
 ## Related standards
 
 - [WebMCP](/docs/standards/webmcp): `document.modelContext`, Permissions-Policy `tools`, hints, `AbortSignal`, Puppeteer `page.webmcp`, polyfill.

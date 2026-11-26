@@ -33,8 +33,7 @@ export async function signIn(
     { redirect: "manual" },
   );
   const parts = response.headers.getSetCookie().map((line) => {
-    const pair = line.split(";")[0];
-    return pair ?? "";
+    return line.split(";")[0];
   });
   const cookie = parts.filter((part) => part !== "").join("; ");
   const encoded =

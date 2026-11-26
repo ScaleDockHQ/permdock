@@ -314,6 +314,27 @@ if (values.sample !== "next" && !isRouteFile(routeModule)) {
 
 const routeFile = isRouteFile(routeModule) ? routeModule : null;
 
+function isStep(value: unknown): value is Step {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof Reflect.get(value, "name") === "string" &&
+    typeof Reflect.get(value, "path") === "string"
+  );
+}
+
+function extraSteps(file: RouteFile | null): readonly Step[] {
+  // oxlint-disable-next-line turbo/no-undeclared-env-vars -- set by measure.ts for one browser run
+  if (process.env["MEASURE_NEW"] !== "1" || file === null) {
+    return [];
+  }
+  const extra: unknown = Reflect.get(file, "extraRoutes");
+  if (!Array.isArray(extra)) {
+    return [];
+  }
+  return extra.filter((step): step is Step => isStep(step));
+}
+
 const supabaseSample: Sample = {
   signIn: (user) => {
     ab("open", `${base}/en`);
@@ -330,7 +351,7 @@ const supabaseSample: Sample = {
     );
     ab("wait", "--load", "load");
   },
-  steps: routeFile?.routes ?? [],
+  steps: [...(routeFile?.routes ?? []), ...extraSteps(routeFile)],
   approve: null,
   remove: null,
   offline: routeFile?.offline ?? null,

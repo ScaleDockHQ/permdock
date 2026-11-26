@@ -1,0 +1,96 @@
+{
+  "overlay": "1.1.0",
+  "info": {
+    "title": "PermDock authorization metadata",
+    "version": "sha-256:UjZftf0KacYWYxrI3kyutJ3cn2H5Kh_N0y8ia31PMAI"
+  },
+  "extends": "openapi.json",
+  "actions": [
+    {
+      "target": "$.components.securitySchemes",
+      "description": "PermDock security schemes",
+      "update": {
+        "permdockOAuth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {
+                "staff:read": "staff.read",
+                "staff:list": "staff.list",
+                "quotes:read": "quotes.read",
+                "quotes:update": "quotes.update",
+                "quotes:send": "quotes.send",
+                "quotes:approve": "quotes.approve",
+                "quotes:delete": "quotes.delete",
+                "quotes:list": "quotes.list",
+                "quotes:create": "quotes.create",
+                "audit:read": "audit.read",
+                "audit:revert": "audit.revert",
+                "roles:manage": "roles.manage",
+                "members:invite": "members.invite",
+                "members:read": "members.read",
+                "members:remove": "members.remove",
+                "members:update_role": "members.update_role",
+                "organization:update": "organization.update",
+                "organization:delete": "organization.delete",
+                "organization:transfer_ownership": "organization.transfer_ownership",
+                "teams:read": "teams.read",
+                "teams:manage": "teams.manage",
+                "settings:read": "settings.read",
+                "settings:update": "settings.update",
+                "settings:manage": "settings.manage",
+                "approvals:read": "approvals.read",
+                "approvals:request": "approvals.request",
+                "approvals:manage": "approvals.manage",
+                "access_requests:read": "access_requests.read",
+                "access_requests:create": "access_requests.create",
+                "access_requests:manage": "access_requests.manage",
+                "access_requests:emergency": "access_requests.emergency",
+                "access_requests:review": "access_requests.review",
+                "impersonation:start": "impersonation.start",
+                "impersonation:read": "impersonation.read",
+                "impersonation:revoke": "impersonation.revoke",
+                "api_keys:manage": "api_keys.manage",
+                "api_keys:own": "api_keys.own",
+                "service_accounts:read": "service_accounts.read",
+                "service_accounts:manage": "service_accounts.manage",
+                "usage:read": "usage.read",
+                "usage:record": "usage.record",
+                "sso:manage": "sso.manage",
+                "relations:read": "relations.read",
+                "relations:manage": "relations.manage",
+                "automations:read": "automations.read",
+                "automations:write": "automations.write",
+                "automations:publish": "automations.publish",
+                "automations:manage": "automations.manage",
+                "billing:read": "billing.read"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "target": "$.paths.*[?@.operationId == 'listQuotes']",
+      "description": "quotes.list,quotes.read",
+      "update": {
+        "security": [
+          {
+            "permdockOAuth": ["quotes:list", "quotes:read"]
+          }
+        ],
+        "x-permdock-permissions": ["quotes.list", "quotes.read"]
+      }
+    },
+    {
+      "target": "$",
+      "description": "PermDock catalog pin",
+      "update": {
+        "x-permdock-catalog": {
+          "v": 1,
+          "generator": "permdock/openapi"
+        }
+      }
+    }
+  ]
+}

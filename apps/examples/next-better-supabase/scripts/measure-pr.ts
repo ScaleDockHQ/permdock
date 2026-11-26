@@ -32,7 +32,7 @@ function table(before: Json, after: Json, seed: string): string[] {
         column.key,
       ).split(" | ");
       lines.push(
-        `| ${route} | ${column.label} | ${left ?? "n/a"} | ${right ?? "n/a"} | ${delta ?? "n/a"} |`,
+        `| ${route} | ${column.label} | ${left} | ${right} | ${delta} |`,
       );
     }
   }
@@ -49,7 +49,8 @@ function missingList(after: Json): string[] {
 
 /** The section that goes under `What` in the pull request. */
 export function renderPrBody(baseline: Json): string {
-  const before = objectAt(checkpointsOf(baseline), "main");
+  const session = objectAt(baseline, "sessionBefore");
+  const before = session ?? objectAt(checkpointsOf(baseline), "main");
   const after = objectAt(checkpointsOf(baseline), "after");
   if (before === null || after === null) {
     return "### Measurements\n\nThe before (`main`) and after checkpoints are not both recorded yet.\n";
@@ -62,7 +63,9 @@ export function renderPrBody(baseline: Json): string {
     `Largest improvements: ${listMoves(summary.improved)}.`,
     `Largest regressions: ${listMoves(summary.worse)}.`,
     "",
-    "Before is the `main` checkpoint. After is the branch head. A lower number is the improvement.",
+    session === null
+      ? "Before is the `main` checkpoint. After is the branch head. A lower number is the improvement."
+      : "Before is a same-session rebuild of the tooling commit. After is the branch head. The earlier `main` checkpoint stays in the report as a drift check. A lower number is the improvement.",
     "",
     ...table(before, after, "1000"),
     "",

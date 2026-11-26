@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { z } from "zod";
@@ -51,6 +51,36 @@ function gzipParts(chunks: readonly string[]): {
     parts[part] = (parts[part] ?? 0) + size;
   }
   return { gzip, parts };
+}
+
+function findNamed(dir: string, name: string): string | null {
+  if (!existsSync(dir)) {
+    return null;
+  }
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory() && entry.name !== "cache") {
+      const found = findNamed(full, name);
+      if (found !== null) {
+        return found;
+      }
+    }
+    if (entry.name === name) {
+      return full;
+    }
+  }
+  return null;
+}
+
+/** Gzip of the proxy bundle Next emits, when this build has one. */
+export function proxyGzip(): number | null {
+  const file =
+    findNamed(path.join(sampleRoot, ".next/server"), "proxy.js") ??
+    findNamed(path.join(sampleRoot, ".next/server"), "middleware.js");
+  if (file === null) {
+    return null;
+  }
+  return gzipSync(readFileSync(file)).length;
 }
 
 /** Gzip of the first-load chunks Next records for each route. */

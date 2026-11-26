@@ -2,17 +2,17 @@
 
 PermDock with [better-supabase](https://www.npmjs.com/package/better-supabase) on Next.js 16.4 with Cache Components, Partial Prefetching and instant navigation, in the CentraKit shape: `/[locale]/[orgSlug]/...` routes, staff roles per organization in `organization_memberships`, and customer-portal contacts through `contacts.user_id`.
 
-The example runs on better-supabase 0.84.0. Its `memberships` block runs over the app's `public.organization_memberships` table, which PermDock reads with `blockMembershipSource`.
+The example runs on better-supabase 0.87.0. Its `memberships` block runs over the app's `public.organization_memberships` table, which PermDock reads with `blockMembershipSource`.
 
-Snapshot-only mode: every grant is portable, so the provider has `endpoint={false}` and the app mounts no `/api/permdock` route. The snapshot rides the prefetched App Shell; Postgres RLS decides which rows come back.
+The portal layout keeps `endpoint={false}`. Staff routes use the factory in `src/permdock/server.ts`. Postgres RLS decides which rows come back. The app also mounts MCP, AuthZEN, SCIM, SSF, approvals, access reviews, an agent route and `/api/v1/quotes`.
 
 ```bash
 pnpm --filter @permdock/example-next-better-supabase serve
 ```
 
-`serve` needs Docker. It starts a throwaway Postgres 17 (testcontainers), applies the auth stub (the Supabase roles and `auth` readers), the migrations and the seed, generates an ES256 key, then runs `next build` and `next start` on `http://127.0.0.1:3489/en`.
+`serve` starts the native Supabase stack (`supabase start --runtime native`), resets the database, generates an ES256 signing key, then runs `next build` and `next start` on `http://127.0.0.1:3489/en`. It does not use Docker. `pnpm test:integration` still does.
 
-Every cached read in `src/lib/access.ts` waits 3 s first, so a prefetched or cached render stands out from a cold one. The staff and quotes lists end with how long their read took and when it ran. Set `DEMO_LATENCY_MS` to change the delay, or to `0` to turn it off.
+Cached reads wait `DEMO_LATENCY_MS` (default 3 s) so a prefetched render stands out from a cold one. Set it to `0` to turn the delay off. Measurements do.
 
 Sign in as:
 
@@ -32,7 +32,7 @@ Where things live:
 - `src/lib/supabase/server.ts`: `import 'server-only'`, then `bsb = createNext(betterSupabase, ...)` with direct Postgres, an inline JWKS and explicit issuer and audience.
 - `src/lib/share.ts` and `src/app/[locale]/share/[token]/page.tsx`: the guest quote page over a better-supabase share link (`subjectFromShareLink`, `exchangeCapability`); the seeded link is `/en/share/acme-initech-rollout`.
 - `src/permdock/server.ts`: `createPermDock` from `permdock/next` with `endpoint: false`; its `subject` reads `bsb.cached()`, and the layouts render its `PermDockProvider` with `snapshot`.
-- `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader (`getSnapshot` in `'use cache: private'`) and the RLS reads (`'use cache: private'` over `bsb.cached({ tags })`), tagged `snapshotTag(sub)`. After a role or plan change, `await bsb.evictSession(userId, { tags: [snapshotTag(userId)] })` drops them.
+- `src/features/quote/quote-queries.ts`: the RLS read (`'use cache: private'` over `bsb.cached({ tags })`), tagged `snapshotTag(sub)`. `src/features/quote/quote-overview.ts` fills `public.quotes_overview_payload` with `share: "tenant"`. `src/proxy.ts` refreshes the session and sets `x-permdock-org`.
 - `src/app/api/sign-in/route.ts` and the home page form call `bsb.signInWithPassword`. Supabase Auth runs the access-token hook, signs the session and sets the cookie. The password is `local-demo`, set in `supabase/seed.sql`.
 - `src/lib/supabase/generated-schema.ts` (the server's schema), `generated.ts` (`clientSchema`), the `tables/` and `blocks/` modules and the `generated.*` metadata: `pnpm gen` regenerates them from the migrations; `pnpm gen:check` fails on drift.
 

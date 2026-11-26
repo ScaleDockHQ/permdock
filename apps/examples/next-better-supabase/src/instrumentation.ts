@@ -7,6 +7,10 @@ export async function register(): Promise<void> {
       import("./lib/supabase/server.ts"),
       import("./policy.ts"),
     ]);
+  const { env } = await import("./env.ts");
+  if (env.without === "warm") {
+    return;
+  }
   await warmClient(bsb);
   await warm(policy);
   await authorization.warm();

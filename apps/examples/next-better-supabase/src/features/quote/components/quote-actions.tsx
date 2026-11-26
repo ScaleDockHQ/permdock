@@ -1,12 +1,14 @@
 "use client";
 
+export { QuoteTools } from "./quote-tools.tsx";
+
 import { useProtectedAction } from "permdock/react";
 
 import { Button } from "@/components/ui/button";
 
 import type { QuoteRecord } from "../quote-record.ts";
 
-import { permissions } from "../../../policy.ts";
+import { permissions } from "../../../permissions.ts";
 import {
   approveQuote,
   deleteQuote,

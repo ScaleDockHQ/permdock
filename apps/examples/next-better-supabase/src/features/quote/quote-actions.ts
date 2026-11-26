@@ -6,6 +6,7 @@ import { z } from "zod";
 import { protectAction } from "../../permdock/server.ts";
 import { permissions } from "../../policy.ts";
 import { orgTag } from "../organization/organization-cache.ts";
+import { visibleQuotes } from "./quote-queries.ts";
 import {
   insertQuote,
   patchQuote,
@@ -16,6 +17,14 @@ import {
 const quoteId = z.uuid();
 
 const located = z.object({ organizationId: z.uuid(), id: quoteId });
+
+export const listQuotes = protectAction(permissions.quotes.list, {
+  input: z.object({ organizationId: z.uuid() }),
+  tenant: (input) => input.organizationId,
+})(async (input) => {
+  const loaded = await visibleQuotes(input.organizationId);
+  return { count: loaded.value.length };
+});
 
 export const createQuote = protectAction(permissions.quotes.create, {
   input: z.object({

@@ -4,8 +4,10 @@ import path from "node:path";
 import { Client } from "pg";
 import { z } from "zod";
 
-import { routes, users } from "../perf/routes.ts";
-import { bundleSizes } from "./measure-bundle.ts";
+import type { PerfRoute } from "../perf/routes.ts";
+
+import { extraRoutes, personas, routes, users } from "../perf/routes.ts";
+import { bundleSizes, proxyGzip } from "./measure-bundle.ts";
 import { signIn, tokenSizes } from "./measure-session.ts";
 const sampleRoot = path.join(import.meta.dirname, "..");
 const repoRoot = path.join(sampleRoot, "../../..");
@@ -58,8 +60,10 @@ async function statementCount(databaseUrl: string): Promise<number | null> {
       "select coalesce(sum(calls), 0)::text as calls from pg_stat_statements where query not ilike '%pg_stat_statements%'",
     );
     await client.query("select pg_stat_statements_reset()");
-    const calls = result.rows[0]?.calls;
-    return calls === undefined ? null : Number(calls);
+    if (result.rows.length === 0) {
+      return null;
+    }
+    return Number(result.rows[0].calls);
   });
   return count;
 }
@@ -72,7 +76,7 @@ type Probe = {
   readonly verifyMs: number | null;
 };
 
-async function probeRoute(
+export async function probeRoute(
   base: string,
   routePath: string,
   cookie: string,
@@ -115,6 +119,7 @@ function runBrowser(
   out: string,
   runs: string,
   session: string,
+  includeNew: boolean,
 ): void {
   execFileSync(
     "node",
@@ -133,7 +138,12 @@ function runBrowser(
       "--out",
       out,
     ],
-    { cwd: repoRoot, stdio: "inherit", timeout: 45 * 60 * 1000 },
+    {
+      cwd: repoRoot,
+      env: includeNew ? { ...process.env, MEASURE_NEW: "1" } : process.env,
+      stdio: "inherit",
+      timeout: 45 * 60 * 1000,
+    },
   );
 }
 
@@ -141,31 +151,46 @@ const NAMES = ["Olivia", "Carla"] as const;
 
 async function tokensFor(
   base: string,
+  names: readonly { readonly name: string; readonly id: string }[],
   index: number,
   acc: Record<string, ReturnType<typeof tokenSizes>>,
 ): Promise<Record<string, ReturnType<typeof tokenSizes>>> {
-  const name = NAMES[index];
-  if (name === undefined) {
+  if (index >= names.length) {
     return acc;
   }
-  const signed = await signIn(base, users[name]);
-  return tokensFor(base, index + 1, {
+  const name = names[index];
+  const signed = await signIn(base, name.id);
+  return tokensFor(base, names, index + 1, {
     ...acc,
-    [name]: tokenSizes(signed.token, signed.cookie),
+    [name.name]: tokenSizes(signed.token, signed.cookie),
   });
+}
+
+function tokenNames(
+  includeNew: boolean,
+): readonly { readonly name: string; readonly id: string }[] {
+  const base = NAMES.map((name) => ({ name, id: users[name] }));
+  if (!includeNew) {
+    return base;
+  }
+  return [
+    ...base,
+    ...Object.entries(personas).map(([name, id]) => ({ name, id })),
+  ];
 }
 
 async function routesFor(
   base: string,
   databaseUrl: string | null,
   browser: Record<string, unknown> | null,
+  listed: readonly PerfRoute[],
   index: number,
   acc: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  const route = routes[index];
-  if (route === undefined) {
+  if (index >= listed.length) {
     return acc;
   }
+  const route = listed[index];
   const signed =
     route.user === null
       ? { cookie: "", token: null }
@@ -176,7 +201,7 @@ async function routesFor(
     typeof row === "object" && row !== null && "spread" in row
       ? row.spread
       : null;
-  return routesFor(base, databaseUrl, browser, index + 1, {
+  return routesFor(base, databaseUrl, browser, listed, index + 1, {
     ...acc,
     [route.name]: { browser: row ?? null, probe, spread },
   });
@@ -192,6 +217,30 @@ function browserResults(file: string): Record<string, unknown> | null {
   return parsed.success ? parsed.data.results : null;
 }
 
+function gaps(
+  browserError: string | null,
+  bundleNote: string | null,
+  proxy: number | null,
+  databaseUrl: string | null,
+): string[] {
+  const notMeasured: string[] = [];
+  if (browserError !== null) {
+    notMeasured.push(browserError);
+  }
+  if (bundleNote !== null) {
+    notMeasured.push(bundleNote);
+  }
+  if (proxy === null) {
+    notMeasured.push("the proxy bundle was not in the build output");
+  }
+  if (databaseUrl === null) {
+    notMeasured.push(
+      "pg_stat_statements was not available; statement counts use x-bsb-db-calls only",
+    );
+  }
+  return notMeasured;
+}
+
 export async function measureSeed(input: {
   readonly base: string;
   readonly seed: string;
@@ -199,40 +248,40 @@ export async function measureSeed(input: {
   readonly runs: string;
   readonly session: string;
   readonly rawDir: string;
+  readonly includeNew: boolean;
 }): Promise<unknown> {
   mkdirSync(input.rawDir, { recursive: true });
   const browserFile = path.join(input.rawDir, `${input.session}.json`);
-  const notMeasured: string[] = [];
+  let browserError: string | null = null;
   try {
-    runBrowser(input.base, input.seed, browserFile, input.runs, input.session);
+    runBrowser(
+      input.base,
+      input.seed,
+      browserFile,
+      input.runs,
+      input.session,
+      input.includeNew,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    notMeasured.push(`browser run failed: ${message.slice(0, 500)}`);
+    browserError = `browser run failed: ${message.slice(0, 500)}`;
   }
   const bundles = bundleSizes();
-  if (bundles.note !== null) {
-    notMeasured.push(bundles.note);
-  }
-  if (input.databaseUrl === null) {
-    notMeasured.push(
-      "pg_stat_statements was not available; statement counts use x-bsb-db-calls only",
-    );
-  }
-  notMeasured.push(
-    "no src/proxy.ts, so the proxy bundle was not measured",
-    "permdock/webmcp is not on these pages",
-  );
+  const proxy = proxyGzip();
+  const listed = input.includeNew ? [...routes, ...extraRoutes] : routes;
   return {
     seed: Number(input.seed),
     routes: await routesFor(
       input.base,
       input.databaseUrl,
       browserResults(browserFile),
+      listed,
       0,
       {},
     ),
-    tokens: await tokensFor(input.base, 0, {}),
+    tokens: await tokensFor(input.base, tokenNames(input.includeNew), 0, {}),
     bundles: bundles.rows,
-    notMeasured,
+    proxyGzip: proxy,
+    notMeasured: gaps(browserError, bundles.note, proxy, input.databaseUrl),
   };
 }

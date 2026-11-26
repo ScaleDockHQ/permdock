@@ -51,6 +51,11 @@
       "budget": false
     },
     {
+      "name": "suspended_in",
+      "source": "permdock",
+      "budget": false
+    },
+    {
       "name": "tenant_id",
       "source": "permdock",
       "budget": false
@@ -356,6 +361,16 @@
         "column": "role"
       }
     },
+    "suspension": {
+      "scopes": {
+        "organization": {
+          "table": "public.organizations",
+          "id": "id",
+          "status": "status",
+          "active": ["active"]
+        }
+      }
+    },
     "assignments": {
       "tables": ["better_supabase.invitations"]
     },
@@ -404,6 +419,12 @@
         "reason": "policy organizations_public_read in supabase/schemas/public/tables/organizations.sql is a row condition: it calls none and reads no column, which no tenant check of permdock.permitted_organization_ids_by_permission covers"
       },
       {
+        "table": "public.quote_overviews",
+        "share": "tenant",
+        "column": "organization_id",
+        "permissions": ["quotes.list"]
+      },
+      {
         "table": "public.quotes",
         "share": "row",
         "rules": ["condition"],
@@ -429,7 +450,13 @@
         "reason": "policy staff_select in supabase/schemas/public/policies/permdock.sql uses permdock.permitted_organization_ids inside a larger expression, not as \"<column> in (select permdock.permitted_organization_ids('<key>'))\"; key staff.list: every grant of it is unconditional; key staff.read: every grant of it is unconditional"
       }
     ],
-    "sharedFunctions": [],
+    "sharedFunctions": [
+      {
+        "function": "public.quotes_overview_payload",
+        "tables": ["public.quote_overviews"],
+        "permissions": ["quotes.list"]
+      }
+    ],
     "tenantPureHelpers": [
       {
         "name": "permdock.permdock_organization_has",
