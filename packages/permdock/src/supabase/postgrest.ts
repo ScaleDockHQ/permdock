@@ -332,11 +332,19 @@ export function postgrestSources(
     { authz?: Want; roles?: Want; queued: boolean }
   >();
   let combinedMissing = false;
+  // A client that throws synchronously rejects instead: the batched reads run
+  // in a microtask, where a throw would escape and leave the caller waiting.
+  const call = (
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<SupabaseRpcResult> =>
+    new Promise<SupabaseRpcResult>((resolve) => {
+      resolve(callRpc(client, schema, name, args));
+    });
   const single = (want: Want, kind: "authz" | "roles"): void => {
-    Promise.resolve(
-      kind === "authz"
-        ? callRpc(client, schema, versionFn, { p_user: want.user })
-        : callRpc(client, schema, rolesVersionFn, { p_tenant: want.tenant }),
+    (kind === "authz"
+      ? call(versionFn, { p_user: want.user })
+      : call(rolesVersionFn, { p_tenant: want.tenant })
     ).then(want.settle, want.fail);
   };
   const flush = (memo: SourceMemo): void => {
@@ -361,12 +369,7 @@ export function postgrestSources(
       }
       return;
     }
-    Promise.resolve(
-      callRpc(client, schema, versionsFn, {
-        p_user: authz.user,
-        p_tenant: roles.tenant,
-      }),
-    ).then(
+    call(versionsFn, { p_user: authz.user, p_tenant: roles.tenant }).then(
       (result) => {
         const both =
           result.error === null ? combinedOf(result.data) : undefined;
