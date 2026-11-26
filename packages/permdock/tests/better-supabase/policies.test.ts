@@ -34,7 +34,7 @@ describe(bucketPolicy, () => {
     const policy = bucketPolicy(
       {
         read: permission("quotes.read"),
-        list: permission("quotes.list"),
+        list: permission("staff.list"),
         write: permission("quotes.update"),
         delete: permission("quotes.update"),
       },
@@ -43,7 +43,7 @@ describe(bucketPolicy, () => {
     expect(policy).toStrictEqual({
       access: {
         read: "quotes.read",
-        list: "quotes.list",
+        list: "staff.list",
         write: "quotes.update",
         delete: "quotes.update",
       },
@@ -65,7 +65,7 @@ describe(bucketPolicy, () => {
     expect(() => bucketPolicy(access("quotes.read#1"), options)).toThrow(
       /split by row condition/u,
     );
-    expect(() => bucketPolicy(access("quotes.delete"), options)).toThrow(
+    expect(() => bucketPolicy(access("quotes.archive"), options)).toThrow(
       /is not in permissions.catalog.json/u,
     );
     const conditioned = structuredClone(catalog);
@@ -90,9 +90,9 @@ describe(bucketPolicy, () => {
     expect(() =>
       bucketPolicy(
         { read: permission("quotes.read"), write: permission("quotes.read") },
-        { ...options, scope: "team" },
+        { ...options, scope: "site" },
       ),
-    ).toThrow(/scope "team" is not in the manifest's rls.scopes/u);
+    ).toThrow(/scope "site" is not in the manifest's rls.scopes/u);
   });
 });
 
@@ -100,13 +100,16 @@ describe(topicPolicy, () => {
   it("checks receive and send", () => {
     expect(
       topicPolicy(
-        { receive: permission("quotes.read"), send: permission("quotes.list") },
-        { ...options, scope: "customer" },
+        {
+          receive: permission("quotes.read"),
+          send: permission("quotes.update"),
+        },
+        options,
       ),
     ).toStrictEqual({
       receive: "quotes.read",
-      send: "quotes.list",
-      scope: "customer",
+      send: "quotes.update",
+      scope: "organization",
       sql: {
         idsWith: "permdock.permitted_{scope}_ids_by_permission({permission})",
         isPlatform: "permdock.permdock_has_permission({permission})",

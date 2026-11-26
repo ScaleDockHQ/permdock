@@ -97,6 +97,14 @@ function median(numbers: readonly number[]): number | null {
     : (sorted[Math.floor(sorted.length / 2)] ?? null);
 }
 
+function bounds(numbers: readonly number[]): {
+  readonly min: number | null;
+  readonly max: number | null;
+} {
+  const sorted = numbers.toSorted((a, b) => a - b);
+  return { min: sorted[0] ?? null, max: sorted.at(-1) ?? null };
+}
+
 function num(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
@@ -119,6 +127,8 @@ const PAGE_FACTS = `(async()=>{
     heapMB:performance.memory?Math.round(performance.memory.usedJSHeapSize/1e5)/10:null,
     serverReads:[...document.querySelectorAll('[data-testid=data-source]')].map(e=>e.textContent.trim()),
     rscRequests:performance.getEntriesByType('resource').filter(r=>r.name.includes('_rsc=')).map(r=>({encodedBytes:r.encodedBodySize,decodedBytes:r.decodedBodySize,serverMs:Math.round(r.responseStart-r.requestStart)})),
+    serverTiming:(n&&n.serverTiming||[]).map(e=>({name:e.name,dur:Math.round(e.duration*10)/10})),
+    requests:Object.entries([n,...performance.getEntriesByType('resource')].filter(Boolean).reduce((a,r)=>{const name=String(r.name||'');const kind=r.entryType==='navigation'?'document':name.includes('_rsc=')?'rsc':name.includes('/api/permdock')?'permdock':name.includes('next-action')?'action':(r.initiatorType==='link'||name.includes('prefetch'))?'prefetch':'other';a[kind]=(a[kind]||0)+1;return a;},{})).map(([kind,count])=>({kind,count})),
   });
 })()`;
 
@@ -181,6 +191,13 @@ function docLoad(url: string): Json {
       heapMB: median(pick((s) => fact(s, "heapMB"))),
     },
     serverReads: fact(first, "serverReads") ?? null,
+    serverTiming: fact(first, "serverTiming") ?? null,
+    requests: fact(first, "requests") ?? null,
+    spread: {
+      ttfbMs: bounds(pick((s) => vital(s, "ttfb"))),
+      lcpMs: bounds(pick(lcpOf)),
+      fcpMs: bounds(pick((s) => vital(s, "fcp"))),
+    },
     runs: samples,
   };
 }
@@ -259,14 +276,76 @@ const nextSample: Sample = {
   offline: { path: "/acme/members", link: "Quotes" },
 };
 
-const OLIVIA = "00000000-0000-4000-8000-0000000000a1";
-const MASON = "00000000-0000-4000-8000-0000000000a2";
-const CARLA = "00000000-0000-4000-8000-0000000000a3";
-const bsbUsers = new Map<string, string>([
-  ["Olivia", OLIVIA],
-  ["Mason", MASON],
-  ["Carla", CARLA],
-]);
+type RouteFile = {
+  readonly routes: readonly Step[];
+  readonly users: Readonly<Record<string, string>>;
+  readonly offline: { readonly path: string; readonly link: string };
+};
+
+function isRouteFile(value: unknown): value is RouteFile {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const routes = Reflect.get(value, "routes");
+  const listed = Reflect.get(value, "users");
+  const offlineRoute = Reflect.get(value, "offline");
+  return (
+    Array.isArray(routes) &&
+    typeof listed === "object" &&
+    listed !== null &&
+    typeof offlineRoute === "object" &&
+    offlineRoute !== null
+  );
+}
+
+const routeModule: unknown =
+  values.sample === "next"
+    ? null
+    : await import(
+        path.resolve(
+          import.meta.dirname,
+          "../apps/examples/next-better-supabase/perf/routes.ts",
+        )
+      );
+
+if (values.sample !== "next" && !isRouteFile(routeModule)) {
+  throw new Error("perf/routes.ts did not export routes, users and offline");
+}
+
+const routeFile = isRouteFile(routeModule) ? routeModule : null;
+
+function isStep(value: unknown): value is Step {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof Reflect.get(value, "name") === "string" &&
+    typeof Reflect.get(value, "path") === "string" &&
+    (Reflect.get(value, "user") === null ||
+      typeof Reflect.get(value, "user") === "string")
+  );
+}
+
+function namedSteps(file: RouteFile | null, key: string): readonly Step[] {
+  // oxlint-disable-next-line turbo/no-undeclared-env-vars -- set by measure.ts for one browser run
+  if (process.env["MEASURE_NEW"] !== "1" || file === null) {
+    return [];
+  }
+  const extra: unknown = Reflect.get(file, key);
+  if (!Array.isArray(extra)) {
+    return [];
+  }
+  return extra.filter((step): step is Step => isStep(step));
+}
+
+function selected(steps: readonly Step[]): readonly Step[] {
+  // oxlint-disable-next-line turbo/no-undeclared-env-vars -- set by measure-saas.ts to skip routes already recorded
+  const only = process.env["MEASURE_ONLY"];
+  if (only === undefined || only === "") {
+    return steps;
+  }
+  const names = new Set(only.split(",").filter((name) => name !== ""));
+  return steps.filter((step) => names.has(step.name));
+}
 
 const supabaseSample: Sample = {
   signIn: (user) => {
@@ -276,23 +355,22 @@ const supabaseSample: Sample = {
       ab("cookies", "clear");
       return;
     }
-    const id = bsbUsers.get(user) ?? OLIVIA;
+    const listed = routeFile?.users ?? {};
+    const id = listed[user] ?? listed["Olivia"] ?? "";
     ab(
       "open",
-      `${base}/api/test/sign-in?user=${id}&next=${encodeURIComponent("/en")}`,
+      `${base}/api/sign-in?user=${id}&next=${encodeURIComponent("/en")}`,
     );
     ab("wait", "--load", "load");
   },
-  steps: [
-    { name: "quotes-list", user: "Olivia", path: "/en/acme/quotes" },
-    { name: "members", user: "Olivia", path: "/en/acme/staff" },
-    { name: "denied-staff", user: "Carla", path: "/en/acme/staff" },
-    { name: "unauthorized", user: null, path: "/en/acme/quotes" },
-    { name: "portal-quotes", user: "Carla", path: "/en/portal/acme/quotes" },
-  ],
+  steps: selected([
+    ...(routeFile?.routes ?? []),
+    ...namedSteps(routeFile, "extraRoutes"),
+    ...namedSteps(routeFile, "saasRoutes"),
+  ]),
   approve: null,
   remove: null,
-  offline: { path: "/en/acme/staff", link: "Quotes" },
+  offline: routeFile?.offline ?? null,
 };
 
 const sample = values.sample === "next" ? nextSample : supabaseSample;

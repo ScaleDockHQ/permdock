@@ -187,6 +187,7 @@ export type Database = {
           id: string
           name: string
           slug: string
+          status: string
           updated_at: string
         }
         ComputedFields: never
@@ -195,6 +196,7 @@ export type Database = {
           id?: string
           name: string
           slug: string
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -202,9 +204,34 @@ export type Database = {
           id?: string
           name?: string
           slug?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      quote_overviews: {
+        Row: {
+          organization_id: string
+          total: number
+        }
+        ComputedFields: never
+        Insert: {
+          organization_id: string
+          total?: number
+        }
+        Update: {
+          organization_id?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_overviews_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quotes: {
         Row: {
@@ -214,6 +241,8 @@ export type Database = {
           customer_id: string
           id: string
           organization_id: string
+          status: string
+          team_id: string | null
           title: string
           updated_at: string
         }
@@ -225,6 +254,8 @@ export type Database = {
           customer_id: string
           id?: string
           organization_id: string
+          status?: string
+          team_id?: string | null
           title: string
           updated_at?: string
         }
@@ -235,6 +266,8 @@ export type Database = {
           customer_id?: string
           id?: string
           organization_id?: string
+          status?: string
+          team_id?: string | null
           title?: string
           updated_at?: string
         }
@@ -362,6 +395,11 @@ export type Database = {
       audit_retention: { Args: { tenant: string }; Returns: string }
       datetime_preference_claims: { Args: { p_user_id: string }; Returns: Json }
       feature_claims: { Args: { p_user_id: string }; Returns: Json }
+      quotes_overview_payload: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      sample_authz_version: { Args: { args: Json }; Returns: number }
     }
     Enums: {
       [_ in never]: never

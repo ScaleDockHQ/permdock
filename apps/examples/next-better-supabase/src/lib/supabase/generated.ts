@@ -19,6 +19,12 @@ export type Database = EnrichDatabase<
         week_start: "monday" | "sunday";
         time_format: "12h" | "24h";
       };
+      organizations: {
+        status: "active" | "suspended";
+      };
+      quotes: {
+        status: "draft" | "sent" | "approved";
+      };
     };
   }
 >;
@@ -27,6 +33,10 @@ export const datetime_preferencesWeekStartValues = ["monday", "sunday"] as const
 export type DatetimePreferencesWeekStart = (typeof datetime_preferencesWeekStartValues)[number];
 export const datetime_preferencesTimeFormatValues = ["12h", "24h"] as const;
 export type DatetimePreferencesTimeFormat = (typeof datetime_preferencesTimeFormatValues)[number];
+export const organizationsStatusValues = ["active", "suspended"] as const;
+export type OrganizationsStatus = (typeof organizationsStatusValues)[number];
+export const quotesStatusValues = ["draft", "sent", "approved"] as const;
+export type QuotesStatus = (typeof quotesStatusValues)[number];
 export type Models = {
   contacts: {
     Row: {
@@ -210,6 +220,7 @@ export type Models = {
       name: string;
       created_at: string;
       updated_at: string;
+      status: "active" | "suspended";
     };
     Insert: {
       id?: string;
@@ -217,6 +228,7 @@ export type Models = {
       name: string;
       created_at?: string;
       updated_at?: string;
+      status?: "active" | "suspended";
     };
     Update: {
       id?: string;
@@ -224,12 +236,14 @@ export type Models = {
       name?: string;
       created_at?: string;
       updated_at?: string;
+      status?: "active" | "suspended";
     };
     Relations: {
       contacts: { table: "contacts"; kind: "many"; nullable: true };
       customers: { table: "customers"; kind: "many"; nullable: true };
       organization_features: { table: "organization_features"; kind: "many"; nullable: true };
       organization_memberships: { table: "organization_memberships"; kind: "many"; nullable: true };
+      quote_overview: { table: "quote_overviews"; kind: "one"; nullable: true };
       quotes: { table: "quotes"; kind: "many"; nullable: true };
       roles: { table: "roles"; kind: "many"; nullable: true };
       staff: { table: "staff"; kind: "many"; nullable: true };
@@ -238,10 +252,34 @@ export type Models = {
     UniqueKeys: {
       organizations_slug_key: readonly ["slug"];
     };
-    Checks: never;
+    Checks: "organizations_status_check";
     ForeignKeys: never;
     Flags: {
       timestamps: true;
+    };
+  };
+  quote_overviews: {
+    Row: {
+      organization_id: string;
+      total: number;
+    };
+    Insert: {
+      organization_id: string;
+      total?: number;
+    };
+    Update: {
+      organization_id?: string;
+      total?: number;
+    };
+    Relations: {
+      organization: { table: "organizations"; kind: "one"; nullable: false };
+    };
+    PrimaryKey: "organization_id";
+    UniqueKeys: Record<never, never>;
+    Checks: never;
+    ForeignKeys: "quote_overviews_organization_id_fkey";
+    Flags: {
+      tenant: "organization_id";
     };
   };
   quotes: {
@@ -254,6 +292,8 @@ export type Models = {
       currency: string;
       created_at: string;
       updated_at: string;
+      status: "draft" | "sent" | "approved";
+      team_id: string | null;
     };
     Insert: {
       id?: string;
@@ -264,6 +304,8 @@ export type Models = {
       currency: string;
       created_at?: string;
       updated_at?: string;
+      status?: "draft" | "sent" | "approved";
+      team_id?: string | null;
     };
     Update: {
       id?: string;
@@ -274,6 +316,8 @@ export type Models = {
       currency?: string;
       created_at?: string;
       updated_at?: string;
+      status?: "draft" | "sent" | "approved";
+      team_id?: string | null;
     };
     Relations: {
       customer: { table: "customers"; kind: "one"; nullable: false };
@@ -281,7 +325,7 @@ export type Models = {
     };
     PrimaryKey: "id";
     UniqueKeys: Record<never, never>;
-    Checks: "quotes_amount_minor_check" | "quotes_currency_check";
+    Checks: "quotes_amount_minor_check" | "quotes_currency_check" | "quotes_status_check";
     ForeignKeys: "quotes_customer_id_organization_id_fkey" | "quotes_organization_id_fkey";
     Flags: {
       timestamps: true;
@@ -412,6 +456,16 @@ export type Functions = {
       p_user_id: string | null;
     };
     Returns: Json;
+  };
+  quotes_overview_payload: {
+    Args: Record<never, never>;
+    Returns: number | null;
+  };
+  sample_authz_version: {
+    Args: {
+      args: Json | null;
+    };
+    Returns: number | null;
   };
 };
 

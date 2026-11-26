@@ -6,6 +6,8 @@ create table public.quotes (
   title text not null,
   amount_minor bigint not null check (amount_minor >= 0),
   currency text not null check (currency ~ '^[A-Z]{3}$'),
+  status text not null default 'draft' check (status in ('draft', 'sent', 'approved')),
+  team_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   foreign key (customer_id, organization_id) references public.customers (id, organization_id) on delete cascade
@@ -15,7 +17,7 @@ alter table public.quotes enable row level security;
 -- Supabase's default privileges grant every table to the API roles; grant back only what clients read.
 revoke all on public.quotes from anon, authenticated;
 
-grant select on public.quotes to authenticated;
+grant select, insert, update, delete on public.quotes to authenticated;
 
 create trigger bsb_updated_at before update on public.quotes
   for each row execute function better_supabase.set_updated_at('updated_at');

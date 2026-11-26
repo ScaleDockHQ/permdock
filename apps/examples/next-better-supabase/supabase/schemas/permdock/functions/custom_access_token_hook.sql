@@ -1,4 +1,4 @@
--- permdock:hook v1 schema=permdock tenant=tenant_id budget=1024 claims=user_role,roles,memberships,memberships_truncated,tenant_id,authz_ver,datetime_preferences,features
+-- permdock:hook v1 schema=permdock tenant=tenant_id budget=1024 claims=user_role,roles,memberships,memberships_truncated,suspended_in,tenant_id,authz_ver,datetime_preferences,features
 -- custom_access_token_hook(jsonb): memberships go active organization first and stop at the budget
 -- supabase/config.toml:
 --   [auth]
@@ -79,7 +79,8 @@ begin
       group by m."customer_id", m."organization_id"
       having jsonb_build_array('contact') is not null
     ) s
-  ) x;
+  ) x
+  where (x.tenant is null or x.entry ? 'keep' or exists (select 1 from "public"."organizations" s where s."id"::text = x.tenant and s."status"::text = any(array['active']::text[])));
 end;
 $$;
 revoke execute on function "permdock".memberships_for(uuid) from public, anon, authenticated;
@@ -132,10 +133,72 @@ begin
       having jsonb_build_array('contact') is not null
     ) s
   ) x
-  where x.tenant = p_tenant;
+  where x.tenant = p_tenant
+    and (x.tenant is null or x.entry ? 'keep' or exists (select 1 from "public"."organizations" s where s."id"::text = x.tenant and s."status"::text = any(array['active']::text[])));
 end;
 $$;
 revoke execute on function "permdock".memberships_for(uuid, text) from public, anon, authenticated;
+
+-- the tenants p_user is a member of while the tenant is suspended, so a reader tells a suspension from a missing membership; no client role may execute it
+create or replace function "permdock".suspended_in_for(p_user uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+#variable_conflict use_column
+declare
+  v_user_0 "public"."organization_memberships"."user_id"%type := p_user;
+  v_user_1 "public"."contacts"."user_id"%type := p_user;
+  ids jsonb;
+begin
+  select coalesce(jsonb_agg(t.tenant order by t.tenant), '[]'::jsonb) into ids
+  from (
+    select distinct x.tenant
+    from (
+      select 0 as ord,
+        (case when s.scope = 'organization' then s.id else s.within ->> 'organization' end) as tenant,
+        jsonb_strip_nulls(jsonb_build_object(
+          'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
+          'expires_at', s.expires_at, 'granted_by', s.granted_by, 'reason', s.reason,
+          'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
+          'managed_by', s.managed_by, 'entitlements', s.seats
+        )) as entry
+      from (
+        select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+        from "public"."organization_memberships" m
+        where m."user_id" = v_user_0
+        group by m."organization_id"
+        having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+      ) s
+      union all
+      select 1 as ord,
+        (case when s.scope = 'organization' then s.id else s.within ->> 'organization' end) as tenant,
+        jsonb_strip_nulls(jsonb_build_object(
+          'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
+          'expires_at', s.expires_at, 'granted_by', s.granted_by, 'reason', s.reason,
+          'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
+          'managed_by', s.managed_by, 'entitlements', s.seats
+        )) as entry
+      from (
+        select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+        from "public"."contacts" m
+        where m."user_id" = v_user_1
+        group by m."customer_id", m."organization_id"
+        having jsonb_build_array('contact') is not null
+      ) s
+    ) x
+    where x.tenant is not null
+      and not (x.entry ? 'keep')
+      and not exists (select 1 from "public"."organizations" s where s."id"::text = x.tenant and s."status"::text = any(array['active']::text[]))
+    order by x.tenant
+    limit 16
+  ) t;
+  return ids;
+end;
+$$;
+revoke execute on function "permdock".suspended_in_for(uuid) from public, anon, authenticated;
 
 create or replace function "permdock".custom_access_token_hook(event jsonb)
 returns jsonb
@@ -153,115 +216,82 @@ declare
   in_active boolean := false;
   budget integer := 1024;
   used integer := 0;
+  suspended jsonb;
   extra jsonb;
   ver bigint;
-  fast boolean := false;
 begin
-  claims := claims - 'attrs' - 'custom_roles_ver' - 'datetime_preferences' - 'features' - 'user_role' - 'tenant_id';
+  claims := claims - 'attrs' - 'custom_roles_ver' - 'datetime_preferences' - 'features';
   active := claims -> 'app_metadata' ->> 'tenant_id';
-
-  -- a refresh whose token carries the current authz_ver keeps the roles, memberships and teams it holds; any doubt reads them again
-  if event ->> 'authentication_method' = 'token_refresh'
-    and not truncated
-    and jsonb_typeof(event -> 'claims' -> 'authz_ver') = 'number'
-    and jsonb_typeof(event -> 'claims' -> 'roles') = 'array'
-    and jsonb_typeof(event -> 'claims' -> 'memberships') in ('array', 'object')
-    and not (event -> 'claims' ? 'memberships_truncated') then
-    select coalesce((select v.version from "permdock"."permdock_authz_version" v where v.user_id = uid), 0) into ver;
-    if (event -> 'claims' ->> 'authz_ver')::numeric = ver then
-      held := event -> 'claims' -> 'roles';
-      kept := event -> 'claims' -> 'memberships';
-      if used + 2 * octet_length(held::text) + octet_length(kept::text) + coalesce(octet_length(to_jsonb(active)::text), 0) + octet_length(ver::text) + 20 + 2 <= budget then
-        fast := true;
-      end if;
-    end if;
-  end if;
-  if fast then
-    in_active := active is not null and (
-      case jsonb_typeof(kept)
-        when 'object' then exists (
-          select 1 from jsonb_array_elements(coalesce(kept -> 'e', '[]'::jsonb)) as x(e)
-          where kept -> 's' ->> ((x.e ->> 0)::int) = 'organization' and x.e ->> 1 = case when active ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then translate(rtrim(encode(decode(replace(active, '-', ''), 'hex'), 'base64'), '='), '+/', '-_') else '=' || active end
-        ) or exists (
-          select 1 from jsonb_array_elements(coalesce(kept -> 'o', '[]'::jsonb)) as e(entry) where case when e.entry ->> 'scope' = 'organization' then e.entry ->> 'id' else e.entry -> 'within' ->> 'organization' end = active
-        )
-        else exists (
-          select 1 from jsonb_array_elements(kept) as e(entry) where case when e.entry ->> 'scope' = 'organization' then e.entry ->> 'id' else e.entry -> 'within' ->> 'organization' end = active
-        )
-      end
-    );
-  else
-    -- one statement reads the roles, the memberships and the authorization version; the budget counts every slice
-    with pdk_roles as (
-        select "permdock".global_roles_for(uid) as held
-      ),
-      pdk_version as (
-        select coalesce((select v.version from "permdock"."permdock_authz_version" v where v.user_id = uid), 0) as ver
-      ),
-      pdk_entries as (
-        select e.ord, e.entry, case when e.entry ->> 'scope' = 'organization' then e.entry ->> 'id' else e.entry -> 'within' ->> 'organization' end as root_id
-        from "permdock".memberships_for(uid) e
-      ),
-      pdk_plain as (
-        select x.ord, x.entry, x.root_id,
-          x.entry - 'scope' - 'id' - 'roles' - 'via' = '{}'::jsonb
-            and jsonb_typeof(x.entry -> 'scope') = 'string'
-            and coalesce(jsonb_typeof(x.entry -> 'via'), 'string') = 'string'
-            and jsonb_typeof(x.entry -> 'id') = 'string'
-            and jsonb_typeof(x.entry -> 'roles') = 'array'
-            and not exists (select 1 from jsonb_array_elements(x.entry -> 'roles') v where jsonb_typeof(v) <> 'string') as plain
-        from pdk_entries x
-      ),
-      pdk_tables as (
-        select
-          coalesce((select jsonb_agg(t.v order by t.v collate "C") from (select distinct p.entry ->> 'scope' as v from pdk_plain p where p.plain) t), '[]'::jsonb) as s,
-          coalesce((select jsonb_agg(t.v order by t.v collate "C") from (select distinct r.v from pdk_plain p cross join lateral jsonb_array_elements_text(p.entry -> 'roles') as r(v) where p.plain) t), '[]'::jsonb) as r,
-          coalesce((select jsonb_agg(t.v order by t.v collate "C") from (select distinct p.entry ->> 'via' as v from pdk_plain p where p.plain and p.entry ? 'via') t), '[]'::jsonb) as v
-      ),
-      pdk_items as (
-        select p.ord, p.entry, p.root_id, p.plain,
-          case when p.plain then
-            jsonb_build_array(
-              (select a.n - 1 from jsonb_array_elements_text(t.s) with ordinality as a(v, n) where a.v = p.entry ->> 'scope'),
-              case when (p.entry ->> 'id') ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then translate(rtrim(encode(decode(replace((p.entry ->> 'id'), '-', ''), 'hex'), 'base64'), '='), '+/', '-_') else '=' || (p.entry ->> 'id') end,
-              coalesce((select a.n - 1 from jsonb_array_elements_text(t.v) with ordinality as a(v, n) where a.v = p.entry ->> 'via'), -1)
-            ) || coalesce((
-              select jsonb_agg(b.n - 1 order by q.o)
-              from jsonb_array_elements_text(p.entry -> 'roles') with ordinality as q(v, o)
-              join jsonb_array_elements_text(t.r) with ordinality as b(v, n) on b.v = q.v
-            ), '[]'::jsonb)
-          else p.entry end as item
-        from pdk_plain p, pdk_tables t
-      ),
-      pdk_fixed as (
-        select used + octet_length(pdk_roles.held::text) + octet_length(pdk_tables.s::text) + octet_length(pdk_tables.r::text) + octet_length(pdk_tables.v::text) + 44 + octet_length(case jsonb_array_length(pdk_roles.held) when 0 then '' when 1 then (pdk_roles.held -> 0)::text else pdk_roles.held::text end) + coalesce(octet_length(to_jsonb(active)::text), 0) + 20 + octet_length(pdk_version.ver::text) as bytes from pdk_roles, pdk_version, pdk_tables
-      ),
-      pdk_ranked as (
-        select x.entry, x.item, x.plain, x.root_id is not distinct from active as current,
-          row_number() over w as n,
-          sum(octet_length(x.item::text)) over w as bytes
-        from pdk_items x
-        window w as (
-          order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
-          rows between unbounded preceding and current row
-        )
-      ),
-      pdk_kept as (
-        select r.* from pdk_ranked r, pdk_fixed f where f.bytes + 2 + r.bytes + 2 * (r.n - 1) <= budget
+  -- one statement reads the roles, the memberships and the authorization version; the budget counts every slice
+  with pdk_roles as (
+      select "permdock".global_roles_for(uid) as held
+    ),
+    pdk_version as (
+      select coalesce((select v.version from "permdock"."permdock_authz_version" v where v.user_id = uid), 0) as ver
+    ),
+    pdk_entries as (
+      select e.ord, e.entry, case when e.entry ->> 'scope' = 'organization' then e.entry ->> 'id' else e.entry -> 'within' ->> 'organization' end as root_id
+      from "permdock".memberships_for(uid) e
+    ),
+    pdk_plain as (
+      select x.ord, x.entry, x.root_id,
+        x.entry - 'scope' - 'id' - 'roles' - 'via' = '{}'::jsonb
+          and jsonb_typeof(x.entry -> 'scope') = 'string'
+          and coalesce(jsonb_typeof(x.entry -> 'via'), 'string') = 'string'
+          and jsonb_typeof(x.entry -> 'id') = 'string'
+          and jsonb_typeof(x.entry -> 'roles') = 'array'
+          and not exists (select 1 from jsonb_array_elements(x.entry -> 'roles') v where jsonb_typeof(v) <> 'string') as plain
+      from pdk_entries x
+    ),
+    pdk_tables as (
+      select
+        coalesce((select jsonb_agg(t.v order by t.v collate "C") from (select distinct p.entry ->> 'scope' as v from pdk_plain p where p.plain) t), '[]'::jsonb) as s,
+        coalesce((select jsonb_agg(t.v order by t.v collate "C") from (select distinct r.v from pdk_plain p cross join lateral jsonb_array_elements_text(p.entry -> 'roles') as r(v) where p.plain) t), '[]'::jsonb) as r,
+        coalesce((select jsonb_agg(t.v order by t.v collate "C") from (select distinct p.entry ->> 'via' as v from pdk_plain p where p.plain and p.entry ? 'via') t), '[]'::jsonb) as v
+    ),
+    pdk_items as (
+      select p.ord, p.entry, p.root_id, p.plain,
+        case when p.plain then
+          jsonb_build_array(
+            (select a.n - 1 from jsonb_array_elements_text(t.s) with ordinality as a(v, n) where a.v = p.entry ->> 'scope'),
+            case when (p.entry ->> 'id') ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then translate(rtrim(encode(decode(replace((p.entry ->> 'id'), '-', ''), 'hex'), 'base64'), '='), '+/', '-_') else '=' || (p.entry ->> 'id') end,
+            coalesce((select a.n - 1 from jsonb_array_elements_text(t.v) with ordinality as a(v, n) where a.v = p.entry ->> 'via'), -1)
+          ) || coalesce((
+            select jsonb_agg(b.n - 1 order by q.o)
+            from jsonb_array_elements_text(p.entry -> 'roles') with ordinality as q(v, o)
+            join jsonb_array_elements_text(t.r) with ordinality as b(v, n) on b.v = q.v
+          ), '[]'::jsonb)
+        else p.entry end as item
+      from pdk_plain p, pdk_tables t
+    ),
+    pdk_fixed as (
+      select used + octet_length(pdk_roles.held::text) + octet_length(pdk_tables.s::text) + octet_length(pdk_tables.r::text) + octet_length(pdk_tables.v::text) + 44 + octet_length(case jsonb_array_length(pdk_roles.held) when 0 then '' when 1 then (pdk_roles.held -> 0)::text else pdk_roles.held::text end) + coalesce(octet_length(to_jsonb(active)::text), 0) + 20 + octet_length(pdk_version.ver::text) as bytes from pdk_roles, pdk_version, pdk_tables
+    ),
+    pdk_ranked as (
+      select x.entry, x.item, x.plain, x.root_id is not distinct from active as current,
+        row_number() over w as n,
+        sum(octet_length(x.item::text)) over w as bytes
+      from pdk_items x
+      window w as (
+        order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
+        rows between unbounded preceding and current row
       )
-    select
-      (select pdk_roles.held from pdk_roles),
-      (select case when count(*) = 0 then '[]'::jsonb else jsonb_strip_nulls(jsonb_build_object(
-          's', nullif((select t.s from pdk_tables t), '[]'::jsonb), 'r', nullif((select t.r from pdk_tables t), '[]'::jsonb), 'v', nullif((select t.v from pdk_tables t), '[]'::jsonb),
-          'e', nullif(coalesce(jsonb_agg(k.item order by k.n) filter (where k.plain), '[]'::jsonb), '[]'::jsonb),
-          'o', nullif(coalesce(jsonb_agg(k.item order by k.n) filter (where not k.plain), '[]'::jsonb), '[]'::jsonb)
-        )) end from pdk_kept k),
-      truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
-      active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),
-      (select bytes from pdk_fixed),
-      (select pdk_version.ver from pdk_version)
-    into held, kept, truncated, in_active, used, ver;
-  end if;
+    ),
+    pdk_kept as (
+      select r.* from pdk_ranked r, pdk_fixed f where f.bytes + 2 + r.bytes + 2 * (r.n - 1) <= budget
+    )
+  select
+    (select pdk_roles.held from pdk_roles),
+    (select case when count(*) = 0 then '[]'::jsonb else jsonb_strip_nulls(jsonb_build_object(
+        's', nullif((select t.s from pdk_tables t), '[]'::jsonb), 'r', nullif((select t.r from pdk_tables t), '[]'::jsonb), 'v', nullif((select t.v from pdk_tables t), '[]'::jsonb),
+        'e', nullif(coalesce(jsonb_agg(k.item order by k.n) filter (where k.plain), '[]'::jsonb), '[]'::jsonb),
+        'o', nullif(coalesce(jsonb_agg(k.item order by k.n) filter (where not k.plain), '[]'::jsonb), '[]'::jsonb)
+      )) end from pdk_kept k),
+    truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
+    active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),
+    (select bytes from pdk_fixed),
+    (select pdk_version.ver from pdk_version)
+  into held, kept, truncated, in_active, used, ver;
   claims := jsonb_set(claims, '{roles}', held);
   if jsonb_array_length(held) = 1 then
     claims := jsonb_set(claims, '{user_role}', held -> 0);
@@ -269,6 +299,12 @@ begin
     claims := jsonb_set(claims, '{user_role}', held);
   end if;
   claims := jsonb_set(claims, '{memberships}', kept);
+  -- outside the memberships budget: the tenants the user is a member of while the tenant is suspended; a token refresh that reuses its claims keeps the claim it holds
+  claims := claims - 'suspended_in';
+  suspended := "permdock".suspended_in_for(uid);
+  if suspended <> '[]'::jsonb then
+    claims := jsonb_set(claims, '{suspended_in}', suspended);
+  end if;
   if truncated then
     claims := jsonb_set(claims, '{memberships_truncated}', 'true'::jsonb);
   else
@@ -426,6 +462,7 @@ declare
   custom jsonb := '[]'::jsonb;
   custom_versions jsonb := '{}'::jsonb;
   ver bigint;
+  suspended jsonb := '[]'::jsonb;
   claims jsonb := '{}'::jsonb;
   extra jsonb;
 begin
@@ -436,6 +473,7 @@ begin
   select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
     into memberships
     from "permdock".memberships_for(uid) x;
+  suspended := "permdock".suspended_in_for(uid);
   select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
       'name', c.role,
       'shared', case when c.tenant_id is null and c.scope <> 'global' then true end,
@@ -493,6 +531,7 @@ begin
     'active', true,
     'roles', held,
     'memberships', memberships,
+    'suspendedIn', case when suspended = '[]'::jsonb then null else suspended end,
     'customRoles', custom,
     'customRolesVersions', case when custom_versions = '{}'::jsonb then null else custom_versions end,
     'authzVersion', ver
@@ -516,6 +555,7 @@ declare
   custom jsonb := '[]'::jsonb;
   custom_versions jsonb := '{}'::jsonb;
   ver bigint;
+  suspended jsonb := '[]'::jsonb;
   claims jsonb := '{}'::jsonb;
   extra jsonb;
 begin
@@ -526,6 +566,9 @@ begin
   select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
     into memberships
     from "permdock".memberships_for(uid, p_tenant::text) x;
+  select case when ids ? p_tenant::text then jsonb_build_array(p_tenant::text) else '[]'::jsonb end
+    into suspended
+    from (select "permdock".suspended_in_for(uid) as ids) s;
   select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
       'name', c.role,
       'shared', case when c.tenant_id is null and c.scope <> 'global' then true end,
@@ -583,6 +626,7 @@ begin
     'active', true,
     'roles', held,
     'memberships', memberships,
+    'suspendedIn', case when suspended = '[]'::jsonb then null else suspended end,
     'customRoles', custom,
     'customRolesVersions', case when custom_versions = '{}'::jsonb then null else custom_versions end,
     'authzVersion', ver
@@ -634,7 +678,7 @@ begin
   subject := "permdock".subject_for((select "permdock".permdock_user_id()), v_tenant);
   if subject is null
     or (subject ->> 'active') is distinct from 'true'
-    or (coalesce(jsonb_array_length(subject -> 'memberships'), 0) = 0) then
+    or (coalesce(jsonb_array_length(subject -> 'memberships'), 0) = 0 and subject -> 'suspendedIn' is null) then
     return null;
   end if;
   return subject || jsonb_build_object('tenant', v_tenant::text);
@@ -738,6 +782,7 @@ grant execute on function "public"."feature_claims"(uuid) to supabase_auth_admin
 grant execute on function "permdock".custom_roles_version_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".memberships_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".global_roles_for(uuid) to supabase_auth_admin;
+grant execute on function "permdock".suspended_in_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".member_organization_ids_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".member_customer_ids_for(uuid) to supabase_auth_admin;
 grant select on table "permdock"."permdock_authz_version" to supabase_auth_admin;

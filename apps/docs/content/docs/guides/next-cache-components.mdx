@@ -433,7 +433,7 @@ export async function changeRole(userId: string, role: string) {
 }
 ```
 
-The user's token still carries the old memberships until it is refreshed; the hook writes the new ones then, and RLS reads the table, not the token, in database mode. `apps/examples/next-better-supabase` runs this recipe end to end in snapshot-only mode, against Postgres in testcontainers.
+The user's token still carries the old memberships until it is refreshed; the hook writes the new ones then, and RLS reads the table, not the token, in database mode. `apps/examples/next-better-supabase` runs this recipe end to end. The portal layout keeps `endpoint={false}`. `serve` uses the native Supabase stack.
 
 ### Why asymmetric signing keys
 

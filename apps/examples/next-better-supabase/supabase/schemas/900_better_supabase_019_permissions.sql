@@ -1,6 +1,6 @@
 -- better-supabase module: permissions
 -- @bsb-block permissions@1 managed
--- @bsb-hash sha256:bb8831e342904b547b6851979df01310f5f35496454a8d3913a00e6c528130d6
+-- @bsb-hash sha256:b0ddf093a650b28032c509478c9e29fad1b724f5a26098ea2875f62b44cd1f9c
 -- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.permissions.model).
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -17,7 +17,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select false
+  select not exists (select 1 from "public"."organizations" t where t."id" = tenant_disabled.tenant and t."status"::text in ('active'))
 $$;
 
 create or replace function better_supabase.user_disabled(user_id uuid)
@@ -70,7 +70,7 @@ language sql
 immutable
 set search_path = ''
 as $$
-  select false
+  select coalesce(permission = any (array['impersonation.start', 'organization.delete', 'organization.transfer_ownership', 'platform.invite', 'sso.manage']::text[]), false)
 $$;
 
 -- The roles only a signed-in user grants or takes away: the organization
@@ -81,7 +81,7 @@ language sql
 immutable
 set search_path = ''
 as $$
-  select false
+  select coalesce(role = 'owner', false)
 $$;
 
 -- The permission keys an OAuth scope grants a delegated token
@@ -94,14 +94,55 @@ immutable
 set search_path = ''
 as $$
   select case scope
+    when 'access_requests:create' then array['access_requests.create']::text[]
+    when 'access_requests:emergency' then array['access_requests.emergency']::text[]
+    when 'access_requests:manage' then array['access_requests.manage']::text[]
+    when 'access_requests:read' then array['access_requests.read']::text[]
+    when 'access_requests:review' then array['access_requests.review']::text[]
+    when 'api_keys:manage' then array['api_keys.manage']::text[]
+    when 'api_keys:own' then array['api_keys.own']::text[]
+    when 'approvals:manage' then array['approvals.manage']::text[]
+    when 'approvals:read' then array['approvals.read']::text[]
+    when 'approvals:request' then array['approvals.request']::text[]
     when 'audit:read' then array['audit.read']::text[]
     when 'audit:revert' then array['audit.revert']::text[]
+    when 'automations:manage' then array['automations.manage']::text[]
+    when 'automations:publish' then array['automations.publish']::text[]
+    when 'automations:read' then array['automations.read']::text[]
+    when 'automations:write' then array['automations.write']::text[]
+    when 'billing:read' then array['billing.read']::text[]
+    when 'impersonation:read' then array['impersonation.read']::text[]
+    when 'impersonation:revoke' then array['impersonation.revoke']::text[]
+    when 'impersonation:start' then array['impersonation.start']::text[]
+    when 'members:invite' then array['members.invite']::text[]
+    when 'members:read' then array['members.read']::text[]
+    when 'members:remove' then array['members.remove']::text[]
+    when 'members:update_role' then array['members.update_role']::text[]
+    when 'organization:delete' then array['organization.delete']::text[]
+    when 'organization:transfer_ownership' then array['organization.transfer_ownership']::text[]
+    when 'organization:update' then array['organization.update']::text[]
+    when 'quotes:approve' then array['quotes.approve']::text[]
+    when 'quotes:create' then array['quotes.create']::text[]
+    when 'quotes:delete' then array['quotes.delete']::text[]
     when 'quotes:list' then array['quotes.list']::text[]
     when 'quotes:read' then array['quotes.read']::text[]
+    when 'quotes:send' then array['quotes.send']::text[]
     when 'quotes:update' then array['quotes.update']::text[]
+    when 'relations:manage' then array['relations.manage']::text[]
+    when 'relations:read' then array['relations.read']::text[]
     when 'roles:manage' then array['roles.manage']::text[]
+    when 'service_accounts:manage' then array['service_accounts.manage']::text[]
+    when 'service_accounts:read' then array['service_accounts.read']::text[]
+    when 'settings:manage' then array['settings.manage']::text[]
+    when 'settings:read' then array['settings.read']::text[]
+    when 'settings:update' then array['settings.update']::text[]
+    when 'sso:manage' then array['sso.manage']::text[]
     when 'staff:list' then array['staff.list']::text[]
     when 'staff:read' then array['staff.read']::text[]
+    when 'teams:manage' then array['teams.manage']::text[]
+    when 'teams:read' then array['teams.read']::text[]
+    when 'usage:read' then array['usage.read']::text[]
+    when 'usage:record' then array['usage.record']::text[]
     else array[scope]
   end
 $$;
@@ -170,14 +211,54 @@ immutable
 set search_path = ''
 as $$
   select case op
+    when 'access-requests.create' then 'access_requests.create'
+    when 'access-requests.emergency' then 'access_requests.emergency'
+    when 'access-requests.manage' then 'access_requests.manage'
+    when 'access-requests.read' then 'access_requests.read'
+    when 'access-requests.review' then 'access_requests.review'
+    when 'api-keys.manage' then 'api_keys.manage'
+    when 'api-keys.own' then 'api_keys.own'
+    when 'approvals.manage' then 'approvals.manage'
+    when 'approvals.read' then 'approvals.read'
+    when 'approvals.request' then 'approvals.request'
     when 'audit.read' then 'audit.read'
     when 'audit.readAll' then 'audit.read'
     when 'audit.revert' then 'audit.revert'
+    when 'automations.manage' then 'automations.manage'
+    when 'automations.publish' then 'automations.publish'
+    when 'automations.read' then 'automations.read'
+    when 'automations.write' then 'automations.write'
+    when 'impersonation.read' then 'impersonation.read'
+    when 'impersonation.revoke' then 'impersonation.revoke'
+    when 'impersonation.start' then 'impersonation.start'
+    when 'invitations.invite' then 'members.invite'
+    when 'invitations.invitePlatform' then 'platform.invite'
+    when 'invitations.read' then 'members.invite'
+    when 'invitations.revoke' then 'members.invite'
+    when 'organizations.delete' then 'organization.delete'
+    when 'organizations.listMembers' then 'members.read'
+    when 'organizations.removeMember' then 'members.remove'
+    when 'organizations.suspendMember' then 'members.remove'
+    when 'organizations.transferOwnership' then 'organization.transfer_ownership'
+    when 'organizations.update' then 'organization.update'
+    when 'organizations.updateRole' then 'members.update_role'
     when 'permissions.explain' then 'members.read'
     when 'permissions.listRoles' then 'members.read'
     when 'permissions.setOverride' then 'roles.manage'
+    when 'relations.manage' then 'relations.manage'
+    when 'relations.read' then 'relations.read'
+    when 'service-accounts.manage' then 'service_accounts.manage'
+    when 'service-accounts.read' then 'service_accounts.read'
+    when 'settings.platform' then 'settings.manage'
+    when 'settings.read' then 'settings.read'
+    when 'settings.update' then 'settings.update'
     when 'share-links.create' then 'quotes.update'
     when 'share-links.read' then 'quotes.read'
+    when 'sso.manage' then 'sso.manage'
+    when 'teams.manage' then 'teams.manage'
+    when 'teams.read' then 'teams.read'
+    when 'usage.read' then 'usage.read'
+    when 'usage.record' then 'usage.record'
   end
 $$;
 
@@ -237,7 +318,7 @@ as $$
     when member is not null
       and not better_supabase.user_disabled(member)
       and not better_supabase.tenant_disabled(tenant)
-    then coalesce(array(select k from unnest(coalesce((array(select permdock.permitted_organization_permission_keys_for(member, tenant))), '{}'::text[])) as k where k = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])), '{}'::text[])
+    then coalesce(array(select k from unnest(coalesce((array(select permdock.permitted_organization_permission_keys_for(member, tenant))), '{}'::text[])) as k where k = any(array['access_requests.create', 'access_requests.emergency', 'access_requests.manage', 'access_requests.read', 'access_requests.review', 'api_keys.manage', 'api_keys.own', 'approvals.manage', 'approvals.read', 'approvals.request', 'audit.read', 'audit.revert', 'automations.manage', 'automations.publish', 'automations.read', 'automations.write', 'billing.read', 'impersonation.read', 'impersonation.revoke', 'impersonation.start', 'members.invite', 'members.read', 'members.remove', 'members.update_role', 'organization.delete', 'organization.transfer_ownership', 'organization.update', 'quotes.create', 'quotes.read', 'quotes.update', 'relations.manage', 'relations.read', 'roles.manage', 'service_accounts.manage', 'service_accounts.read', 'settings.manage', 'settings.read', 'settings.update', 'sso.manage', 'staff.list', 'staff.read', 'teams.manage', 'teams.read', 'usage.read', 'usage.record']::text[])), '{}'::text[])
     else '{}'::text[]
   end
 $$;

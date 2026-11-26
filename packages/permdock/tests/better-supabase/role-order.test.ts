@@ -65,7 +65,7 @@ describe(roleOrderFromCatalog, () => {
         scope: "organization",
         owner: "owner",
       }),
-    ).toStrictEqual(["member"]);
+    ).toStrictEqual(["admin", "member"]);
     expect(Object.isFrozen(roleOrderFromCatalog(published))).toBe(true);
   });
 });

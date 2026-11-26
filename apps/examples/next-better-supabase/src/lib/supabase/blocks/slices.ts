@@ -8,8 +8,50 @@ export const permissionsConfig = {
   options: {},
 } as const satisfies GeneratedBlock;
 
+/** The `access-requests` instance's config slice. */
+export const accessRequestsConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `api-keys` instance's config slice. */
+export const apiKeysConfig = {
+  schema: "better_supabase",
+  options: {
+    prefix: "bs",
+  },
+} as const satisfies GeneratedBlock;
+
+/** The `approvals` instance's config slice. */
+export const approvalsConfig = {
+  schema: "better_supabase",
+  options: {},
+  columns: {
+    token: "text",
+    body: "jsonb",
+  },
+} as const satisfies GeneratedBlock;
+
 /** The `audit` instance's config slice. */
 export const auditConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `entitlements` instance's config slice. */
+export const entitlementsConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `queue` instance's config slice. */
+export const queueConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `organizations` instance's config slice. */
+export const organizationsConfig = {
   schema: "better_supabase",
   options: {},
 } as const satisfies GeneratedBlock;
@@ -20,8 +62,62 @@ export const pgtapConfig = {
   options: {},
 } as const satisfies GeneratedBlock;
 
+/** The `relations` instance's config slice. */
+export const relationsConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `automations` instance's config slice. */
+export const automationsConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `service-accounts` instance's config slice. */
+export const serviceAccountsConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `sessions` instance's config slice. */
+export const sessionsConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `settings` instance's config slice. */
+export const settingsConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
 /** The `share-links` instance's config slice. */
 export const shareLinksConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `security-events` instance's config slice. */
+export const securityEventsConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `sso` instance's config slice. */
+export const ssoConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `impersonation` instance's config slice. */
+export const impersonationConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `teams` instance's config slice. */
+export const teamsConfig = {
   schema: "better_supabase",
   options: {},
 } as const satisfies GeneratedBlock;
@@ -34,6 +130,12 @@ export const membershipsConfig = {
 
 /** The `updated-at` instance's config slice. */
 export const updatedAtConfig = {
+  schema: "better_supabase",
+  options: {},
+} as const satisfies GeneratedBlock;
+
+/** The `usage` instance's config slice. */
+export const usageConfig = {
   schema: "better_supabase",
   options: {},
 } as const satisfies GeneratedBlock;

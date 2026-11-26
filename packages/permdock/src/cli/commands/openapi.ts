@@ -205,6 +205,13 @@ async function executeAnnotate(
   });
 }
 
+export const emitDocument: Leaf = defineLeaf({
+  flags: emitFlags,
+  run(ctx, { flags }) {
+    return executeOpenapiEmit(ctx, flags);
+  },
+});
+
 export const annotateRoutes: Leaf = defineLeaf({
   flags: annotateFlags,
   run(ctx, { flags }) {

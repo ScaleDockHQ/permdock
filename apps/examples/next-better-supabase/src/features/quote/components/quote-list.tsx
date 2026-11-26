@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 
 import { DataSource } from "../../../components/data-source.tsx";
 import { organizationBySlug } from "../../organization/organization-queries.ts";
+import { quotesOverview } from "../quote-overview.ts";
 import { visibleQuotes } from "../quote-queries.ts";
+import { QuoteTools } from "./quote-tools.tsx";
 
 /**
  * The rows RLS lets the caller read: every quote for an owner, one customer's
@@ -14,8 +16,11 @@ export async function QuoteList(props: { readonly orgSlug: string }) {
     notFound();
   }
   const quotes = await visibleQuotes(organization.id);
+  const overview = await quotesOverview(organization.id);
   return (
     <>
+      <p data-testid="quotes-overview">{overview.total}</p>
+      <QuoteTools organizationId={organization.id} />
       <ul data-testid="quotes">
         {quotes.value.map((quote) => (
           <li key={quote.id} data-quote={quote.id}>

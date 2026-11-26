@@ -8,7 +8,7 @@ grant select on table "public"."staff" to authenticated;
 alter table "public"."quotes" enable row level security;
 revoke all on table "public"."quotes" from anon, authenticated;
 grant select on table "public"."quotes" to anon;
-grant select, update on table "public"."quotes" to authenticated;
+grant select, insert, update, delete on table "public"."quotes" to authenticated;
 
 create policy "staff_select"
   on "public"."staff"
@@ -22,7 +22,7 @@ create policy "quotes_select"
   as permissive
   for select
   to authenticated
-  using ((("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.read')))) or ("customer_id" = any(array(select "permdock".permitted_customer_ids('quotes.read'))))) or (("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.list')))) or ("customer_id" = any(array(select "permdock".permitted_customer_ids('quotes.list'))))));
+  using ((("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.read')))) or ("customer_id" = any(array(select "permdock".permitted_customer_ids('quotes.read'))))) or (("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.list')))) or ("customer_id" = any(array(select "permdock".permitted_customer_ids('quotes.list'))))) or ((select "permdock".permdock_api_key_allows('quotes.list')) and ("customer_id" = any(array(select "permdock".member_customer_ids())))));
 
 create policy "quotes_select_anon"
   on "public"."quotes"
@@ -36,8 +36,22 @@ create policy "quotes_update"
   as permissive
   for update
   to authenticated
-  using ("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.update'))))
-  with check ("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.update'))));
+  using (("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.update')))) or (("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.send')))) and ("status" = 'draft')))
+  with check (("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.update')))) or (("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.send')))) and ("status" = 'draft')));
+
+create policy "quotes_delete"
+  on "public"."quotes"
+  as permissive
+  for delete
+  to authenticated
+  using (("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.delete')))) and ("status" = 'draft'));
+
+create policy "quotes_insert"
+  on "public"."quotes"
+  as permissive
+  for insert
+  to authenticated
+  with check ("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.create'))));
 
 create policy "quotes_update_read_only_actors"
   on "public"."quotes"
@@ -45,4 +59,18 @@ create policy "quotes_update_read_only_actors"
   for update
   to authenticated
   using ((select "permdock".permdock_actor_may_write()))
+  with check ((select "permdock".permdock_actor_may_write()));
+
+create policy "quotes_delete_read_only_actors"
+  on "public"."quotes"
+  as restrictive
+  for delete
+  to authenticated
+  using ((select "permdock".permdock_actor_may_write()));
+
+create policy "quotes_insert_read_only_actors"
+  on "public"."quotes"
+  as restrictive
+  for insert
+  to authenticated
   with check ((select "permdock".permdock_actor_may_write()));

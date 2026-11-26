@@ -18,6 +18,8 @@ const quote = {
   title: "Boiler service",
   amount_minor: 12_500,
   currency: "EUR",
+  status: "draft" as const,
+  team_id: null,
 };
 
 const ownSession = {

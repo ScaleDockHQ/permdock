@@ -13,7 +13,9 @@ const PASSWORD = "postgres";
 
 /**
  * What GoTrue's migrations add on a real project and the bare image lacks:
- * `auth.jwt()` and the `auth.sessions` columns PermDock reads.
+ * `auth.jwt()`, `auth.users.email_confirmed_at` and the `auth.sessions` columns
+ * PermDock reads. The image's `auth.users` has `email` and not
+ * `email_confirmed_at`; a trigger `UPDATE OF` that column fails at create.
  */
 const AUTH = `
 create or replace function auth.jwt() returns jsonb language sql stable
@@ -24,6 +26,7 @@ set search_path = '' as $$
   )::jsonb
 $$;
 grant execute on function auth.jwt() to anon, authenticated, service_role;
+alter table auth.users add column if not exists email_confirmed_at timestamptz;
 create table if not exists auth.sessions (
   id uuid primary key,
   user_id uuid not null references auth.users on delete cascade,

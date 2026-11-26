@@ -152,3 +152,106 @@ export function rowConditionMessage(
 
 export const ROW_CONDITION_FIX =
   "call permitted_<scope>_ids_by_permission('<key>') or permdock_has_permission('<key>'), which count only the allows without a row condition (a relationship grant never reaches a topic or a folder), or use a permission whose catalog entry has rowConditions: false";
+
+/**
+ * Whether `expression` shows `coverage`: each equality is `and`ed with the
+ * helper call, and each relation scope is read through `member_<scope>_ids`.
+ */
+export function conditionShown(
+  expression: string,
+  key: string,
+  coverage:
+    | {
+        readonly equalities: readonly string[];
+        readonly relations: readonly string[];
+      }
+    | undefined,
+): boolean {
+  if (
+    coverage === undefined ||
+    (coverage.equalities.length === 0 && coverage.relations.length === 0)
+  ) {
+    return false;
+  }
+  const equalities =
+    coverage.equalities.length === 0 ||
+    whereConjoined(expression, key, coverage.equalities);
+  const relations = coverage.relations.every((scope) =>
+    expression.toLowerCase().includes(`member_${scope}_ids`),
+  );
+  return equalities && relations;
+}
+
+function whereConjoined(
+  expression: string,
+  key: string,
+  equalities: readonly string[],
+): boolean {
+  if (equalities.length === 0) {
+    return false;
+  }
+  const text = sqlText(expression);
+  const needle = `'${key}'`;
+  return equalities.every((equality) => {
+    const eqAt = text.indexOf(sqlText(equality));
+    if (eqAt < 0) {
+      return false;
+    }
+    let from = 0;
+    let keyAt = text.indexOf(needle, from);
+    while (keyAt >= 0) {
+      if (joinedByAnd(text, keyAt, eqAt)) {
+        return true;
+      }
+      from = keyAt + needle.length;
+      keyAt = text.indexOf(needle, from);
+    }
+    return false;
+  });
+}
+
+function sqlText(value: string): string {
+  return value
+    .toLowerCase()
+    .replaceAll('"', "")
+    .replaceAll(/'((?:[^']|'')*)'::[a-z_][a-z0-9_.]*/gu, "'$1'")
+    .replaceAll(/\s+/gu, " ")
+    .trim();
+}
+
+function joinedByAnd(text: string, a: number, b: number): boolean {
+  const start = Math.min(a, b);
+  const end = Math.max(a, b);
+  let depth = 0;
+  let min = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === "(") {
+      depth += 1;
+    }
+    if (index >= start && index <= end) {
+      min = Math.min(min, depth);
+    }
+    if (text[index] === ")") {
+      depth -= 1;
+    }
+  }
+  depth = 0;
+  let and = false;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === "(") {
+      depth += 1;
+    }
+    if (index >= start && index <= end && depth === min) {
+      if (text.startsWith(" or ", index)) {
+        return false;
+      }
+      if (text.startsWith(" and ", index)) {
+        and = true;
+      }
+    }
+    if (text[index] === ")") {
+      depth -= 1;
+    }
+  }
+  return and;
+}

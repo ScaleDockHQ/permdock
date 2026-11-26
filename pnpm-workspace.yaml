@@ -165,7 +165,7 @@ catalog:
   better-supabase: 0.87.0
   better-result: 3.0.1
   "@supabase/postgrest-typegen": 0.8.1
-  supabase: 3.3.0
+  supabase: 3.4.0
   server-only: 0.0.1
   # The root pins debug's optional supports-color peer so every importer shares one @nestjs/common and @nestjs/core variant.
   supports-color: 11.0.0
@@ -200,6 +200,13 @@ catalog:
   "@tanstack/react-router": 1.170.46
   "@chat-adapter/slack": 4.45.0
   "@chat-adapter/state-memory": 4.45.0
+  "@dnd-kit/core": 6.3.1
+  "@dnd-kit/modifiers": 9.0.0
+  "@dnd-kit/sortable": 10.0.0
+  "@dnd-kit/utilities": 3.2.2
+  "@tanstack/react-table": 9.3.1
+  "@tanstack/react-virtual": 3.14.28
+  "date-fns": 4.4.0
 
 catalogs:
   ts59:

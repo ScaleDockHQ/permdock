@@ -12,8 +12,8 @@ export default function PortalLayout(
     .then(({ orgSlug }) => orgSlug)
     .then(snapshotForSlug);
   return (
-    <PermDockProvider snapshot={snapshot}>
-      <main>{props.children}</main>
+    <PermDockProvider snapshot={snapshot} endpoint={false}>
+      <main className="flex flex-col gap-4 p-4">{props.children}</main>
     </PermDockProvider>
   );
 }

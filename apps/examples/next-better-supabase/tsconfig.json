@@ -1,7 +1,19 @@
 {
   "extends": "@permdock/typescript-config/next.json",
   "compilerOptions": {
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    // Vendored ReUI and shadcn copies do not compile under these flags.
+    // See docs/decisions/0082-example-vendored-ui-tsconfig.md.
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "declaration": false,
+    "isolatedDeclarations": false,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": [
     "next-env.d.ts",

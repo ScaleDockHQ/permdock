@@ -34,6 +34,8 @@ export async function visibleQuotes(
         where: { organization_id: organization },
         select: ["id", "title", "amount_minor", "currency"],
         orderBy: { title: "asc" },
+        // A read without a limit is cut at 1,000 rows.
+        limit: 50,
       })
       .orThrow();
     return rows;

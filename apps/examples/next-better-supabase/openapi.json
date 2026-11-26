@@ -1,0 +1,26 @@
+{
+  "openapi": "3.2.0",
+  "info": { "title": "PermDock example", "version": "1" },
+  "paths": {
+    "/api/v1/quotes": {
+      "get": {
+        "operationId": "listQuotes",
+        "x-permdock-permissions": ["quotes.list", "quotes.read"]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "permdockOAuth": {
+        "type": "oauth2",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "http://127.0.0.1:54321/auth/v1/authorize",
+            "tokenUrl": "http://127.0.0.1:54321/auth/v1/token",
+            "scopes": {}
+          }
+        }
+      }
+    }
+  }
+}

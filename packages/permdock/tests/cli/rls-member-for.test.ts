@@ -122,7 +122,9 @@ $permdock$;`);
     expect(organization).toContain(
       'and (m."expires_at" is null or m."expires_at" > now())',
     );
-    expect(fn(sql, "member_customer_ids_for")).toBe("");
+    expect(fn(sql, "member_customer_ids_for")).toContain(
+      "where false -- no customer memberships table configured",
+    );
   });
 
   it("applies user and instance suspension to p_user", () => {
@@ -146,6 +148,46 @@ $permdock$;`);
       'coalesce(p_user in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)',
     );
     expect(organization).toContain('"public"."organizations" s');
+  });
+
+  it("returns no rows for a scope without a source when another scope has one", () => {
+    const sql = helpers({
+      ...base,
+      memberSources: [
+        junctionMembershipSource({
+          table: "organization_memberships",
+          scope: "organization",
+          roles: ["member"],
+        }),
+      ],
+    });
+    expect(fn(sql, "member_organization_ids_for")).toContain(
+      '"public"."organization_memberships"',
+    );
+    expect(fn(sql, "member_customer_ids_for")).toContain(
+      "where false -- no customer memberships table configured",
+    );
+    const manifest = supabaseDatabaseManifest(
+      scopes,
+      {
+        rls: {
+          authorize: "database",
+          membershipSources: [
+            junctionMembershipSource({
+              table: "organization_memberships",
+              scope: "organization",
+              roles: ["member"],
+            }),
+          ],
+        },
+      },
+      {},
+    );
+    expect(
+      manifest.rls.helpers.find(
+        (helper) => helper.name === "member_customer_ids_for",
+      )?.args,
+    ).toBe("p_user uuid");
   });
 
   it("is not generated without a source or table, or outside Supabase", () => {

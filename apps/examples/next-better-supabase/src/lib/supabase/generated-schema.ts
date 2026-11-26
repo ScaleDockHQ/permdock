@@ -13,6 +13,7 @@ const tableLoaders = {
   organization_features: () => import("./tables/organization-features.ts").then((mod) => mod.organization_featuresTable),
   organization_memberships: () => import("./tables/organization-memberships.ts").then((mod) => mod.organization_membershipsTable),
   organizations: () => import("./tables/organizations.ts").then((mod) => mod.organizationsTable),
+  quote_overviews: () => import("./tables/quote-overviews.ts").then((mod) => mod.quote_overviewsTable),
   quotes: () => import("./tables/quotes.ts").then((mod) => mod.quotesTable),
   role_permissions: () => import("./tables/role-permissions.ts").then((mod) => mod.role_permissionsTable),
   roles: () => import("./tables/roles.ts").then((mod) => mod.rolesTable),

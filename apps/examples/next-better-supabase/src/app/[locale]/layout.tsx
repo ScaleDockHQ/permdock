@@ -2,7 +2,10 @@ import type { ReactNode } from "react";
 
 import { locale } from "next/root-params";
 
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 import { OfflineBadge } from "./offline-badge.tsx";
+import "../globals.css";
 
 export const metadata = {
   title: "PermDock with better-supabase",
@@ -20,7 +23,7 @@ export default async function RootLayout(props: {
   return (
     <html lang={await locale()}>
       <body>
-        {props.children}
+        <TooltipProvider>{props.children}</TooltipProvider>
         <OfflineBadge />
       </body>
     </html>

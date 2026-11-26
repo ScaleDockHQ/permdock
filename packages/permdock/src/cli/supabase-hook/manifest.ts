@@ -67,6 +67,12 @@ function helperList(
 ): readonly SupabaseManifestHelper[] {
   const client = ["authenticated"];
   const teams = hookTeamsHelper(parts);
+  // A `{scope}` template names `member_<scope>_ids_for` for every scope once
+  // any scope has the function.
+  const memberFor =
+    parts.helpers.memberFor.length === 0
+      ? new Set<string>()
+      : new Set(parts.scopes.map((scope) => scope.name));
   return [
     helperEntry(HELPERS.has, "p_grant text", "boolean", client),
     ...parts.scopes.flatMap((scope): SupabaseManifestHelper[] => {
@@ -79,7 +85,7 @@ function helperList(
           client,
         ),
         helperEntry(memberIdsHelper(scope.name), "", returns, client),
-        ...(parts.helpers.memberFor.includes(scope.name)
+        ...(memberFor.has(scope.name)
           ? [
               helperEntry(
                 memberForHelper(scope.name),

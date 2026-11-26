@@ -15,9 +15,9 @@ select tests.clear_authentication();
 
 select tests.authenticate_as('00000000-0000-4000-8000-0000000000a1');
 select extensions.throws_ok(
-  $$select permdock.permdock_replace_custom_role_grants_by_id('00000000-0000-4000-8000-0000000000e1', array['quotes.delete'])$$,
+  $$select permdock.permdock_replace_custom_role_grants_by_id('00000000-0000-4000-8000-0000000000e1', array['quotes.archive'])$$,
   '22023',
-  'permdock: quotes.delete is not a declared permission',
+  'permdock: quotes.archive is not a declared permission',
   'an undeclared permission key is refused'
 );
 select extensions.throws_ok(

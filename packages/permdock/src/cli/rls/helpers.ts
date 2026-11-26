@@ -549,7 +549,12 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     if (ctx.roleMemberScopes?.includes(scope.name) === true) {
       chunks.push(memberRolesFunction(ctx, scope.name, type, anon));
     }
-    if (hasMemberFor(ctx, scope.name)) {
+    // A `{scope}` template is filled for every scope once any scope has the
+    // function, so a scope without a source still gets one that returns no rows.
+    if (
+      ctx.dialect === "supabase" &&
+      ctx.scopes.some((other) => hasMemberFor(ctx, other.name))
+    ) {
       chunks.push(memberForFunction(ctx, scope.name, type));
     }
     if (hasMemberOf(ctx, scope.name)) {

@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { createPermDockPlugin } from "permdock/next/plugin";
+
 const config: NextConfig = {
   reactStrictMode: true,
   reactCompiler: true,
@@ -8,6 +10,13 @@ const config: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   serverExternalPackages: ["pg"],
+  headers() {
+    const tools = [{ key: "Permissions-Policy", value: "tools=*" }];
+    return [
+      { source: "/:locale/:orgSlug/quotes", headers: tools },
+      { source: "/:locale/:orgSlug/quotes/:id", headers: tools },
+    ];
+  },
   experimental: {
     authInterrupts: true,
     // Retries navigation, prefetch and Server Action requests after the browser reconnects.
@@ -23,4 +32,4 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default createPermDockPlugin()(config);

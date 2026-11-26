@@ -11,5 +11,8 @@ export default {
   "functions": {},
   "claims": {
     "permissionsTruncated": "memberships_truncated"
+  },
+  "functionShares": {
+    "quotes_overview_payload": {"schema":"public","tables":["quote_overviews"],"permissions":["quotes.list"]}
   }
 };

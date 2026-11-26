@@ -55,7 +55,7 @@ select tests.clear_authentication();
 select tests.authenticate_as_anon();
 select extensions.is(
   (select count(*)::int from public.organizations),
-  2,
+  52,
   'anon reads the organizations by slug'
 );
 select extensions.is_empty('select 1 from public.quotes', 'anon without a capability reads no quotes');

@@ -16,7 +16,7 @@ const ROW_GRANTEES: ReadonlySet<string> = new Set([
  * role and scope, so a policy that calls them for such a permission would widen
  * access.
  */
-function grantHasRowConditions(grant: Grant): boolean {
+export function grantHasRowConditions(grant: Grant): boolean {
   const grantees = Array.isArray(grant.to) ? grant.to : [grant.to];
   return (
     grant.where !== undefined ||

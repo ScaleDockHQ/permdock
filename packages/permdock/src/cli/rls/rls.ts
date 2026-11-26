@@ -338,6 +338,9 @@ async function introspectHelpersOnly(
         seeds: generated.seeds ?? [],
         permissions: generated.keys?.permissions ?? [],
         rowConditions: generated.keys?.rowConditions ?? [],
+        ...(generated.keys?.coverage === undefined
+          ? {}
+          : { coverage: generated.keys.coverage }),
         levels: generated.keys?.levels ?? [],
         readOnlyActors,
       },

@@ -34,11 +34,20 @@ export const env = {
   databaseUrl:
     read("DATABASE_URL") ?? "postgres://postgres@127.0.0.1:5432/postgres",
   /**
-   * Only the `serve` build mints demo sessions, with the private half of the
-   * JWKS key.
+   * Private key for share-link capability tokens. Session tokens are signed by
+   * Supabase Auth and verified with `verificationKeys`.
    */
-  demoSignIn: read("DEMO_SIGN_IN") === "1",
   signingKey: read("DEMO_SIGNING_JWK"),
   /** Milliseconds every cached read waits; `0` turns the delay off. */
   latencyMs: latencyMs(read("DEMO_LATENCY_MS")),
+  /**
+   * Set only by `scripts/measure.ts`. Turns on per-request database counts and
+   * the measurement routes. A normal build leaves both off.
+   */
+  measure: read("MEASURE") === "1",
+  /**
+   * Set by a measurement build that turns one feature off: `proxy`,
+   * `may-access`, `shared-cache` or `warm`. A normal build leaves it empty.
+   */
+  without: read("MEASURE_WITHOUT") ?? "",
 };

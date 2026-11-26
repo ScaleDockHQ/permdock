@@ -4,7 +4,7 @@ import { origin as baseURL, port } from "./tests/instant/origin.ts";
 
 /**
  * `instant()` needs a production build compiled with the testing API. `serve`
- * starts Postgres in Docker, then runs `next build` and `next start`.
+ * starts the native Supabase stack, then runs `next build` and `next start`.
  */
 export default defineConfig({
   testDir: "tests/instant",
@@ -24,7 +24,7 @@ export default defineConfig({
     url: `${baseURL}/api/health`,
     env: { EXPOSE_TESTING_API: "1", PORT: String(port) },
     reuseExistingServer: false,
-    // `serve` stops the Postgres container on SIGTERM.
+    // `serve` stops the Supabase stack on SIGTERM.
     gracefulShutdown: { signal: "SIGTERM", timeout: 30_000 },
     timeout: 400_000,
   },

@@ -30,6 +30,10 @@ export default defineConfig({
         new URL("permissions.catalog.json", import.meta.url),
         "utf8",
       ),
+      // `tables` needs the catalog; `sharedFunctions` needs `tables`.
+      tables: true,
+      widened: true,
+      sharedFunctions: true,
     }),
   },
   database: {
@@ -64,6 +68,33 @@ export default defineConfig({
       block: "share-links",
       permissions: { create: "quotes.update", read: "quotes.read" },
     },
+    // SCIM and auto-join assign these, highest first. The provider model
+    // keeps the role list out of the permissions block.
+    { block: "sso", options: { roleOrder: ["admin", "member"] } },
+    "invitations",
+    "entitlements",
+    "impersonation",
+    "organizations",
+    {
+      block: "sessions",
+      options: {
+        bootstrap: {
+          app: { function: "public.sample_authz_version", permissions: false },
+        },
+      },
+    },
+    "api-keys",
+    "settings",
+    "usage",
+    "teams",
+    "relations",
+    "approvals",
+    "access-requests",
+    "service-accounts",
+    "security-events",
+    "automations",
+    "housekeeping",
+    "seeds",
   ],
   tooling: {
     doctor: {
@@ -77,7 +108,34 @@ export default defineConfig({
       // for a duplicate, and permdock_is_approver's overloads, which call each other, for a cycle.
       // The first two are supabase/pg-toolbelt#609 and #610.
       // BS705: supabase:check runs permdock doctor before this, at its own threshold.
-      ignore: ["BS107", "BS243", "BS601", "BS705", "BS721", "BS722", "BS723"],
+      // BS428: pg_get_expr prints ::text on a text argument, and the doctor's call
+      // pattern stops before the cast, so quote_overviews and role_permissions
+      // look like they check no key. Both policies pass permitted_organization_ids_by_permission.
+      // BS320: the sample does not install the sessions block's restrictive
+      // session_active() policy. Table access is the PermDock policies.
+      // BS408: the hook fills `features` from public.feature_claims.
+      // BS411: canAssignFor is written only when every scope has a membership
+      // source, and the team scope has none.
+      // BS417: team_ids_of reads better_supabase.team_members. An empty
+      // member_team_ids_of would make that function return no rows.
+      // BS507: the sample has no outbox worker that builds an action registry.
+      // BS647: the quote overview cache is in-process; the sample runs one instance.
+      ignore: [
+        "BS107",
+        "BS243",
+        "BS320",
+        "BS408",
+        "BS411",
+        "BS417",
+        "BS428",
+        "BS507",
+        "BS601",
+        "BS647",
+        "BS705",
+        "BS721",
+        "BS722",
+        "BS723",
+      ],
     },
   },
 });
