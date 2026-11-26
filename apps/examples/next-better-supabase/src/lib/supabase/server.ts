@@ -64,4 +64,6 @@ export const bsb = createNext(betterSupabase, {
     audience,
     cookie: { name: cookieName },
   },
+  // Counts stay off unless this process was built to be measured.
+  ...(env.measure ? { debug: { enabled: true, coldStart: true } } : {}),
 });

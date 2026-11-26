@@ -1,5 +1,7 @@
 import { exportJWK, generateKeyPair } from "jose";
 import { spawn, spawnSync } from "node:child_process";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import { startDatabase } from "./database.ts";
@@ -15,7 +17,16 @@ const port = process.env["PORT"] ?? "3489";
  * build` and `next start` (only a production server prefetches).
  * `SEED_QUOTES=<n>` adds the deterministic rows of `seed-scale.ts` first.
  */
-const database = await startDatabase();
+const measuring = process.env["MEASURE"] === "1";
+const database = await startDatabase({ statements: measuring });
+const stackFile = path.join(os.tmpdir(), `permdock-measure-${port}.json`);
+if (measuring) {
+  mkdirSync(path.dirname(stackFile), { recursive: true });
+  writeFileSync(
+    stackFile,
+    `${JSON.stringify({ databaseUrl: database.url, port, statements: database.statements })}\n`,
+  );
+}
 const scaleQuotes = Number(process.env["SEED_QUOTES"] ?? "0");
 if (scaleQuotes > 0) {
   await seedScaleAt(database.url, defaultsFor(scaleQuotes));
@@ -61,5 +72,8 @@ try {
   });
   process.exitCode = code ?? 0;
 } finally {
+  if (measuring) {
+    rmSync(stackFile, { force: true });
+  }
   await database.stop();
 }

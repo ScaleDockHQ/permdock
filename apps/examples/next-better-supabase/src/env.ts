@@ -41,4 +41,9 @@ export const env = {
   signingKey: read("DEMO_SIGNING_JWK"),
   /** Milliseconds every cached read waits; `0` turns the delay off. */
   latencyMs: latencyMs(read("DEMO_LATENCY_MS")),
+  /**
+   * Set only by `scripts/measure.ts`. Turns on per-request database counts and
+   * the measurement routes. A normal build leaves both off.
+   */
+  measure: read("MEASURE") === "1",
 };
