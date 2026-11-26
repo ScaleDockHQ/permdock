@@ -64,7 +64,9 @@ describe("claims first helpers", () => {
     const body = fnBody(sql, "permdock_token_current");
     expect(body).toContain("to_jsonb(v.version) = (c.j -> 'authz_ver')");
     expect(body).toContain("memberships_truncated");
-    expect(body).toContain("jsonb_typeof(c.j -> 'memberships') = 'array'");
+    expect(body).toContain(
+      "jsonb_typeof(c.j -> 'memberships') in ('array', 'object')",
+    );
     expect(body).toContain('from "permdock".permdock_authz_version v');
     expect(sql).toContain(
       'grant execute on function "permdock".permdock_token_current() to authenticated;',

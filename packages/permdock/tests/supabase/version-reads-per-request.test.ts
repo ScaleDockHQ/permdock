@@ -145,6 +145,36 @@ describe("version reads for a member with a custom role", () => {
   });
 });
 
+describe("a client that throws", () => {
+  // SAFETY: a client whose schema() is missing throws when called, the way a
+  // mocked admin client does.
+  const broken = { schema: undefined } as unknown as SupabaseRpcClient;
+
+  it.each([true, false])(
+    "settles the version read and denies instead of hanging (combined: %s)",
+    async (combined) => {
+      const sources = postgrestSources(broken, {
+        policy,
+        ...(combined ? {} : { versionsFn: false }),
+      });
+      const user = token(0);
+      const granted = await getPermDock(policy, user, {
+        tenant: "acme",
+        memberships: claimsFirst(sources.memberships, {
+          onStale: "reread",
+          versions: memoryVersionCache(),
+        }),
+        customRoles: sources.customRoles(user.principal),
+      }).then(
+        (permdock) => permdock.can(permissions.asset.read, asset),
+        () => false,
+      );
+      expect(granted).toBe(false);
+    },
+    2000,
+  );
+});
+
 describe("the development warning", () => {
   it("names a custom-role version read twice within a second", async () => {
     vi.stubEnv("NODE_ENV", "development");
