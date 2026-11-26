@@ -326,7 +326,7 @@ const supabaseSample: Sample = {
     const id = listed[user] ?? listed["Olivia"] ?? "";
     ab(
       "open",
-      `${base}/api/test/sign-in?user=${id}&next=${encodeURIComponent("/en")}`,
+      `${base}/api/sign-in?user=${id}&next=${encodeURIComponent("/en")}`,
     );
     ab("wait", "--load", "load");
   },

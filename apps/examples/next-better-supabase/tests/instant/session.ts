@@ -16,7 +16,7 @@ export async function signIn(
   page: Page,
   user: keyof typeof users,
 ): Promise<void> {
-  const response = await page.request.get("/api/test/sign-in", {
+  const response = await page.request.get("/api/sign-in", {
     params: { user: users[user], next: "/en" },
     maxRedirects: 0,
   });

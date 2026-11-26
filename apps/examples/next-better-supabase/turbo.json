@@ -9,9 +9,13 @@
         "$TURBO_EXTENDS$",
         "DATABASE_URL",
         "DEMO_LATENCY_MS",
+        "DEMO_SIGNING_JWK",
         "EXPOSE_TESTING_API",
         "MEASURE",
-        "SEED_QUOTES"
+        "SEED_QUOTES",
+        "SUPABASE_JWKS",
+        "SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_URL"
       ]
     },
     "typecheck": {

@@ -7,6 +7,48 @@ insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a3', 'carla@initech.test'),
   ('00000000-0000-4000-8000-0000000000a4', 'gus@globex.test');
 
+-- The password is `local-demo`. The testcontainers stub has neither column,
+-- so this runs only on the Supabase stack, where Auth signs the session.
+do $$
+begin
+  if to_regclass('auth.identities') is null then
+    return;
+  end if;
+  update auth.users set
+    instance_id = '00000000-0000-0000-0000-000000000000',
+    aud = 'authenticated',
+    role = 'authenticated',
+    encrypted_password = extensions.crypt('local-demo', extensions.gen_salt('bf')),
+    email_confirmed_at = now(),
+    created_at = coalesce(created_at, now()),
+    updated_at = coalesce(updated_at, now()),
+    raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
+    confirmation_token = '',
+    recovery_token = '',
+    email_change_token_new = '',
+    email_change = ''
+  where id in (
+    '00000000-0000-4000-8000-0000000000a1',
+    '00000000-0000-4000-8000-0000000000a2',
+    '00000000-0000-4000-8000-0000000000a3',
+    '00000000-0000-4000-8000-0000000000a4'
+  );
+  insert into auth.identities (
+    user_id, provider_id, identity_data, provider,
+    last_sign_in_at, created_at, updated_at
+  )
+  select
+    id, id::text, jsonb_build_object('sub', id::text, 'email', email),
+    'email', now(), now(), now()
+  from auth.users
+  where id in (
+    '00000000-0000-4000-8000-0000000000a1',
+    '00000000-0000-4000-8000-0000000000a2',
+    '00000000-0000-4000-8000-0000000000a3',
+    '00000000-0000-4000-8000-0000000000a4'
+  );
+end $$;
+
 insert into public.organizations (id, slug, name) values
   ('00000000-0000-4000-8000-0000000000b1', 'acme', 'Acme'),
   ('00000000-0000-4000-8000-0000000000b2', 'globex', 'Globex');

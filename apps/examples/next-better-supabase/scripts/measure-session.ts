@@ -29,7 +29,7 @@ export async function signIn(
   userId: string,
 ): Promise<{ readonly cookie: string; readonly token: string | null }> {
   const response = await fetch(
-    `${base}/api/test/sign-in?user=${userId}&next=${encodeURIComponent("/en")}`,
+    `${base}/api/sign-in?user=${userId}&next=${encodeURIComponent("/en")}`,
     { redirect: "manual" },
   );
   const parts = response.headers.getSetCookie().map((line) => {

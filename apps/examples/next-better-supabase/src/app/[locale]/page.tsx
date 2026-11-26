@@ -1,38 +1,23 @@
-const people = [
-  {
-    id: "00000000-0000-4000-8000-0000000000a1",
-    name: "Olivia, owner of Acme",
-    next: "/en/acme/staff",
-  },
-  {
-    id: "00000000-0000-4000-8000-0000000000a2",
-    name: "Mason, member of Acme",
-    next: "/en/acme/staff",
-  },
-  {
-    id: "00000000-0000-4000-8000-0000000000a3",
-    name: "Carla, portal contact at Initech",
-    next: "/en/portal/acme/quotes",
-  },
-] as const;
+import { demoPeople } from "../../features/auth/people.ts";
+import { signInAction } from "../../features/auth/sign-in-action.ts";
 
-/**
- * The `serve` build signs in through `/api/test/sign-in`; a real app uses
- * Supabase Auth.
- */
+const people = Object.entries(demoPeople);
+
+/** Signs in through Supabase Auth, which runs the access-token hook. */
 export default function Home() {
   return (
     <main>
       <h1>Sign in as</h1>
       <ul>
-        {people.map((person) => (
-          <li key={person.id}>
-            <a
-              href={`/api/test/sign-in?user=${person.id}&next=${encodeURIComponent(person.next)}`}
-              data-sign-in={person.id}
-            >
-              {person.name}
-            </a>
+        {people.map(([id, person]) => (
+          <li key={id}>
+            <form action={signInAction}>
+              <input name="user" type="hidden" value={id} />
+              <input name="next" type="hidden" value={person.next} />
+              <button type="submit" data-sign-in={id}>
+                {`Sign in as ${person.name}`}
+              </button>
+            </form>
           </li>
         ))}
       </ul>

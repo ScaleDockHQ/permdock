@@ -33,7 +33,7 @@ Where things live:
 - `src/lib/share.ts` and `src/app/[locale]/share/[token]/page.tsx`: the guest quote page over a better-supabase share link (`subjectFromShareLink`, `exchangeCapability`); the seeded link is `/en/share/acme-initech-rollout`.
 - `src/permdock/server.ts`: `createPermDock` from `permdock/next` with `endpoint: false`; its `subject` reads `bsb.cached()`, and the layouts render its `PermDockProvider` with `snapshot`.
 - `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader (`getSnapshot` in `'use cache: private'`) and the RLS reads (`'use cache: private'` over `bsb.cached({ tags })`), tagged `snapshotTag(sub)`. After a role or plan change, `await bsb.evictSession(userId, { tags: [snapshotTag(userId)] })` drops them.
-- `src/app/api/test/sign-in/route.ts`: `serve` only (`DEMO_SIGN_IN=1`). Runs the hook as `supabase_auth_admin`, signs the claims and sets the `@supabase/ssr` cookie, as Supabase Auth would.
+- `src/app/api/sign-in/route.ts` and the home page form call `bsb.signInWithPassword`. Supabase Auth runs the access-token hook, signs the session and sets the cookie. The password is `local-demo`, set in `supabase/seed.sql`.
 - `src/lib/supabase/generated-schema.ts` (the server's schema), `generated.ts` (`clientSchema`), the `tables/` and `blocks/` modules and the `generated.*` metadata: `pnpm gen` regenerates them from the migrations; `pnpm gen:check` fails on drift.
 
 ## Verify instant navigation
