@@ -109,7 +109,19 @@ export default defineConfig({
       // for a duplicate, and permdock_is_approver's overloads, which call each other, for a cycle.
       // The first two are supabase/pg-toolbelt#609 and #610.
       // BS705: supabase:check runs permdock doctor before this, at its own threshold.
-      ignore: ["BS107", "BS243", "BS601", "BS705", "BS721", "BS722", "BS723"],
+      // BS428: pg_get_expr prints ::text on a text argument, and the doctor's call
+      // pattern stops before the cast, so quote_overviews and role_permissions
+      // look like they check no key. Both policies pass permitted_organization_ids_by_permission.
+      ignore: [
+        "BS107",
+        "BS243",
+        "BS428",
+        "BS601",
+        "BS705",
+        "BS721",
+        "BS722",
+        "BS723",
+      ],
     },
   },
 });

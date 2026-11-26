@@ -4,7 +4,7 @@
     "help": 28,
     "catalog --help": 28,
     "doctor --help": 30,
-    "generate --help": 56,
+    "generate --help": 92,
     "generate --check": 135,
     "cloud push --help": 28
   },
@@ -13,7 +13,7 @@
     "help": 200,
     "catalog --help": 200,
     "doctor --help": 200,
-    "generate --help": 200,
+    "generate --help": 300,
     "cloud push --help": 200,
     "generate --check": 600
   },

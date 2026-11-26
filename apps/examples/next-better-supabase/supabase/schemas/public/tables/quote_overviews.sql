@@ -16,3 +16,6 @@ create policy quote_overviews_select on public.quote_overviews
       select permdock.permitted_organization_ids_by_permission('quotes.list')
     )
   );
+
+create trigger bsb_audit after insert or update or delete on public.quote_overviews
+  for each row execute function better_supabase.audit_row_change('{"ignore": [], "redact": [], "key_columns": ["organization_id"]}');

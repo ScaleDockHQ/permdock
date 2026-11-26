@@ -1917,6 +1917,11 @@ CREATE POLICY "quote_overviews_select" ON "public"."quote_overviews"
   TO "authenticated"
   USING ((organization_id IN ( SELECT permdock.permitted_organization_ids_by_permission('quotes.list'::text) AS permitted_organization_ids_by_permission)));
 
+CREATE TRIGGER bsb_audit
+  AFTER INSERT OR DELETE OR UPDATE ON public.quote_overviews
+  FOR EACH ROW
+  EXECUTE FUNCTION better_supabase.audit_row_change('{"ignore": [], "redact": [], "key_columns": ["organization_id"]}');
+
 REVOKE ALL ON FUNCTION "permdock"."suspended_in_for"(uuid) FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION "permdock"."suspended_in_for"(uuid) TO "supabase_auth_admin";

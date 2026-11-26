@@ -1,12 +1,12 @@
 -- better-supabase module: audit
 -- @bsb-block-test audit
--- @bsb-hash sha256:ade8514c54f3a09dd6b77bc5d8d311bc729a695b5ded8d52edcc2da6548338d9
+-- @bsb-hash sha256:c7133b4c6b6b7f46569f7aa5f9335f0bee700d3ad206ffab6acfa4a6bb852b98
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select extensions.plan(91);
+select extensions.plan(96);
 
 create temp table bsb_audit_probe_0 (like "better_supabase"."access_requests" including defaults including identity including generated) on commit drop;
 do $$
@@ -636,7 +636,7 @@ select extensions.results_eq($$select l."op"::text from "better_supabase"."audit
 select extensions.is((select count(*)::int from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_12' and (coalesce(l."changed" && '{"updated_at"}'::text[], false) or coalesce(l."old_record" ?| '{"updated_at"}'::text[], false) or coalesce(l."new_record" ?| '{"updated_at"}'::text[], false))), 0, 'entries for public.organizations leave out updated_at');
 drop table pg_temp.bsb_audit_probe_12;
 
-create temp table bsb_audit_probe_13 (like "public"."quotes" including defaults including identity including generated) on commit drop;
+create temp table bsb_audit_probe_13 (like "public"."quote_overviews" including defaults including identity including generated) on commit drop;
 do $$
 declare
   col record;
@@ -649,7 +649,7 @@ begin
   loop
     execute format('alter table pg_temp.bsb_audit_probe_13 alter column %I drop not null', col.attname);
   end loop;
-  perform better_supabase.audit('pg_temp.bsb_audit_probe_13', ignore => '{"updated_at"}'::text[], redact => '{}'::text[]);
+  perform better_supabase.audit('pg_temp.bsb_audit_probe_13', ignore => '{}'::text[], redact => '{}'::text[]);
   insert into pg_temp.bsb_audit_probe_13 default values;
   select string_agg(format('%I = %s', a.attname, v.value), ', ') into sets
   from pg_catalog.pg_attribute a
@@ -677,15 +677,14 @@ begin
   delete from pg_temp.bsb_audit_probe_13;
 end;
 $$;
-select extensions.has_trigger('public', 'quotes', 'bsb_audit', 'public.quotes has the bsb_audit trigger');
-select extensions.trigger_is('public', 'quotes', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.quotes calls audit_row_change()');
-select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."quotes"'::regclass) -> 'ignore', '[]'))), '{"updated_at"}'::text[], 'public.quotes is registered with its ignored columns');
-select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."quotes"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.quotes is registered with its redacted columns');
-select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_13' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.quotes write entries');
-select extensions.is((select count(*)::int from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_13' and (coalesce(l."changed" && '{"updated_at"}'::text[], false) or coalesce(l."old_record" ?| '{"updated_at"}'::text[], false) or coalesce(l."new_record" ?| '{"updated_at"}'::text[], false))), 0, 'entries for public.quotes leave out updated_at');
+select extensions.has_trigger('public', 'quote_overviews', 'bsb_audit', 'public.quote_overviews has the bsb_audit trigger');
+select extensions.trigger_is('public', 'quote_overviews', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.quote_overviews calls audit_row_change()');
+select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."quote_overviews"'::regclass) -> 'ignore', '[]'))), '{}'::text[], 'public.quote_overviews is registered with its ignored columns');
+select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."quote_overviews"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.quote_overviews is registered with its redacted columns');
+select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_13' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.quote_overviews write entries');
 drop table pg_temp.bsb_audit_probe_13;
 
-create temp table bsb_audit_probe_14 (like "public"."role_permissions" including defaults including identity including generated) on commit drop;
+create temp table bsb_audit_probe_14 (like "public"."quotes" including defaults including identity including generated) on commit drop;
 do $$
 declare
   col record;
@@ -698,7 +697,7 @@ begin
   loop
     execute format('alter table pg_temp.bsb_audit_probe_14 alter column %I drop not null', col.attname);
   end loop;
-  perform better_supabase.audit('pg_temp.bsb_audit_probe_14', ignore => '{}'::text[], redact => '{}'::text[]);
+  perform better_supabase.audit('pg_temp.bsb_audit_probe_14', ignore => '{"updated_at"}'::text[], redact => '{}'::text[]);
   insert into pg_temp.bsb_audit_probe_14 default values;
   select string_agg(format('%I = %s', a.attname, v.value), ', ') into sets
   from pg_catalog.pg_attribute a
@@ -726,14 +725,15 @@ begin
   delete from pg_temp.bsb_audit_probe_14;
 end;
 $$;
-select extensions.has_trigger('public', 'role_permissions', 'bsb_audit', 'public.role_permissions has the bsb_audit trigger');
-select extensions.trigger_is('public', 'role_permissions', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.role_permissions calls audit_row_change()');
-select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."role_permissions"'::regclass) -> 'ignore', '[]'))), '{}'::text[], 'public.role_permissions is registered with its ignored columns');
-select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."role_permissions"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.role_permissions is registered with its redacted columns');
-select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_14' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.role_permissions write entries');
+select extensions.has_trigger('public', 'quotes', 'bsb_audit', 'public.quotes has the bsb_audit trigger');
+select extensions.trigger_is('public', 'quotes', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.quotes calls audit_row_change()');
+select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."quotes"'::regclass) -> 'ignore', '[]'))), '{"updated_at"}'::text[], 'public.quotes is registered with its ignored columns');
+select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."quotes"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.quotes is registered with its redacted columns');
+select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_14' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.quotes write entries');
+select extensions.is((select count(*)::int from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_14' and (coalesce(l."changed" && '{"updated_at"}'::text[], false) or coalesce(l."old_record" ?| '{"updated_at"}'::text[], false) or coalesce(l."new_record" ?| '{"updated_at"}'::text[], false))), 0, 'entries for public.quotes leave out updated_at');
 drop table pg_temp.bsb_audit_probe_14;
 
-create temp table bsb_audit_probe_15 (like "public"."roles" including defaults including identity including generated) on commit drop;
+create temp table bsb_audit_probe_15 (like "public"."role_permissions" including defaults including identity including generated) on commit drop;
 do $$
 declare
   col record;
@@ -774,14 +774,14 @@ begin
   delete from pg_temp.bsb_audit_probe_15;
 end;
 $$;
-select extensions.has_trigger('public', 'roles', 'bsb_audit', 'public.roles has the bsb_audit trigger');
-select extensions.trigger_is('public', 'roles', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.roles calls audit_row_change()');
-select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."roles"'::regclass) -> 'ignore', '[]'))), '{}'::text[], 'public.roles is registered with its ignored columns');
-select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."roles"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.roles is registered with its redacted columns');
-select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_15' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.roles write entries');
+select extensions.has_trigger('public', 'role_permissions', 'bsb_audit', 'public.role_permissions has the bsb_audit trigger');
+select extensions.trigger_is('public', 'role_permissions', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.role_permissions calls audit_row_change()');
+select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."role_permissions"'::regclass) -> 'ignore', '[]'))), '{}'::text[], 'public.role_permissions is registered with its ignored columns');
+select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."role_permissions"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.role_permissions is registered with its redacted columns');
+select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_15' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.role_permissions write entries');
 drop table pg_temp.bsb_audit_probe_15;
 
-create temp table bsb_audit_probe_16 (like "public"."staff" including defaults including identity including generated) on commit drop;
+create temp table bsb_audit_probe_16 (like "public"."roles" including defaults including identity including generated) on commit drop;
 do $$
 declare
   col record;
@@ -794,7 +794,7 @@ begin
   loop
     execute format('alter table pg_temp.bsb_audit_probe_16 alter column %I drop not null', col.attname);
   end loop;
-  perform better_supabase.audit('pg_temp.bsb_audit_probe_16', ignore => '{"updated_at"}'::text[], redact => '{}'::text[]);
+  perform better_supabase.audit('pg_temp.bsb_audit_probe_16', ignore => '{}'::text[], redact => '{}'::text[]);
   insert into pg_temp.bsb_audit_probe_16 default values;
   select string_agg(format('%I = %s', a.attname, v.value), ', ') into sets
   from pg_catalog.pg_attribute a
@@ -822,13 +822,61 @@ begin
   delete from pg_temp.bsb_audit_probe_16;
 end;
 $$;
+select extensions.has_trigger('public', 'roles', 'bsb_audit', 'public.roles has the bsb_audit trigger');
+select extensions.trigger_is('public', 'roles', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.roles calls audit_row_change()');
+select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."roles"'::regclass) -> 'ignore', '[]'))), '{}'::text[], 'public.roles is registered with its ignored columns');
+select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."roles"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.roles is registered with its redacted columns');
+select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_16' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.roles write entries');
+drop table pg_temp.bsb_audit_probe_16;
+
+create temp table bsb_audit_probe_17 (like "public"."staff" including defaults including identity including generated) on commit drop;
+do $$
+declare
+  col record;
+  sets text;
+begin
+  for col in
+    select a.attname from pg_catalog.pg_attribute a
+    where a.attrelid = 'pg_temp.bsb_audit_probe_17'::regclass and a.attnum > 0 and not a.attisdropped
+      and a.attnotnull and a.attidentity = ''
+  loop
+    execute format('alter table pg_temp.bsb_audit_probe_17 alter column %I drop not null', col.attname);
+  end loop;
+  perform better_supabase.audit('pg_temp.bsb_audit_probe_17', ignore => '{"updated_at"}'::text[], redact => '{}'::text[]);
+  insert into pg_temp.bsb_audit_probe_17 default values;
+  select string_agg(format('%I = %s', a.attname, v.value), ', ') into sets
+  from pg_catalog.pg_attribute a
+  join pg_catalog.pg_type t on t.oid = a.atttypid
+  cross join lateral (
+    select case
+      when t.typtype = 'e' then quote_literal((select e.enumlabel from pg_catalog.pg_enum e where e.enumtypid = t.oid order by e.enumsortorder limit 1)) || '::' || format_type(t.oid, null)
+      when t.typtype <> 'b' then null
+      when t.typname = 'uuid' then 'gen_random_uuid()'
+      when t.typname in ('json', 'jsonb') then quote_literal('{"probe": true}') || '::' || t.typname
+      when t.typname = 'bool' then 'true'
+      when t.typname in ('date') then quote_literal('2001-02-03') || '::date'
+      when t.typname in ('time', 'timetz') then quote_literal('04:05:06') || '::' || t.typname
+      when t.typcategory = 'D' then quote_literal('2001-02-03 04:05:06+00') || '::' || t.typname
+      when t.typcategory = 'N' then '1'
+      when t.typcategory = 'S' then quote_literal('p')
+      when t.typcategory = 'A' then quote_literal('{}') || '::' || format_type(t.oid, null)
+    end as value
+  ) v
+  where a.attrelid = 'pg_temp.bsb_audit_probe_17'::regclass and a.attnum > 0 and not a.attisdropped
+    and a.attidentity = '' and a.attgenerated = '' and v.value is not null;
+  if sets is not null then
+    execute format('update pg_temp.bsb_audit_probe_17 set %s', sets);
+  end if;
+  delete from pg_temp.bsb_audit_probe_17;
+end;
+$$;
 select extensions.has_trigger('public', 'staff', 'bsb_audit', 'public.staff has the bsb_audit trigger');
 select extensions.trigger_is('public', 'staff', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.staff calls audit_row_change()');
 select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."staff"'::regclass) -> 'ignore', '[]'))), '{"updated_at"}'::text[], 'public.staff is registered with its ignored columns');
 select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."staff"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.staff is registered with its redacted columns');
-select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_16' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.staff write entries');
-select extensions.is((select count(*)::int from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_16' and (coalesce(l."changed" && '{"updated_at"}'::text[], false) or coalesce(l."old_record" ?| '{"updated_at"}'::text[], false) or coalesce(l."new_record" ?| '{"updated_at"}'::text[], false))), 0, 'entries for public.staff leave out updated_at');
-drop table pg_temp.bsb_audit_probe_16;
+select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_17' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.staff write entries');
+select extensions.is((select count(*)::int from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe_17' and (coalesce(l."changed" && '{"updated_at"}'::text[], false) or coalesce(l."old_record" ?| '{"updated_at"}'::text[], false) or coalesce(l."new_record" ?| '{"updated_at"}'::text[], false))), 0, 'entries for public.staff leave out updated_at');
+drop table pg_temp.bsb_audit_probe_17;
 
 select * from extensions.finish();
 rollback;

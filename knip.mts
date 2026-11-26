@@ -61,6 +61,8 @@ const config: KnipConfig = {
         "scripts/explain-bench/*.ts",
         "src/**/*.{ts,tsx}",
       ],
+      // scripts/next-baseline.ts loads perf/routes.ts by path and reads `offline`.
+      ignoreIssues: { "perf/routes.ts": ["exports"] },
     },
     "packages/*": {},
     "packages/ui": {

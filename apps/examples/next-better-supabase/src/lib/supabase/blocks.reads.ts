@@ -27,7 +27,7 @@ export type OrganizationsOverviewResult = {
 };
 
 /** The arguments of `reads.sessions.overview`. @public */
-export type SessionsOverviewArgs = {};
+export type SessionsOverviewArgs = {  };
 
 /** What `reads.sessions.overview` returns. @public */
 export type SessionsOverviewResult = {
@@ -45,26 +45,15 @@ export type SessionsOverviewResult = {
 };
 
 /**
- * The installed blocks' composed reads, for `defineReadSet(..., { blocks: reads
- * })`: `s.blocks.<instance>.<read>(args)` in a read set.
- *
+ * The installed blocks' composed reads, for `defineReadSet(..., { blocks:
+ * reads })`: `s.blocks.<instance>.<read>(args)` in a read set.
  * @public
  */
 export const reads = {
   organizations: {
-    overview: blockRead<OrganizationsOverviewArgs, OrganizationsOverviewResult>(
-      "organization_overview",
-      { organizationId: "organization" },
-      ["organizations", "memberships", "invitations"],
-      "better_supabase",
-    ),
+    overview: blockRead<OrganizationsOverviewArgs, OrganizationsOverviewResult>("organization_overview", { organizationId: "organization" }, ["organizations", "memberships", "invitations"], "better_supabase"),
   },
   sessions: {
-    overview: blockRead<SessionsOverviewArgs, SessionsOverviewResult>(
-      "sessions_overview",
-      {},
-      [],
-      "better_supabase",
-    ),
+    overview: blockRead<SessionsOverviewArgs, SessionsOverviewResult>("sessions_overview", {  }, [], "better_supabase"),
   },
 } as const;

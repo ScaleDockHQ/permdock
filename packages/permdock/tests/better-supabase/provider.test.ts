@@ -320,6 +320,7 @@ describe(authorizationProvider, () => {
     expect(provider.tenantScope).toBe("organization");
     expect(provider.scopes).toStrictEqual([
       { name: "organization", idType: "uuid" },
+      { name: "team", idType: "uuid", parent: "organization" },
       { name: "customer", idType: "uuid", parent: "organization" },
     ]);
     expect(provider.functions).toMatchObject({
@@ -589,8 +590,8 @@ describe(authorizationProvider, () => {
         .tenantScope,
     ).toBe("customer");
     expect(() =>
-      authorizationProvider({ manifest: exampleManifest, scope: "team" }),
-    ).toThrow(/scope "team" is not in the manifest's rls.scopes/u);
+      authorizationProvider({ manifest: exampleManifest, scope: "site" }),
+    ).toThrow(/scope "site" is not in the manifest's rls.scopes/u);
   });
 
   it("refuses a manifest without a single root scope", () => {
@@ -1807,6 +1808,7 @@ describe(authorizationProvider, () => {
           .permitted,
       ).toBe(
         `case when {resource} = 'organization' then {id} in (${ids("organization")}) ` +
+          `when {resource} = 'team' then {id} in (${ids("team")}) ` +
           `when {resource} = 'customer' then {id} in (${ids("customer")}) ` +
           `else {permission} in ('${defined(catalog.permissions[0]).key}') and {tenant} in (${ids("organization")}) end`,
       );

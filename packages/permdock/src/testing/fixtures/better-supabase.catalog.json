@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v2.json",
   "version": 2,
-  "generatedAt": "2026-11-06T23:09:19.776Z",
-  "generator": "permdock@0.25.1",
-  "fingerprint": "sha-256:iKNsQAMzVN_7mK67fGSmEGLcdPhrdxpPirx-2DOVIsg",
+  "generatedAt": "2026-11-26T11:21:36.919Z",
+  "generator": "permdock@0.33.0",
+  "fingerprint": "sha-256:M593lHf0ftevbsfKu2CkUl3B4SoeyQsVA44CfveAd0w",
   "resources": {
     "staff": {
       "id": "id",
@@ -83,6 +83,26 @@
             "type": "string",
             "minLength": 3,
             "maxLength": 3
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "sent",
+              "approved"
+            ]
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -91,7 +111,9 @@
           "customer_id",
           "title",
           "amount_minor",
-          "currency"
+          "currency",
+          "status",
+          "team_id"
         ],
         "additionalProperties": false
       },
@@ -104,6 +126,10 @@
         "customer": {
           "field": "customer_id",
           "memberOf": "customer"
+        },
+        "team": {
+          "field": "team_id",
+          "memberOf": "team"
         }
       }
     },
@@ -116,9 +142,196 @@
       "id": "id",
       "schema": null,
       "definedIn": "src/permissions.ts"
+    },
+    "members": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "organization": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "teams": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "settings": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "approvals": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "access_requests": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "impersonation": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "api_keys": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "service_accounts": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "usage": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "sso": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "relations": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "automations": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
+    },
+    "billing": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
     }
   },
   "permissions": [
+    {
+      "key": "access_requests.create",
+      "scope": "access_requests:create",
+      "resource": "access_requests",
+      "action": "create",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "access_requests.emergency",
+      "scope": "access_requests:emergency",
+      "resource": "access_requests",
+      "action": "emergency",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "access_requests.manage",
+      "scope": "access_requests:manage",
+      "resource": "access_requests",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "access_requests.read",
+      "scope": "access_requests:read",
+      "resource": "access_requests",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "access_requests.review",
+      "scope": "access_requests:review",
+      "resource": "access_requests",
+      "action": "review",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "api_keys.manage",
+      "scope": "api_keys:manage",
+      "resource": "api_keys",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 77,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/developer/credential-actions.ts",
+          "line": 12,
+          "call": "protectAction"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "api_keys.own",
+      "scope": "api_keys:own",
+      "resource": "api_keys",
+      "action": "own",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "approvals.manage",
+      "scope": "approvals:manage",
+      "resource": "approvals",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "approvals.read",
+      "scope": "approvals:read",
+      "resource": "approvals",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 53,
+          "call": "tools"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "approvals.request",
+      "scope": "approvals:request",
+      "resource": "approvals",
+      "action": "request",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
     {
       "key": "audit.read",
       "scope": "audit:read",
@@ -128,8 +341,13 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 95,
+          "call": "tools"
+        },
+        {
           "file": "src/policy.ts",
-          "line": 28,
+          "line": 68,
           "call": "reference"
         }
       ],
@@ -144,12 +362,348 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/features/audit/audit-actions.ts",
+          "line": 14,
+          "call": "protectAction"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "automations.manage",
+      "scope": "automations:manage",
+      "resource": "automations",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "automations.publish",
+      "scope": "automations:publish",
+      "resource": "automations",
+      "action": "publish",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/features/automation/automation-actions.ts",
+          "line": 12,
+          "call": "protectAction"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "automations.read",
+      "scope": "automations:read",
+      "resource": "automations",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 89,
+          "call": "tools"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "automations.write",
+      "scope": "automations:write",
+      "resource": "automations",
+      "action": "write",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "billing.read",
+      "scope": "billing:read",
+      "resource": "billing",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 119,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/access/components/access-panel.tsx",
+          "line": 36,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/billing/components/billing-gate.tsx",
+          "line": 13,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/billing/components/billing-gate.tsx",
+          "line": 14,
+          "call": "reference"
+        },
+        {
           "file": "src/policy.ts",
-          "line": 29,
+          "line": 122,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "impersonation.read",
+      "scope": "impersonation:read",
+      "resource": "impersonation",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "impersonation.revoke",
+      "scope": "impersonation:revoke",
+      "resource": "impersonation",
+      "action": "revoke",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "impersonation.start",
+      "scope": "impersonation:start",
+      "resource": "impersonation",
+      "action": "start",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 83,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/support/support-actions.ts",
+          "line": 32,
+          "call": "protectAction"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "members.invite",
+      "scope": "members:invite",
+      "resource": "members",
+      "action": "invite",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/features/member/member-role.ts",
+          "line": 57,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 63,
           "call": "reference"
         }
       ],
       "rowConditions": false
+    },
+    {
+      "key": "members.read",
+      "scope": "members:read",
+      "resource": "members",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 59,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 101,
+          "call": "tools"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 62,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "members.remove",
+      "scope": "members:remove",
+      "resource": "members",
+      "action": "remove",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/features/access-review/review-actions.ts",
+          "line": 13,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/features/member/member-role.ts",
+          "line": 43,
+          "call": "protectAction"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "members.update_role",
+      "scope": "members:update_role",
+      "resource": "members",
+      "action": "update_role",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/features/member/member-role.ts",
+          "line": 35,
+          "call": "protectAction"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "organization.delete",
+      "scope": "organization:delete",
+      "resource": "organization",
+      "action": "delete",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "organization.transfer_ownership",
+      "scope": "organization:transfer_ownership",
+      "resource": "organization",
+      "action": "transfer_ownership",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/features/member/member-actions.ts",
+          "line": 18,
+          "call": "protectAction"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "organization.update",
+      "scope": "organization:update",
+      "resource": "organization",
+      "action": "update",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 107,
+          "call": "tools"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "quotes.approve",
+      "scope": "quotes:approve",
+      "resource": "quotes",
+      "action": "approve",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/features/quote/components/quote-actions.tsx",
+          "line": 77,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 76,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 44,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true,
+      "approvals": [
+        "human"
+      ]
+    },
+    {
+      "key": "quotes.create",
+      "scope": "quotes:create",
+      "resource": "quotes",
+      "action": "create",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 29,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 61,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 123,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "quotes.delete",
+      "scope": "quotes:delete",
+      "resource": "quotes",
+      "action": "delete",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/features/quote/components/quote-actions.tsx",
+          "line": 100,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 88,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 49,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
     },
     {
       "key": "quotes.list",
@@ -165,32 +719,82 @@
           "call": "tools"
         },
         {
+          "file": "src/app/[locale]/(app)/[orgSlug]/access/page.tsx",
+          "line": 23,
+          "call": "reference"
+        },
+        {
           "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
-          "line": 33,
+          "line": 47,
           "call": "tools"
         },
         {
           "file": "src/app/[locale]/(app)/[orgSlug]/quotes/page.tsx",
-          "line": 19,
+          "line": 30,
           "call": "reference"
         },
         {
           "file": "src/app/[locale]/(portal)/portal/[orgSlug]/quotes/page.tsx",
-          "line": 19,
+          "line": 30,
           "call": "reference"
         },
         {
-          "file": "src/policy.ts",
+          "file": "src/app/api/mcp/route.ts",
+          "line": 29,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/api/v1/quotes/route.ts",
+          "line": 15,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/access/access-cache.ts",
+          "line": 16,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/access/components/access-panel.tsx",
           "line": 26,
+          "call": "usePermission"
+        },
+        {
+          "file": "src/features/access/components/access-panel.tsx",
+          "line": 28,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 21,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 24,
           "call": "reference"
         },
         {
           "file": "src/policy.ts",
-          "line": 42,
+          "line": 59,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 81,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 103,
+          "call": "allow"
+        },
+        {
+          "file": "src/proxy.ts",
+          "line": 65,
           "call": "reference"
         }
       ],
-      "rowConditions": false
+      "rowConditions": true
     },
     {
       "key": "quotes.read",
@@ -201,27 +805,98 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/app/api/v1/quotes/route.ts",
+          "line": 15,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/access/access-cache.ts",
+          "line": 11,
+          "call": "getPermission"
+        },
+        {
+          "file": "src/features/access/components/access-panel.tsx",
+          "line": 27,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/access/components/access-panel.tsx",
+          "line": 29,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/automation/automation-actions.ts",
+          "line": 22,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/developer/credential-actions.ts",
+          "line": 22,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/developer/credential-actions.ts",
+          "line": 40,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/components/quote-detail.tsx",
+          "line": 36,
+          "call": "reference"
+        },
+        {
           "file": "src/lib/share.ts",
           "line": 54,
           "call": "can"
         },
         {
           "file": "src/policy.ts",
-          "line": 25,
+          "line": 23,
           "call": "reference"
         },
         {
           "file": "src/policy.ts",
-          "line": 42,
+          "line": 58,
           "call": "reference"
         },
         {
           "file": "src/policy.ts",
-          "line": 46,
+          "line": 81,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 85,
           "call": "allow"
         }
       ],
       "rowConditions": false
+    },
+    {
+      "key": "quotes.send",
+      "scope": "quotes:send",
+      "resource": "quotes",
+      "action": "send",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/features/quote/components/quote-actions.tsx",
+          "line": 57,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 64,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 43,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": true
     },
     {
       "key": "quotes.update",
@@ -237,11 +912,56 @@
           "call": "tools"
         },
         {
+          "file": "src/features/quote/components/quote-actions.tsx",
+          "line": 34,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 43,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/features/quote/share-actions.ts",
+          "line": 18,
+          "call": "protectAction"
+        },
+        {
+          "file": "src/features/quote/share-actions.ts",
+          "line": 30,
+          "call": "protectAction"
+        },
+        {
           "file": "src/policy.ts",
-          "line": 27,
+          "line": 25,
+          "call": "reference"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 60,
           "call": "reference"
         }
       ],
+      "rowConditions": false
+    },
+    {
+      "key": "relations.manage",
+      "scope": "relations:manage",
+      "resource": "relations",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "relations.read",
+      "scope": "relations:read",
+      "resource": "relations",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
       "rowConditions": false
     },
     {
@@ -253,11 +973,104 @@
       "meta": {},
       "usages": [
         {
-          "file": "src/policy.ts",
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 65,
+          "call": "tools"
+        },
+        {
+          "file": "src/features/role/role-actions.ts",
+          "line": 11,
+          "call": "protectAction"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "service_accounts.manage",
+      "scope": "service_accounts:manage",
+      "resource": "service_accounts",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/features/developer/credential-actions.ts",
           "line": 30,
+          "call": "protectAction"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "service_accounts.read",
+      "scope": "service_accounts:read",
+      "resource": "service_accounts",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "settings.manage",
+      "scope": "settings:manage",
+      "resource": "settings",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "settings.read",
+      "scope": "settings:read",
+      "resource": "settings",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 113,
+          "call": "tools"
+        },
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/settings/page.tsx",
+          "line": 26,
+          "call": "requirePermission"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 65,
           "call": "reference"
         }
       ],
+      "rowConditions": false
+    },
+    {
+      "key": "settings.update",
+      "scope": "settings:update",
+      "resource": "settings",
+      "action": "update",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/policy.ts",
+          "line": 66,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "sso.manage",
+      "scope": "sso:manage",
+      "resource": "sso",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
       "rowConditions": false
     },
     {
@@ -270,12 +1083,12 @@
       "usages": [
         {
           "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
-          "line": 27,
+          "line": 41,
           "call": "tools"
         },
         {
           "file": "src/app/[locale]/(app)/[orgSlug]/staff/page.tsx",
-          "line": 19,
+          "line": 30,
           "call": "reference"
         },
         {
@@ -285,12 +1098,7 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 24,
-          "call": "reference"
-        },
-        {
-          "file": "src/policy.ts",
-          "line": 37,
+          "line": 75,
           "call": "reference"
         }
       ],
@@ -306,15 +1114,61 @@
       "usages": [
         {
           "file": "src/policy.ts",
-          "line": 23,
-          "call": "reference"
-        },
-        {
-          "file": "src/policy.ts",
-          "line": 37,
+          "line": 75,
           "call": "reference"
         }
       ],
+      "rowConditions": false
+    },
+    {
+      "key": "teams.manage",
+      "scope": "teams:manage",
+      "resource": "teams",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "teams.read",
+      "scope": "teams:read",
+      "resource": "teams",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
+          "line": 71,
+          "call": "tools"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 78,
+          "call": "allow"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "usage.read",
+      "scope": "usage:read",
+      "resource": "usage",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    },
+    {
+      "key": "usage.record",
+      "scope": "usage:record",
+      "resource": "usage",
+      "action": "record",
+      "arity": "collection",
+      "meta": {},
+      "usages": [],
       "rowConditions": false
     }
   ],
@@ -324,12 +1178,22 @@
       "key": "organization_id"
     },
     {
+      "name": "team",
+      "key": "team_id",
+      "within": "organization"
+    },
+    {
       "name": "customer",
       "key": "customer_id",
       "within": "organization"
     }
   ],
   "roles": [
+    {
+      "key": "admin",
+      "on": "organization",
+      "assignable": true
+    },
     {
       "key": "contact",
       "on": "customer",
@@ -338,6 +1202,11 @@
     {
       "key": "guest",
       "on": "resource",
+      "assignable": true
+    },
+    {
+      "key": "lead",
+      "on": "team",
       "assignable": true
     },
     {
@@ -353,6 +1222,160 @@
     }
   ],
   "grants": [
+    {
+      "permission": "access_requests.create",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "access_requests.emergency",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "access_requests.manage",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "access_requests.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "access_requests.review",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "api_keys.manage",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "api_keys.own",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "approvals.manage",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "approvals.manage",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "approvals.read",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "approvals.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "approvals.request",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "approvals.request",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "audit.read",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
     {
       "permission": "audit.read",
       "effect": "allow",
@@ -376,6 +1399,248 @@
       "scope": "organization"
     },
     {
+      "permission": "automations.manage",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "automations.publish",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "automations.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "automations.write",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "billing.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "impersonation.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "impersonation.revoke",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "impersonation.start",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "members.invite",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "members.invite",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "members.read",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "members.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "members.remove",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "members.update_role",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "organization.delete",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "organization.transfer_ownership",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "organization.update",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "quotes.approve",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization",
+      "where": {
+        "op": "eq",
+        "field": "status",
+        "value": "sent"
+      },
+      "approval": "human"
+    },
+    {
+      "permission": "quotes.create",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "quotes.delete",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization",
+      "where": {
+        "op": "eq",
+        "field": "status",
+        "value": "draft"
+      }
+    },
+    {
+      "permission": "quotes.list",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
       "permission": "quotes.list",
       "effect": "allow",
       "role": "contact",
@@ -393,6 +1658,28 @@
       "to": {
         "kind": "role",
         "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "quotes.list",
+      "effect": "allow",
+      "role": null,
+      "to": {
+        "kind": "relation",
+        "resource": "quotes",
+        "relation": "customer"
+      },
+      "scope": "global"
+    },
+    {
+      "permission": "quotes.read",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
         "scope": "organization"
       },
       "scope": "organization"
@@ -435,7 +1722,56 @@
       "scope": "organization"
     },
     {
+      "permission": "quotes.send",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization",
+      "where": {
+        "op": "eq",
+        "field": "status",
+        "value": "draft"
+      }
+    },
+    {
       "permission": "quotes.update",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "quotes.update",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "relations.manage",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "relations.read",
       "effect": "allow",
       "role": "owner",
       "to": {
@@ -457,6 +1793,105 @@
       "scope": "organization"
     },
     {
+      "permission": "service_accounts.manage",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "service_accounts.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "settings.manage",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "settings.read",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "settings.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "settings.update",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "settings.update",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "sso.manage",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "staff.list",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
       "permission": "staff.list",
       "effect": "allow",
       "role": "member",
@@ -481,6 +1916,17 @@
     {
       "permission": "staff.read",
       "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "staff.read",
+      "effect": "allow",
       "role": "member",
       "to": {
         "kind": "role",
@@ -491,6 +1937,83 @@
     },
     {
       "permission": "staff.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "teams.manage",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "teams.manage",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "teams.read",
+      "effect": "allow",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "teams.read",
+      "effect": "allow",
+      "role": "lead",
+      "to": {
+        "kind": "role",
+        "role": "lead",
+        "scope": "team"
+      },
+      "scope": "team"
+    },
+    {
+      "permission": "teams.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "usage.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "usage.record",
       "effect": "allow",
       "role": "owner",
       "to": {
@@ -512,8 +2035,12 @@
         "kind": "agent"
       },
       "permissions": [
+        "quotes.approve",
+        "quotes.create",
+        "quotes.delete",
         "quotes.list",
         "quotes.read",
+        "quotes.send",
         "quotes.update"
       ]
     },
@@ -527,8 +2054,12 @@
         "kind": "support"
       },
       "permissions": [
+        "quotes.approve",
+        "quotes.create",
+        "quotes.delete",
         "quotes.list",
         "quotes.read",
+        "quotes.send",
         "quotes.update"
       ]
     }

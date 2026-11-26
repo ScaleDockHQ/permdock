@@ -76,10 +76,16 @@
       "update": {
         "security": [
           {
-            "permdockOAuth": ["quotes:list", "quotes:read"]
+            "permdockOAuth": [
+              "quotes:list",
+              "quotes:read"
+            ]
           }
         ],
-        "x-permdock-permissions": ["quotes.list", "quotes.read"]
+        "x-permdock-permissions": [
+          "quotes.list",
+          "quotes.read"
+        ]
       }
     },
     {

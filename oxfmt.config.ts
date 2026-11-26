@@ -25,6 +25,8 @@ export default defineConfig({
     "**/.cursor/**",
     "**/.claude/**",
     "**/permissions.catalog.json",
+    // `permdock openapi emit --check` compares bytes, so oxfmt must not rewrite the overlay.
+    "apps/examples/next-better-supabase/openapi.overlay.json",
     "**/permdock/bundle.ts",
     "packages/permdock/src/testing/fixtures/better-supabase.catalog.json",
     "packages/ui/src/**",
@@ -32,7 +34,7 @@ export default defineConfig({
     "apps/marketing/components/examples/**",
     "tests/integration/src/support/prisma/**",
     "apps/examples/prisma/src/generated/**",
-    "apps/examples/next-better-supabase/src/lib/supabase/{generated.*,generated-schema.ts,blocks.generated.ts,blocks.config.ts,database.types.ts}",
+    "apps/examples/next-better-supabase/src/lib/supabase/{generated.*,generated-schema.ts,blocks.generated.ts,blocks.config.ts,blocks.reads.ts,database.types.ts}",
     "apps/examples/next-better-supabase/src/lib/supabase/{tables,blocks}/**",
     "apps/examples/next-better-supabase/src/generated/**",
     "tests/integration/fixtures/*/permdock-manifest.json",

@@ -431,19 +431,19 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
       ],
       [
         ["openapi", "emit", "--target", "4.0"],
-        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
+        "openapi emit: --target '4.0' is not one of 3.1, 3.2, 3.3.",
       ],
       [
         ["openapi", "emit", "--kind", "yaml"],
-        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
+        "openapi emit: --kind 'yaml' is not one of document, overlay.",
       ],
       [
         ["openapi", "emit", "--overlay", "2.0"],
-        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
+        "openapi emit: --overlay '2.0' is not one of 1.1, 1.2.",
       ],
       [
         ["openapi", "emit", "--profile", "fapi1"],
-        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
+        "openapi emit: --profile 'fapi1' is not one of fapi2. Did you mean fapi2?",
       ],
       [
         ["rls", "generate", "--rbac", "auth0"],

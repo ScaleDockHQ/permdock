@@ -34,7 +34,6 @@ describe("run plugins option", () => {
 describe("removed generate commands", () => {
   it.each([
     [["powersync", "generate"], "generate --only powersync"],
-    [["openapi", "emit"], "generate --only openapi"],
     [["gen"], "generate"],
     [["scim"], "generate --only scim"],
     [["scim", "generate"], "generate --only scim"],
