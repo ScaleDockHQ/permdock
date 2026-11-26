@@ -17,7 +17,9 @@ import { postgres } from "../lib/supabase/server.ts";
 /** The proxy sets this to the organization slug on the request path. */
 export const orgHeader = "x-permdock-org";
 
-async function organizationId(slug: string): Promise<string | undefined> {
+export async function organizationId(
+  slug: string,
+): Promise<string | undefined> {
   const rows = await postgres.admin.queryRaw(
     "select id from public.organizations where slug = $1",
     [slug],
