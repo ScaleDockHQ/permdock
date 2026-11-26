@@ -16,7 +16,11 @@ betterSupabase.registerTable(quote_overviewsTable);
  */
 export const quotesOverview = bsb.kept(
   async (ctx, organization: string) => {
-    const result = await ctx.db.$rpc("quotes_overview_payload");
+    const sql = ctx.sql;
+    if (sql === undefined) {
+      throw new Error("quotes_overview_payload needs the postgres client");
+    }
+    const result = await sql.$rpc("quotes_overview_payload");
     if (!result.ok) {
       throw new Error("quotes_overview_payload failed", {
         cause: result.error,

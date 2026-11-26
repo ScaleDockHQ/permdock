@@ -24,6 +24,7 @@ function quoteOf(row: {
 
 /** The quote RLS lets this caller read, or null. */
 export async function quoteById(id: string): Promise<QuoteRecord | null> {
+  "use cache: private";
   const { supabase } = await bsb.cached();
   const { data } = await supabase
     .from("quotes")
