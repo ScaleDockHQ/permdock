@@ -317,6 +317,16 @@
         "keyPosition": 1,
         "tenantArgument": "p_id"
       }
+    ],
+    "permissionFilters": [
+      {
+        "name": "permdock.permdock_organization_has_active",
+        "keyPosition": 0
+      },
+      {
+        "name": "permdock.permitted_organization_permission_keys_active",
+        "keyPosition": 0
+      }
     ]
   },
   "decidingColumns": [

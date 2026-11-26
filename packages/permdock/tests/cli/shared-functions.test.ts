@@ -59,6 +59,22 @@ create function public.helper_total() returns boolean language sql stable as $$
   select permdock.permdock_has('invoice.read')
 $$;
 
+create function public.active_total() returns numeric language sql stable as $$
+  select sum(total) from invoices where permdock.permdock_organization_has_active('invoice.extra')
+$$;
+
+create function public.active_dynamic() returns numeric language sql stable as $$
+  select sum(total) from invoices where permdock.permdock_organization_has_active(total::text)
+$$;
+
+create function public.active_keys() returns numeric language sql stable as $$
+  select sum(total) from invoices where 'invoice.read' in (select permdock.permitted_organization_permission_keys_active(array['invoice.read']))
+$$;
+
+create function public.two_arg() returns numeric language sql stable as $$
+  select sum(total) from invoices where permdock.permdock_organization_has('invoice.read', '00000000-0000-4000-8000-000000000001'::uuid)
+$$;
+
 create function public.plpgsql_total() returns numeric language plpgsql stable as $$
 begin return 1; end $$;
 
@@ -111,6 +127,11 @@ describe(sharedFunctionsOf, () => {
         tableReads: reads,
       }),
     ).toStrictEqual([
+      {
+        function: "public.active_total",
+        tables: ["public.invoices"],
+        permissions: ["invoice.extra", "invoice.read"],
+      },
       {
         function: "public.both",
         tables: ["public.invoices", "public.lines"],

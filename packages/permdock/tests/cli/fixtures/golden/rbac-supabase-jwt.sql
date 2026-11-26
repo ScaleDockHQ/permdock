@@ -27,7 +27,7 @@ create table if not exists "app"."user_roles" (
 alter table "app"."user_roles" enable row level security;
 revoke all on table "app"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (jwt: reads the role and memberships claims) sha-256:r92AXjgZPcyK7CW8eN-u99OHvDnWqb1ZclNZByG3r18
+-- permdock helpers (jwt: reads the role and memberships claims) sha-256:WoOZfKRnBbHXflJUgnYkPhSpPZietm28c4Bhgpfkv5c
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "app";
@@ -210,6 +210,20 @@ as $$
 $$;
 revoke execute on function "app".permdock_tenant_has(text, uuid) from public, anon;
 grant execute on function "app".permdock_tenant_has(text, uuid) to authenticated;
+-- the same test for the tenant the token names; a shared function calls it with a literal key
+create or replace function "app".permdock_tenant_has_active(p_grant text)
+returns boolean
+language sql
+stable
+security invoker
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select "app".permdock_tenant_has(p_grant, nullif(((select auth.jwt()) ->> 'tenant_id'), '')::uuid)
+$$;
+revoke execute on function "app".permdock_tenant_has_active(text) from public, anon;
+grant execute on function "app".permdock_tenant_has_active(text) to authenticated;
 
 create or replace function "app".member_tenant_ids()
 returns setof uuid
@@ -657,6 +671,21 @@ as $$
 $$;
 revoke execute on function "app".permitted_tenant_permission_keys(uuid, text[]) from public, anon;
 grant execute on function "app".permitted_tenant_permission_keys(uuid, text[]) to authenticated;
+
+-- which of p_keys the caller holds on the tenant the token names
+create or replace function "app".permitted_tenant_permission_keys_active(p_keys text[])
+returns setof text
+language sql
+stable
+security invoker
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select "app".permitted_tenant_permission_keys(nullif(((select auth.jwt()) ->> 'tenant_id'), '')::uuid, p_keys)
+$$;
+revoke execute on function "app".permitted_tenant_permission_keys_active(text[]) from public, anon;
+grant execute on function "app".permitted_tenant_permission_keys_active(text[]) to authenticated;
 
 -- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 create or replace function "app".permitted_tenant_ids_by_permission(p_permission text, p_conditioned boolean)

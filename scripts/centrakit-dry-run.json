@@ -2562,6 +2562,10 @@
   },
   "sql": {
     "committedToBranch": {
+      "helpers.sql": {
+        "added": 117,
+        "removed": 5
+      },
       "hook.sql": {
         "added": 155,
         "removed": 7
@@ -2571,7 +2575,7 @@
   },
   "functions": {
     "pattern": "public.*_payload",
-    "count": 26,
+    "count": 27,
     "passed": 0,
     "functions": [
       {
@@ -2587,6 +2591,7 @@
         "function": "public.agenda_planning_payload",
         "shared": false,
         "reasons": [
+          "it calls public.organization_member_names, which is not shared",
           "it calls public.list_agenda_collections_for_user, which is not shared",
           "it calls public.agenda_range_payload, which is not shared",
           "it calls private.agenda_planning_rows, which is not shared"
@@ -2595,7 +2600,10 @@
       {
         "function": "public.agenda_range_payload",
         "shared": false,
-        "reasons": ["it calls private.agenda_range_items, which is not shared"]
+        "reasons": [
+          "it calls public.task_assignee_candidates, which is not shared",
+          "it calls private.agenda_range_items, which is not shared"
+        ]
       },
       {
         "function": "public.checkout_payload",
@@ -2684,6 +2692,14 @@
         "reasons": ["it reads no table"]
       },
       {
+        "function": "public.my_day_payload",
+        "shared": false,
+        "reasons": [
+          "it reads the caller through auth.uid()",
+          "it reads the caller through auth.uid()"
+        ]
+      },
+      {
         "function": "public.notifications_page_payload",
         "shared": false,
         "reasons": [
@@ -2735,6 +2751,7 @@
         "function": "public.task_detail_reference_payload",
         "shared": false,
         "reasons": [
+          "it calls public.task_assignee_candidates, which is not shared",
           "it calls public.product_stock_availability, which is not shared"
         ]
       },
@@ -2750,6 +2767,7 @@
         "shared": false,
         "reasons": [
           "it calls private.tasks_list_page, which is not shared",
+          "it calls public.task_assignee_candidates, which is not shared",
           "it calls better_supabase.list_notification_subscriptions, which is not shared"
         ]
       },
@@ -2763,13 +2781,13 @@
     ]
   },
   "timings": {
-    "generateMs": 1563
+    "generateMs": 7997
   },
   "shadow": "see stack.shadow",
   "stack": {
     "shadow": {
       "code": 0,
-      "ms": 41525,
+      "ms": 85840,
       "report": {
         "findings": [],
         "ignored": [],
@@ -2782,31 +2800,48 @@
       "method": "client round trip of EXPLAIN (parse, rewrite with the policies, plan) as a role in authenticated, median of 15 plans per statement, 2 rounds, two passes with the policies, then two without, policies dropped in a rolled-back transaction; noiseMs is the median difference between the two passes of one state",
       "insert": {
         "statements": 206,
-        "medianMsWith": 0.503,
-        "medianMsWithout": 0.426,
-        "medianDeltaMs": 0.062,
-        "maxDeltaMs": 0.421,
-        "noiseMs": -0.109
+        "medianMsWith": 0.484,
+        "medianMsWithout": 0.379,
+        "medianDeltaMs": 0.103,
+        "maxDeltaMs": 0.505,
+        "noiseMs": -0.038
       },
       "update": {
         "statements": 187,
-        "medianMsWith": 0.585,
-        "medianMsWithout": 0.496,
-        "medianDeltaMs": 0.078,
-        "maxDeltaMs": 0.539,
-        "noiseMs": -0.134
+        "medianMsWith": 0.559,
+        "medianMsWithout": 0.428,
+        "medianDeltaMs": 0.137,
+        "maxDeltaMs": 0.589,
+        "noiseMs": -0.053
       },
       "delete": {
         "statements": 186,
-        "medianMsWith": 0.502,
-        "medianMsWithout": 0.43,
-        "medianDeltaMs": 0.063,
-        "maxDeltaMs": 0.374,
-        "noiseMs": -0.118
+        "medianMsWith": 0.492,
+        "medianMsWithout": 0.384,
+        "medianDeltaMs": 0.105,
+        "maxDeltaMs": 0.721,
+        "noiseMs": -0.044
       },
-      "guardCallMicros": 0.139,
+      "guardCallMicros": 0.128,
       "failedPlans": 0,
       "firstFailures": []
+    },
+    "activeHelpers": {
+      "calls": 2000,
+      "functions": [
+        {
+          "name": "permdock.permdock_organization_has_active",
+          "wrapperMicros": 33,
+          "innerMicros": 28,
+          "calls": 2000
+        },
+        {
+          "name": "permdock.permitted_organization_permission_keys_active",
+          "wrapperMicros": 1279,
+          "innerMicros": 98,
+          "calls": 2000
+        }
+      ]
     },
     "doctor": {
       "counts": {
@@ -2958,7 +2993,7 @@
       "command": "better-supabase doctor --json --only BS409,BS428,BS429 --fail-on never --agent no",
       "code": 1,
       "findings": true,
-      "stderr": "Checking the database...\n{\"$schema\":\"https://unpkg.com/better-supabase/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"not_found\",\"message\":\"No database to connect to: supabase/config.toml sets no [db] port, and `supabase status` failed (exit 1). Start the stack, set [db] port, or pass $DATABASE_URL or --db-url-stdin.\",\"type\":\"https://bettersupabase.com/docs/cli/errors#not_found\",\"next\":[],\"data\":{\"suggestion\":\"supabase start\"},\"userActionRequired\":false,\"retryable\":false}\n"
+      "stderr": "Checking the database...\n{\"$schema\":\"https://unpkg.com/better-supabase/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"not_found\",\"message\":\"No database to connect to: supabase/config.toml sets no [db] port, and `supabase status` failed (exit 1). Start the stack, set [db] port, or pass $DATABASE_URL or --db-url-stdin. None of these checks needs a database, but there is no supabase/snapshot.json to read the schema from. Save it with `better-supabase gen --save-snapshot` while the stack is up, then run doctor again without it.\",\"type\":\"https://bettersupabase.com/docs/cli/errors#not_found\",\"next\":[],\"data\":{\"suggestion\":\"supabase start\"},\"userActionRequired\":false,\"retryable\":false}\n"
     },
     {
       "command": "permdock generate --yes --agent no",
@@ -3001,7 +3036,7 @@
       "command": "better-supabase doctor --json --only BS409,BS428,BS429 --fail-on never --agent no",
       "code": 1,
       "findings": true,
-      "stderr": "Checking the database...\n{\"$schema\":\"https://unpkg.com/better-supabase/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"not_found\",\"message\":\"No database to connect to: supabase/config.toml sets no [db] port, and `supabase status` failed (exit 1). Start the stack, set [db] port, or pass $DATABASE_URL or --db-url-stdin.\",\"type\":\"https://bettersupabase.com/docs/cli/errors#not_found\",\"next\":[],\"data\":{\"suggestion\":\"supabase start\"},\"userActionRequired\":false,\"retryable\":false}\n"
+      "stderr": "Checking the database...\n{\"$schema\":\"https://unpkg.com/better-supabase/schemas/cli-result-v2.json\",\"status\":\"error\",\"reason\":\"not_found\",\"message\":\"No database to connect to: supabase/config.toml sets no [db] port, and `supabase status` failed (exit 1). Start the stack, set [db] port, or pass $DATABASE_URL or --db-url-stdin. None of these checks needs a database, but there is no supabase/snapshot.json to read the schema from. Save it with `better-supabase gen --save-snapshot` while the stack is up, then run doctor again without it.\",\"type\":\"https://bettersupabase.com/docs/cli/errors#not_found\",\"next\":[],\"data\":{\"suggestion\":\"supabase start\"},\"userActionRequired\":false,\"retryable\":false}\n"
     },
     {
       "command": "permdock supabase inspect --functions public.*_payload --json --yes --agent no",

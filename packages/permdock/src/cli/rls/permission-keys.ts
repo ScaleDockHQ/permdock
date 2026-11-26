@@ -3,6 +3,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type { Body } from "./helper-bodies.ts";
 import type { ShimGrants } from "./shims.ts";
 
+import { rootScope } from "../../core/scopes.ts";
 import { partitionsOf, scopeField } from "../../core/tenancy.ts";
 import { configError } from "../core/errors.ts";
 import { byKey } from "../shared/compare.ts";
@@ -12,6 +13,7 @@ import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
 import { HELPERS } from "../sql/shared.ts";
 import { functionBody, memoizes } from "./helper-bodies.ts";
 import { forUserContext, grantBodies } from "./helpers.ts";
+import { activeTenantSql } from "./set-helpers.ts";
 
 /**
  * The helpers that take a permission key instead of a grant key. Names are part
@@ -436,6 +438,24 @@ ${keysFunction(
   grantsSql(keysFn, `${type}, text[]`, anonExecute),
   parallel,
 )}`);
+    if (rootScope(ctx.scopes) === scope.name) {
+      const activeName = checkName(
+        `${permissionKeysHelper(scope.name)}_active`,
+      );
+      const active = qualified(ctx, activeName);
+      chunks.push(`-- which of p_keys the caller holds on the tenant the token names
+create or replace function ${active}(p_keys text[])
+returns setof text
+language sql
+stable
+security invoker
+cost 1000${parallel ? "\nparallel safe" : ""}
+set search_path = ''
+as $$
+  select ${keysFn}(${activeTenantSql(ctx, type)}, p_keys)
+$$;
+${grantsSql(active, "text[]", anonExecute)}`);
+    }
     chunks.push(`-- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 ${byPermission(fn, "p_permission text, p_conditioned boolean", scope.name, "", true)}
 ${grantsSql(fn, "text, boolean", anonExecute)}`);

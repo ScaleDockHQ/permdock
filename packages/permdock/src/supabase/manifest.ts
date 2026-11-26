@@ -371,6 +371,13 @@ export type SupabaseManifestRls = {
    * manifest written before 0.31.
    */
   readonly tenantPureHelpers?: readonly SupabaseManifestTenantHelper[];
+  /**
+   * The one-argument helpers a shared function may call with a literal key.
+   * Each reads the tenant from the token, so better-supabase's
+   * `permissionFilters` (which checks the key argument only) can list them.
+   * Absent from a manifest written before 0.34.
+   */
+  readonly permissionFilters?: readonly SupabaseManifestPermissionFilter[];
   readonly apiKeys?: {
     readonly claim: string;
     readonly scopes: string;
@@ -403,6 +410,14 @@ export type SupabaseManifestTenantHelper = {
   readonly keyPosition?: number;
   /** The argument that holds the tenant id; it must be the entry's tenant. */
   readonly tenantArgument: string;
+};
+
+/** One entry of `rls.permissionFilters`. */
+export type SupabaseManifestPermissionFilter = {
+  /** `schema.name`. */
+  readonly name: string;
+  /** The zero-based position of the argument that holds the permission key. */
+  readonly keyPosition: number;
 };
 
 /** One entry of `rls.tableReads`. */

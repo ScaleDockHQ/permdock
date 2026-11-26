@@ -2,10 +2,12 @@ import { readFileSync } from "node:fs";
 
 import type {
   SupabaseManifest,
+  SupabaseManifestPermissionFilter,
   SupabaseManifestSharedFunction,
   SupabaseManifestTableRead,
   SupabaseManifestTenantHelper,
 } from "../../supabase/manifest.ts";
+import type { SqlCall } from "../sql/ast.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
@@ -135,6 +137,8 @@ function definitionOf(
 type Reads = {
   readonly tables: ReadonlySet<string>;
   readonly calls: ReadonlySet<string>;
+  /** Literal keys passed to a `permissionFilters` helper. */
+  readonly keys: ReadonlySet<string>;
 };
 
 /**
@@ -159,6 +163,7 @@ async function readsOf(
   }
   const tables = new Set<string>();
   const calls = new Set<string>();
+  const keys = new Set<string>();
   for (const statement of statements) {
     if (statement.kind !== "SelectStmt") {
       return `the body holds a ${statement.kind}, not a select`;
@@ -214,7 +219,15 @@ async function readsOf(
         return `it reads the caller through ${call.name.join(".")}()`;
       }
       if (schema === helperSchema) {
-        return `it calls the helper ${call.name.join(".")}(), which is not a permissionFilters helper`;
+        const key = permissionFilterKey(call, helperSchema);
+        if (key === undefined) {
+          return `it calls the helper ${call.name.join(".")}(), which is not a permissionFilters helper`;
+        }
+        if (typeof key !== "string") {
+          return `it calls ${call.name.join(".")}() with a permission key that is not a string literal, so the key cannot join the share key`;
+        }
+        keys.add(key);
+        continue;
       }
       const target = (
         schema === undefined
@@ -228,7 +241,7 @@ async function readsOf(
       }
     }
   }
-  return { tables, calls };
+  return { tables, calls, keys };
 }
 
 /** Why `definition` fails the header checks, or `undefined`. */
@@ -377,6 +390,7 @@ async function analyse(
       analysed.set(name, {
         tables: new Set(merged.flatMap((entry) => [...entry.tables])),
         calls: new Set(merged.flatMap((entry) => [...entry.calls])),
+        keys: new Set(merged.flatMap((entry) => [...entry.keys])),
       });
     }
   }
@@ -412,9 +426,14 @@ async function analyse(
     const reached = new Set<string>();
     close(name, reached);
     const tables = new Set<string>();
+    const filterKeys = new Set<string>();
     for (const member of reached) {
-      for (const table of analysed.get(member)?.tables ?? []) {
+      const entry = analysed.get(member);
+      for (const table of entry?.tables ?? []) {
         tables.add(table);
+      }
+      for (const key of entry?.keys ?? []) {
+        filterKeys.add(key);
       }
     }
     const rows = [...tables]
@@ -435,14 +454,49 @@ async function analyse(
         function: name,
         tables: [...tables].toSorted(),
         permissions: [
-          ...new Set(
-            [...tables].flatMap((table) => reads.get(table)?.permissions ?? []),
-          ),
+          ...new Set([
+            ...[...tables].flatMap(
+              (table) => reads.get(table)?.permissions ?? [],
+            ),
+            ...filterKeys,
+          ]),
         ].toSorted(),
       },
     });
   }
   return outcomes;
+}
+
+/**
+ * The string literal a call passes to a `permissionFilters` helper, `false`
+ * when the helper is one but the key is not a string literal, or `undefined`
+ * when the call is not such a helper. Better-supabase 0.87 adds only a string
+ * literal to the share key.
+ */
+function permissionFilterKey(
+  call: SqlCall,
+  helperSchema: string,
+): string | false | undefined {
+  const name = call.name.at(-1);
+  const schema = call.name.length > 1 ? call.name[0] : undefined;
+  if (
+    schema !== helperSchema ||
+    name === undefined ||
+    (!name.endsWith("_has_active") && !name.endsWith("_permission_keys_active"))
+  ) {
+    return undefined;
+  }
+  const args = Array.isArray(call.node["args"]) ? call.node["args"] : [];
+  const [first] = args;
+  const cast: unknown = isRecord(first) ? first["TypeCast"] : undefined;
+  const inner: unknown =
+    isRecord(cast) && isRecord(cast["arg"]) ? cast["arg"] : first;
+  const constant: unknown = isRecord(inner) ? inner["A_Const"] : undefined;
+  const value: unknown =
+    isRecord(constant) && isRecord(constant["sval"])
+      ? constant["sval"]["sval"]
+      : undefined;
+  return typeof value === "string" ? value : false;
 }
 
 /** The `row` table a function reads, under which rule and why. */
@@ -497,4 +551,28 @@ export function tenantPureHelpersOf(
     ...candidate,
     name: `${manifest.rls.schema}.${candidate.name}`,
   }));
+}
+
+/**
+ * `rls.permissionFilters`: the one-argument forms of the tenant-pure helpers.
+ * Each reads the tenant from the token, so a call with a literal key depends
+ * only on the caller's grants of that key in the active tenant. The
+ * two-argument helpers stay in `tenantPureHelpers` and are never filters:
+ * better-supabase 0.87 checks the key argument only.
+ */
+export function permissionFiltersOf(
+  manifest: SupabaseManifest,
+): readonly SupabaseManifestPermissionFilter[] {
+  const root = manifest.rls.scopes[0]?.name;
+  if (root === undefined) {
+    return [];
+  }
+  const schema = manifest.rls.schema;
+  return [
+    { name: `${schema}.permdock_${root}_has_active`, keyPosition: 0 },
+    {
+      name: `${schema}.permitted_${root}_permission_keys_active`,
+      keyPosition: 0,
+    },
+  ];
 }

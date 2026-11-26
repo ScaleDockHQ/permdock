@@ -214,6 +214,115 @@ function doctorSection(
   };
 }
 
+const HELPER_CALLS = 2_000;
+
+function quotedCall(schema: string, name: string, args: string): string {
+  return `"${schema}"."${name}"(${args})`;
+}
+
+async function statementMicros(query: Query, call: string): Promise<number> {
+  await query(`select ${call}`);
+  const started = performance.now();
+  await query(
+    `select ${call} from generate_series(1, ${String(HELPER_CALLS)})`,
+  );
+  return Math.round(((performance.now() - started) / HELPER_CALLS) * 1000);
+}
+
+async function innerArguments(
+  query: Query,
+  schema: string,
+  name: string,
+  wanted: string,
+): Promise<string> {
+  const { rows } = await query(
+    `select pg_get_function_identity_arguments(p.oid) as args
+     from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = '${schema}' and p.proname = '${name}'
+       and pg_get_function_identity_arguments(p.oid) like '${wanted}'
+     limit 1`,
+  );
+  return String(rows[0]?.["args"]);
+}
+
+/**
+ * Statement time of one active-tenant wrapper against the two-argument helper
+ * it calls. `language sql` is inlined, so `pg_stat_statements` records the
+ * statement, which is what `permdock rls measure` reads. The stack has no rows
+ * and no token, so both calls answer false; the difference is the wrapper.
+ */
+async function activeHelpers(query: Query): Promise<Json> {
+  const { rows } = await query(
+    `select n.nspname as schema, p.proname as name,
+       pg_get_function_identity_arguments(p.oid) as args
+     from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'permdock'
+       and (p.proname like '%\\_has\\_active' or p.proname like '%\\_permission\\_keys\\_active')
+     order by p.proname`,
+  );
+  const timed = [];
+  /* oxlint-disable no-await-in-loop -- the timings share one database */
+  for (const row of rows) {
+    const schema = String(row["schema"]);
+    const name = String(row["name"]);
+    const args = String(row["args"]);
+    const keys = args.includes("text[]");
+    const wrapper = quotedCall(schema, name, keys ? "array['x']" : "'x'");
+    const innerArgs = await innerArguments(
+      query,
+      schema,
+      name.replace(/_active$/u, ""),
+      keys ? "%text[]%" : "%,%",
+    );
+    const tenant = innerArgs.includes("uuid")
+      ? "'00000000-0000-4000-8000-0000000000b1'::uuid"
+      : "'acme'";
+    const inner = quotedCall(
+      schema,
+      name.replace(/_active$/u, ""),
+      keys ? `${tenant}, array['x']` : `'x', ${tenant}`,
+    );
+    timed.push({
+      name: `${schema}.${name}`,
+      // Sequential: the two timings share one database, so they must not overlap.
+      wrapperMicros: await statementMicros(query, wrapper),
+      innerMicros: await statementMicros(query, inner),
+      calls: HELPER_CALLS,
+    });
+  }
+  /* oxlint-enable no-await-in-loop */
+  return { calls: HELPER_CALLS, functions: timed };
+}
+
+/** One connection to `url`. */
+async function withQuery<T>(
+  url: string,
+  run: (query: Query) => Promise<T>,
+): Promise<T> {
+  // SAFETY: `pg` is a dependency of tests/integration, which this script borrows; `Client` is the part of its API used here.
+  const { Client: Connection } = createRequire(
+    join(ROOT, "tests", "integration", "package.json"),
+  )("pg") as {
+    readonly Client: new (config: { readonly connectionString: string }) => {
+      readonly connect: () => Promise<void>;
+      readonly end: () => Promise<void>;
+      readonly query: Query;
+    };
+  };
+  const client = new Connection({ connectionString: url });
+  await client.connect();
+  try {
+    return await run(async (sql) => {
+      const { rows } = await client.query(sql);
+      return { rows };
+    });
+  } finally {
+    await client.end();
+  }
+}
+
 /** One connection to `url` for the read-only actor measurement. */
 async function readOnlyActors(url: string): Promise<Json> {
   // SAFETY: `pg` is a dependency of tests/integration, which this script borrows; `Client` is the part of its API used here.
@@ -261,6 +370,7 @@ async function report(input: Input, url: string): Promise<Json> {
   return {
     shadow: { code: verify.status, ms: verifyMs, report: json(verify.stdout) },
     readOnlyActors: await readOnlyActors(url),
+    activeHelpers: await withQuery(url, activeHelpers),
     doctor: doctorSection(
       listOf(isRecord(body) ? body["findings"] : undefined),
       tenant,

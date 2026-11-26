@@ -389,18 +389,42 @@ create function public.note_total() returns numeric language sql stable as $$ se
       "permdock.permdock_organization_has",
       "permdock.permitted_organization_permission_keys",
     ]);
+    expect(manifest.rls.permissionFilters).toStrictEqual([
+      { name: "permdock.permdock_organization_has_active", keyPosition: 0 },
+      {
+        name: "permdock.permitted_organization_permission_keys_active",
+        keyPosition: 0,
+      },
+    ]);
     expect(await pd137({ cwd, config: {} })).toStrictEqual([]);
-    expect(authorizationProvider({ manifest })).not.toHaveProperty(
-      "permissionFilters",
-    );
-    expect(
-      authorizationProvider({ manifest, permissionFilters: true }),
-    ).toMatchObject({
+    expect(authorizationProvider({ manifest })).toMatchObject({
       permissionFilters: {
-        "permdock.permdock_organization_has": { keyArgument: 0 },
-        "permdock.permitted_organization_permission_keys": { keyArgument: 1 },
+        "permdock.permdock_organization_has_active": { keyArgument: 0 },
+        "permdock.permitted_organization_permission_keys_active": {
+          keyArgument: 0,
+        },
       },
     });
+    writeFileSync(
+      path,
+      JSON.stringify({
+        ...manifest,
+        rls: {
+          ...manifest.rls,
+          permissionFilters: [
+            { name: "permdock.permdock_organization_has", keyPosition: 0 },
+          ],
+        },
+      }),
+    );
+    expect(await pd137({ cwd, config: {} })).toStrictEqual([
+      expect.objectContaining({
+        code: "PD137",
+        target:
+          "permdock.manifest.json:rls.permissionFilters:permdock.permdock_organization_has",
+      }),
+    ]);
+    writeFileSync(path, JSON.stringify(manifest));
 
     writeFileSync(
       path,

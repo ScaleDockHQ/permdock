@@ -74,7 +74,7 @@ A table shares per tenant only when its select policy filters by permission and 
 `authorizationProvider({ manifest, catalog, tables: true, sharedFunctions: true })` fills better-supabase's `sharedFunctions`: the functions a `share: "tenant"` fill may call. `permdock supabase inspect` writes `rls.sharedFunctions` into the manifest, one entry `{ function, tables, permissions }` for each function the schema files, migrations and `rls.out` define that passes better-supabase's BS430:
 
 - `language sql`, `security invoker`, `stable` or `immutable` (a function that states no volatility is `volatile` and is left out);
-- no `auth.*`, `current_user`, `session_user`, `current_setting` or helper of the helpers' schema;
+- no `auth.*`, `current_user`, `session_user`, `current_setting`, or helper of the helpers' schema other than a `permissionFilters` helper called with a string literal;
 - every function it calls is itself listed, or a built-in;
 - every relation it reads is a `tenant` table in `rls.tableReads`, resolved through `[<function schema>, public]` like better-supabase does.
 
@@ -104,7 +104,13 @@ These helpers are left out, and the guide says why:
 
 `tests/integration/src/tenant-pure-helpers.test.ts` checks both lists on PGlite: callers with an equal fingerprint get one answer from each listed helper, and `permitted_<root>_ids_by_permission` returns `acme` for one and `acme, beta, delta` for another. `permdock_<root>_has` takes the grant key, which equals the permission key for an unconditional allow.
 
-A function can call a listed helper only if better-supabase's BS430 accepts the call and adds the key to the share key. It does not today: BS430 refuses every call into the helpers' schema. The request is in [better-supabase requests](https://github.com/ScaleDockHQ/permdock/blob/main/docs/agents/better-supabase-requests.md).
+`permdock supabase inspect` also writes `rls.permissionFilters`: `permdock_<root>_has_active(p_grant)` and `permitted_<root>_permission_keys_active(p_keys)`. Each is `stable`, `security invoker` and `language sql`, and calls the two-argument helper with the tenant the token names. `authorizationProvider` fills better-supabase's `permissionFilters` from that list. BS430 accepts a call that passes a string literal as the key and adds the key to the share key. It refuses the two-argument helpers, because it checks the key argument only, and a call whose key is not a string literal. A `text[]` literal is not a string literal, so a call of `permitted_<root>_permission_keys_active` does not pass BS430 until better-supabase accepts one. The request for a checked tenant argument is in [better-supabase requests](https://github.com/ScaleDockHQ/permdock/blob/main/docs/agents/better-supabase-requests.md).
+
+## Why a widening key can share
+
+`tenantFor` with `widenedKeys`, and `authorizationHooks` with `widened`, lets two holders of a widening key read every row of the tenant. The fingerprint plus the tenant keys that entry: both callers hold the same widening grant, so they read the same rows. A caller without the key gets no share key, so that read stays per user.
+
+The entry is not sound when the widening grant carries a condition, or when a restrictive policy reads a column. Two holders then read different rows. `packages/permdock/tests/better-supabase/share-key.test.ts` covers the sound case, under `shareKey with widened keys`.
 
 ## CentraKit dry run
 
@@ -228,3 +234,20 @@ Same machine, versions and fixture as above. The numbers come from `scripts/cent
 | `permdock rls verify --shadow` on the local stack                            | not measured      | 41.5 s                                 | `stack.shadow.ms`                      |
 
 The read-only actor policies cost less than the run-to-run noise, so 0.33 adds no trigger mode. A suspended tenant now reaches the app through the `suspended_in` claim and `permdock_subject()`; the database still denies it.
+
+### 0.34 against 0.33
+
+Same machine. The dry run is `node scripts/centrakit-dry-run.ts --stack` on CentraKit `2fe64cf61` with better-supabase 0.87.0. The in-process rows above keep their call counts; the 26 November run of `scripts/centrakit-latency.json` stays in the same range, so it is not copied here.
+
+| Measurement                                                 | 0.33                                   | 0.34                                             | Source                             |
+| ----------------------------------------------------------- | -------------------------------------- | ------------------------------------------------ | ---------------------------------- |
+| `public.*_payload` functions that pass the share check      | 0 of 26                                | 0 of 27                                          | `functions` in the dry-run report  |
+| Tables that can share                                       | 28 as `tenant`, 59 `row` tables by key | 28 as `tenant`, 59 `row` tables by key           | `after.tableReads`                 |
+| `permdock_organization_has_active('x')`                     | not generated                          | 33 µs per call; the two-argument helper 28 µs    | `stack.activeHelpers`, 2,000 calls |
+| `permitted_organization_permission_keys_active(array['x'])` | not generated                          | 1,279 µs per call; the two-argument helper 98 µs | `stack.activeHelpers`, 2,000 calls |
+
+CentraKit `2fe64cf61` adds `public.my_day_payload`, which is the 27th function. None of the 27 call `permdock_organization_has_active`, so the new filters do not move them. Each fails for one of these reasons: 11 call a function that is not shared, 6 are not `language sql`, `security invoker` and `stable`, 3 read the caller through `auth.uid()`, 3 call `permdock.permitted_organization_ids()` (it lists every tenant, so it is not a permission filter), 2 read a `row` table, 1 reads no table, and 1 reads `better_supabase.pipeline_stages`, which the schema files do not create.
+
+The wrapper times are the statement, which is what `pg_stat_statements` records and what `permdock rls measure` prints. The dry-run database has no users, so that command was not run; the figures are 2,000 calls of each statement on that database. The `has_active` wrapper adds 5 µs to the inner call. The keys wrapper's statement takes 1,279 µs against 98 µs for the inner helper. The database has no rows and no token, so both answers are empty; the difference is the extra call.
+
+The brief counts the policies declared in CentraKit's `helpers.sql`. At `2fe64cf61` that file declares 594: 211 insert, 192 update and 191 delete. The brief's 591 (210 insert, 191 update, 190 delete) is three policies below that, one of each command. The dry run counts `pg_policies` after `supabase db schema declarative sync`, which is 579: 206 insert, 187 update and 186 delete, on 208 tables. That is the same 579 the 24 November run measured. `rls verify --shadow` loads the schema files into a shadow database and reports no difference, so those 15 policies are absent from the shadow load as well. Four of them are on `realtime.messages` and `storage.objects`, which no schema file creates. The file says to apply the policies after the migrations that create the tables, and the dry run does not run migrations.
