@@ -79,7 +79,9 @@ const CLIENT_ROLES = ["anon", "anonymous", "authenticated"] as const;
  * The name guard lets a row the `skip` column marks through, so only trusted
  * SQL may mark one: a security invoker trigger refuses a client role that sets
  * the column, or renames or moves a row that has it. A row created by trusted
- * SQL, such as an organization's seeded system roles, keeps it.
+ * SQL, such as an organization's seeded system roles, keeps it. A platform row
+ * (no tenant) that stays one passes: every reader of `skip` ignores it there,
+ * so staff authorized by the app's own policies can write platform roles.
  */
 function systemGuardSql(
   ctx: RlsSqlContext,
@@ -105,6 +107,9 @@ set search_path = ''
 as $$
 begin
   if not ${clients} then
+    return new;
+  end if;
+  if new.${tenant} is null and (tg_op = 'INSERT' or old.${tenant} is null) then
     return new;
   end if;
   if (tg_op = 'INSERT' and coalesce(new.${skip}, false))
