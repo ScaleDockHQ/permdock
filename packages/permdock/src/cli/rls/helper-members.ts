@@ -264,7 +264,7 @@ export function memberForFunction(
   const types = team ? "uuid, text" : "uuid";
   return `${team ? `drop function if exists ${fn}(uuid);\n` : ""}create or replace function ${fn}(p_user uuid${team ? ", p_active text default null" : ""})
 returns setof ${type}
-${functionBody(body)}
+${functionBody(body, false, false, true)}
 revoke execute on function ${fn}(${types}) from public, anon, authenticated;
 ${authAdminGrants([
   `grant usage on schema ${quoteIdent(helperSchema(ctx))} to supabase_auth_admin;`,
@@ -340,6 +340,9 @@ ${functionBody(
   sqlBody(`  select m.id
   from ${qualified(ctx, memberForHelper(scope))}(p_user) as m(id)
   where p_user = ${subjectIdSql(ctx)}`),
+  false,
+  false,
+  true,
 )}
 revoke execute on function ${fn}(uuid) from public, anon;
 grant execute on function ${fn}(uuid) to authenticated;`;

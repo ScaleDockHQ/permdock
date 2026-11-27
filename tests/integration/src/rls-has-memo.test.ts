@@ -199,7 +199,7 @@ describe("permdock_has memo against Postgres", () => {
       'create or replace function "permdock".permdock_has(p_grant text)\nreturns boolean\nlanguage plpgsql\nvolatile',
     );
     expect(sql).toContain(
-      'create or replace function "permdock".permdock_has_for(p_user uuid, p_grant text)\nreturns boolean\nlanguage sql\nstable',
+      'create or replace function "permdock".permdock_has_for(p_user uuid, p_grant text)\nreturns boolean\nlanguage plpgsql\nstable',
     );
   });
 

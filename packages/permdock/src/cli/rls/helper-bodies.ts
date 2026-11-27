@@ -846,6 +846,7 @@ export function functionBody(
   body: Body,
   parallelSafe = false,
   setof = false,
+  returnsSet: boolean = setof,
 ): string {
   const planner = `cost 1000${setof ? `\nrows ${String(SETOF_ROWS)}` : ""}${parallelSafe ? "\nparallel safe" : ""}`;
   if (body.memo !== undefined) {
@@ -902,7 +903,12 @@ ${body.sql}
 end;
 $$;`;
   }
-  if (body.vars.length === 0) {
+  // A placeholder such as `select null::uuid where false` reads no table and no
+  // parameter, so it stays SQL: plpgsql_check would flag its unused parameters.
+  if (
+    body.vars.length === 0 &&
+    /^\s*select [^\n]* where false(?: --[^\n]*)?$/u.test(body.sql)
+  ) {
     return `language sql
 stable
 security definer
@@ -912,17 +918,35 @@ as $$
 ${body.sql}
 $$;`;
   }
+  // Postgres never inlines a function with a SET clause, so a SQL body would be
+  // planned again in every statement that calls it. PL/pgSQL keeps the plan for
+  // the session; `use_column` keeps SQL's rule that a column wins over a
+  // parameter of the same name.
+  const declare =
+    body.vars.length === 0
+      ? ""
+      : `declare
+${body.vars.map((line) => `  ${line}`).join("\n")}
+`;
+  // A body can end in a `--` comment, which would swallow a semicolon on its line.
+  const end = body.sql.slice(body.sql.lastIndexOf("\n") + 1).includes("--")
+    ? "\n  ;"
+    : ";";
+  const result = returnsSet
+    ? `  return query
+${body.sql}${end}`
+    : `  return (
+${body.sql}
+  );`;
   return `language plpgsql
 stable
 security definer
 ${planner}
 set search_path = ''
 as $$
-declare
-${body.vars.map((line) => `  ${line}`).join("\n")}
-begin
-  return query
-${body.sql};
+#variable_conflict use_column
+${declare}begin
+${result}
 end;
 $$;`;
 }

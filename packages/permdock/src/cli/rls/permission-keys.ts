@@ -233,7 +233,7 @@ function keysFunction(
 ): string {
   return `create or replace function ${fn}(${params})
 returns setof text
-${functionBody(body, parallelSafe).replace("set search_path = ''", "set search_path = ''\nset jit = off")}
+${functionBody(body, parallelSafe, false, true).replace("set search_path = ''", "set search_path = ''\nset jit = off")}
 ${access}`;
 }
 

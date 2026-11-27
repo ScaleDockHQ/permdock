@@ -27,7 +27,7 @@ create table if not exists "permdock"."user_roles" (
 alter table "permdock"."user_roles" enable row level security;
 revoke all on table "permdock"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (database: reads the membership and user_roles tables) sha-256:l-G7K4HAvQJ7itEkqgYW-hR0cr2PxZQ1GqZZzGtxbqY
+-- permdock helpers (database: reads the membership and user_roles tables) sha-256:XjHUALb1tvH7ZnC6oBaCqvTGgNh7QNaboWbpMzvOMPk
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "permdock";
@@ -103,13 +103,16 @@ where (role, grant_key, scope) not in (values
 
 create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
 parallel safe
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  return (
   select ((((select auth.jwt()) -> 'api_key') is null or ((select auth.jwt()) -> 'api_key') = 'null'::jsonb) and coalesce(((select auth.jwt()) ->> 'client_id'), '') = '' and (((select auth.jwt()) -> 'act') is null or ((select auth.jwt()) -> 'act') = 'null'::jsonb)) and coalesce((
   select exists (
     select 1
@@ -119,13 +122,15 @@ as $$
       and rp.grant_key = p_grant
   )
   ), false)
+  );
+end;
 $$;
 revoke execute on function "permdock".permdock_has(text) from public, anon;
 grant execute on function "permdock".permdock_has(text) to authenticated;
 
 create or replace function "permdock".permitted_tenant_ids(p_grant text)
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -133,12 +138,16 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  return query
   select m."organization_id"::uuid
   from "public"."organization_members" m
   cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
   where m."user_id" = (select "permdock".permdock_user_id())
     and rp.grant_key = p_grant
-    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''));
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_ids(text) from public, anon;
 grant execute on function "permdock".permitted_tenant_ids(text) to authenticated;
@@ -188,7 +197,7 @@ grant execute on function "permdock".permdock_tenant_has_active(text) to authent
 
 create or replace function "permdock".member_tenant_ids()
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -196,26 +205,34 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  return query
   select distinct m."organization_id"::uuid
   from "public"."organization_members" m
   where m."user_id" = (select "permdock".permdock_user_id())
-    and m."role" is not null
+    and m."role" is not null;
+end;
 $$;
 revoke execute on function "permdock".member_tenant_ids() from public, anon;
 grant execute on function "permdock".member_tenant_ids() to authenticated;
 
 create or replace function "permdock".member_tenant_ids_for(p_user uuid)
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  return query
   select distinct m."organization_id"::uuid
   from "public"."organization_members" m
   where m."user_id" = p_user
-    and m."role" is not null
+    and m."role" is not null;
+end;
 $$;
 revoke execute on function "permdock".member_tenant_ids_for(uuid) from public, anon, authenticated;
 do $permdock$ begin
@@ -229,13 +246,16 @@ $permdock$;
 -- the helpers for a user the caller names: trusted SQL acting for a stored user; no client role may execute them
 create or replace function "permdock".permdock_has_for(p_user uuid, p_grant text)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
 parallel safe
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  return (
   select exists (
     select 1
     from "permdock".user_roles ur
@@ -243,12 +263,14 @@ as $$
     where ur.user_id = p_user
       and rp.grant_key = p_grant
   )
+  );
+end;
 $$;
 revoke execute on function "permdock".permdock_has_for(uuid, text) from public, anon, authenticated;
 
 create or replace function "permdock".permitted_tenant_ids_for(p_user uuid, p_grant text)
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -256,11 +278,15 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  return query
   select m."organization_id"::uuid
   from "public"."organization_members" m
   cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
   where m."user_id" = p_user
-    and rp.grant_key = p_grant
+    and rp.grant_key = p_grant;
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_for(uuid, text) from public, anon, authenticated;
 
@@ -388,7 +414,7 @@ grant execute on function "permdock".permdock_has_permission(text) to authentica
 
 create or replace function "permdock".permitted_tenant_ids_by_permission(p_permission text)
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -396,6 +422,9 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  return query
   with pdk_i(id, grant_key) as materialized (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
@@ -409,7 +438,8 @@ as $$
   except
   select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'tenant', 'deny') g(grant_key)
-  )
+  );
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_by_permission(text) from public, anon;
 grant execute on function "permdock".permitted_tenant_ids_by_permission(text) to authenticated;
@@ -417,7 +447,7 @@ grant execute on function "permdock".permitted_tenant_ids_by_permission(text) to
 -- the permission keys the caller holds on one tenant: what permdock_has_permission or permitted_tenant_ids_by_permission answers for each key, in one call
 create or replace function "permdock".permitted_tenant_permission_keys(p_id uuid)
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -425,6 +455,9 @@ parallel safe
 set search_path = ''
 set jit = off
 as $$
+#variable_conflict use_column
+begin
+  return query
   with pdk_m(key, scope, effect, grant_key) as (
     select k.permission, k.scope, k.effect, k.grant_key
     from "permdock".permission_keys k
@@ -465,13 +498,14 @@ as $$
   from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
   where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
     or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'deny'))
-  order by 1
+  order by 1;
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_permission_keys(uuid) from public, anon;
 grant execute on function "permdock".permitted_tenant_permission_keys(uuid) to authenticated;
 create or replace function "permdock".permitted_tenant_permission_keys(p_id uuid, p_keys text[])
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -479,6 +513,9 @@ parallel safe
 set search_path = ''
 set jit = off
 as $$
+#variable_conflict use_column
+begin
+  return query
   with pdk_m(key, scope, effect, grant_key) as (
     select k.permission, k.scope, k.effect, k.grant_key
     from "permdock".permission_keys k
@@ -520,7 +557,8 @@ as $$
   from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
   where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
     or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'deny'))
-  order by 1
+  order by 1;
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_permission_keys(uuid, text[]) from public, anon;
 grant execute on function "permdock".permitted_tenant_permission_keys(uuid, text[]) to authenticated;
@@ -543,7 +581,7 @@ grant execute on function "permdock".permitted_tenant_permission_keys_active(tex
 -- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 create or replace function "permdock".permitted_tenant_ids_by_permission(p_permission text, p_conditioned boolean)
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -551,6 +589,9 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  return query
   with pdk_i(id, grant_key) as materialized (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
@@ -570,7 +611,8 @@ as $$
     except
     select g.grant_key from "permdock".grant_keys(p_permission, 'tenant', 'conditioned-deny') g(grant_key)
     where p_conditioned
-  )
+  );
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_by_permission(text, boolean) from public, anon;
 grant execute on function "permdock".permitted_tenant_ids_by_permission(text, boolean) to authenticated;
@@ -592,7 +634,7 @@ revoke execute on function "permdock".permdock_has_permission_for(uuid, text) fr
 
 create or replace function "permdock".permitted_tenant_ids_by_permission_for(p_user uuid, p_permission text)
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -600,6 +642,9 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  return query
   with pdk_i(id, grant_key) as materialized (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
@@ -612,13 +657,14 @@ as $$
   except
   select i.id from pdk_i i where i.grant_key in (
     select g.grant_key from "permdock".grant_keys(p_permission, 'tenant', 'deny') g(grant_key)
-  )
+  );
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_by_permission_for(uuid, text) from public, anon, authenticated;
 
 create or replace function "permdock".permitted_tenant_ids_by_permission_for(p_user uuid, p_permission text, p_conditioned boolean)
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -626,6 +672,9 @@ rows 10
 parallel safe
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  return query
   with pdk_i(id, grant_key) as materialized (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
@@ -644,13 +693,14 @@ as $$
     except
     select g.grant_key from "permdock".grant_keys(p_permission, 'tenant', 'conditioned-deny') g(grant_key)
     where p_conditioned
-  )
+  );
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_by_permission_for(uuid, text, boolean) from public, anon, authenticated;
 
 create or replace function "permdock".permitted_tenant_permission_keys_for(p_user uuid, p_id uuid)
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -658,6 +708,9 @@ parallel safe
 set search_path = ''
 set jit = off
 as $$
+#variable_conflict use_column
+begin
+  return query
   with pdk_m(key, scope, effect, grant_key) as (
     select k.permission, k.scope, k.effect, k.grant_key
     from "permdock".permission_keys k
@@ -693,12 +746,13 @@ as $$
   from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
   where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
     or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'deny'))
-  order by 1
+  order by 1;
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_permission_keys_for(uuid, uuid) from public, anon, authenticated;
 create or replace function "permdock".permitted_tenant_permission_keys_for(p_user uuid, p_id uuid, p_keys text[])
 returns setof text
-language sql
+language plpgsql
 stable
 security definer
 cost 1000
@@ -706,6 +760,9 @@ parallel safe
 set search_path = ''
 set jit = off
 as $$
+#variable_conflict use_column
+begin
+  return query
   with pdk_m(key, scope, effect, grant_key) as (
     select k.permission, k.scope, k.effect, k.grant_key
     from "permdock".permission_keys k
@@ -742,7 +799,8 @@ as $$
   from (select distinct pdk_w.key from pdk_w where pdk_w.effect = 'allow') pdk_k
   where (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'global' and pdk_h.effect = 'deny'))
     or (exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'allow') and not exists (select 1 from pdk_h where pdk_h.key = pdk_k.key and pdk_h.scope = 'tenant' and pdk_h.effect = 'deny'))
-  order by 1
+  order by 1;
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_permission_keys_for(uuid, uuid, text[]) from public, anon, authenticated;
 

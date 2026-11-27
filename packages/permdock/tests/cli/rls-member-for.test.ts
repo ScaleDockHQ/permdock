@@ -221,7 +221,7 @@ describe("member_<scope>_ids_of", () => {
     });
     const team = fn(sql, "member_team_ids_of");
     expect(team).toContain(
-      "member_team_ids_of(p_user uuid)\nreturns setof text\nlanguage sql\nstable\nsecurity definer\ncost 1000\nset search_path = ''",
+      "member_team_ids_of(p_user uuid)\nreturns setof text\nlanguage plpgsql\nstable\nsecurity definer\ncost 1000\nset search_path = ''\nas $$\n#variable_conflict use_column\nbegin\n  return query\n",
     );
     expect(team).toContain(
       'from "permdock".member_team_ids_for(p_user) as m(id)\n  where p_user = (select "permdock".permdock_user_id())',
