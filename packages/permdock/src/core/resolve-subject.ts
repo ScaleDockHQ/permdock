@@ -298,7 +298,7 @@ function assemblePrincipal(
         : (): readonly string[] | Promise<readonly string[]> =>
             source.globalRolesFor?.(
               compact({ id: principal.id, kind: principal.kind }),
-              { memo },
+              compact({ memo, tenant: options.tenant }),
             ) ?? [],
       options.version?.known,
       forced,

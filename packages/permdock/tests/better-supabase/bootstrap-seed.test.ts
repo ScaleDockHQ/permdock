@@ -71,7 +71,7 @@ const request = (): AuthorizationRequest<Permission> => ({
   context: { tenant: ORG },
 });
 
-function setup(): {
+function setup(options: { readonly tenantScoped?: boolean } = {}): {
   readonly calls: string[];
   readonly check: (seed?: AuthzSubjectSeed) => Promise<string>;
 } {
@@ -87,7 +87,10 @@ function setup(): {
     }),
   };
   const subjects = memorySubjectCache();
-  const sources = postgrestSources(client, { subjects });
+  const sources = postgrestSources(client, {
+    subjects,
+    ...(options.tenantScoped === true ? { tenantScoped: true } : {}),
+  });
   const resolve = permdockFor({
     policy,
     memberships: sources.memberships,
@@ -147,8 +150,8 @@ describe("authorizer with a bootstrap seed", () => {
     expect(reads(calls)).toBe(1);
   });
 
-  it("reads no subject_for when the seed is restricted to the checked tenant", async () => {
-    const { calls, check } = setup();
+  it("reads no subject_for when the seed is restricted to the checked tenant and the sources read per tenant", async () => {
+    const { calls, check } = setup({ tenantScoped: true });
     expect(
       await check({
         userId: USER,
@@ -158,6 +161,46 @@ describe("authorizer with a bootstrap seed", () => {
       }),
     ).toBe("granted");
     expect(reads(calls)).toBe(0);
+  });
+
+  it("reads the whole subject when the sources read every tenant and the seed is restricted", async () => {
+    const { calls, check } = setup();
+    expect(
+      await check({
+        userId: USER,
+        version: 3,
+        subject: record(3),
+        tenant: ORG,
+      }),
+    ).toBe("granted");
+    expect(reads(calls)).toBe(1);
+  });
+
+  it("keeps a tenant-restricted seed under its tenant, not as the all-tenants record", async () => {
+    const subjects = memorySubjectCache();
+    const client: SupabaseRpcClient = {
+      schema: () => ({
+        rpc: () => Promise.resolve({ data: null, error: null }),
+      }),
+    };
+    const sources = postgrestSources(client, { subjects });
+    const resolve = permdockFor({
+      policy,
+      memberships: sources.memberships,
+      subjects,
+    });
+    await resolve(
+      {
+        session: { kind: "user", claims: staleClaims },
+        tenant: ORG,
+        authzVersion: 3,
+        subject: record(3),
+        subjectTenant: ORG,
+      },
+      { tenant: ORG },
+    );
+    expect(subjects.record(USER, 3, undefined, ORG)).not.toBeNull();
+    expect(subjects.record(USER, 3)).toBeNull();
   });
 
   it("ignores a seed restricted to another tenant", async () => {

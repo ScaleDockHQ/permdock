@@ -162,13 +162,21 @@ export function createResolver<V extends PolicyVocabulary, TSource, TVersions>(
           result?.subject === undefined
             ? undefined
             : readSubjectRecord(result.subject);
+        const restrictedTo = result?.subjectTenant ?? null;
         if (
           record?.active === true &&
-          (result?.subjectTenant ?? tenant ?? null) === (tenant ?? null) &&
+          (restrictedTo ?? tenant ?? null) === (tenant ?? null) &&
           record.id === id &&
           record.authzVersion === known
         ) {
-          await options.subjects.seed(record);
+          // A record `subject_for(p_user, p_tenant)` read names no tenant of its
+          // own. Keep it under that tenant, never as the all-tenants record, so
+          // a later check in another tenant reads its own record.
+          await options.subjects.seed(
+            restrictedTo === null
+              ? record
+              : { ...record, tenant: restrictedTo },
+          );
         }
       } catch {
         // A cache that fails answers nothing; the source reads the record itself.

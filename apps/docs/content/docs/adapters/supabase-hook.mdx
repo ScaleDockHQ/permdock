@@ -226,7 +226,8 @@ The function fails closed. An unknown tenant, a tenant the user holds no members
 - An instance with no `tenant`, or an empty one, reads no memberships and makes no call. The source never falls back to the all-tenants read.
 - A failing call rejects, so `getPermDock` reports `source-threw` and the subject has no memberships.
 - A tenant the user holds nothing in answers no memberships, so every permission there is denied.
-- `customRoles(principal).rolesFor(tenant)` reads that tenant's record. `globalRoles`, `sharedRoles`, `subject`, `refresh`, `record` and `memberships.globalRolesFor` still read the whole user.
+- `customRoles(principal).rolesFor(tenant)` and `memberships.globalRolesFor` read that tenant's record, which carries the user's global roles, so a stale token's reread costs one call. `globalRoles`, `sharedRoles`, `subject`, `refresh` and `record` still read the whole user.
+- A bootstrap seed restricted to one tenant (`subjectForTenant` in better-supabase) is kept under that tenant, so it answers this source for that tenant and never an all-tenants read.
 - The instance memo and a `memorySubjectCache` key the record by user and tenant, and `evict(id)` drops every tenant's record. A custom `SubjectCache` that ignores the `tenant` argument is never served another tenant's record, because the source discards a record whose `tenant` differs; it only misses.
 - The custom-role version is per tenant, so a scoped record carries the version of its tenant alone.
 

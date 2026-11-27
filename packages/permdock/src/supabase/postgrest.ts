@@ -115,10 +115,11 @@ export type PostgrestSourcesOptions = {
    * option) through `subject_for(p_user, p_tenant)` instead of every tenant's
    * through `subject_for(p_user)`, so a user in many organisations loads one.
    * An instance with no `tenant`, or an empty one, reads no memberships here:
-   * the source never falls back to the all-tenants read. `subject`, `refresh`,
-   * `record` and `memberships.globalRolesFor` still read the whole user. A
-   * custom role of another tenant than the instance's is not read. Default
-   * `false`.
+   * the source never falls back to the all-tenants read.
+   * `memberships.globalRolesFor` reads the instance's tenant too, since that
+   * record carries the user's global roles. `subject`, `refresh` and `record`
+   * still read the whole user. A custom role of another tenant than the
+   * instance's is not read. Default `false`.
    */
   readonly tenantScoped?: boolean;
 };
@@ -666,7 +667,13 @@ export function postgrestSources(
       },
       list,
       async globalRolesFor(principal, context) {
-        return [...((await live(principal.id, context?.memo))?.roles ?? [])];
+        // The one-tenant record carries the user's global roles too, so a
+        // tenant-scoped source reuses the read `membershipsFor` makes.
+        const scopeTo =
+          tenantScoped && context?.tenant !== "" ? context?.tenant : undefined;
+        return [
+          ...((await live(principal.id, context?.memo, scopeTo))?.roles ?? []),
+        ];
       },
     },
     customRoles(principal) {

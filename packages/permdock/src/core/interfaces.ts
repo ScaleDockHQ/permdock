@@ -212,11 +212,14 @@ export type MembershipSource = {
    * The global roles the principal holds now. With `onStale: 'reread'`, a stale
    * token's `principal.roles` is replaced by this answer, so a revoked platform
    * role is lost with the memberships. A throw or rejection leaves no global
-   * roles. Without it, a reread keeps the token's roles.
+   * roles. Without it, a reread keeps the token's roles. The context carries
+   * the instance's `tenant` when it has one: global roles are the user's in
+   * every tenant, so a source that reads one tenant's record may answer from
+   * it.
    */
   globalRolesFor?: (
     principal: { readonly id: string; readonly kind?: string },
-    context?: SourceContext,
+    context?: SourceContext & { readonly tenant?: string },
   ) => readonly string[] | Promise<readonly string[]>;
   /**
    * Keep the memberships the verified token carries and read this source only
