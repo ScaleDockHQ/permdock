@@ -758,6 +758,8 @@ export function memoizedSetofSql(input: {
   readonly query: string;
   readonly api?: "better-supabase";
   readonly grants: string;
+  /** Sets larger than this are not stored: each call evaluates them again. */
+  readonly cap?: number;
 }): string {
   const disc = memoDiscriminatorSql("v_user", input.keySql);
   const read = memoReadSql(input.api, "v_key");
@@ -787,7 +789,13 @@ begin
     v_ids := array(
 ${input.query}
     );
-    perform ${write};
+    ${
+      input.cap === undefined
+        ? `perform ${write};`
+        : `if cardinality(v_ids) <= ${String(input.cap)} then
+      perform ${write};
+    end if;`
+    }
   end if;
   return query select unnest(v_ids);
 end;

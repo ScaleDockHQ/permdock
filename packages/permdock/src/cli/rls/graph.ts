@@ -335,28 +335,6 @@ revoke all on table ${table} from anon, authenticated, public;
 grant select on table ${table} to authenticated;`;
 }
 
-/**
- * The closure stores ids as text and the walks compare them cast to the id
- * type. One partial expression index per column and resource serves that cast,
- * so a walk reads the rows it needs instead of the whole closure.
- */
-function typedIndexesSql(
-  closure: string,
-  sqlName: string,
-  literal: string,
-  idType: string,
-): string {
-  if (idType === "text") {
-    return "";
-  }
-  return (["ancestor", "descendant"] as const)
-    .map(
-      (column) =>
-        `create index if not exists ${quoteIdent(`${CLOSURE.table}_${sqlName}_${column[0] ?? ""}`)} on ${closure} ((${column}::${idType})) where resource = ${literal};\n`,
-    )
-    .join("");
-}
-
 function closureObjectsSql(
   ctx: RlsSqlContext,
   entry: GraphResource,
@@ -406,7 +384,7 @@ drop policy if exists ${quoteIdent(`${CLOSURE.table}_${sqlName}`)} on ${closure}
 create policy ${quoteIdent(`${CLOSURE.table}_${sqlName}`)} on ${closure}
   for select to authenticated
   using (resource = ${literal} and ${ancestor} in (select ${qualified(ctx, graphHelper(name))}(null)));
-${typedIndexesSql(closure, sqlName, literal, idType)}create or replace function ${refresh}(p_ids text[])
+create or replace function ${refresh}(p_ids text[])
 returns void
 language plpgsql
 security definer

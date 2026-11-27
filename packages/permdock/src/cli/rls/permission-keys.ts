@@ -58,21 +58,8 @@ export function requiresSql(
   key: string,
   resource: ResourceNode | undefined,
 ): string {
-  return `(${requiresParts(ctx, key, resource).join(" or ")})`;
-}
-
-/**
- * The alternatives `requiresSql` ORs: the global holder test, then one scope
- * column test per partition. Each one alone selects a superset of the rows the
- * requirement passes, so a row set can be read through each in turn.
- */
-export function requiresParts(
-  ctx: RlsSqlContext,
-  key: string,
-  resource: ResourceNode | undefined,
-): readonly string[] {
   const literal = quoteLiteral(key);
-  return [
+  const parts = [
     `(select ${qualified(ctx, PERMISSION_HELPERS.has)}(${literal}))`,
     ...(resource === undefined ? [] : partitionsOf(resource, ctx.scopes)).map(
       (scope) => {
@@ -81,6 +68,7 @@ export function requiresParts(
       },
     ),
   ];
+  return `(${parts.join(" or ")})`;
 }
 
 /**

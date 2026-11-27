@@ -174,7 +174,7 @@ describe("permitted_<resource>_row memo against Postgres", () => {
       )
     ).rows.map((row) => row.id);
 
-  it("reads the row set in a stable statement per permission, and memoizes the relation helpers it calls", () => {
+  it("memoizes the row helper", () => {
     expect(sql).toContain(
       'create or replace function "permdock".can_doc(p_row "public"."doc", p_permission text)\nreturns boolean\nlanguage sql\nstable',
     );
@@ -182,9 +182,11 @@ describe("permitted_<resource>_row memo against Postgres", () => {
       'create trigger "permdock_memo_generation"\n  after insert or update or delete on "public"."doc_shares"',
     );
     expect(sql).toContain(
-      'create or replace function "permdock".permitted_doc_rows(p_permission text)\nreturns setof text\nlanguage plpgsql\nstable',
+      'create or replace function "permdock".permitted_doc_rows(p_permission text)\nreturns setof text\nlanguage plpgsql\nvolatile',
     );
-    expect(sql).not.toContain("permdock.m.rows");
+    expect(sql).toContain(
+      'create trigger "permdock_memo_generation"\n  after insert or update or delete on "public"."doc"',
+    );
     expect(sql).toContain(
       'create trigger "permdock_memo_generation"\n  after insert or update or delete on "public"."organization_members"',
     );
@@ -333,7 +335,7 @@ describe("permitted_<resource>_row memo against Postgres", () => {
     });
   });
 
-  it("evaluates permitted_doc_rows once per policy that reads it, not once per row", async () => {
+  it("evaluates permitted_doc_rows once per statement however many policies read it", async () => {
     const db = database();
     await db.exec("begin");
     try {
@@ -381,9 +383,9 @@ ${[1, 2, 3, 4]
       const calls = (name: string): number =>
         (after[name] ?? 0) - (before[name] ?? 0);
       expect(notes).toStrictEqual(expected);
-      // Four policies call the set, each once for the statement; the set stores nothing.
+      // Four policies call the set; its body (one permdock_has_permission call) runs once.
       expect(calls("permitted_doc_rows")).toBe(4);
-      expect(calls("permdock_has_permission")).toBe(4);
+      expect(calls("permdock_has_permission")).toBe(1);
     } finally {
       await db.exec("rollback");
     }

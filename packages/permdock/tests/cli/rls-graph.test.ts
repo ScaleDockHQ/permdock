@@ -151,12 +151,6 @@ describe("graph grants in RLS", () => {
     );
     expect(sql).toContain("is its own ancestor");
     expect(sql).toContain(
-      `create index if not exists "permdock_closure_folder_a" on "permdock".permdock_closure ((ancestor::uuid)) where resource = 'folder';`,
-    );
-    expect(sql).toContain(
-      `create index if not exists "permdock_closure_folder_d" on "permdock".permdock_closure ((descendant::uuid)) where resource = 'folder';`,
-    );
-    expect(sql).toContain(
       `using (resource = 'folder' and ancestor::uuid in (select "permdock".permitted_folder_ids(null)))`,
     );
     expect(sql).toContain(
