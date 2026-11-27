@@ -737,9 +737,12 @@ function compileRelatedSql(
       call: graphCall,
     });
   }
-  const ancestor = rowsType === "text" ? "ancestor" : `ancestor::${rowsType}`;
   const descendant =
     rowsType === "text" ? "descendant" : `descendant::${rowsType}`;
+  // The closure stores ids as text: the array is cast, not the column, so
+  // `(resource, ancestor)` and the primary key serve the walk.
+  const asText = (array: string): string =>
+    rowsType === "text" ? array : `${array}::text[]`;
   const cap = ctx.graph?.closures[condition.resource];
   let inner: string;
   if (condition.depth > 0 && cap !== undefined) {
@@ -748,10 +751,10 @@ function compileRelatedSql(
     const narrowed = candidateIds(
       ctx,
       condition.field,
-      (ids) => ` and ${descendant} = any (${ids})`,
+      (ids) => ` and descendant = any (${asText(ids)})`,
       rowsType,
     );
-    inner = `select ${descendant} from ${qualified(ctx, CLOSURE.table)} where resource = ${quoteLiteral(condition.resource)}${depth}${narrowed} and ${ancestor} = any (array(select ${helper}))`;
+    inner = `select ${descendant} from ${qualified(ctx, CLOSURE.table)} where resource = ${quoteLiteral(condition.resource)}${depth}${narrowed} and ancestor = any (${asText(`array(select ${helper})`)})`;
   } else {
     inner = held ?? `select ${helper}`;
   }

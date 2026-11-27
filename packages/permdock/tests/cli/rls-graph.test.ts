@@ -109,7 +109,7 @@ describe("graph grants in RLS", () => {
   it("compiles to the closure subquery, a depth bound only below the cap, and the restricted row", () => {
     const ctx = context({ columnTypes: { folderId: "uuid" } });
     expect(compileConditionSql(related(), ctx)).toBe(
-      `"folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and ancestor::uuid = any (array(select "permdock".permitted_folder_ids('viewer'))))`,
+      `"folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and ancestor = any (array(select "permdock".permitted_folder_ids('viewer'))::text[]))`,
     );
     expect(
       compileConditionSql(
@@ -122,7 +122,7 @@ describe("graph grants in RLS", () => {
         ctx,
       ),
     ).toBe(
-      `("folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and depth <= 2 and ancestor::uuid = any (array(select "permdock".permitted_folder_ids('editor')))) and "restricted" is not true)`,
+      `("folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and depth <= 2 and ancestor = any (array(select "permdock".permitted_folder_ids('editor'))::text[])) and "restricted" is not true)`,
     );
     expect(
       compileConditionSql(related({ field: "id", depth: 0 }), context()),
@@ -151,7 +151,7 @@ describe("graph grants in RLS", () => {
     );
     expect(sql).toContain("is its own ancestor");
     expect(sql).toContain(
-      `using (resource = 'folder' and ancestor::uuid in (select "permdock".permitted_folder_ids(null)))`,
+      `using (resource = 'folder' and ancestor = any (array(select "permdock".permitted_folder_ids(null))::text[]))`,
     );
     expect(sql).toContain(
       'revoke execute on function "permdock".permdock_closure_folder(text[]) from public, anon, authenticated;',

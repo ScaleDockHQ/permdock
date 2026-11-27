@@ -365,7 +365,8 @@ function closureObjectsSql(
   const changed = qualified(ctx, `${CLOSURE.table}_${sqlName}_changed`);
   const literal = quoteLiteral(name);
   const idType = idTypeOf(ctx, name);
-  const ancestor = idType === "text" ? "ancestor" : `ancestor::${idType}`;
+  const held = `array(select ${qualified(ctx, graphHelper(name))}(null))`;
+  const closureIds = idType === "text" ? held : `${held}::text[]`;
   // The array is cast, not the column, so the primary key and the parent index apply.
   const typed = (array: string): string =>
     idType === "text" ? array : `${array}::${idType}[]`;
@@ -383,7 +384,7 @@ function closureObjectsSql(
 drop policy if exists ${quoteIdent(`${CLOSURE.table}_${sqlName}`)} on ${closure};
 create policy ${quoteIdent(`${CLOSURE.table}_${sqlName}`)} on ${closure}
   for select to authenticated
-  using (resource = ${literal} and ${ancestor} in (select ${qualified(ctx, graphHelper(name))}(null)));
+  using (resource = ${literal} and ancestor = any (${closureIds}));
 create or replace function ${refresh}(p_ids text[])
 returns void
 language plpgsql
