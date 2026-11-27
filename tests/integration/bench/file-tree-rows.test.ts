@@ -41,7 +41,14 @@ type Measured = {
   readonly blocks: number;
 };
 
-const SHAPES: readonly { readonly shape: string; readonly sql: string }[] = [
+/** A signed-in user with no membership, grant or record: the deny path. */
+const STRANGER = "00000000-0000-4000-8000-000000000005";
+
+const SHAPES: readonly {
+  readonly shape: string;
+  readonly sql: string;
+  readonly user?: string;
+}[] = [
   {
     shape: "permitted_file_node_rows('fileNode.read')",
     sql: "select count(*) from permdock.permitted_file_node_rows('fileNode.read')",
@@ -57,6 +64,16 @@ const SHAPES: readonly { readonly shape: string; readonly sql: string }[] = [
   {
     shape: "count(*) through the select policy",
     sql: "select count(*) from public.file_nodes",
+  },
+  {
+    shape: "deny path: permitted_file_node_rows for a user with no access",
+    sql: "select count(*) from permdock.permitted_file_node_rows('fileNode.read')",
+    user: STRANGER,
+  },
+  {
+    shape: "deny path: one row by id for a user with no access",
+    sql: `select id from public.file_nodes where id = '${node(5, 100)}'`,
+    user: STRANGER,
   },
 ];
 
@@ -118,9 +135,9 @@ describe("row helpers on a multi-tenant file tree", () => {
       "select (pg_relation_size('permdock.permdock_closure') / 8192)::text as pages",
     );
     closurePages = Number(pages.rows[0]?.pages);
-    for (const { shape, sql: statement } of SHAPES) {
+    for (const { shape, sql: statement, user = OWNER } of SHAPES) {
       const plans = await defined(db).as(
-        { role: "authenticated", settings: jwtClaims(OWNER) },
+        { role: "authenticated", settings: jwtClaims(user) },
         async () => {
           const runs: Explain[] = [];
           for (let index = 0; index < RUNS; index += 1) {
