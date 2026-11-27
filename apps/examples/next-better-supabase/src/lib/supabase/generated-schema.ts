@@ -6,7 +6,7 @@ import { defineSchema, type SchemaMeta, type ExtensionsOf, type Schema } from "b
 import meta from "./generated.meta.js";
 import { extensions, type Database, type Extensions, type Functions, type Models } from "./generated.ts";
 
-const tableLoaders = {
+const tableGetters = {
   contacts: () => import("./tables/contacts.ts").then((mod) => mod.contactsTable),
   customers: () => import("./tables/customers.ts").then((mod) => mod.customersTable),
   datetime_preferences: () => import("./tables/datetime-preferences.ts").then((mod) => mod.datetime_preferencesTable),
@@ -26,6 +26,6 @@ export const schema: Schema<Models, Database, Functions, string, ExtensionsOf<Ex
   lazyTables: true,
   tables: {},
   functions: {},
-  tableLoaders,
-  loadFunctions: () => import("./generated.functions.js").then((mod) => mod.default as SchemaMeta["functions"]),
+  tableGetters,
+  getFunctions: () => import("./generated.functions.js").then((mod) => mod.default as SchemaMeta["functions"]),
 }, extensions);

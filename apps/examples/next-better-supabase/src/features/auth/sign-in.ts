@@ -1,6 +1,10 @@
 import "server-only";
+import { createAuthFlows } from "better-supabase/next/sign-in";
+
 import { bsb } from "../../lib/supabase/server.ts";
 import { demoPerson } from "./people.ts";
+
+const auth = createAuthFlows(bsb);
 
 /** Shared with `supabase/seed.sql`. A local demo password, not a secret. */
 const DEMO_PASSWORD = "local-demo";
@@ -17,7 +21,7 @@ export async function signInAs(
   if (person === null) {
     return null;
   }
-  const result = await bsb.signInWithPassword({
+  const result = await auth.signInWithPassword({
     email: person.email,
     password: DEMO_PASSWORD,
     next,
