@@ -1,5 +1,19 @@
 # permdock
 
+## 0.37.0
+
+### Minor Changes
+
+- [#391](https://github.com/ScaleDockHQ/permdock/pull/391) [`0114e1d`](https://github.com/ScaleDockHQ/permdock/commit/0114e1d97f2d96e6755f4bcc5e74f684a27d9cc3) Thanks [@martijn00](https://github.com/martijn00)! - A bootstrap subject read for one tenant is now seeded under that tenant instead of as the user's all-tenants record, so a check in another tenant no longer misses that tenant's memberships. `postgrestSources({ tenantScoped: true })` also answers `memberships.globalRolesFor` from the tenant's record, so a stale token's reread costs one `subject_for` call, and `globalRolesFor` receives the instance's `tenant` in its context. Pair a tenant bootstrap with `tenantScoped: true` to keep reading no `subject_for` on a seeded request.
+
+### Patch Changes
+
+- [#391](https://github.com/ScaleDockHQ/permdock/pull/391) [`0114e1d`](https://github.com/ScaleDockHQ/permdock/commit/0114e1d97f2d96e6755f4bcc5e74f684a27d9cc3) Thanks [@martijn00](https://github.com/martijn00)! - The examples and tests run on better-supabase 0.91.0. The supported range is still `>=0.87.0`.
+
+- [#391](https://github.com/ScaleDockHQ/permdock/pull/391) [`0114e1d`](https://github.com/ScaleDockHQ/permdock/commit/0114e1d97f2d96e6755f4bcc5e74f684a27d9cc3) Thanks [@martijn00](https://github.com/martijn00)! - PD110 and `permdock claims size` now measure the `tokens-only` session cookie as `@supabase/ssr` writes it. The claims are base64-encoded twice, once in the token and again in the cookie, so about 1,540 bytes of claims already splits the cookie into two chunks, far below the 4,096-character token ceiling. PD110 warns for a sample user whose cookie splits, and `claims size` prints the cookie's characters and chunks. The Supabase hook page adds "One cookie chunk": `membershipsClaim: false` with a tenant-scoped better-supabase bootstrap keeps every session in one chunk whatever the number of memberships.
+
+- [#391](https://github.com/ScaleDockHQ/permdock/pull/391) [`0114e1d`](https://github.com/ScaleDockHQ/permdock/commit/0114e1d97f2d96e6755f4bcc5e74f684a27d9cc3) Thanks [@martijn00](https://github.com/martijn00)! - `memoryVersionCache({ shared, waitUntil })` hands each write and delete to the shared version store to `waitUntil`. The cache does not await those writes, so on a serverless host they could be frozen with the instance after the response and never land; every instance then missed the store and read the version from the database. Pass `waitUntil` from `@vercel/functions` (or the platform's equivalent).
+
 ## 0.36.0
 
 ### Minor Changes
