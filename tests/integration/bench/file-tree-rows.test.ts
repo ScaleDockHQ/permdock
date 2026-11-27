@@ -10,8 +10,10 @@ import {
   drive,
   MEMBER,
   node,
+  OUTSIDER,
   OWNER,
   OWNER_ROWS,
+  PLATFORM,
   seedSql,
   setupSql,
 } from "../fixtures/file-tree-scale/seed.ts";
@@ -57,6 +59,18 @@ const SHAPES: readonly { readonly shape: string; readonly sql: string }[] = [
     sql: "select count(*) from public.file_nodes",
   },
 ];
+
+const USERS = { OWNER, MEMBER, PLATFORM, OUTSIDER } as const;
+const PERMISSIONS = {
+  fileDrive: ["fileDrive.read", "fileDrive.update"],
+  fileNode: ["fileNode.read", "fileNode.update"],
+} as const;
+const TABLES = { fileDrive: "file_drives", fileNode: "file_nodes" } as const;
+const HELPERS = { fileDrive: "file_drive", fileNode: "file_node" } as const;
+/** Tenants the per-row comparison reads: owned, member, granted and foreign. */
+const SAMPLE = [0, 1, 2, 3, 4, 13, 14, 20, 30, 60];
+const organization = (index: number): string =>
+  `00000000-0000-4000-8001-${String(index).padStart(12, "0")}`;
 
 const ORGANIZATION_HELPERS =
   "select (select count(*) from permdock.permitted_organization_ids('file.read')) + (select count(*) from permdock.permitted_organization_ids_by_permission('file.read')) + (select count(*) from permdock.member_organization_ids())";
@@ -184,6 +198,64 @@ describe("row helpers on a multi-tenant file tree", () => {
     expect(member.length).toBeGreaterThan(0);
     expect(member.length).toBeLessThan(set.length);
     expect(member.every((id) => set.includes(id))).toBe(true);
+  });
+
+  it("answers like can_<resource> per row, in both set forms, for every permission and user", async () => {
+    const admin = defined(db).admin;
+    const sample = SAMPLE.map(organization);
+    const counts: Record<string, number> = {};
+    for (const [label, user] of Object.entries(USERS)) {
+      await admin.query("begin");
+      try {
+        await admin.query("select set_config('request.jwt.claims', $1, true)", [
+          defined(jwtClaims(user)["request.jwt.claims"]),
+        ]);
+        for (const resource of ["fileDrive", "fileNode"] as const) {
+          const table = TABLES[resource];
+          const helper = HELPERS[resource];
+          for (const permission of PERMISSIONS[resource]) {
+            const list = async (sql: string): Promise<readonly string[]> =>
+              (
+                await admin.query<{ readonly id: string }>(sql, [
+                  permission,
+                  sample,
+                ])
+              ).rows
+                .map((row) => row.id)
+                .toSorted();
+            const matched = await list(
+              `select r.id::text as id from public.${table} r where r.organization_id = any($2::uuid[]) and permdock.can_${helper}(r, $1)`,
+            );
+            const whole = await list(
+              `select r.id::text as id from public.${table} r where r.organization_id = any($2::uuid[]) and r.id in (select permdock.permitted_${helper}_rows($1))`,
+            );
+            const tenants = await list(
+              `select i::text as id from unnest($2::uuid[]) t(id) cross join lateral permdock.permitted_${helper}_rows($1, t.id) i`,
+            );
+            expect(whole, `${label} ${permission}`).toStrictEqual(matched);
+            expect(tenants, `${label} ${permission} by tenant`).toStrictEqual(
+              matched,
+            );
+            counts[`${label} ${permission}`] = matched.length;
+          }
+        }
+      } finally {
+        await admin.query("rollback");
+      }
+    }
+    // The fixture reaches every branch: the global holder, the two-key update,
+    // the deny on restricted nodes, and record grants without requires.
+    expect(counts["PLATFORM fileNode.read"]).toBeGreaterThan(
+      counts["OWNER fileNode.read"] ?? 0,
+    );
+    expect(counts["PLATFORM fileDrive.update"]).toBe(0);
+    expect(counts["MEMBER fileDrive.update"]).toBe(0);
+    expect(counts["OWNER fileDrive.update"]).toBeGreaterThan(0);
+    expect(counts["OWNER fileNode.update"]).toBeLessThan(
+      counts["OWNER fileNode.read"] ?? 0,
+    );
+    expect(counts["OUTSIDER fileNode.read"]).toBe(1);
+    expect(counts["OUTSIDER fileNode.update"]).toBe(1);
   });
 
   it("walks the closure through its index instead of reading all of it", () => {

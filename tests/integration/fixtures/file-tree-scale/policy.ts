@@ -3,6 +3,7 @@ import {
   authenticated,
   definePermissions,
   definePolicy,
+  deny,
   inherit,
   relation,
   resource,
@@ -66,6 +67,7 @@ export const policy = definePolicy(permissions, {
       on: "organization",
     }),
     role("member", [allow(file.read)], { on: "organization" }),
+    role("platform", [allow(file.read)]),
   ],
   grants: [
     allow(fileDrive.read, {
@@ -107,6 +109,7 @@ export const policy = definePolicy(permissions, {
       to: authenticated(),
       where: recordAccess("update"),
     }),
+    deny(fileNode.update, { to: authenticated(), where: { restricted: true } }),
   ],
   subject: () => null,
 });

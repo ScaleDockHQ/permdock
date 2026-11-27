@@ -3,10 +3,13 @@
  * company, one personal) and 645 nodes each, a parent tree four levels deep.
  * OWNER owns organizations 0 to 13 (6,020 company nodes) and holds grants
  * outside them that `requires` drops, plus 10 record grants. MEMBER reads
- * organizations 0 and 1.
+ * organizations 0 and 1. PLATFORM holds file.read through a global role and no
+ * membership. OUTSIDER holds only a node grant and record grants.
  */
 export const OWNER = "00000000-0000-4000-8000-000000000001";
 export const MEMBER = "00000000-0000-4000-8000-000000000002";
+export const PLATFORM = "00000000-0000-4000-8000-000000000003";
+export const OUTSIDER = "00000000-0000-4000-8000-000000000004";
 export const OWNER_ROWS = 6_030;
 
 export const node = (organization: number, index: number): string =>
@@ -112,6 +115,9 @@ insert into public.file_node_record_access
 insert into public.file_node_grants
   select id, ('00000000-0000-4000-8000-' || lpad((100 + (o + 1) % 100)::text, 12, '0'))::uuid from seed_nodes where i % 7 = 3;
 analyze;
+insert into permdock.user_roles values ('00000000-0000-4000-8000-000000000003', 'platform');
+insert into public.file_node_grants values ('${node(3, 8)}', '00000000-0000-4000-8000-000000000004');
+insert into public.file_node_record_access values ('${node(3, 40)}', '00000000-0000-4000-8000-000000000004', 'read'), ('${node(4, 41)}', '00000000-0000-4000-8000-000000000004', 'update');
 alter table public.file_nodes enable row level security;
 create policy file_nodes_select on public.file_nodes for select to authenticated
   using (id in (select permdock.permitted_file_node_rows('fileNode.read')));
