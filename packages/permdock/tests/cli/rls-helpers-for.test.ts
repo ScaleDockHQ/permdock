@@ -57,8 +57,13 @@ describe("helpers for a named user", () => {
       'revoke execute on function "permdock".permdock_has_for(uuid, text) from public, anon, authenticated;',
     );
     expect(has).not.toMatch(/grant execute/u);
-    expect(has).toContain("language sql\nstable");
-    const forBody = body(has).slice("as $$\n".length);
+    expect(has).toContain(
+      "language plpgsql\nstable\nsecurity definer\ncost 1000\nset search_path = ''\nas $$\n#variable_conflict use_column\nbegin\n  return (\n",
+    );
+    const forBody = body(has).slice(
+      body(has).indexOf("  return (\n") + "  return (\n".length,
+      body(has).lastIndexOf("\n  );\nend;"),
+    );
     expect(forBody).not.toContain("client_id");
     expect(body(fn(sql, "permdock_has"))).toContain(
       `coalesce(((select auth.jwt()) ->> 'client_id'), '') = ''`,
