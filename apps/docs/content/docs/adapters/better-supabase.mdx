@@ -807,6 +807,7 @@ authorizationProvider({
 - Each element of `p_requests` is `{ id, kind, tenant, requester, approvers }`: the request's id and better-supabase's `{kind}`, `{tenant}`, `{requester}` and `{approvers}` for it. `p_kinds` is the provider's `approvers` as JSON, keyed by kind, and `p_current` is `requestApprovers`.
 - An element is in the result exactly when the `isApprover` template answers true for it. The equivalence and the timing are tested against the per-request check for an admin, a member, a delegate, a platform admin and a user with no access.
 - The caller's `holder()` grants, manager walks and active covers are read once per call. Postgres runs the call once per statement when its argument does not depend on the outer row: `id in (select permdock_approver_request_ids((select jsonb_agg(…) from pending), '<kinds>'::jsonb, true))`.
+- One call takes at most 5,000 requests and raises `54000` past that, so pass one page of a longer list per call. A `p_kinds` entry under the empty kind matches nothing, as `isApprover` names no such kind.
 - The requester is not refused here; refuse them before the call, as for `isApprover`. Keep `isApprover` for one request: there the set form costs the same plus building the array.
 - The manifest lists it from this release. better-supabase calls it once its provider contract has a set slot for the approver check; until then `isApprover` stays the only path.
 

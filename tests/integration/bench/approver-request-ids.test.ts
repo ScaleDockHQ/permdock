@@ -275,6 +275,25 @@ describe("permdock_approver_request_ids", () => {
     expect(scalar.ids).toHaveLength(0);
   });
 
+  it("raises past 5000 requests and matches no kind named by an empty key", async () => {
+    if (lite === undefined) {
+      throw new Error("PermDock: PGlite did not start");
+    }
+    await lite.query("select set_config('request.jwt.claims', $1, false)", [
+      JSON.stringify({ sub: ADMIN, role: "authenticated" }),
+    ]);
+    const many = (count: number) =>
+      `select * from permdock.permdock_approver_request_ids((select jsonb_agg(jsonb_build_object('id', 'r' || n, 'kind', 'x')) from generate_series(1, ${String(count)}) n), ${json({ x: { kind: "user", id: ADMIN } })})`;
+    expect((await lite.query(many(5000))).rows).toHaveLength(5000);
+    await expect(lite.query(many(5001))).rejects.toThrow(
+      /takes at most 5000 requests, got 5001/u,
+    );
+    const empty = await lite.query(
+      `select * from permdock.permdock_approver_request_ids(${json([{ id: "r", kind: "" }])}, ${json({ "": { kind: "user", id: ADMIN } })})`,
+    );
+    expect(empty.rows).toHaveLength(0);
+  });
+
   it(`is faster for ${String(REQUESTS)} requests and costs about the same for one`, async () => {
     const [, kinds, current] = SHAPES[0];
     for (const user of Object.values(USERS)) {

@@ -4294,6 +4294,12 @@ begin
   if coalesce(v_user, '') = '' or jsonb_typeof(p_requests) is distinct from 'array' then
     return;
   end if;
+  if jsonb_array_length(p_requests) > 5000 then
+    raise exception using
+      errcode = '54000',
+      hint = 'pass at most 5000 requests per call, for example one page of the list',
+      message = 'permdock: permdock_approver_request_ids takes at most 5000 requests, got ' || jsonb_array_length(p_requests);
+  end if;
   select coalesce(jsonb_agg(jsonb_build_object(
       'id', r.id,
       'within', r.within,
@@ -4330,7 +4336,7 @@ begin
       e -> 'approvers' as current,
       k.listed
     from jsonb_array_elements(p_requests) e,
-      lateral (select coalesce(jsonb_typeof(p_kinds) = 'object' and p_kinds ? (e ->> 'kind'), false) as listed) k
+      lateral (select coalesce(jsonb_typeof(p_kinds) = 'object' and e ->> 'kind' <> '' and p_kinds ? (e ->> 'kind'), false) as listed) k
     where jsonb_typeof(e) = 'object' and e ->> 'id' is not null
   ) r
   where r.listed or p_current;

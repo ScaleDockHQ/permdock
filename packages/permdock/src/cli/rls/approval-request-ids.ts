@@ -23,6 +23,12 @@ export const APPROVER_REQUEST_IDS = "permdock_approver_request_ids";
  */
 const APPROVER_MATCHES = "permdock_approver_matches";
 
+/**
+ * The most requests one `permdock_approver_request_ids` call takes; a longer
+ * `p_requests` raises `54000`, so one call never walks an unbounded array.
+ */
+export const MAX_APPROVER_REQUESTS = 5000;
+
 /** The function `rls.approvals.delegations` writes for a cover's own rights. */
 const COVER_APPROVES = "permdock_cover_approves";
 
@@ -36,7 +42,8 @@ const COVER_APPROVES = "permdock_cover_approves";
  * answers as `permdock_is_approver` does for it, but the caller's `holder()`,
  * manager and cover facts are read once per call, not once per request. A
  * policy or a set query calls it uncorrelated, so Postgres runs it once per
- * statement.
+ * statement. More than `MAX_APPROVER_REQUESTS` elements raise `54000`, and a
+ * `p_kinds` entry under the empty kind matches nothing.
  */
 export function approverRequestIdsSql(
   ctx: RlsSqlContext,
@@ -69,7 +76,8 @@ export function approverRequestIdsSql(
         else r.approvers end`
     : "r.approvers";
   const kept = covering ? "r.listed or p_current" : "r.listed";
-  const listed = `jsonb_typeof(p_kinds) = 'object' and p_kinds ? (e ->> 'kind')`;
+  // An empty kind is no request's kind, as the isApprover template skips it.
+  const listed = `jsonb_typeof(p_kinds) = 'object' and e ->> 'kind' <> '' and p_kinds ? (e ->> 'kind')`;
   const resource = `case when strpos(e ->> 'kind', '.') > 1 then split_part(e ->> 'kind', '.', 1) else e ->> 'kind' end`;
   const matches = qualified(ctx, APPROVER_MATCHES);
   const root = ctx.scopes[0]?.name;
@@ -233,6 +241,12 @@ declare
 begin
   if coalesce(v_user, '') = '' or jsonb_typeof(p_requests) is distinct from 'array' then
     return;
+  end if;
+  if jsonb_array_length(p_requests) > ${String(MAX_APPROVER_REQUESTS)} then
+    raise exception using
+      errcode = '54000',
+      hint = 'pass at most ${String(MAX_APPROVER_REQUESTS)} requests per call, for example one page of the list',
+      message = 'permdock: permdock_approver_request_ids takes at most ${String(MAX_APPROVER_REQUESTS)} requests, got ' || jsonb_array_length(p_requests);
   end if;
   select coalesce(jsonb_agg(jsonb_build_object(
       'id', r.id,
