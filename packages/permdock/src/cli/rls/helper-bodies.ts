@@ -913,9 +913,13 @@ $$;`;
       : `declare
 ${body.vars.map((line) => `  ${line}`).join("\n")}
 `;
+  // A body can end in a `--` comment, which would swallow a semicolon on its line.
+  const end = body.sql.slice(body.sql.lastIndexOf("\n") + 1).includes("--")
+    ? "\n  ;"
+    : ";";
   const result = returnsSet
     ? `  return query
-${body.sql};`
+${body.sql}${end}`
     : `  return (
 ${body.sql}
   );`;

@@ -230,7 +230,8 @@ as $$
 #variable_conflict use_column
 begin
   return query
-  select null::uuid where false -- no team memberships table configured;
+  select null::uuid where false -- no team memberships table configured
+  ;
 end;
 $$;
 
@@ -245,7 +246,8 @@ as $$
 #variable_conflict use_column
 begin
   return query
-  select null::uuid where false -- no team memberships table configured;
+  select null::uuid where false -- no team memberships table configured
+  ;
 end;
 $$;
 
@@ -494,7 +496,8 @@ as $$
 #variable_conflict use_column
 begin
   return query
-  select null::uuid where false -- no team memberships table configured;
+  select null::uuid where false -- no team memberships table configured
+  ;
 end;
 $$;
 
