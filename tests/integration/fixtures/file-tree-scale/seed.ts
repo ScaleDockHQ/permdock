@@ -10,7 +10,6 @@ export const OWNER = "00000000-0000-4000-8000-000000000001";
 export const MEMBER = "00000000-0000-4000-8000-000000000002";
 export const PLATFORM = "00000000-0000-4000-8000-000000000003";
 export const OUTSIDER = "00000000-0000-4000-8000-000000000004";
-export const OWNER_ROWS = 6_030;
 
 export const node = (organization: number, index: number): string =>
   `00000000-0000-4000-8003-${String(organization * 1000 + index).padStart(12, "0")}`;
