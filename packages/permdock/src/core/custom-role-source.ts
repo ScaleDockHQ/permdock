@@ -1,4 +1,4 @@
-import type { CustomRoleSource } from "./interfaces.ts";
+import type { CustomRoleContext, CustomRoleSource } from "./interfaces.ts";
 import type { Policy } from "./policy-types.ts";
 import type { CustomRole } from "./subject.ts";
 
@@ -7,19 +7,27 @@ import { isThenable } from "./thenable.ts";
 
 /**
  * Reads custom roles from the application's store, as `customRoleSource` takes
- * them.
+ * them. Each read gets the source's `context`, so a reader that reads through
+ * another `CustomRoleSource` can pass it on with its `memo`.
  */
 export type CustomRoleReader = {
   /**
    * Every custom role of `tenant`, whether or not anyone in the request holds
    * it.
    */
-  rolesFor: (tenant: string) => CustomRole[] | Promise<CustomRole[]>;
+  rolesFor: (
+    tenant: string,
+    context?: CustomRoleContext,
+  ) => CustomRole[] | Promise<CustomRole[]>;
   assignable?: (tenant: string) => string[] | Promise<string[]>;
   /** Platform custom roles (`scope: 'global'`). */
-  globalRoles?: () => CustomRole[] | Promise<CustomRole[]>;
+  globalRoles?: (
+    context?: CustomRoleContext,
+  ) => CustomRole[] | Promise<CustomRole[]>;
   /** Shared custom roles (`shared: true`), the same for every tenant. */
-  sharedRoles?: () => CustomRole[] | Promise<CustomRole[]>;
+  sharedRoles?: (
+    context?: CustomRoleContext,
+  ) => CustomRole[] | Promise<CustomRole[]>;
 };
 
 export type CustomRoleSourceOptions =
@@ -71,7 +79,7 @@ export function customRoleSource(
       ) {
         return [];
       }
-      const roles = reader.rolesFor(tenant);
+      const roles = reader.rolesFor(tenant, context);
       return isThenable(roles)
         ? roles.then((list) => ofTenant(tenant, list))
         : ofTenant(tenant, roles);
@@ -85,20 +93,20 @@ export function customRoleSource(
     ...(reader.globalRoles === undefined
       ? {}
       : {
-          globalRoles: (context?: { readonly held: readonly string[] }) =>
+          globalRoles: (context?: CustomRoleContext) =>
             declared !== undefined &&
             context?.held.every((name) => declared.has(name)) === true
               ? []
-              : (reader.globalRoles?.() ?? []),
+              : (reader.globalRoles?.(context) ?? []),
         }),
     ...(reader.sharedRoles === undefined
       ? {}
       : {
-          sharedRoles: (context?: { readonly held: readonly string[] }) =>
+          sharedRoles: (context?: CustomRoleContext) =>
             declared !== undefined &&
             context?.held.every((name) => declared.has(name)) === true
               ? []
-              : (reader.sharedRoles?.() ?? []),
+              : (reader.sharedRoles?.(context) ?? []),
         }),
   });
 }
