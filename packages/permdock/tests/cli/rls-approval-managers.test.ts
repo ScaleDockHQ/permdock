@@ -149,7 +149,7 @@ describe("rls.approvals approval sets", () => {
   it("returns setof uuid on Supabase with no ::text cast in the sets", () => {
     const sql = withManagers([{ name: "tenant" }], "organization_id");
     const start = sql.indexOf("permdock_approver_for_ids()");
-    const sets = sql.slice(start);
+    const sets = sql.slice(start, sql.indexOf("-- approvers as a set"));
     expect(sets).toContain("returns setof uuid");
     expect(sets).not.toContain("returns setof text");
     expect(sets).not.toContain("::text");

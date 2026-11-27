@@ -19,6 +19,7 @@ import {
   checkedManagers,
 } from "./approval-managers.ts";
 import { approvalPoliciesSql } from "./approval-policies.ts";
+import { approverRequestIdsSql } from "./approval-request-ids.ts";
 import { approvalSetsSql } from "./approval-sets.ts";
 import {
   PERMISSION_HELPERS,
@@ -354,7 +355,8 @@ ${exposure}
 /**
  * Everything `rls.approvals` writes: the generated or adopted store, the
  * approver check, with `managers` the manager walk, with `delegations: true`
- * the covers, and with `tenantPolicies` the tenant approval policies. With
+ * the covers, with `tenantPolicies` the tenant approval policies, and the
+ * approver check as a set, `permdock_approver_request_ids`. With
  * `actorMayWrite`, the covers' write policies call
  * `permdock_actor_may_write()`.
  */
@@ -371,7 +373,8 @@ export function approvalsSql(
     return (
       approvalStoreSql(ctx, jsonSchema) +
       isApproverSql(ctx) +
-      approvalSetsSql(ctx, { delegations: false })
+      approvalSetsSql(ctx, { delegations: false }) +
+      approverRequestIdsSql(ctx, { managers: false, delegations: false })
     );
   }
   const { table, delegations, tenantPolicies, managers } = approvals;
@@ -438,7 +441,11 @@ export function approvalsSql(
           ctx,
           checkedManagers(managers, ctx),
           delegations === true,
-        ))
+        )) +
+    approverRequestIdsSql(ctx, {
+      managers: managers !== undefined,
+      delegations: delegations === true,
+    })
   );
 }
 

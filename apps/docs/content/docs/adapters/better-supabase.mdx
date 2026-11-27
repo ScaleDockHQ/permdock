@@ -800,6 +800,16 @@ authorizationProvider({
 - With [`rls.approvals.delegations`](#approval-delegation), the manifest lists the four-argument `permdock_is_approver`, and each branch also passes better-supabase's `{requester}` and the kind's resource, so a delegate inside an active cover matches.
 - `requestApprovers: true` also passes better-supabase's `{approvers}`, the approvers of the request's current step, to the five-argument `permdock_is_approver`, and a kind `approvers` does not name calls it too ([covers for policy approvers](#covers-for-policy-approvers)). It needs `rls.approvals.delegations` or `rls.approvals.managers`, and a better-supabase release that fills `{approvers}`.
 
+### Approvers as a set
+
+`rls.approvals` also writes `permdock_approver_request_ids(p_requests jsonb, p_kinds jsonb, p_current boolean default false)`, which returns the `id` of every request in `p_requests` that the signed-in user may approve, as a `setof text`. It is for a query over many pending requests, such as better-supabase's list of the requests a user may decide, where `isApprover` runs once per request:
+
+- Each element of `p_requests` is `{ id, kind, tenant, requester, approvers }`: the request's id and better-supabase's `{kind}`, `{tenant}`, `{requester}` and `{approvers}` for it. `p_kinds` is the provider's `approvers` as JSON, keyed by kind, and `p_current` is `requestApprovers`.
+- An element is in the result exactly when the `isApprover` template answers true for it. The equivalence and the timing are tested against the per-request check for an admin, a member, a delegate, a platform admin and a user with no access.
+- The caller's `holder()` grants, manager walks and active covers are read once per call. Postgres runs the call once per statement when its argument does not depend on the outer row: `id in (select permdock_approver_request_ids((select jsonb_agg(…) from pending), '<kinds>'::jsonb, true))`.
+- The requester is not refused here; refuse them before the call, as for `isApprover`. Keep `isApprover` for one request: there the set form costs the same plus building the array.
+- The manifest lists it from this release. better-supabase calls it once its provider contract has a set slot for the approver check; until then `isApprover` stays the only path.
+
 ### Manager approvers
 
 `manager({ levels? })` matches in SQL when `rls.approvals.managers` names the app's table of reporting lines. With `managers` set, the two-argument `permdock_is_approver(p_approvers, p_tenant)` also answers `manager`; without it, that overload is unchanged and a `manager` approver matches nobody:

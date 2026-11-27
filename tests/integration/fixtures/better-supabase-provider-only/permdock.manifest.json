@@ -157,6 +157,12 @@
         "execute": ["authenticated"]
       },
       {
+        "name": "permdock_approver_request_ids",
+        "args": "p_requests jsonb, p_kinds jsonb, p_current boolean",
+        "returns": "setof text",
+        "execute": ["authenticated"]
+      },
+      {
         "name": "permdock_manages",
         "args": "p_requester text, p_levels integer",
         "returns": "boolean",
