@@ -226,7 +226,8 @@ The function fails closed. An unknown tenant, a tenant the user holds no members
 - An instance with no `tenant`, or an empty one, reads no memberships and makes no call. The source never falls back to the all-tenants read.
 - A failing call rejects, so `getPermDock` reports `source-threw` and the subject has no memberships.
 - A tenant the user holds nothing in answers no memberships, so every permission there is denied.
-- `customRoles(principal).rolesFor(tenant)` reads that tenant's record. `globalRoles`, `sharedRoles`, `subject`, `refresh`, `record` and `memberships.globalRolesFor` still read the whole user.
+- `customRoles(principal).rolesFor(tenant)` and `memberships.globalRolesFor` read that tenant's record, which carries the user's global roles, so a stale token's reread costs one call. `globalRoles`, `sharedRoles`, `subject`, `refresh` and `record` still read the whole user.
+- A bootstrap seed restricted to one tenant (`subjectForTenant` in better-supabase) is kept under that tenant, so it answers this source for that tenant and never an all-tenants read.
 - The instance memo and a `memorySubjectCache` key the record by user and tenant, and `evict(id)` drops every tenant's record. A custom `SubjectCache` that ignores the `tenant` argument is never served another tenant's record, because the source discards a record whose `tenant` differs; it only misses.
 - The custom-role version is per tenant, so a scoped record carries the version of its tenant alone.
 
@@ -495,14 +496,25 @@ In `database` mode the claim saves no time in SQL. `tests/integration/src/claims
 
 The claim pays off in process: `claimsFirst` builds the subject from it without a database read. `membershipsClaim: false` makes every user's token truncated, so every instance rereads memberships, one PostgREST round trip (1.33 ms mean in `scripts/authz-latency.json`). That is why the default stays `true`. Set it to `false` when users routinely hold more memberships than the budget keeps, or when the server reads memberships through an instance cache. The helpers read the claims only when the hook keeps no `suspension` of its own and every scope's `rls.memberships` table matches its hook source. A memberships table keyed by a `scope` column, or a hook with `suspension`, always reads the tables.
 
-`node scripts/hook-bench.ts` times the hook on Postgres 17 and records `scripts/hook-bench.json`. Times are the median and p95 of 25 server-side calls on an Apple M5 Max; bytes are exact. Each entry of the claim takes about 56 bytes. Cookie chunks use better-supabase's BS405 estimate: claims times 4/3, plus 1,700 bytes, in 3,180-byte chunks.
+`node scripts/hook-bench.ts` times the hook on Postgres 17 and records `scripts/hook-bench.json`. Times are the median and p95 of 25 server-side calls on an Apple M5 Max; bytes are exact. Each entry of the claim takes about 56 bytes. Cookie chunks are for `tokens-only` session cookies: about 430 characters plus 16/9 of the claims, in 3,180-character chunks (see [One cookie chunk](#one-cookie-chunk)).
 
 | Memberships | Claim                 | Full read, median / p95 | Claims  | Chunks |
 | ----------- | --------------------- | ----------------------- | ------- | ------ |
 | 1           | on, 1,024-byte budget | 0.07 / 0.16 ms          | 614 B   | 1      |
-| 500         | on, 1,024-byte budget | 1.32 / 1.39 ms          | 1,491 B | 2      |
-| 500         | on, no budget cap     | 2.44 / 2.71 ms          | 28.8 KB | 13     |
+| 500         | on, 1,024-byte budget | 1.32 / 1.39 ms          | 1,491 B | 1      |
+| 500         | on, no budget cap     | 2.44 / 2.71 ms          | 28.8 KB | 17     |
 | 500         | off                   | 1.01 / 1.04 ms          | 588 B   | 1      |
+
+### One cookie chunk
+
+`@supabase/ssr` writes the session into a cookie and splits it into chunks of 3,180 characters. With `tokens-only` cookies the session is the access token plus about 134 bytes of other fields, base64-encoded again with a `base64-` prefix. The claims are therefore encoded twice, once in the token and once in the cookie, so one byte of claims costs about 1.78 characters of cookie, and the header, signature and session fields add about 430. A payload of about 1,540 bytes, the hook's claims and Supabase's own together, already needs a second chunk, well under the 4,096-character token ceiling. A second chunk is a second cookie on every request, including every prefetch.
+
+Supabase's own claims (`iss`, `sub`, `email`, `app_metadata`, `user_metadata`, `amr` and the rest) take about 600 bytes for a password sign-in and more for a social one. That leaves roughly 900 bytes for the hook, below the 1,024-byte default budget, so a user near the budget gets two chunks. Two ways keep every session in one chunk:
+
+- **No memberships claim.** `membershipsClaim: false` keeps the token's size independent of the number of memberships. The server reads the subject from the database instead, and better-supabase's bootstrap returns it in the same query that checks the session: pass the page's tenant (`bsb.bootstrap({ rpc, tenant })`) so the wrapper returns `subject_for(user, tenant)`, and seed it into the subject cache, so a check makes no read of its own. The RLS helpers then take the table branch, which the table above measures as fast as the claims branch.
+- **A smaller budget.** Lower `budget` until the largest token fits, and move `hook.claims` entries that the server can read elsewhere out of the token.
+
+`permdock doctor --db-url-stdin` reports a sample user whose cookie splits (PD110), and `permdock claims size` prints the cookie size and chunk count for a membership count and budget.
 
 ## Authorization version
 

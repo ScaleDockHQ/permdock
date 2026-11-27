@@ -16,6 +16,37 @@ import { quoteIdent } from "../sql/quote.ts";
  */
 export const TOKEN_CHARS_BUDGET = 4096;
 
+/** `@supabase/ssr` splits a session cookie into chunks of this many characters. */
+export const COOKIE_CHUNK_CHARS = 3180;
+
+/**
+ * The session JSON besides the access token with `tokens-only` cookies:
+ * `token_type`, `expires_in`, `expires_at` and the refresh token, measured on a
+ * Supabase session.
+ */
+const SESSION_FIELDS_BYTES = 134;
+
+/** The `base64-` prefix `@supabase/ssr` writes before an encoded session. */
+const COOKIE_PREFIX_CHARS = 7;
+
+/**
+ * The characters of a `tokens-only` session cookie that holds a token of
+ * `tokenLength` characters. The cookie base64-encodes the whole session again,
+ * so the claims, already base64url in the token, are encoded twice: one byte of
+ * claims costs about 1.78 characters of cookie.
+ */
+export function sessionCookieChars(tokenLength: number): number {
+  return (
+    COOKIE_PREFIX_CHARS +
+    Math.ceil((tokenLength + SESSION_FIELDS_BYTES) / 3) * 4
+  );
+}
+
+/** The cookie chunks a token of `tokenLength` characters needs. */
+export function cookieChunks(tokenLength: number): number {
+  return Math.ceil(sessionCookieChars(tokenLength) / COOKIE_CHUNK_CHARS);
+}
+
 /**
  * Claims every Supabase access token carries beside the hook's, sized for an
  * OAuth sign-in: a long email, the `user_metadata` a social provider writes
@@ -183,13 +214,22 @@ export async function pd110(
           overBudget.push(label);
         }
         const length = tokenChars(minted);
+        const chunks = cookieChunks(length);
         if (length > TOKEN_CHARS_BUDGET) {
           findings.push({
             code: "PD110",
             severity: "warning",
             target: label,
-            message: `the access token for ${label} is ${String(length)} characters, over ${String(TOKEN_CHARS_BUDGET)}`,
+            message: `the access token for ${label} is ${String(length)} characters, over ${String(TOKEN_CHARS_BUDGET)}, and its session cookie needs ${String(chunks)} chunks`,
             fix: "lower supabase.hook.budget, drop hook.claims entries, or hold fewer custom roles; the active tenant stays in the token",
+          });
+        } else if (chunks > 1) {
+          findings.push({
+            code: "PD110",
+            severity: "warning",
+            target: label,
+            message: `the session cookie for ${label} is ${String(sessionCookieChars(length))} characters with tokens-only cookies, so @supabase/ssr splits it into ${String(chunks)} chunks of ${String(COOKIE_CHUNK_CHARS)}: the claims are base64-encoded twice, once in the ${String(length)}-character token and again in the cookie`,
+            fix: "set supabase.hook.membershipsClaim to false and seed the subject from a bootstrap, or lower supabase.hook.budget and drop hook.claims entries until the token is under about 2,240 characters",
           });
         }
       } catch (error) {

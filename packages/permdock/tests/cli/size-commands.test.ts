@@ -38,6 +38,8 @@ describe("claims size report", () => {
     });
     expect(result.code).toBe(0);
     expect(result.output).toContain("all fit the");
+    expect(result.output).toContain("tokens-only session cookie:");
+    expect(result.data).toMatchObject({ cookieChunks: 1 });
   });
 
   it("prints the budget cut and JSON when they do not", () => {

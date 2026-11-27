@@ -1,6 +1,6 @@
 -- better-supabase module: organizations
 -- @bsb-block organizations@1 managed
--- @bsb-hash sha256:445f398bd5e10a6cf066d7c7f5182606ae68257514fbefa956b600095380e7d4
+-- @bsb-hash sha256:2fbebda9d2f8427e3216ab19c7496a87495f02e46e321e13e4940a6e4c2f423e
 -- create_organization(attrs) with slug rules and an after-create hook, a deferred owner check, an assignment ceiling, and member functions (role change, remove, leave, transfer ownership) on the access contract.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -349,7 +349,7 @@ begin
 end;
 $$;
 
-create or replace function "better_supabase"."remove_member"(organization uuid, member uuid)
+create or replace function "better_supabase"."delete_member"(organization uuid, member uuid)
 returns boolean
 language plpgsql
 security definer
@@ -1168,8 +1168,8 @@ revoke execute on function "better_supabase"."update_member_role"(uuid, uuid, te
 grant execute on function "better_supabase"."update_member_role"(uuid, uuid, text) to authenticated, service_role;
 revoke execute on function "better_supabase"."update_member_roles"(uuid, uuid[], text) from public, anon;
 grant execute on function "better_supabase"."update_member_roles"(uuid, uuid[], text) to authenticated, service_role;
-revoke execute on function "better_supabase"."remove_member"(uuid, uuid) from public, anon;
-grant execute on function "better_supabase"."remove_member"(uuid, uuid) to authenticated, service_role;
+revoke execute on function "better_supabase"."delete_member"(uuid, uuid) from public, anon;
+grant execute on function "better_supabase"."delete_member"(uuid, uuid) to authenticated, service_role;
 revoke execute on function "better_supabase"."leave_organization"(uuid) from public, anon;
 grant execute on function "better_supabase"."leave_organization"(uuid) to authenticated, service_role;
 revoke execute on function "better_supabase"."sole_owned_organizations"(uuid, uuid) from public, anon;

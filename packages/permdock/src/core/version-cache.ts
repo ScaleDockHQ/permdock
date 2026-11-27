@@ -88,6 +88,14 @@ export type MemoryVersionCacheOptions = {
    * process.
    */
   readonly shared?: VersionStore;
+  /**
+   * Receives each write and delete to `shared`, which the cache does not await
+   * so a read never waits for it. On a serverless host pass the platform's
+   * `waitUntil` (`@vercel/functions`, Cloudflare's `ctx.waitUntil`): otherwise
+   * the instance can freeze after the response, the write never lands, and
+   * every instance keeps reading the version from the database.
+   */
+  readonly waitUntil?: (promise: Promise<unknown>) => void;
   /** Principals kept; the least recently used goes first. Default 10,000. */
   readonly maxEntries?: number;
   /** The clock, read only when an instance asks for a version. */
@@ -127,15 +135,19 @@ export function memoryVersionCache(
       }
     }
   };
+  const background = (write: () => void | PromiseLike<void>): void => {
+    try {
+      const pending = Promise.resolve(write()).catch(() => undefined);
+      options.waitUntil?.(pending);
+    } catch {
+      // A store that fails is a miss; the next instance reads the version.
+    }
+  };
   const remember = (id: string, version: number, at: number): void => {
     if (remote === undefined) {
       return;
     }
-    try {
-      Promise.resolve(remote.set(id, version, at)).catch(() => undefined);
-    } catch {
-      // A store that fails is a miss; the next instance reads the version.
-    }
+    background(() => remote.set(id, version, at));
   };
   const fromStore = async (
     id: string,
@@ -261,11 +273,8 @@ export function memoryVersionCache(
       entries.delete(principal);
       inFlight.delete(principal);
       if (remote !== undefined) {
-        try {
-          Promise.resolve(remote.delete(principal)).catch(() => undefined);
-        } catch {
-          // The entry still expires after `maxStaleMs`.
-        }
+        // A failed delete leaves the entry to expire after `maxStaleMs`.
+        background(() => remote.delete(principal));
       }
     },
     stats() {

@@ -86,3 +86,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0080](./0080-better-supabase-0-87-0-floor-and-release-age.md)    | better-supabase 0.87.0 is the peer floor and catalog pin, and skips the release age                                                  |
 | [0081](./0081-supabase-cli-3-4-0-pin.md)                          | CI runs the Supabase CLI 3.4.0 pin; the floor stays 3.2.0                                                                            |
 | [0082](./0082-example-vendored-ui-tsconfig.md)                    | The Supabase sample relaxes the tsconfig for vendored ReUI, amending 0006                                                            |
+| [0083](./0083-better-supabase-0-91-0-pin-and-release-age.md)      | better-supabase 0.91.0 is the catalog pin and skips the release age; the floor stays 0.87.0, amending 0080                           |

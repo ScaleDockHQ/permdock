@@ -2,7 +2,7 @@
 
 PermDock with [better-supabase](https://www.npmjs.com/package/better-supabase) on Next.js 16.4 with Cache Components, Partial Prefetching and instant navigation, in the CentraKit shape: `/[locale]/[orgSlug]/...` routes, staff roles per organization in `organization_memberships`, and customer-portal contacts through `contacts.user_id`.
 
-The example runs on better-supabase 0.87.0. Its `memberships` block runs over the app's `public.organization_memberships` table, which PermDock reads with `blockMembershipSource`.
+The example runs on better-supabase 0.91.0. Its `memberships` block runs over the app's `public.organization_memberships` table, which PermDock reads with `blockMembershipSource`.
 
 The portal layout keeps `endpoint={false}`. Staff routes use the factory in `src/permdock/server.ts`. Postgres RLS decides which rows come back. The app also mounts MCP, AuthZEN, SCIM, SSF, approvals, access reviews, an agent route and `/api/v1/quotes`.
 

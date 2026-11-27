@@ -229,7 +229,7 @@ interface MembershipSource {
   ) => number | undefined | Promise<number | undefined>;
   globalRolesFor?: (
     principal: { id: string },
-    context?: SourceContext,
+    context?: SourceContext & { tenant?: string }, // the instance's tenant, when it has one
   ) => readonly string[] | Promise<readonly string[]>;
   readonly claimsFirst?: boolean;
 }

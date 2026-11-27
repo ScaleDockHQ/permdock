@@ -1,6 +1,6 @@
 -- better-supabase module: audit
 -- @bsb-block audit@16 managed
--- @bsb-hash sha256:5951b237c42c4806671dba8b8b80f216088ffb36efabd9d90594fe9153674d40
+-- @bsb-hash sha256:b6d99257753ec0f3d9ac3ffd63f99c7965285b24ec4e4c522330e27c904df0c3
 -- Records inserts, updates and deletes with the actor and changed columns for tables you register, plus semantic events through audit_event(), with redaction, an append-only guard, a tenant read policy and per-tenant retention as options.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -242,6 +242,7 @@ begin
     coalesce(entry.target_type, tg_table_name),
     case
       when v_integration then 'integration'
+      when (select better_supabase.acting_member()) is not null then 'user'
       when coalesce(v_jwt ->> 'role', '') = 'service_role' then 'service'
       when v_jwt -> 'act' ->> 'kind' = 'support' then 'support'
       when v_jwt -> 'act' ->> 'kind' = 'agent' then 'agent'
@@ -317,6 +318,7 @@ begin
     left join "better_supabase"."audited_tables" a on a."target" = tg_relid::regclass;
   end if;
   if tg_op = 'INSERT' then
+    
     with src as (
       select null::jsonb as old_row, to_jsonb(n) as new_row from new_rows n
     ), paired as (
@@ -364,6 +366,7 @@ begin
     coalesce(entry.target_type, tg_table_name),
     case
       when v_integration then 'integration'
+      when (select better_supabase.acting_member()) is not null then 'user'
       when coalesce(v_jwt ->> 'role', '') = 'service_role' then 'service'
       when v_jwt -> 'act' ->> 'kind' = 'support' then 'support'
       when v_jwt -> 'act' ->> 'kind' = 'agent' then 'agent'
@@ -383,7 +386,9 @@ begin
     case when row_tenant is null then 'platform' else 'tenant' end
     from final
     left join labels l on l.tenant_key is not distinct from final.row_tenant;
+    
   elsif tg_op = 'DELETE' then
+    
     with src as (
       select to_jsonb(o) as old_row, null::jsonb as new_row from old_rows o
     ), paired as (
@@ -431,6 +436,7 @@ begin
     coalesce(entry.target_type, tg_table_name),
     case
       when v_integration then 'integration'
+      when (select better_supabase.acting_member()) is not null then 'user'
       when coalesce(v_jwt ->> 'role', '') = 'service_role' then 'service'
       when v_jwt -> 'act' ->> 'kind' = 'support' then 'support'
       when v_jwt -> 'act' ->> 'kind' = 'agent' then 'agent'
@@ -450,7 +456,9 @@ begin
     case when row_tenant is null then 'platform' else 'tenant' end
     from final
     left join labels l on l.tenant_key is not distinct from final.row_tenant;
+    
   else
+    
     with src as (
       select o.j as old_row, n.j as new_row
       from (select to_jsonb(r) as j, (select string_agg(to_jsonb(r) ->> k.name, ',' order by k.ord) from unnest(entry.key_columns) with ordinality k(name, ord)) as k from old_rows r) o
@@ -500,6 +508,7 @@ begin
     coalesce(entry.target_type, tg_table_name),
     case
       when v_integration then 'integration'
+      when (select better_supabase.acting_member()) is not null then 'user'
       when coalesce(v_jwt ->> 'role', '') = 'service_role' then 'service'
       when v_jwt -> 'act' ->> 'kind' = 'support' then 'support'
       when v_jwt -> 'act' ->> 'kind' = 'agent' then 'agent'
@@ -519,6 +528,7 @@ begin
     case when row_tenant is null then 'platform' else 'tenant' end
     from final
     left join labels l on l.tenant_key is not distinct from final.row_tenant;
+    
   end if;
   return null;
 end;
@@ -933,6 +943,7 @@ begin
     idempotency_key,
     coalesce(actor_kind, case
       when v_integration then 'integration'
+      when (select better_supabase.acting_member()) is not null then 'user'
       when coalesce(auth.jwt() ->> 'role', '') = 'service_role' then 'service'
       when auth.jwt() -> 'act' ->> 'kind' = 'support' then 'support'
       when auth.jwt() -> 'act' ->> 'kind' = 'agent' then 'agent'
@@ -1117,6 +1128,7 @@ begin
     idempotency_key,
     coalesce(actor_kind, case
       when v_integration then 'integration'
+      when (select better_supabase.acting_member()) is not null then 'user'
       when coalesce(auth.jwt() ->> 'role', '') = 'service_role' then 'service'
       when auth.jwt() -> 'act' ->> 'kind' = 'support' then 'support'
       when auth.jwt() -> 'act' ->> 'kind' = 'agent' then 'agent'
@@ -1236,11 +1248,29 @@ set "TimeZone" = 'UTC'
 as $$
 declare
   v_column text := nullif(tg_argv[0], '');
+  v_key text := coalesce(case when v_column is null then '' else pg_catalog.to_jsonb(new) ->> v_column end, '');
   v_prev record;
+  v_have boolean := false;
+  v_heads oid := pg_catalog.to_regclass('pg_temp.bsb_chain_heads');
+  v_owner oid;
+  v_batched boolean := false;
 begin
+  -- The regclass cast throws when the temp table is absent, and it is resolved
+  -- when the statement is planned, so the owner check uses the oid from
+  -- to_regclass. The row trigger calls chain_link without the statement
+  -- wrapper that creates the table.
+  if v_heads is not null then
+    select c.relowner into v_owner from pg_catalog.pg_class c where c.oid = v_heads;
+    v_batched := v_owner = (select r.oid from pg_catalog.pg_roles r where r.rolname = current_user);
+  end if;
+  if v_batched then
+    select h.chain_seq, h.row_hash into v_prev from pg_temp.bsb_chain_heads h where h.tenant = v_key;
+    v_have := found;
+  end if;
+  if not v_have then
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtext('better_supabase.chain:' || tg_relid::text),
-    pg_catalog.hashtext(coalesce(case when v_column is null then '' else pg_catalog.to_jsonb(new) ->> v_column end, ''))
+    pg_catalog.hashtext(v_key)
   );
   if v_column is null then
     execute format('select p.chain_seq, p.row_hash from %s p where p.chain_seq is not null order by p.chain_seq desc limit 1', tg_relid::regclass)
@@ -1252,9 +1282,15 @@ begin
     execute format('select p.chain_seq, p.row_hash from %s p where p.%I = ($1).%I and p.chain_seq is not null order by p.chain_seq desc limit 1', tg_relid::regclass, v_column, v_column)
       into v_prev using new;
   end if;
+  end if;
   new.chain_seq := coalesce(v_prev.chain_seq, 0) + 1;
   new.prev_hash := v_prev.row_hash;
   new.row_hash := better_supabase.chain_row_hash(pg_catalog.to_jsonb(new), v_prev.row_hash);
+  if v_batched then
+    insert into pg_temp.bsb_chain_heads (tenant, chain_seq, row_hash)
+    values (v_key, new.chain_seq, new.row_hash)
+    on conflict (tenant) do update set chain_seq = excluded.chain_seq, row_hash = excluded.row_hash;
+  end if;
   return new;
 end;
 $$;

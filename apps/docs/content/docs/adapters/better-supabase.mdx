@@ -464,6 +464,20 @@ When better-supabase passes `runtime.seed` (`{ userId, version, subject }`), the
 
 `bsb.bootstrap()` reads `authz_ver` with the app's bootstrap data once per request and seeds `versions` through `AuthzVersionCache.seed`, which PermDock's `VersionCache` implements. A later read in the same process skips the version call, and `permdockFor` passes a bootstrap's version as `version: { known }`, so the request that read it skips it too.
 
+Pass the page's tenant to the bootstrap, so the wrapper returns `subject_for(user, tenant)` and that tenant's permissions only:
+
+```ts title="src/lib/boot.ts"
+const boot = await bsb.bootstrap({
+  rpc: "app",
+  tenant: organization.id,
+  kept: true,
+});
+```
+
+The wrapper already returns the subject, so leave it out of the app's own bootstrap function: a data function that calls `permdock_subject()` or `subject_for()` computes the subject a second time in the same query, with every tenant's memberships and custom roles. Since better-supabase 0.91 a call without a tenant gets no `permissions` (the entry's default `permissions: "tenant"`), so a shell that bootstraps without a tenant no longer computes a bitset per membership; set `permissions: "all"` on the entry only for a screen that shows every tenant's permissions at once. `kept: true` keys the answer by user, session and tenant in the kept store, so switching tenants reads the new tenant once and a later visit reads none.
+
+A subject read for one tenant is seeded under that tenant, never as the user's all-tenants record, so a later check in another tenant reads its own record instead of missing that tenant's memberships. Build the sources with `postgrestSources(client, { tenantScoped: true })` so the instance reads that tenant's record and the seed answers it; a source that reads every tenant still calls `subject_for(p_user)` once.
+
 ### One tenant's snapshot
 
 `definePermDock(...).next()` returns `getSnapshot(source, { tenant, omitStatic? })` next to `authorization`, `authorizer` and `versions`. It builds the snapshot of one tenant for a session, a `bsb.bootstrap()` or `bsb.getAccess()` result, or a subject: that tenant's grants and the subject's whole membership list, so the client can show its other tenants. A bootstrap that read `permdock_subject(p_tenant)` (the provider's `subjectForTenant`) seeds the subject read:
@@ -476,6 +490,8 @@ const snapshot = await getSnapshot(access, {
   omitStatic: true,
 });
 ```
+
+Render that provider under the tenant's layout segment, keyed by the tenant, rather than once above every tenant with `tenants: "all"`: a client check reads only the active tenant, and the all-tenant snapshot evaluates every tenant's grants on each request. Keep `tenants: "all"` for a screen that compares tenants.
 
 With `omitStatic`, pass the generated `clientBundle` to the provider's `bundle` prop. Each extra membership adds about 40 bytes: on CentraKit's policy the snapshot weighs 1,850 bytes at 12 memberships and 3,383 at 50 ([snapshots](/docs/concepts/snapshots#why)).
 

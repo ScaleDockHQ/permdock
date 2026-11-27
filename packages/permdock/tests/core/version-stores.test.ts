@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { QueryableLike, RuntimeCacheLike } from "../../src/index.ts";
 
 import {
+  memoryVersionCache,
   postgresCacheVersionStore,
   runtimeCacheVersionStore,
 } from "../../src/index.ts";
@@ -52,5 +53,56 @@ describe("a Postgres version store", () => {
     await store.set("u", 4, 20);
     await store.delete("u");
     expect(calls).toStrictEqual([["u"], ["u", 4, 20], ["u"]]);
+  });
+});
+
+describe("memoryVersionCache with a shared store", () => {
+  it("hands each background write and delete to waitUntil", async () => {
+    const written: string[] = [];
+    const handed: Promise<unknown>[] = [];
+    const versions = memoryVersionCache({
+      shared: {
+        get: () => undefined,
+        set: async (id, version) => {
+          await Promise.resolve();
+          written.push(`set ${id} ${String(version)}`);
+        },
+        delete: async (id) => {
+          await Promise.resolve();
+          written.push(`delete ${id}`);
+        },
+      },
+      waitUntil: (promise) => {
+        handed.push(promise);
+      },
+    });
+
+    versions.seed("u1", 4);
+    versions.evict("u1");
+
+    expect(handed).toHaveLength(2);
+    await Promise.all(handed);
+    expect(written).toStrictEqual(["set u1 4", "delete u1"]);
+  });
+
+  it("keeps reading when the shared write rejects", async () => {
+    const handed: Promise<unknown>[] = [];
+    const versions = memoryVersionCache({
+      shared: {
+        get: () => undefined,
+        set: () => Promise.reject(new Error("store down")),
+        delete: () => undefined,
+      },
+      waitUntil: (promise) => {
+        handed.push(promise);
+      },
+    });
+
+    versions.seed("u1", 2);
+
+    await expect(Promise.all(handed)).resolves.toBeDefined();
+    expect(await versions.current({ id: "u1" }, () => 9, { live: false })).toBe(
+      2,
+    );
   });
 });
