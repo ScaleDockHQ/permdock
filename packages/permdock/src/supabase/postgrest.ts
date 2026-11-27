@@ -327,9 +327,11 @@ export function postgrestSources(
     readonly settle: (result: SupabaseRpcResult) => void;
     readonly fail: (cause: unknown) => void;
   };
+  // Every read queued in one tick, in order; none is ever dropped, so each
+  // caller's promise settles.
   const wanted = new WeakMap<
     SourceMemo,
-    { authz?: Want; roles?: Want; queued: boolean }
+    { authz: Want[]; roles: Want[]; queued: boolean }
   >();
   let combinedMissing = false;
   // A client that throws synchronously rejects instead: the batched reads run
@@ -353,17 +355,24 @@ export function postgrestSources(
     if (batch === undefined) {
       return;
     }
-    const { authz, roles } = batch;
-    if (
-      authz === undefined ||
-      roles === undefined ||
-      versionsFn === undefined ||
-      combinedMissing ||
-      authz.user !== roles.user
-    ) {
-      if (authz !== undefined) {
-        single(authz, "authz");
-      }
+    const [authz, ...otherAuthz] = batch.authz;
+    const pairIndex =
+      authz === undefined
+        ? -1
+        : batch.roles.findIndex((want) => want.user === authz.user);
+    const roles = pairIndex === -1 ? undefined : batch.roles[pairIndex];
+    const otherRoles = batch.roles.filter((_, index) => index !== pairIndex);
+    for (const want of otherAuthz) {
+      single(want, "authz");
+    }
+    for (const want of otherRoles) {
+      single(want, "roles");
+    }
+    if (authz === undefined) {
+      return;
+    }
+    if (roles === undefined || versionsFn === undefined || combinedMissing) {
+      single(authz, "authz");
       if (roles !== undefined) {
         single(roles, "roles");
       }
@@ -389,8 +398,9 @@ export function postgrestSources(
     );
   };
   /**
-   * A version read of one instance. The user's and the tenant's reads that
-   * start in the same tick leave as one `versionsFn` call.
+   * A version read of one instance. The user's read and the first tenant read
+   * for that user that start in the same tick leave as one `versionsFn` call;
+   * every other read in that tick leaves on its own.
    */
   const versionRpc = (
     memo: SourceMemo | undefined,
@@ -404,7 +414,7 @@ export function postgrestSources(
         : callRpc(client, schema, rolesVersionFn, { p_tenant: tenant });
     }
     return new Promise<SupabaseRpcResult>((settle, fail) => {
-      const batch = wanted.get(memo) ?? { queued: false };
+      const batch = wanted.get(memo) ?? { authz: [], roles: [], queued: false };
       const want: Want = {
         user,
         ...(tenant === undefined ? {} : { tenant }),
@@ -412,9 +422,9 @@ export function postgrestSources(
         fail,
       };
       if (kind === "authz") {
-        batch.authz = want;
+        batch.authz.push(want);
       } else {
-        batch.roles = want;
+        batch.roles.push(want);
       }
       wanted.set(memo, batch);
       if (!batch.queued) {
