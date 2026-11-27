@@ -147,6 +147,18 @@ authorizer({ policy, memberships, versions });
 
 `testVersionStore` from `permdock/testing` checks a store against that shape.
 
+The cache writes to the store without awaiting it, so a read never waits for the write. On a serverless host, pass the platform's `waitUntil`, or the instance can freeze after the response before the write lands. Every instance then misses the store and reads the version from the database again:
+
+```ts
+import { getCache, waitUntil } from "@vercel/functions";
+
+export const versions = memoryVersionCache({
+  maxStaleMs: 5_000,
+  shared: runtimeCacheVersionStore(getCache()),
+  waitUntil,
+});
+```
+
 ## Warm the first request
 
 `authorizationHooks(...).warm()`, `authorizer(...).warm()` and `warm(policy)` from `permdock/next` build one anonymous instance and run one `can`. They never reject: a failure answers `{ ok: false, ms }`. Call one in `instrumentation.ts` after the policy import, so the first request does not pay for the instance.
