@@ -215,19 +215,21 @@ describe("permdock_has memo against Postgres", () => {
     expect(await answers(MEMBER)).toStrictEqual([1, 1, 0]);
   });
 
-  it("runs the has body once per grant across the statements of one call", async () => {
+  it("runs the has body once per grant and the by-permission set once across the statements of one call", async () => {
     const counted = await counting(async (tx) =>
       tx.query("select public.dashboard($1)", [ROUNDS]),
     );
+    // permdock_has_permission reads grant_keys twice per call; the by-permission
+    // set reads it in its body, which the memo runs once for the whole call.
     expect(counted).toMatchObject({
       permdock_has: 5 * ROUNDS,
-      grant_keys: 5 * ROUNDS,
+      grant_keys: 4 * ROUNDS + 1,
       permdock_has_permission: 2 * ROUNDS,
       user_roles: 2 * DISTINCT_GRANTS,
     });
   });
 
-  it("runs the has body again in the next statement", async () => {
+  it("answers the next statement of the same transaction from the memo", async () => {
     const once = await counting(async (tx) => {
       await visible(tx, "project");
     });
@@ -235,12 +237,9 @@ describe("permdock_has memo against Postgres", () => {
       await visible(tx, "project");
       await visible(tx, "project");
     });
-    // The scans per body run depend on the plan (a cached plan may skip one);
-    // the second statement enters the body again and never scans less.
     expect(twice["permdock_has"]).toBe(2);
-    expect(twice["user_roles"] ?? 0).toBeGreaterThanOrEqual(
-      once["user_roles"] ?? 0,
-    );
+    expect(once["user_roles"] ?? 0).toBeGreaterThan(0);
+    expect(twice["user_roles"] ?? 0).toBe(once["user_roles"] ?? 0);
   });
 
   it("sees a custom_role_permissions write in the next statement", async () => {

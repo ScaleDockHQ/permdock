@@ -11,8 +11,15 @@ import { scopeTypeOf } from "../sql/columns.ts";
 import { permittedForHelper, permittedIdsHelper } from "../sql/names.ts";
 import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
 import { HELPERS } from "../sql/shared.ts";
-import { functionBody, memoizes } from "./helper-bodies.ts";
+import { subjectIdSql } from "../sql/subject.ts";
+import {
+  functionBody,
+  memoizedSetofSql,
+  memoizes,
+  SETOF_ROWS,
+} from "./helper-bodies.ts";
 import { forUserContext, grantBodies } from "./helpers.ts";
+import { memoUserSql } from "./interactive-only.ts";
 import { activeTenantSql } from "./set-helpers.ts";
 
 /**
@@ -58,8 +65,21 @@ export function requiresSql(
   key: string,
   resource: ResourceNode | undefined,
 ): string {
+  return `(${requiresParts(ctx, key, resource).join(" or ")})`;
+}
+
+/**
+ * The alternatives `requiresSql` ORs: the global holder test, then one scope
+ * column test per partition. Each one alone selects a superset of the rows the
+ * requirement passes, so a row set can be read through each in turn.
+ */
+export function requiresParts(
+  ctx: RlsSqlContext,
+  key: string,
+  resource: ResourceNode | undefined,
+): readonly string[] {
   const literal = quoteLiteral(key);
-  const parts = [
+  return [
     `(select ${qualified(ctx, PERMISSION_HELPERS.has)}(${literal}))`,
     ...(resource === undefined ? [] : partitionsOf(resource, ctx.scopes)).map(
       (scope) => {
@@ -68,7 +88,6 @@ export function requiresSql(
       },
     ),
   ];
-  return `(${parts.join(" or ")})`;
 }
 
 /**
@@ -329,26 +348,52 @@ export function permissionHelpersSql(
     user: string,
     conditioned: boolean,
   ): string => {
-    const returns = `setof ${scopeTypeOf(ctx, scope)}`;
-    if (!setForm) {
-      const helper = qualified(
-        ctx,
-        user === "" ? permittedIdsHelper(scope) : permittedForHelper(scope),
-      );
-      return definer(
+    const type = scopeTypeOf(ctx, scope);
+    const returns = `setof ${type}`;
+    const helper = qualified(
+      ctx,
+      user === "" ? permittedIdsHelper(scope) : permittedForHelper(scope),
+    );
+    const body: Body = setForm
+      ? (conditioned ? conditionedIds : ids)(
+          grantBodies({
+            ...(user === "" ? ctx : forUserContext(ctx)),
+            grantSet: true,
+          }).ids(scope),
+          scope,
+        )
+      : {
+          sql: (conditioned ? callConditionedIds : callIds)(
+            helper,
+            scope,
+            user,
+          ),
+          vars: [],
+        };
+    if (memoizes(ctx) && user === "") {
+      return memoizedSetofSql({
         fn,
-        params,
+        param: params,
         returns,
-        (conditioned ? callConditionedIds : callIds)(helper, scope, user),
-      );
+        idType: type,
+        scope: `perm.${scope}`,
+        keySql: conditioned
+          ? "p_permission || '|' || coalesce(p_conditioned::text, '')"
+          : "p_permission",
+        userSql: memoUserSql(ctx, subjectIdSql(ctx)),
+        query: body.sql,
+        ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
+        grants: "",
+        vars: body.vars,
+        rows: SETOF_ROWS,
+      }).trimEnd();
     }
-    const bodies = grantBodies({
-      ...(user === "" ? ctx : forUserContext(ctx)),
-      grantSet: true,
-    }).ids(scope);
+    if (!setForm) {
+      return definer(fn, params, returns, body.sql);
+    }
     return `create or replace function ${fn}(${params})
 returns ${returns}
-${functionBody((conditioned ? conditionedIds : ids)(bodies, scope), parallel, true)}`;
+${functionBody(body, parallel, true)}`;
   };
   const keysBody = (
     scope: string,

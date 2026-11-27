@@ -19,7 +19,7 @@ import {
 } from "../sql/quote.ts";
 import { HELPERS } from "../sql/shared.ts";
 import { subjectIdSql } from "../sql/subject.ts";
-import { memoHitList, memoizedSetofSql, memoizes } from "./helper-bodies.ts";
+import { memoHitList, memoizes } from "./helper-bodies.ts";
 import { HOISTED, hoistInvariants } from "./hoist.ts";
 import { memoUserSql } from "./interactive-only.ts";
 import {
@@ -516,13 +516,54 @@ export function rowSetSql(
   }
 }
 
-/** Row sets above this many ids are evaluated per call instead of stored. */
-const ROW_MEMO_CAP = 10_000;
+/**
+ * The ways one permission's rows are read: each allow that carries a `requires`
+ * lead is read once per lead alternative (the global holder test, then each
+ * scope column test), so Postgres reads a tenant's rows through the index on
+ * its column; the allows without a lead are read together. The permission's
+ * denies filter every part.
+ */
+function rowPartsOf(branches: readonly CompiledBranch[]): readonly string[] {
+  const allows = branches.filter((branch) => branch.effect === "allow");
+  if (allows.length === 0) {
+    return [];
+  }
+  const deny = usingOf(branches.filter((branch) => branch.effect === "deny"));
+  const led = new Map<
+    string,
+    { leads: readonly string[]; clauses: string[] }
+  >();
+  const free: string[] = [];
+  for (const branch of allows) {
+    const clause = clauseOf(branch);
+    if (branch.leads === undefined || branch.leads.length === 0) {
+      free.push(clause);
+      continue;
+    }
+    const id = branch.leads.join("\u0000");
+    const group = led.get(id) ?? { leads: branch.leads, clauses: [] };
+    group.clauses.push(clause);
+    led.set(id, group);
+  }
+  const unless = deny === undefined ? "" : ` and (${deny}) is not true`;
+  const parts: string[] = [];
+  for (const { leads, clauses } of led.values()) {
+    const allowed = orSql(clauses);
+    for (const lead of leads) {
+      parts.push(`${lead} and (${allowed})${unless}`);
+    }
+  }
+  if (free.length > 0) {
+    parts.push(`(${orSql(free)})${unless}`);
+  }
+  return parts;
+}
 
 /**
- * A row set: `stable sql`, or under `rls.memo` the volatile memo the scope
- * helpers use, so every policy that reads it in one statement shares one
- * evaluation.
+ * A row set: one statement per permission, each a union of its parts, so the
+ * planner sees every part with no `case` around it and reads its rows through
+ * an index where a part leads with an indexed column. Nothing is stored in a
+ * setting: a policy runs the set once per statement as a hashed subplan.
  */
 function rowSetFunctionSql(
   ctx: RlsSqlContext,
@@ -531,62 +572,52 @@ function rowSetFunctionSql(
     readonly node: ResourceNode;
     readonly params: readonly (readonly [string, string])[];
     readonly idType: string;
-    readonly query: string;
+    readonly table: string;
+    readonly tenant?: string;
+    readonly branches: ReadonlyMap<string, readonly CompiledBranch[]>;
   },
 ): string {
-  const { fn, node, params, idType, query } = input;
+  const { fn, node, params, idType, table, tenant, branches } = input;
   const types = params.map(([, type]) => type).join(", ");
-  const grants = `revoke execute on function ${fn}(${types}) from public, anon;
-grant execute on function ${fn}(${types}) to authenticated;`;
-  if (memoizes(ctx)) {
-    return memoizedSetofSql({
-      fn,
-      param: params.map(([name, type]) => `${name} ${type}`).join(", "),
-      returns: `setof ${idType}`,
-      idType,
-      scope: `rows${String(params.length)}.${node.name}`,
-      keySql: params.map(([name]) => `${name}::text`).join(" || '|' || "),
-      userSql: memoUserSql(ctx, subjectIdSql(ctx)),
-      query: `    ${query.replaceAll("\n", "\n    ")}`,
-      ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
-      grants,
-      cap: ROW_MEMO_CAP,
-    });
-  }
+  const head = `select ${ROW}.${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}`;
+  const narrow = tenant === undefined ? "" : `${tenant} and `;
+  const arms = [...branches.keys()].toSorted().flatMap((key) => {
+    const parts = rowPartsOf(branches.get(key) ?? []);
+    if (parts.length === 0) {
+      return [];
+    }
+    const hoisted = hoistInvariants(
+      ctx,
+      parts.map((sql) => ({ key, sql })),
+    );
+    const cte = hoistedCte(hoisted.columns);
+    const selects = hoisted.arms.map(
+      (arm) =>
+        `${head}${fromHoisted(hoisted.columns)}\n      where ${narrow}${arm.sql}`,
+    );
+    return [
+      `p_permission = ${quoteLiteral(key)} then\n    return query\n    ${cte === "" ? "" : `with ${cte}\n    `}${selects.join("\n    union\n    ")};`,
+    ];
+  });
+  const otherwise = `return query ${head}\n      where ${narrow}${qualified(ctx, matchHelper(node.name))}(${ROW}, p_permission);`;
+  const body =
+    arms.length === 0
+      ? `  ${otherwise}`
+      : `  if ${arms.join("\n  elsif ")}\n  else\n    ${otherwise}\n  end if;`;
   return `create or replace function ${fn}(${params.map(([name, type]) => `${name} ${type}`).join(", ")})
 returns setof ${idType}
-language sql
+language plpgsql
 stable
 security definer
 ${plannerOf(ctx)}
 set search_path = ''
 as $$
-  ${query}
+begin
+${body}
+end;
 $$;
-${grants}`;
-}
-
-function rowsCaseSql(
-  ctx: RlsSqlContext,
-  node: ResourceNode,
-  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
-): CaseSql {
-  return caseSql(
-    ctx,
-    branches,
-    `${qualified(ctx, matchHelper(node.name))}(${ROW}, p_permission)`,
-  );
-}
-
-function rowsQuery(
-  head: string,
-  table: string,
-  where: string,
-  cases: CaseSql,
-): string {
-  const cte = hoistedCte(cases.hoisted);
-  return `${cte === "" ? "" : `with ${cte}\n  `}${head} from ${table} as ${ROW}${fromHoisted(cases.hoisted)}
-  where ${where}${cases.where}`;
+revoke execute on function ${fn}(${types}) from public, anon;
+grant execute on function ${fn}(${types}) to authenticated;`;
 }
 
 /**
@@ -654,12 +685,9 @@ ${rowSetFunctionSql(ctx, {
     ["p_tenant", tenantType],
   ],
   idType,
-  query: rowsQuery(
-    `select ${quoteIdent(node.id)}::${idType}`,
-    table,
-    `${ROW}.${quoteIdent(column)} = p_tenant\n    and `,
-    rowsCaseSql(ctx, node, branches),
-  ),
+  table,
+  tenant: `${ROW}.${quoteIdent(column)} = p_tenant`,
+  branches,
 })}
 -- ${node.name}: how many of them the caller may act on, counted up to p_cap
 create or replace function ${count}(p_permission text, p_tenant ${tenantType}, p_cap integer)
@@ -697,12 +725,8 @@ ${rowSetFunctionSql(ctx, {
   node,
   params: [["p_permission", "text"]],
   idType,
-  query: rowsQuery(
-    `select ${quoteIdent(node.id)}::${idType}`,
-    table,
-    "",
-    rowsCaseSql(ctx, node, branches),
-  ),
+  table,
+  branches,
 })}
 ${candidatesSql(fn, table, quoteIdent(node.id), idType, match)}
 ${idsInSql(ctx, node, fn, idType)}
@@ -776,12 +800,10 @@ export function rowHelpersSql(
     );
   }
   const triggers =
-    names.length === 0
-      ? ""
-      : memoRowTriggersSql(ctx, policy, tables, chunks.join("\n"));
+    names.length === 0 ? "" : memoRowTriggersSql(ctx, policy, tables);
   if (triggers !== "") {
     chunks.push(
-      `-- a relation write changes what the row helpers' memo holds inside the statement\n${triggers}`,
+      `-- a relation write changes what the relation helpers' memo holds inside the transaction\n${triggers}`,
     );
   }
   if (chunks.length > 0 && ctx.dialect === "neon") {

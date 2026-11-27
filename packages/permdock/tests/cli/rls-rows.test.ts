@@ -90,7 +90,7 @@ describe("permitted_<resource>_rows", () => {
     expect(sql).toContain(
       '"permdock".permitted_doc_rows(p_permission text, p_tenant uuid)',
     );
-    expect(sql).toMatch(/where permdock_row\."orgId" = p_tenant\n {4}and /u);
+    expect(sql).toMatch(/where permdock_row\."orgId" = p_tenant and /u);
     expect(sql).toContain(
       '"permdock".permitted_doc_ids_in(p_permission text, p_ids uuid[])',
     );
@@ -112,23 +112,25 @@ describe("permitted_<resource>_rows", () => {
     expect(generate("supabase", []).sql).toBe("");
   });
 
-  it("cases each permission over its allows and denies, actions without a SQL command included", () => {
+  it("reads each permission in its own statement over its allows and denies, actions without a SQL command included", () => {
     const { sql, warnings } = generate("supabase", ["doc", "note"]);
     expect(generate("supabase").sql).toContain("permitted_note_rows");
     expect(sql).toContain('"permdock".permitted_doc_rows(p_permission text)');
-    expect(sql).toContain('select "id"::uuid from "app"."documents"');
+    expect(sql).toContain(
+      'select permdock_row."id"::uuid from "app"."documents" as permdock_row',
+    );
     expect(sql).toContain(
       '"permdock".permitted_doc_match(permdock_row, p_permission)',
     );
     expect(sql).toContain(
-      `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false) and (("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#2')))) and ("locked" = true)) is not true`,
+      `p_permission = 'doc.read' then\n    return query\n    select permdock_row."id"::uuid from "app"."documents" as permdock_row\n      where ("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))) and (("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#2')))) and ("locked" = true)) is not true;`,
     );
     expect(sql).toContain(
-      `when 'doc.archive' then coalesce(("ownerId" = permdock_hoisted.h1), false)`,
+      `p_permission = 'doc.archive' then\n    return query\n    select permdock_row."id"::uuid from "app"."documents" as permdock_row\n      where ("ownerId" = (select "permdock".permdock_user_id()));`,
     );
-    expect(sql).toContain(`when 'doc.update' then`);
-    const create = `when 'doc.create' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.create')))), false)`;
-    // The match, the id-set query and the tenant set each carry an arm that reads only the row.
+    expect(sql).toContain(`p_permission = 'doc.update' then`);
+    const create = `("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.create'))))`;
+    // The match, the id-set query and the tenant set each read the create arm.
     expect(sql.split(create)).toHaveLength(4);
     expect(sql).toContain("    else false");
     expect(sql).toContain(
@@ -150,9 +152,9 @@ describe("permitted_<resource>_rows", () => {
       /grant execute on function "permdock"\.permitted_doc_rows_for/u,
     );
     expect(sql).toContain('"permdock".permitted_note_rows');
-    expect(sql).not.toContain(`when 'note.read'`);
+    expect(sql).not.toContain(`'note.read'`);
     expect(sql).toMatch(
-      /permitted_note_rows\(p_permission text\)[^$]*\$\$\n {2}select "id"::uuid from "public"."note" as permdock_row\n {2}where "permdock"\.permitted_note_match\(permdock_row, p_permission\)\n\$\$/u,
+      /permitted_note_rows\(p_permission text\)[^$]*\$\$\nbegin\n {2}return query select permdock_row\."id"::uuid from "public"\."note" as permdock_row\n {6}where "permdock"\.permitted_note_match\(permdock_row, p_permission\);\nend;\n\$\$/u,
     );
     expect(warnings.join("\n")).not.toContain("doc.archive");
   });
@@ -230,10 +232,10 @@ describe("permitted_<resource>_rows", () => {
     );
     const body = rows.slice(0, rows.indexOf("$$;", rows.indexOf("as $$")));
     expect(body).toContain(
-      `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false)`,
+      `where ("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1'))))`,
     );
     expect(body).toContain(
-      'else "permdock".permitted_doc_match(permdock_row, p_permission)',
+      'else\n    return query select permdock_row."id"::uuid from "app"."documents" as permdock_row\n      where "permdock".permitted_doc_match(permdock_row, p_permission);',
     );
     expect(sql).not.toContain(
       "permitted_tenant_ids_by_permission(p_permission, true))\n",
@@ -278,7 +280,7 @@ describe("permitted_<resource>_rows", () => {
     );
     const body = rows.slice(0, rows.indexOf("$$;", rows.indexOf("as $$")));
     expect(body).toContain(
-      `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false)`,
+      `where ("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1'))))`,
     );
   });
 
@@ -671,27 +673,40 @@ describe("row-invariant calls", () => {
     return sql.slice(start, sql.indexOf("$$;", sql.indexOf("as $$", start)));
   }
 
-  it("evaluates a call that several arms repeat once, only for the keys that read it", () => {
+  it("evaluates a call that one permission's statement repeats once, and leads it by the required key's tenants", () => {
     const body = rowsBody(hoisted());
-    expect(body).toContain("with permdock_hoisted as materialized (");
-    expect(body).toContain(
+    const update = body.slice(
+      body.indexOf("p_permission = 'doc.update'"),
+      body.indexOf("else\n"),
+    );
+    expect(update).toContain("with permdock_hoisted as materialized (");
+    expect(update).toContain(
       'from "app"."documents" as permdock_row, permdock_hoisted',
     );
-    expect(body).toMatch(
-      /case when p_permission in \('doc\.archive', 'doc\.update'\) then \(select "permdock"\.permdock_user_id\(\)\) end as h\d/u,
+    expect(update).toMatch(
+      /case when p_permission in \('doc\.update'\) then \(select "permdock"\.permdock_user_id\(\)\) end as h\d/u,
     );
-    expect(body).not.toMatch(
-      /when 'doc\.update' then .*\(select "permdock"\.permdock_user_id\(\)\)/u,
-    );
-    const update = body.slice(body.indexOf("when 'doc.update'"));
-    const column =
+    const tenants =
       /case when p_permission in \('doc\.update'\) then array\(select "permdock"\.permitted_tenant_ids_by_permission\('doc\.read'\)\) end as (h\d)/u.exec(
-        body,
+        update,
       )?.[1];
-    expect(column).toBeDefined();
-    expect(
-      update.split(`permdock_hoisted.${column ?? ""}`).length,
-    ).toBeGreaterThan(2);
+    const global =
+      /case when p_permission in \('doc\.update'\) then \(select "permdock"\.permdock_has_permission\('doc\.read'\)\) end as (h\d)/u.exec(
+        update,
+      )?.[1];
+    expect(tenants).toBeDefined();
+    expect(global).toBeDefined();
+    // One part per alternative of the requirement: the global holder, then the tenant column.
+    expect(update).toContain(`where permdock_hoisted.${global ?? ""} and (`);
+    expect(update).toContain(
+      `where "orgId" = any(permdock_hoisted.${tenants ?? ""}) and (`,
+    );
+    expect(update.split("\n    union\n")).toHaveLength(2);
+    const archive = body.slice(
+      body.indexOf("p_permission = 'doc.archive'"),
+      body.indexOf("elsif p_permission = 'doc.read'"),
+    );
+    expect(archive).not.toContain("permdock_hoisted");
   });
 
   it("leaves a call that one arm makes once where it is", () => {

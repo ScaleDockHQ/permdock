@@ -26,7 +26,7 @@ import { capabilityAccessSql } from "../rls/capabilities.ts";
 import { accessSql } from "../rls/helpers.ts";
 import { indexedFields } from "../rls/indexes.ts";
 import { interactiveAllowsCall } from "../rls/interactive-only.ts";
-import { requiresSql } from "../rls/permission-keys.ts";
+import { requiresParts, requiresSql } from "../rls/permission-keys.ts";
 import { tokenScopeAllowsCall } from "../rls/token-scopes.ts";
 import { andSql, validitySql, wrapSql } from "./clauses.ts";
 import { arrayColumnsOf, columnTypesOf } from "./columns.ts";
@@ -65,6 +65,11 @@ export type CompiledBranch = {
   readonly access?: string;
   readonly using?: string;
   readonly check?: string;
+  /**
+   * Alternatives one of which every row the branch passes satisfies, from its
+   * first `requires` key: the row helpers read the table through each one.
+   */
+  readonly leads?: readonly string[];
   /** Added only so `update` / `delete` can see their rows. */
   readonly coverage?: true;
 };
@@ -916,6 +921,15 @@ export function compileGrants(
     const using = compileOptional(entry.using, rowCtx);
     const check = compileOptional(entry.check, rowCtx);
     const fields = grant.fields === undefined ? {} : { fields: grant.fields };
+    const required = grant.requires?.[0];
+    const leads =
+      grant.effect === "allow" && required !== undefined
+        ? requiresParts(
+            ctx,
+            required,
+            policy.resources.get(grant.permission.resource),
+          )
+        : undefined;
     const branchKey = [
       table,
       command,
@@ -947,6 +961,7 @@ export function compileGrants(
         ...(accessExpr === undefined ? {} : { access: accessExpr }),
         ...(using === undefined ? {} : { using }),
         ...(check === undefined ? {} : { check }),
+        ...(leads === undefined ? {} : { leads }),
       });
     }
     const linked =

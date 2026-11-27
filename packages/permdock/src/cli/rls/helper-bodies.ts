@@ -758,8 +758,10 @@ export function memoizedSetofSql(input: {
   readonly query: string;
   readonly api?: "better-supabase";
   readonly grants: string;
-  /** Sets larger than this are not stored: each call evaluates them again. */
-  readonly cap?: number;
+  /** Declarations the query needs, such as a membership source's user. */
+  readonly vars?: readonly string[];
+  /** The planner's row estimate, for a helper that replaces a `rows` one. */
+  readonly rows?: number;
 }): string {
   const disc = memoDiscriminatorSql("v_user", input.keySql);
   const read = memoReadSql(input.api, "v_key");
@@ -773,11 +775,11 @@ returns ${input.returns}
 language plpgsql
 volatile
 security definer
-cost 1000
+cost 1000${input.rows === undefined ? "" : `\nrows ${String(input.rows)}`}
 set search_path = ''
 as $$
 declare
-  v_user text := ${input.userSql}::text;
+${(input.vars ?? []).map((line) => `  ${line}\n`).join("")}  v_user text := ${input.userSql}::text;
   v_key text := 'permdock.m.' || ${quoteLiteral(input.scope)} || '.k' || (hashtext(${input.keySql}) & 1023)::text;
   v_disc text := ${disc};
   v_memo text := ${read};
@@ -789,13 +791,7 @@ begin
     v_ids := array(
 ${input.query}
     );
-    ${
-      input.cap === undefined
-        ? `perform ${write};`
-        : `if cardinality(v_ids) <= ${String(input.cap)} then
-      perform ${write};
-    end if;`
-    }
+    perform ${write};
   end if;
   return query select unnest(v_ids);
 end;
@@ -824,6 +820,13 @@ export function memoHitList(
   return `select e::${idType} from jsonb_array_elements_text(case when (${read} ->> 'k') = ${disc} then ${read} -> 'ids' else to_jsonb(array(select * from ${call})) end) s(e)`;
 }
 
+/**
+ * The memo key's check value. The settings are transaction-local, and the
+ * transaction start is in the key too, so nothing outlives the transaction. The
+ * whole token is hashed into it, so a claims change inside the transaction
+ * (another user, session, role or `authz_ver`) misses, and a write the
+ * generation triggers watch bumps `permdock.m.gen` and misses.
+ */
 function memoDiscriminatorSql(user: string, key: string): string {
   return `md5(concat_ws('|',
       ${user},
@@ -831,12 +834,13 @@ function memoDiscriminatorSql(user: string, key: string): string {
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
       coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
       coalesce((select auth.jwt()) ->> 'session_id', ''),
-      statement_timestamp()::text
+      md5(coalesce((select auth.jwt())::text, '')),
+      transaction_timestamp()::text
     ))`;
 }
 
 /** The planner's row estimate for a memoised id-set helper. */
-const SETOF_ROWS = 10;
+export const SETOF_ROWS = 10;
 
 /**
  * `language sql`, or `plpgsql` returning the query when the body declares
