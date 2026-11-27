@@ -1723,6 +1723,72 @@ describe(authorizationProvider, () => {
       );
     });
 
+    it("fills isApproverMany over permdock_approver_request_ids with the same kinds and requestApprovers", () => {
+      const helpers = [
+        ...supabaseHookManifestFixture.rls.helpers,
+        {
+          name: "permdock_is_approver",
+          args: "p_approvers jsonb, p_tenant text, p_requester text, p_resource text",
+          returns: "boolean",
+          execute: ["authenticated"],
+        },
+      ];
+      const set = {
+        name: "permdock_approver_request_ids",
+        args: "p_requests jsonb, p_kinds jsonb, p_current boolean",
+        returns: "setof text",
+        execute: ["authenticated"],
+      };
+      const provider = authorizationProvider({
+        manifest: withRls({ helpers: [...helpers, set] }),
+        catalog,
+        approvers: { "invoice.send": holder(approve), "": user("u1") },
+        requestApprovers: true,
+        isApproverMany: true,
+      });
+      expect(Reflect.get(provider.functions, "isApproverMany")).toBe(
+        `permdock.permdock_approver_request_ids({requests}, '{"invoice.send":{"kind":"permission","permission":"invoice.approve"}}'::jsonb, true)`,
+      );
+      expect(provider.functions.isApprover).toContain("case {kind}");
+      expect(provider.requires).toContainEqual({
+        function: "permdock.permdock_approver_request_ids",
+        args: "jsonb, jsonb, boolean",
+        role: "postgres",
+      });
+      expect(
+        Reflect.get(
+          authorizationProvider({
+            manifest: withRls({ helpers: [...helpers, set] }),
+            catalog,
+            approvers: { "invoice.send": holder(approve) },
+            isApproverMany: true,
+          }).functions,
+          "isApproverMany",
+        ),
+      ).toBe(
+        `permdock.permdock_approver_request_ids({requests}, '{"invoice.send":{"kind":"permission","permission":"invoice.approve"}}'::jsonb, false)`,
+      );
+      expect(
+        authorizationProvider({
+          manifest: withRls({ helpers: [...helpers, set] }),
+          catalog,
+          approvers: { "invoice.send": holder(approve) },
+        }).functions,
+      ).not.toHaveProperty("isApproverMany");
+      const unlisted = authorizationProvider({
+        manifest: withRls({ helpers }),
+        catalog,
+        approvers: { "invoice.send": holder(approve) },
+        isApproverMany: true,
+      });
+      expect(unlisted.functions).not.toHaveProperty("isApproverMany");
+      expect(unlisted.problems).toContainEqual(
+        expect.stringContaining(
+          "isApproverMany needs permdock.permdock_approver_request_ids",
+        ),
+      );
+    });
+
     it("reports approvers SQL cannot check, empty kinds and no kinds", () => {
       const provider = authorizationProvider({
         manifest,

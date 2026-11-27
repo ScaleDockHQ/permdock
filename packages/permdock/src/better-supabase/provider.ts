@@ -67,6 +67,15 @@ export type AuthorizationProviderOptions<P = undefined> = {
   readonly approvers?: ProviderApprovers;
   readonly requestApprovers?: boolean;
   /**
+   * Fill better-supabase's `isApproverMany` with
+   * `permdock_approver_request_ids`, over the same kinds and `requestApprovers`
+   * as `isApprover`, so the approvals block decides every pending request in
+   * one call. Needs `permdock_approver_request_ids` in the manifest
+   * (`rls.approvals`, PermDock 0.36 or later) and a better-supabase release
+   * that has the `isApproverMany` slot; an older one refuses the key.
+   */
+  readonly isApproverMany?: boolean;
+  /**
    * better-supabase's `blocks.permissions.activeTenant`. When the token hook
    * reads the active tenant from another place than better-supabase writes it,
    * `problems` names the `supabase.hook.activeFrom` to set. With `"resolver"`

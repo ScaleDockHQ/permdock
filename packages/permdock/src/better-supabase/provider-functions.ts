@@ -13,7 +13,12 @@ import type { AuthorizationProviderOptions } from "./provider.ts";
 
 import { holder } from "../core/approvers.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
-import { IS_APPROVER, MANAGES, isApproverTemplate } from "./approvers.ts";
+import {
+  APPROVER_REQUEST_IDS,
+  IS_APPROVER,
+  MANAGES,
+  isApproverTemplate,
+} from "./approvers.ts";
 import { portalFunctionsOf } from "./provider-portal.ts";
 
 /** `subject_for` for the signed-in user, from the hook (`permdock generate`). */
@@ -29,6 +34,7 @@ type Template = Exclude<
   keyof AuthorizationFunctions,
   | "canApprove"
   | "isApprover"
+  | "isApproverMany"
   | "holdersOf"
   | "teamIdsOf"
   | "actorMayWrite"
@@ -383,7 +389,8 @@ export function providerFunctions(
       });
     }
   }
-  const isApprover = isApproverOf(input, helpers, requires);
+  const { isApprover, isApproverMany } =
+    isApproverOf(input, helpers, requires) ?? {};
   const call = (
     name: string,
     sql: string,
@@ -522,6 +529,7 @@ export function providerFunctions(
       : { portalParties: portal.portalParties }),
     ...(actorMayWrite === undefined ? {} : { actorMayWrite }),
     ...(isApprover === undefined ? {} : { isApprover }),
+    ...(isApproverMany === undefined ? {} : { isApproverMany }),
     ...(permitted === undefined ? {} : { permitted }),
     ...(canIn === undefined ? {} : { canIn }),
     ...(subject === undefined ? {} : { subject }),
@@ -536,13 +544,16 @@ export function providerFunctions(
 
 /**
  * `isApprover` from `approvers` (with `approver` as its `'ai-tool'` entry) or
- * `requestApprovers`, over `permdock_is_approver`.
+ * `requestApprovers`, over `permdock_is_approver`, and with `isApproverMany`
+ * its set form over `permdock_approver_request_ids`.
  */
 function isApproverOf(
   input: ProviderFunctionsInput,
   helpers: ReadonlyMap<string, SupabaseManifestHelper>,
   requires: AuthorizationRequirement[],
-): string | undefined {
+):
+  | { readonly isApprover?: string; readonly isApproverMany?: string }
+  | undefined {
   const { options } = input;
   const approver = options.approver;
   const approvers: ProviderApprovers | undefined =
@@ -559,11 +570,21 @@ function isApproverOf(
     listed: helpers.has(IS_APPROVER),
     covers: /\bp_requester\b/u.test(helpers.get(IS_APPROVER)?.args ?? ""),
     managers: helpers.has(MANAGES),
+    ...(options.isApproverMany === true
+      ? { many: helpers.has(APPROVER_REQUEST_IDS) ? true : null }
+      : {}),
     tenantScope: input.tenantScope,
     rootTenant: input.rootTenant,
     catalog: input.catalog,
   });
   input.problems.push(...built.problems);
   if (built.requires !== undefined) requires.push(built.requires);
-  return built.template;
+  if (built.template === undefined) {
+    return undefined;
+  }
+  if (built.many === undefined) {
+    return { isApprover: built.template };
+  }
+  requires.push(built.many.requires);
+  return { isApprover: built.template, isApproverMany: built.many.template };
 }

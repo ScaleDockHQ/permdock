@@ -17,6 +17,12 @@ export type ProviderApprovers = Readonly<Record<string, ApproverInput>>;
 /** `rls.approvals`' approver check, executable by `authenticated`. */
 export const IS_APPROVER = "permdock_is_approver";
 
+/**
+ * `rls.approvals`' approver check as a set, for better-supabase's
+ * `isApproverMany`.
+ */
+export const APPROVER_REQUEST_IDS = "permdock_approver_request_ids";
+
 /** The manager walk `rls.approvals.managers` writes. */
 export const MANAGES = "permdock_manages";
 
@@ -39,6 +45,11 @@ type IsApproverInput = {
    */
   readonly managers?: boolean;
   readonly requestApprovers?: boolean;
+  /**
+   * Whether to build `isApproverMany` too; `null` when the manifest does not
+   * list `permdock_approver_request_ids`.
+   */
+  readonly many?: boolean | null;
   readonly tenantScope: string;
   readonly rootTenant: boolean;
   readonly catalog: CatalogDocument | undefined;
@@ -47,6 +58,14 @@ type IsApproverInput = {
 type IsApproverOutput = {
   readonly template?: string;
   readonly requires?: AuthorizationRequirement;
+  /**
+   * better-supabase's `isApproverMany`: the same kinds and `requestApprovers`
+   * through `permdock_approver_request_ids({requests}, …)`.
+   */
+  readonly many?: {
+    readonly template: string;
+    readonly requires: AuthorizationRequirement;
+  };
   readonly problems: readonly string[];
 };
 
@@ -92,6 +111,7 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
   }
   const passed = current ? ", ({approvers})::jsonb" : "";
   const branches: string[] = [];
+  const kinds: Record<string, unknown> = {};
   for (const [kind, given] of Object.entries(input.approvers)) {
     if (kind === "") {
       problems.push("approvers has an empty kind, which no request has.");
@@ -117,6 +137,7 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
         );
       }
     }
+    kinds[kind] = approvers;
     const json = `${quoteSqlLiteral(JSON.stringify(approvers))}::jsonb`;
     branches.push(
       input.covers === true
@@ -133,6 +154,23 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
       `The tenant scope "${input.tenantScope}" is not a root scope, and ${IS_APPROVER} checks holder() approvers at the root scope, so they match nobody.`,
     );
   }
+  if (input.many === null) {
+    problems.push(
+      `isApproverMany needs ${input.schema}.${APPROVER_REQUEST_IDS}, which \`permdock rls generate\` writes with rls.approvals. Run it, then \`permdock supabase inspect --out\`.`,
+    );
+  }
+  const manyFn = `${sqlIdent(input.schema)}.${sqlIdent(APPROVER_REQUEST_IDS)}`;
+  const many =
+    input.many === true
+      ? {
+          template: `${manyFn}({requests}, ${quoteSqlLiteral(JSON.stringify(kinds))}::jsonb, ${current ? "true" : "false"})`,
+          requires: {
+            function: manyFn,
+            args: "jsonb, jsonb, boolean",
+            role: "postgres",
+          },
+        }
+      : undefined;
   const otherwise = current
     ? `${fn}(null::jsonb, ({tenant})::text, ({requester})::text, pg_catalog.split_part({kind}, '.', 1)${passed})`
     : "false";
@@ -150,6 +188,7 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
           : "jsonb, text",
       role: "postgres",
     },
+    ...(many === undefined ? {} : { many }),
     problems,
   };
 }
