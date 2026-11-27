@@ -11,15 +11,8 @@ import { scopeTypeOf } from "../sql/columns.ts";
 import { permittedForHelper, permittedIdsHelper } from "../sql/names.ts";
 import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
 import { HELPERS } from "../sql/shared.ts";
-import { subjectIdSql } from "../sql/subject.ts";
-import {
-  functionBody,
-  memoizedSetofSql,
-  memoizes,
-  SETOF_ROWS,
-} from "./helper-bodies.ts";
+import { functionBody, memoizes } from "./helper-bodies.ts";
 import { forUserContext, grantBodies } from "./helpers.ts";
-import { memoUserSql } from "./interactive-only.ts";
 import { activeTenantSql } from "./set-helpers.ts";
 
 /**
@@ -348,52 +341,26 @@ export function permissionHelpersSql(
     user: string,
     conditioned: boolean,
   ): string => {
-    const type = scopeTypeOf(ctx, scope);
-    const returns = `setof ${type}`;
-    const helper = qualified(
-      ctx,
-      user === "" ? permittedIdsHelper(scope) : permittedForHelper(scope),
-    );
-    const body: Body = setForm
-      ? (conditioned ? conditionedIds : ids)(
-          grantBodies({
-            ...(user === "" ? ctx : forUserContext(ctx)),
-            grantSet: true,
-          }).ids(scope),
-          scope,
-        )
-      : {
-          sql: (conditioned ? callConditionedIds : callIds)(
-            helper,
-            scope,
-            user,
-          ),
-          vars: [],
-        };
-    if (memoizes(ctx) && user === "") {
-      return memoizedSetofSql({
-        fn,
-        param: params,
-        returns,
-        idType: type,
-        scope: `perm.${scope}`,
-        keySql: conditioned
-          ? "p_permission || '|' || coalesce(p_conditioned::text, '')"
-          : "p_permission",
-        userSql: memoUserSql(ctx, subjectIdSql(ctx)),
-        query: body.sql,
-        ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
-        grants: "",
-        vars: body.vars,
-        rows: SETOF_ROWS,
-      }).trimEnd();
-    }
+    const returns = `setof ${scopeTypeOf(ctx, scope)}`;
     if (!setForm) {
-      return definer(fn, params, returns, body.sql);
+      const helper = qualified(
+        ctx,
+        user === "" ? permittedIdsHelper(scope) : permittedForHelper(scope),
+      );
+      return definer(
+        fn,
+        params,
+        returns,
+        (conditioned ? callConditionedIds : callIds)(helper, scope, user),
+      );
     }
+    const bodies = grantBodies({
+      ...(user === "" ? ctx : forUserContext(ctx)),
+      grantSet: true,
+    }).ids(scope);
     return `create or replace function ${fn}(${params})
 returns ${returns}
-${functionBody(body, parallel, true)}`;
+${functionBody((conditioned ? conditionedIds : ids)(bodies, scope), parallel, true)}`;
   };
   const keysBody = (
     scope: string,

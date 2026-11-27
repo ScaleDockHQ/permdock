@@ -94,13 +94,10 @@ $permdock$;`);
     const sql = helpers(ctx);
     const own = fn(sql, "member_organization_ids");
     const forUser = fn(sql, "member_organization_ids_for");
-    const query = own.slice(
-      own.indexOf("v_ids := array(\n") + "v_ids := array(\n".length,
-      own.indexOf("\n    );\n    perform"),
-    );
-    expect(query).toContain('from "public"');
-    expect(forUser).toContain(
-      query.replaceAll('(select "permdock".permdock_user_id())', "p_user"),
+    const body = (text: string): string =>
+      text.slice(text.indexOf("as $$"), text.indexOf("$$;"));
+    expect(body(forUser)).toBe(
+      body(own).replaceAll('(select "permdock".permdock_user_id())', "p_user"),
     );
   });
 
