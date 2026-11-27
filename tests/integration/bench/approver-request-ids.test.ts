@@ -3,8 +3,12 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { allOf, anyOf, holder, manager, user as person } from "permdock";
+import { authorizationProvider } from "permdock/better-supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { permissions } from "../fixtures/centrakit/policy.ts";
+import { run as cli } from "../src/support/cli-run.ts";
 import { rlsGenerate } from "../src/support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -204,6 +208,15 @@ describe("permdock_approver_request_ids", () => {
     await lite.exec(readFileSync(out, "utf8"));
     await lite.exec(SEED);
     await lite.exec(requestRows());
+    for (const argv of [
+      ["supabase", "inspect", "--out", join(dir, "manifest.json")],
+      ["catalog", "--out", join(dir, "catalog.json")],
+    ]) {
+      const step = await cli(argv, { cwd: FIXTURE });
+      if (step.code !== 0) {
+        throw new Error(`${argv.join(" ")}: ${step.stdout}${step.stderr}`);
+      }
+    }
   }, 120_000);
 
   afterAll(async () => {
@@ -309,4 +322,85 @@ describe("permdock_approver_request_ids", () => {
       expect(one.set.ms).toBeLessThan(one.reference.ms * 1.5 + 0.5);
     }
   });
+
+  /**
+   * better-supabase's placeholder fill: every `{name}` replaced, as
+   * `fillTemplate` does.
+   */
+  function fill(template: string, values: Readonly<Record<string, string>>) {
+    return template.replaceAll(/\{(\w+)\}/gu, (match, name: string) => {
+      const value = values[name];
+      if (value === undefined) {
+        throw new TypeError(`${match} is not a placeholder here`);
+      }
+      return value;
+    });
+  }
+
+  const PROVIDER_SHAPES = [
+    ["requestApprovers only", undefined, true],
+    [
+      "approvers by kind with requestApprovers",
+      {
+        "job.update": holder(permissions.organizations.update),
+        "quote.send": anyOf(manager({ levels: 2 }), person(id(9))),
+        invoice: allOf(holder(permissions.customers.read), manager()),
+        ".odd": person(ADMIN),
+      },
+      true,
+    ],
+    [
+      "approvers by kind",
+      {
+        "job.update": holder(permissions.organizations.update),
+        "quote.send": anyOf(manager({ levels: 2 }), person(id(9))),
+      },
+      false,
+    ],
+  ] as const;
+
+  for (const [label, approvers, requestApprovers] of PROVIDER_SHAPES) {
+    it(`answers isApproverMany as isApprover per request from authorizationProvider (${label})`, async () => {
+      const provider = authorizationProvider({
+        manifest: readFileSync(join(dir, "manifest.json"), "utf8"),
+        catalog: readFileSync(join(dir, "catalog.json"), "utf8"),
+        ...(approvers === undefined ? {} : { approvers }),
+        requestApprovers,
+        isApproverMany: true,
+      });
+      const { isApprover } = provider.functions;
+      const isApproverMany: unknown = Reflect.get(
+        provider.functions,
+        "isApproverMany",
+      );
+      if (isApprover === undefined || typeof isApproverMany !== "string") {
+        throw new Error(`no templates: ${JSON.stringify(provider.problems)}`);
+      }
+      const rows = `(select * from requests order by n limit ${String(REQUESTS)})`;
+      const perRow = `select r.id from ${rows} r where coalesce(${fill(
+        isApprover,
+        {
+          kind: "r.kind",
+          subject: "r.id",
+          tenant: "r.tenant",
+          requester: "r.requester",
+          approvers: "r.approvers",
+          scope: "'organization'",
+        },
+      )}, false) order by r.n`;
+      const requests = `(select jsonb_agg(jsonb_build_object('id', x.id, 'kind', x.kind, 'subject', x.id, 'tenant', x.tenant, 'requester', x.requester, 'approvers', x.approvers)) from ${rows} x)`;
+      const set = `select r.id from ${rows} r where r.id in (select m.id from ${fill(isApproverMany, { requests, scope: "'organization'" })} as m(id)) order by r.n`;
+      let granted = 0;
+      for (const [name, sub] of Object.entries(USERS)) {
+        const reference = await best(sub, perRow);
+        const many = await best(sub, set);
+        expect({ name, ids: many.ids }).toStrictEqual({
+          name,
+          ids: reference.ids,
+        });
+        granted += many.ids.length;
+      }
+      expect(granted).toBeGreaterThan(0);
+    });
+  }
 });
