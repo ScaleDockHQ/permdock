@@ -564,3 +564,112 @@ export async function pd108(
     },
   );
 }
+
+const QNAME = String.raw`("[^"]+"|[A-Za-z_]\w*)\s*\.\s*("[^"]+"|[A-Za-z_]\w*)`;
+const CREATE_RELATION = new RegExp(
+  String.raw`^create\s+(?:or\s+replace\s+)?(?:(materialized\s+)?view|(?:unlogged\s+)?table)\s+(?:if\s+not\s+exists\s+)?${QNAME}`,
+  "iu",
+);
+const MEMO_TRIGGER = new RegExp(
+  String.raw`^create\s+(?:or\s+replace\s+)?trigger\s+"?permdock_memo_generation"?\s[\s\S]*?\bon\s+${QNAME}`,
+  "iu",
+);
+const MEMO_FUNCTION = new RegExp(
+  String.raw`^create\s+(?:or\s+replace\s+)?function\s+${QNAME}\s*\(`,
+  "iu",
+);
+const QUALIFIED = new RegExp(String.raw`${QNAME}(\s*\()?`, "gu");
+const AUTH_READ =
+  /\b(?:from|join)\s+(?:"auth"|auth)\s*\.\s*("[^"]+"|\w+)(?!\s*\()/giu;
+const TRACED_SCHEMAS = new Set(["pg_catalog", "auth", "better_supabase"]);
+
+/**
+ * PD139: a memoized PermDock helper reads a relation the memo generation
+ * triggers cannot see. The memo lasts for the transaction and only a statement
+ * trigger on a table the body reads ends it early, so a write to a table read
+ * through a view, a function outside the helper schema, or `auth.*`, or to a
+ * table without the trigger, leaves the answer stale until the transaction
+ * ends.
+ */
+export function pd139(
+  cwd: string,
+  config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
+): Promise<readonly DoctorFinding[]> {
+  const statements = statementsOf(cwd, config, files);
+  const helperSchema = (config.rls?.schema ?? "permdock").toLowerCase();
+  const relations = new Map<string, "table" | "view">();
+  const triggered = new Set<string>();
+  const memoized = new Map<string, Statement>();
+  for (const statement of statements) {
+    const text = statement.text.trimStart();
+    const relation = CREATE_RELATION.exec(text);
+    if (relation !== null) {
+      const key = `${unquote(group(relation, 2))}.${unquote(group(relation, 3))}`;
+      relations.set(
+        key,
+        /\bview\b/iu.test(text.slice(0, relation[0].length)) ? "view" : "table",
+      );
+      continue;
+    }
+    const trigger = MEMO_TRIGGER.exec(text);
+    if (trigger !== null) {
+      triggered.add(
+        `${unquote(group(trigger, 1))}.${unquote(group(trigger, 2))}`,
+      );
+      continue;
+    }
+    const fn = MEMO_FUNCTION.exec(text);
+    if (
+      fn !== null &&
+      text.includes("permdock.m.") &&
+      text.includes("v_disc")
+    ) {
+      memoized.set(
+        `${unquote(group(fn, 1))}.${unquote(group(fn, 2))}`,
+        statement,
+      );
+    }
+  }
+  const findings: DoctorFinding[] = [];
+  for (const [name, statement] of memoized) {
+    const body = statement.text.slice(statement.text.indexOf("$$"));
+    const reasons = new Map<string, string>();
+    for (const match of body.matchAll(QUALIFIED)) {
+      const schema = unquote(group(match, 1));
+      const key = `${schema}.${unquote(group(match, 2))}`;
+      if (match[3] !== undefined) {
+        if (schema !== helperSchema && !TRACED_SCHEMAS.has(schema)) {
+          reasons.set(key, `calls ${key}(), whose reads no trigger watches`);
+        }
+        continue;
+      }
+      const kind = relations.get(key);
+      if (kind === "view") {
+        reasons.set(
+          key,
+          `reads the view ${key}, whose tables no trigger watches`,
+        );
+      } else if (kind === "table" && !triggered.has(key)) {
+        reasons.set(
+          key,
+          `reads ${key}, which has no permdock_memo_generation trigger`,
+        );
+      }
+    }
+    for (const match of body.matchAll(AUTH_READ)) {
+      const key = `auth.${unquote(group(match, 1))}`;
+      reasons.set(key, `reads ${key}, which the memo triggers skip`);
+    }
+    for (const [read, reason] of reasons) {
+      findings.push({
+        code: "PD139",
+        severity: "warning",
+        target: `${statement.file}:${name}:${read}`,
+        message: `${statement.file}:${String(statement.line)} ${name} keeps its answer for the transaction but ${reason}: a write to it in the same transaction is not seen until the next one`,
+        fix: "read the table directly in the membership source or condition so permdock generate adds the trigger, add a permdock_memo_generation statement trigger on the tables behind it, or set rls.memo: 'none'",
+      });
+    }
+  }
+  return Promise.resolve(findings);
+}

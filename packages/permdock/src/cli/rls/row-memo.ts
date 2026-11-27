@@ -10,15 +10,14 @@ export function memoRowTriggersSql(
   ctx: RlsSqlContext,
   policy: Policy,
   tables: Readonly<Record<string, string>> | undefined,
-  rowSets = "",
 ): string {
   const plan = graphPlan(policy);
-  if (!memoizes(ctx) || (plan.size === 0 && rowSets === "")) {
+  if (!memoizes(ctx) || plan.size === 0) {
     return "";
   }
   return memoReadTriggersSql(
     ctx,
-    `${plan.size === 0 ? "" : graphIdsSql(ctx, plan, tables)}\n${rowSets}`,
+    graphIdsSql(ctx, plan, tables),
     memoReadsSql(ctx),
   );
 }

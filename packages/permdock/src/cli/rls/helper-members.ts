@@ -35,6 +35,9 @@ import {
   disabledColumn,
   functionBody,
   memberColumn,
+  memoizedSetofSql,
+  memoizes,
+  SETOF_ROWS,
   sourceFilters,
   sourceIdOf,
   sourceRows,
@@ -43,13 +46,14 @@ import {
   sqlBody,
 } from "./helper-bodies.ts";
 import { instancesActive, keyTenantLine, userActive } from "./helper-rows.ts";
+import { memoUserSql } from "./interactive-only.ts";
 
 /**
  * The body of `member_<scope>_ids()`: instances of `scope` the subject holds a
  * live membership of, with any role. Not narrowed to the active tenant, and no
  * cascade: a membership of a child scope is not one of its parent.
  */
-function memberBody(
+export function memberBody(
   ctx: RlsSqlContext,
   scope: string,
   type: string,
@@ -204,6 +208,22 @@ export function memberFunction(
 grant execute on function ${fn}() to anon, authenticated;`
     : `revoke execute on function ${fn}() from public, anon;
 grant execute on function ${fn}() to authenticated;`;
+  if (memoizes(ctx)) {
+    return memoizedSetofSql({
+      fn,
+      param: "",
+      returns: `setof ${type}`,
+      idType: type,
+      scope: `member.${scope}`,
+      keySql: "''",
+      userSql: memoUserSql(ctx, subjectIdSql(ctx)),
+      query: keyed.sql,
+      ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
+      grants,
+      vars: keyed.vars,
+      rows: SETOF_ROWS,
+    });
+  }
   return `create or replace function ${fn}()
 returns setof ${type}
 ${functionBody(keyed, true, true)}

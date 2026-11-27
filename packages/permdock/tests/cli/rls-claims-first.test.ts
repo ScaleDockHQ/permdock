@@ -122,7 +122,7 @@ describe("claims first helpers", () => {
     );
   });
 
-  it("memoizes the ids for the rest of the statement", () => {
+  it("memoizes the ids for the rest of the transaction, keyed on the whole token", () => {
     const body = fnBody(helpers(), "permitted_org_ids");
     expect(body).toContain("language plpgsql");
     expect(body).toContain("language plpgsql\nvolatile\nsecurity definer");
@@ -137,7 +137,9 @@ describe("claims first helpers", () => {
     expect(body).toContain(
       "coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')",
     );
-    expect(body).toContain("statement_timestamp()::text");
+    expect(body).toContain("md5(coalesce((select auth.jwt())::text, ''))");
+    expect(body).toContain("transaction_timestamp()::text");
+    expect(body).not.toContain("statement_timestamp()");
     expect(body).toContain(
       "coalesce((select auth.jwt()) ->> 'session_id', '')",
     );

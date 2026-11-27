@@ -49,7 +49,7 @@ import { pd080, pd081 } from "./per-request.ts";
 import { pd115 } from "./perf-drift.ts";
 import { pd111 } from "./perf-limit.ts";
 import { pd112 } from "./perf-snapshot.ts";
-import { pd103, pd104, pd105, pd106, pd107, pd108 } from "./perf-sql.ts";
+import { pd103, pd104, pd105, pd106, pd107, pd108, pd139 } from "./perf-sql.ts";
 import { pd109, pd110, pd114 } from "./perf-token.ts";
 import { pd125 } from "./pg-topo.ts";
 import { pd131 } from "./policy-count.ts";
@@ -501,6 +501,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
       ["PD106", pd106],
       ["PD107", pd107],
       ["PD108", pd108],
+      ["PD139", pd139],
     ] as const
   ).map(([code, check]): DoctorCheck => ({
     code,

@@ -64,7 +64,8 @@ begin
         coalesce((select auth.jwt()) ->> 'authz_ver', ''),
         coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
         coalesce((select auth.jwt()) ->> 'session_id', ''),
-        statement_timestamp()::text
+        md5(coalesce((select auth.jwt())::text, '')),
+        transaction_timestamp()::text
       )),
       'ids', to_jsonb(array[p_fake]::text[])
     )::text,
@@ -234,7 +235,7 @@ describe("RLS memo generation against Postgres", () => {
     }
   };
 
-  it("reuses a matching memo inside one statement and recomputes in the next", async () => {
+  it("reuses a matching memo for the rest of the transaction", async () => {
     await rolledBack(async (tx) => {
       await tx.query("select set_config('request.jwt.claims', $1, true)", [
         CLAIMS(ADMIN),
@@ -247,7 +248,116 @@ describe("RLS memo generation against Postgres", () => {
       const next = await tx.query<{ readonly ids: string[] }>(
         "select array(select permdock.permitted_tenant_ids('job.read')) as ids",
       );
-      expect(next.rows[0]?.ids).toStrictEqual(["acme"]);
+      expect(next.rows[0]?.ids).toStrictEqual(["fake"]);
+    });
+    await rolledBack(async (tx) => {
+      await tx.query("select set_config('request.jwt.claims', $1, true)", [
+        CLAIMS(ADMIN),
+      ]);
+      const fresh = await tx.query<{ readonly ids: string[] }>(
+        "select array(select permdock.permitted_tenant_ids('job.read')) as ids",
+      );
+      expect(fresh.rows[0]?.ids).toStrictEqual(["acme"]);
+    });
+  });
+
+  it("keys the transaction memo on the caller's claims, so users, sessions, versions and writes in one transaction never share an answer", async () => {
+    const claims = (
+      sub: string,
+      extra: Readonly<Record<string, unknown>> = {},
+    ): string =>
+      JSON.stringify({
+        sub,
+        role: "authenticated",
+        authz_ver: 0,
+        session_id: "s1",
+        ...extra,
+      });
+    await rolledBack(async (tx) => {
+      const as = async (
+        text: string,
+        call = "permdock.permitted_tenant_ids('job.read')",
+      ): Promise<readonly string[]> => {
+        await tx.query("select set_config('request.jwt.claims', $1, true)", [
+          text,
+        ]);
+        const result = await tx.query<{ readonly ids: string[] }>(
+          `select coalesce(array(select i::text from ${call} i order by 1), '{}') as ids`,
+        );
+        return result.rows[0]?.ids ?? [];
+      };
+      const seeded = await tx.query<{ readonly ids: string[] }>(
+        "select public.seed_memo($1::uuid, $2, $3) as ids",
+        [ADMIN, "job.read", "fake"],
+      );
+      expect(seeded.rows[0]?.ids).toStrictEqual(["fake"]);
+      const admin = (
+        await tx.query<{ readonly c: string }>(
+          "select current_setting('request.jwt.claims') as c",
+        )
+      ).rows[0]?.c;
+      expect(await as(admin ?? "")).toStrictEqual(["fake"]);
+      expect(await as(claims(VIEWER))).toStrictEqual(["beta"]);
+      expect(await as(claims(MEMBER))).toStrictEqual(["acme"]);
+      expect(await as(claims(NOBODY))).toStrictEqual([]);
+      // One slot per grant: the other users' answers replaced the seeded one.
+      expect(await as(admin ?? "")).toStrictEqual(["acme"]);
+      await tx.query("select public.seed_memo($1::uuid, $2, $3)", [
+        ADMIN,
+        "job.read",
+        "fake",
+      ]);
+      // SAFETY: seed_memo set the claims to a JSON object two statements ago.
+      const adminClaims = JSON.parse(admin ?? "{}") as Record<string, unknown>;
+      expect(
+        await as(JSON.stringify({ ...adminClaims, authz_ver: 1 })),
+      ).toStrictEqual(["acme"]);
+      expect(
+        await as(JSON.stringify({ ...adminClaims, session_id: "other" })),
+      ).toStrictEqual(["acme"]);
+      expect(
+        await as(JSON.stringify({ ...adminClaims, tenant_id: "beta" })),
+      ).toStrictEqual([]);
+      await tx.query("select public.seed_memo($1::uuid, $2, $3)", [
+        ADMIN,
+        "job.read",
+        "fake",
+      ]);
+      expect(await as(admin ?? "")).toStrictEqual(["fake"]);
+      expect(
+        await as(claims(VIEWER), "permdock.member_tenant_ids()"),
+      ).toStrictEqual(["beta"]);
+      expect(
+        await as(claims(MEMBER), "permdock.member_tenant_ids()"),
+      ).toStrictEqual(["acme"]);
+      expect(
+        await as(
+          claims(VIEWER),
+          "permdock.permitted_tenant_ids_by_permission('job.read')",
+        ),
+      ).toStrictEqual(["beta"]);
+      expect(
+        await as(
+          claims(MEMBER),
+          "permdock.permitted_tenant_ids_by_permission('job.read')",
+        ),
+      ).toStrictEqual(["acme"]);
+      await tx.query("select set_config('request.jwt.claims', $1, true)", [
+        admin,
+      ]);
+      await tx.exec(
+        `delete from public.organization_members where user_id = '${MEMBER}'`,
+      );
+      expect(await as(admin ?? "")).toStrictEqual(["acme"]);
+      expect(
+        await as(claims(MEMBER), "permdock.member_tenant_ids()"),
+      ).toStrictEqual([]);
+      expect(
+        await as(
+          claims(MEMBER),
+          "permdock.permitted_tenant_ids_by_permission('job.read')",
+        ),
+      ).toStrictEqual([]);
     });
   });
 

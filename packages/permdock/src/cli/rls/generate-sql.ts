@@ -21,6 +21,7 @@ import { qualifySqlTable } from "../../core/sql.ts";
 import { listPermissions } from "../../index.ts";
 import { describeError } from "../core/errors.ts";
 import { nonEmptyOr } from "../core/output.ts";
+import { idTypeOf } from "../sql/columns.ts";
 import { compileGrants } from "../sql/compile.ts";
 import { INDEXES_MARKER, SEEDS_MARKER } from "../sql/markers.ts";
 import { graphHelper, scopeTable } from "../sql/names.ts";
@@ -62,6 +63,18 @@ import { CANDIDATES, inheritTargets, rowHelpersSql } from "./rows.ts";
 import { mergeIndexTargets, ruleIndexTargets } from "./rule-indexes.ts";
 import { shimGrants, shimsSql } from "./shims.ts";
 import { auditSql, generatedTables, triggersSql } from "./triggers.ts";
+
+/** Id types whose text form is canonical, so the closure can compare it. */
+const CLOSURE_ID_TYPES = new Set([
+  "uuid",
+  "text",
+  "bigint",
+  "integer",
+  "int",
+  "int4",
+  "int8",
+  "smallint",
+]);
 
 export type GeneratedSql = GeneratedPolicies & {
   readonly text: string;
@@ -222,6 +235,14 @@ function sectionsSql(
     );
   }
   const graphed = graphSql(ctx, graph, tableNames(rls?.tables));
+  for (const resource of Object.keys(ctx.graph?.closures ?? {})) {
+    const type = idTypeOf(ctx, resource).toLowerCase();
+    if (!CLOSURE_ID_TYPES.has(type)) {
+      warnings.push(
+        `rls.idTypes: ${resource} ids are ${type}, and permdock_closure compares ids as text, which matches uuid, integer and text ids only; two ${type} values that are equal but print differently would not match`,
+      );
+    }
+  }
   let rowHelpers = "";
   const storageRows = storageResources(rls?.storage);
   const asked = rls?.rowHelpers;
