@@ -67,7 +67,7 @@
   "./testing/saas/permissions": 167487,
   "./cli": 1061993,
   "./cli/plugins/rls": 1054751,
-  "./cli/plugins/supabase-hook": 464637,
+  "./cli/plugins/supabase-hook": 469681,
   "./cli/plugins/powersync": 1052748,
   "./cli/plugins/supabase": 1055605,
   "./cli/plugins/better-supabase": 4562,

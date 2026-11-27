@@ -585,9 +585,11 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   /**
    * The same subject, tenant, team, actor, delegation, sink and limits with
    * other sources: `customRoles`, `approvalPolicies` or `relations`. The
-   * sources it names are read again for the subject's tenants; the others keep
-   * what this instance loaded. Always a promise, since the sources it names may
-   * answer asynchronously.
+   * sources it names are read again for the subject's tenants, with this
+   * instance's `SourceMemo` as `context.memo`, so a read this instance already
+   * made under the same memo key is answered from it; the others keep what this
+   * instance loaded. Always a promise, since the sources it names may answer
+   * asynchronously.
    */
   readonly derive: (options: DeriveOptions) => Promise<PermDock<V>>;
 };
@@ -735,6 +737,7 @@ function instantiate(
             : asMembershipSource(options.memberships),
         principals: options.principals,
         settings: options.settings,
+        memo,
         targets: (principal: Principal, tenant: string | undefined) =>
           getPermDock(
             codePolicy,

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { CustomRoleSource } from "../../src/core/interfaces.ts";
-import type { Subject } from "../../src/core/subject.ts";
+import type { CustomRole, Subject } from "../../src/core/subject.ts";
 
 import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
+import { customRoleSource } from "../../src/core/custom-role-source.ts";
 import {
   getPermDockSync,
   fromSnapshot,
@@ -140,5 +141,54 @@ describe("derive on other instances", () => {
     expect(events).toStrictEqual([
       { reason: "source-threw", source: "customRoles" },
     ]);
+  });
+});
+
+describe("derive with a source memo", () => {
+  it("answers the tenants the parent read from its memo and reads only the replaced one", async () => {
+    const tenants = ["T", "U", "V"];
+    const reads: string[] = [];
+    const stored: CustomRoleSource = {
+      rolesFor(tenant, context) {
+        const read = (): CustomRole[] => {
+          reads.push(tenant);
+          return mechanic.filter((role) => role.tenant === tenant);
+        };
+        return context?.memo === undefined
+          ? read()
+          : context.memo(`roles:${tenant}`, read);
+      },
+    };
+    const permdock = await getPermDock(
+      scopedPolicy,
+      {
+        principal: {
+          id: "u1",
+          memberships: tenants.map((id) => ({
+            scope: "organization",
+            id,
+            roles: ["mechanic"],
+            via: "staff",
+          })),
+        },
+        context: {},
+      },
+      { customRoles: stored },
+    );
+    expect(reads).toStrictEqual(tenants);
+    const derived = await permdock.derive({
+      customRoles: customRoleSource({
+        rolesFor: (tenant, context) =>
+          tenant === "U" ? [] : stored.rolesFor(tenant, context),
+      }),
+    });
+    expect(reads).toStrictEqual(tenants);
+    const asset = (organization: string) => ({
+      id: "a",
+      organization_id: organization,
+      customer_id: "c",
+    });
+    expect(derived.tenant("T").can(scoped.asset.read, asset("T"))).toBe(true);
+    expect(derived.tenant("U").can(scoped.asset.read, asset("U"))).toBe(false);
   });
 });

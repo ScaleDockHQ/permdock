@@ -24,6 +24,7 @@ import { SUPABASE_MANIFEST_SCHEMA } from "../core/version.ts";
 import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
 import { REQUEST_APPROVER_IDS } from "../rls/approval-chain.ts";
 import { MANAGES } from "../rls/approval-managers.ts";
+import { APPROVER_REQUEST_IDS } from "../rls/approval-request-ids.ts";
 import { APPROVER_FOR_IDS, MANAGED_USER_IDS } from "../rls/approval-sets.ts";
 import { IS_APPROVER } from "../rls/approvals.ts";
 import { guardedTables } from "../rls/assignments.ts";
@@ -217,6 +218,12 @@ function trustedHelpers(
             client,
           ),
           helperEntry(APPROVER_FOR_IDS, "", "setof uuid", client),
+          helperEntry(
+            APPROVER_REQUEST_IDS,
+            "p_requests jsonb, p_kinds jsonb, p_current boolean",
+            "setof text",
+            client,
+          ),
         ]
       : []),
     ...(typeof config.rls?.approvals === "object" &&

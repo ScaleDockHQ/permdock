@@ -8,6 +8,7 @@ import type {
   RelationSource,
   CustomRoleSource,
   SettingsSource,
+  SourceMemo,
 } from "./interfaces.ts";
 import type { Limits } from "./limits.ts";
 import type { DeriveOptions } from "./permdock.ts";
@@ -63,6 +64,12 @@ export type InstanceEnv = {
   readonly settings?: SettingsSource;
   /** Builds a `decideFor` target from the options the instance was created with. */
   readonly targets: TargetFactory;
+  /**
+   * The `SourceMemo` of the `getPermDock` call that built the instance;
+   * `derive()` passes it to the sources it reads, so a read the instance made
+   * for the same key is not made again.
+   */
+  readonly memo?: SourceMemo;
 };
 
 /**
@@ -96,6 +103,7 @@ export function deriveEnv(
             ? undefined
             : (subject.principal.roles ?? []),
           (tenant) => heldRoleNamesIn(subject.principal, scopes, tenant),
+          base.memo,
         );
   const names =
     options.customRoles === undefined
