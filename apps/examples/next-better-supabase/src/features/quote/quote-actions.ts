@@ -1,8 +1,8 @@
 "use server";
 
-import { updateTag } from "next/cache";
 import { z } from "zod";
 
+import { bsb } from "../../lib/supabase/server.ts";
 import { protectAction } from "../../permdock/server.ts";
 import { permissions } from "../../policy.ts";
 import { orgTag } from "../organization/organization-cache.ts";
@@ -54,8 +54,10 @@ export const renameQuote = protectAction(permissions.quotes.update, {
     return { title: input.title };
   },
   {
-    after(_decision, context) {
-      updateTag(orgTag(context.data.organization_id));
+    // Expires the kept store as well as Next's cache, so another instance
+    // does not serve the old quote until the entry's life ends (BS648).
+    async after(_decision, context) {
+      await bsb.expireTags([orgTag(context.data.organization_id)]);
     },
     result: (value) => ({ renamed: value.title }),
   },
