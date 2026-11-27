@@ -13705,7 +13705,7 @@ packages:
             archive: tarball
             bin:
               node: bin/node
-            integrity: sha256-BjWqksZFvcY3iS0TQo+pS6A7kFFrVSWRy2mQ4ptNOkw=
+            integrity: sha256-UYZ03itiFyil5EhvX7O30pALs8xKqXlp7apGPbmfl3g=
             type: binary
             url: https://nodejs.org/download/release/v26.13.1/node-v26.13.1-linux-x64.tar.gz
           targets:
