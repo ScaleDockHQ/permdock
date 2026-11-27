@@ -903,6 +903,21 @@ ${body.sql}
 end;
 $$;`;
   }
+  // A placeholder such as `select null::uuid where false` reads no table and no
+  // parameter, so it stays SQL: plpgsql_check would flag its unused parameters.
+  if (
+    body.vars.length === 0 &&
+    /^\s*select [^\n]* where false(?: --[^\n]*)?$/u.test(body.sql)
+  ) {
+    return `language sql
+stable
+security definer
+${planner}
+set search_path = ''
+as $$
+${body.sql}
+$$;`;
+  }
   // Postgres never inlines a function with a SET clause, so a SQL body would be
   // planned again in every statement that calls it. PL/pgSQL keeps the plan for
   // the session; `use_column` keeps SQL's rule that a column wins over a

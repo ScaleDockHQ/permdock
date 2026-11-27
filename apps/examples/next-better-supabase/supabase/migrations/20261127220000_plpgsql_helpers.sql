@@ -217,40 +217,6 @@ begin
 end;
 $$;
 
-create or replace function "permdock".member_team_ids()
-returns setof uuid
-language plpgsql
-stable
-security definer
-cost 1000
-rows 10
-parallel safe
-set search_path = ''
-as $$
-#variable_conflict use_column
-begin
-  return query
-  select null::uuid where false -- no team memberships table configured
-  ;
-end;
-$$;
-
-create or replace function "permdock".member_team_ids_for(p_user uuid, p_active text default null)
-returns setof uuid
-language plpgsql
-stable
-security definer
-cost 1000
-set search_path = ''
-as $$
-#variable_conflict use_column
-begin
-  return query
-  select null::uuid where false -- no team memberships table configured
-  ;
-end;
-$$;
-
 create or replace function "permdock".permitted_customer_ids(p_grant text)
 returns setof uuid
 language plpgsql
@@ -480,24 +446,6 @@ begin
   union
   select pdk_m.id from pdk_m
   where p_grant = any(pdk_m.keys);
-end;
-$$;
-
-create or replace function "permdock".permitted_team_ids_for(p_user uuid, p_grant text)
-returns setof uuid
-language plpgsql
-stable
-security definer
-cost 1000
-rows 10
-parallel safe
-set search_path = ''
-as $$
-#variable_conflict use_column
-begin
-  return query
-  select null::uuid where false -- no team memberships table configured
-  ;
 end;
 $$;
 
