@@ -165,8 +165,8 @@ describe(accessReviewApplier, () => {
     const result = await apply("r1");
     expect(result.applied).toHaveLength(2);
     expect(calls).toStrictEqual([
-      { fn: "app.remove_member", args: { organization: ORG, member: "u1" } },
-      { fn: "app.remove_member", args: { organization: ORG, member: "u2" } },
+      { fn: "app.delete_member", args: { organization: ORG, member: "u1" } },
+      { fn: "app.delete_member", args: { organization: ORG, member: "u2" } },
     ]);
   });
 
@@ -182,7 +182,7 @@ describe(accessReviewApplier, () => {
       demoteTo: "custom-viewer",
     })("r1");
     expect(calls.map((call) => call.fn)).toStrictEqual([
-      "better_supabase.remove_member",
+      "better_supabase.delete_member",
     ]);
   });
 
@@ -192,7 +192,7 @@ describe(accessReviewApplier, () => {
       { principal: "u2", via: ["admin"], status: "revoked" },
     ]);
     const { client } = fakeClient({
-      remove_member: (args) =>
+      delete_member: (args) =>
         args["member"] === "u1"
           ? {
               error: {
@@ -215,7 +215,7 @@ describe(accessReviewApplier, () => {
       { principal: "u2", via: ["admin"], status: "revoked" },
     ]);
     const { client } = fakeClient({
-      remove_member: (args) =>
+      delete_member: (args) =>
         args["member"] === "u1"
           ? {
               error: {
@@ -231,7 +231,7 @@ describe(accessReviewApplier, () => {
       failed: [
         {
           item: "r1:u1:billing.manage",
-          cause: "remove_member: That member's role is above your own",
+          cause: "delete_member: That member's role is above your own",
         },
       ],
     });
@@ -260,7 +260,7 @@ describe(accessReviewApplier, () => {
     })("r1");
     expect(calls).toStrictEqual([
       {
-        fn: "better_supabase.remove_member",
+        fn: "better_supabase.delete_member",
         args: { organization: ORG, member: "u1" },
       },
       {
@@ -290,8 +290,8 @@ describe(accessReviewApplier, () => {
     })("r1");
     expect(result.applied).toHaveLength(2);
     expect(calls.map((call) => call.fn)).toStrictEqual([
-      "better_supabase.remove_member",
-      "better_supabase.remove_member",
+      "better_supabase.delete_member",
+      "better_supabase.delete_member",
       "better_supabase.list_organization_invitations",
     ]);
   });

@@ -36,7 +36,7 @@ export type AccessReviewApplierOptions<
    * The role a revoked member moves to with `update_member_role`: one role, or
    * a map from the roles in the item's `via` to their fallback. A fallback that
    * still grants the permission, or none, removes the member with
-   * `remove_member` instead.
+   * `delete_member` instead.
    */
   readonly demoteTo?: string | Readonly<Record<string, string>>;
   /**
@@ -206,7 +206,7 @@ export function accessReviewApplier<
           role,
         });
       } else {
-        await rpc("remove_member", {
+        await rpc("delete_member", {
           organization: review.tenant,
           member: item.principal,
         });

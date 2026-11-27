@@ -1019,7 +1019,7 @@ const apply = accessReviewApplier({
 const { applied, failed } = await apply("review_1");
 ```
 
-- The review's tenant is the `organization` argument. A revoked member moves to the `demoteTo` role with `update_member_role` when no allow grant in `policy` gives that role the permission at the tenant scope. Otherwise, or without `demoteTo`, `remove_member` removes the member. A role the policy does not declare, such as a custom role, counts as granting it.
+- The review's tenant is the `organization` argument. A revoked member moves to the `demoteTo` role with `update_member_role` when no allow grant in `policy` gives that role the permission at the tenant scope. Otherwise, or without `demoteTo`, `delete_member` removes the member. A role the policy does not declare, such as a custom role, counts as granting it.
 - With `email`, the tenant's open invitations to that address whose role grants the permission are revoked with `revoke_invitation`.
 - Pass the reviewer's client, so the blocks' own `updateRole`, `removeMember` and role-ceiling checks run as the reviewer.
 - A member who is no longer in the organization (`ORGANIZATION_NOT_MEMBER`) counts as applied. Any other error, such as `ORGANIZATION_ROLE_CEILING` or the owner invariant, leaves the item unapplied in `failed` with the message. One item's failure does not stop the others.
