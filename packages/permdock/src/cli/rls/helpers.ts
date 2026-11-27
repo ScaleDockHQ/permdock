@@ -51,7 +51,6 @@ import {
   sqlBody,
 } from "./helper-bodies.ts";
 import {
-  memberBody,
   memberForFunction,
   memberFunction,
   memberOfFunction,
@@ -624,14 +623,9 @@ function memoBody(
 
 export function memoReadsSql(ctx: RlsSqlContext): string {
   const bodies = grantBodies(ctx);
-  const sets = grantBodies({ ...ctx, grantSet: true });
   return [
     bodies.has.sql,
-    ...ctx.scopes.flatMap((scope) => [
-      bodies.ids(scope.name).sql,
-      sets.ids(scope.name).sql,
-      memberBody(ctx, scope.name, scopeTypeOf(ctx, scope.name)).sql,
-    ]),
+    ...ctx.scopes.map((scope) => bodies.ids(scope.name).sql),
   ].join("\n");
 }
 

@@ -585,11 +585,10 @@ const TRACED_SCHEMAS = new Set(["pg_catalog", "auth", "better_supabase"]);
 
 /**
  * PD139: a memoized PermDock helper reads a relation the memo generation
- * triggers cannot see. The memo lasts for the transaction and only a statement
+ * triggers cannot see. The memo lasts for the statement and only a statement
  * trigger on a table the body reads ends it early, so a write to a table read
  * through a view, a function outside the helper schema, or `auth.*`, or to a
- * table without the trigger, leaves the answer stale until the transaction
- * ends.
+ * table without the trigger, leaves the answer stale until the statement ends.
  */
 export function pd139(
   cwd: string,
@@ -666,7 +665,7 @@ export function pd139(
         code: "PD139",
         severity: "warning",
         target: `${statement.file}:${name}:${read}`,
-        message: `${statement.file}:${String(statement.line)} ${name} keeps its answer for the transaction but ${reason}: a write to it in the same transaction is not seen until the next one`,
+        message: `${statement.file}:${String(statement.line)} ${name} keeps its answer for the statement but ${reason}: a write to it earlier in the same statement is not seen until the next one`,
         fix: "read the table directly in the membership source or condition so permdock generate adds the trigger, add a permdock_memo_generation statement trigger on the tables behind it, or set rls.memo: 'none'",
       });
     }
