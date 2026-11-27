@@ -27,7 +27,7 @@ const APPROVER_MATCHES = "permdock_approver_matches";
  * The most requests one `permdock_approver_request_ids` call takes; a longer
  * `p_requests` raises `54000`, so one call never walks an unbounded array.
  */
-export const MAX_APPROVER_REQUESTS = 5000;
+const MAX_APPROVER_REQUESTS = 5000;
 
 /** The function `rls.approvals.delegations` writes for a cover's own rights. */
 const COVER_APPROVES = "permdock_cover_approves";
