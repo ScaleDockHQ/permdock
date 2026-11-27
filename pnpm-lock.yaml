@@ -13707,7 +13707,7 @@ packages:
               node: bin/node
             integrity: sha256-BjWqksZFvcY3iS0TQo+pS6A7kFFrVSWRy2mQ4ptNOkw=
             type: binary
-            url: http://127.0.0.1:8765/v26.13.1/node-v26.13.1-linux-x64.tar.gz
+            url: https://nodejs.org/download/release/v26.13.1/node-v26.13.1-linux-x64.tar.gz
           targets:
             - cpu: x64
               os: linux
