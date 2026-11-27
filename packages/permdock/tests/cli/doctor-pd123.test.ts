@@ -121,4 +121,29 @@ describe("PD123", () => {
       expect.objectContaining({ code: "PD123", severity: "warning" }),
     ]);
   });
+
+  it.each(["getConfig", "loadConfig"])(
+    "lists the actions through better-supabase's %s",
+    async (reader) => {
+      const cwd = policyProject(
+        { policy: "roles: []," },
+        {
+          "permissions.catalog.json": catalog(["audit.read"]),
+          "better-supabase.config.mjs": bsbConfig({ blocks: ["audit"] }),
+          "node_modules/better-supabase/package.json": JSON.stringify({
+            name: "better-supabase",
+            version: "0.0.0",
+            type: "module",
+            exports: { "./cli": "./cli.mjs", "./sql": "./sql.mjs" },
+          }),
+          "node_modules/better-supabase/cli.mjs": `export async function ${reader}(cwd, path) {\n  return { blocks: [{ block: "audit" }], path };\n}\n`,
+          "node_modules/better-supabase/sql.mjs":
+            'export function listActions() {\n  return [{ kind: "block", name: "audit", action: "revert", key: "audit.revert", source: "default" }];\n}\n',
+        },
+      );
+      expect(
+        (await pd123({ cwd, config })).map((finding) => finding.target),
+      ).toStrictEqual(["blocks.audit.revert"]);
+    },
+  );
 });

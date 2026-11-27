@@ -22,9 +22,12 @@ export type BsbActions =
   | { readonly kind: "actions"; readonly actions: readonly BsbAction[] }
   /** better-supabase does not resolve from the project. */
   | { readonly kind: "missing" }
-  /** It resolves without `listActions` or `loadConfig` (before 0.84.0). */
+  /**
+   * It resolves without `listActions` or a config reader, `getConfig` (0.88.0)
+   * or `loadConfig` (0.84.0 to 0.87.x).
+   */
   | { readonly kind: "old" }
-  /** `loadConfig` refused the config. */
+  /** The config reader refused the config. */
   | { readonly kind: "invalid"; readonly message: string };
 
 const KINDS: ReadonlySet<unknown> = new Set([
@@ -71,8 +74,8 @@ function isFunction<T>(value: unknown): value is T {
 
 /**
  * Every action the better-supabase config at `path` makes better-supabase
- * check, from the project's own `better-supabase/cli` `loadConfig` and
- * `better-supabase/sql` `listActions` (0.84.0).
+ * check, from the project's own `better-supabase/cli` `getConfig` (0.88.0;
+ * `loadConfig` before it) and `better-supabase/sql` `listActions` (0.84.0).
  */
 export async function bsbActions(
   cwd: string,
@@ -93,7 +96,7 @@ export async function bsbActions(
   } catch {
     return { kind: "missing" };
   }
-  const load = cli["loadConfig"];
+  const load = cli["getConfig"] ?? cli["loadConfig"];
   const list = sql["listActions"];
   if (!isFunction<LoadConfig>(load) || !isFunction<ListActions>(list)) {
     return { kind: "old" };
