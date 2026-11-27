@@ -1,5 +1,31 @@
 # permdock
 
+## 0.36.0
+
+### Minor Changes
+
+- [#388](https://github.com/ScaleDockHQ/permdock/pull/388) [`e3805b5`](https://github.com/ScaleDockHQ/permdock/commit/e3805b51290390bce6fb16ec1e2d5ce475df8c13) Thanks [@mick340](https://github.com/mick340)! - `rls.approvals` writes `permdock_approver_request_ids(p_requests, p_kinds, p_current)`, the approver check as a set: the ids of the requests the signed-in user may approve, each answered as `permdock_is_approver` answers it, with the caller's permission, manager and cover facts read once per call instead of once per request. `permdock supabase inspect` lists it in the manifest. The per-request `permdock_is_approver` is unchanged.
+
+- [#389](https://github.com/ScaleDockHQ/permdock/pull/389) [`7f18a7a`](https://github.com/ScaleDockHQ/permdock/commit/7f18a7abddc59271c898c53d6ba9abe97ae6f1a1) Thanks [@mick340](https://github.com/mick340)! - `authorizationProvider({ isApproverMany: true })` fills better-supabase's `isApproverMany` with `permdock_approver_request_ids({requests}, …)`, over the same kinds and `requestApprovers` as `isApprover`, so the approvals block decides every pending request in one call. It needs `permdock_approver_request_ids` in the manifest and a better-supabase release with the `isApproverMany` slot, so it is off by default.
+
+### Patch Changes
+
+- [#390](https://github.com/ScaleDockHQ/permdock/pull/390) [`c1137a0`](https://github.com/ScaleDockHQ/permdock/commit/c1137a00bc7edd13ceba9a81be1aa8d2266447f0) Thanks [@mick340](https://github.com/mick340)! - Doctor PD123 reads the better-supabase config through `getConfig` from `better-supabase/cli`, the name better-supabase 0.88.0 gives `loadConfig`, and falls back to `loadConfig` for 0.84.0 to 0.87.x. Before, a project on better-supabase 0.88.0 or later got "the installed better-supabase has no listActions" and no PD123 findings.
+
+- [#380](https://github.com/ScaleDockHQ/permdock/pull/380) [`0717cc5`](https://github.com/ScaleDockHQ/permdock/commit/0717cc522fec1466b64483f31e0934e3e96d70e6) Thanks [@martijn00](https://github.com/martijn00)! - `permdock rls generate` writes `member_<scope>_ids_for` for a Supabase scope that has no membership source when another scope has one. The function returns no rows, so better-supabase's `memberIdsFor` can call it for every scope.
+
+- [#384](https://github.com/ScaleDockHQ/permdock/pull/384) [`ce50a14`](https://github.com/ScaleDockHQ/permdock/commit/ce50a1428e7c3469b752b736bf49079a92ce43c5) Thanks [@martijn00](https://github.com/martijn00)! - Access reviews remove a member with `delete_member`. better-supabase 0.88 renamed `remove_member` and ships no wrapper under the old name.
+
+- [#388](https://github.com/ScaleDockHQ/permdock/pull/388) [`e3805b5`](https://github.com/ScaleDockHQ/permdock/commit/e3805b51290390bce6fb16ec1e2d5ce475df8c13) Thanks [@mick340](https://github.com/mick340)! - `permdock.derive({ customRoles })` reads the new source with the instance's `SourceMemo`, and `customRoleSource` passes each read's `context` to its reader. An override that replaces one tenant's roles and passes `context` on to the original source no longer reads the custom-role version of every other tenant again. A derive after a write in the same request can see the reads made before the write; build a new instance with `getPermDock` in that case.
+
+- [#387](https://github.com/ScaleDockHQ/permdock/pull/387) [`6ca595d`](https://github.com/ScaleDockHQ/permdock/commit/6ca595d80885daa292021e5ae8e96ed090e7b081) Thanks [@mick340](https://github.com/mick340)! - `permdock doctor` PD139 warns when a memoized helper reads a view, a function outside the helper schema, an `auth` table or a table without the `permdock_memo_generation` trigger, because a write there is not seen until the next statement. The generated SQL is unchanged from 0.35.1.
+
+- [#380](https://github.com/ScaleDockHQ/permdock/pull/380) [`6f9faf5`](https://github.com/ScaleDockHQ/permdock/commit/6f9faf5b7bbc9d2f4381383e8ebe36df994ca938) Thanks [@martijn00](https://github.com/martijn00)! - `permdock openapi emit` writes `security` into an OpenAPI document, or an Overlay with `--kind overlay`. `permdock openapi emit --doc openapi.json --kind overlay --out openapi.overlay.json --check` exits 1 when the Overlay on disk would change.
+
+- [#380](https://github.com/ScaleDockHQ/permdock/pull/380) [`0717cc5`](https://github.com/ScaleDockHQ/permdock/commit/0717cc522fec1466b64483f31e0934e3e96d70e6) Thanks [@martijn00](https://github.com/martijn00)! - `permdock rls verify --introspect --helpers-only` accepts a helper call for a permission whose row conditions are string equalities or a scope relation, when the policy `and`s each equality with that call and calls `member_<scope>_ids` for each relation.
+
+- [#390](https://github.com/ScaleDockHQ/permdock/pull/390) [`c1137a0`](https://github.com/ScaleDockHQ/permdock/commit/c1137a00bc7edd13ceba9a81be1aa8d2266447f0) Thanks [@mick340](https://github.com/mick340)! - `postgrestSources` no longer hangs when several tenants' custom-role versions are read in the same tick through one `SourceMemo`, as `permdock.derive({ customRoles })` does since 0.36.0 for a user with custom roles in several tenants. Every queued version read is now sent and settles: the user's read and the first tenant read for that user leave as one combined call, and each other read leaves on its own.
+
 ## 0.35.1
 
 ### Patch Changes
