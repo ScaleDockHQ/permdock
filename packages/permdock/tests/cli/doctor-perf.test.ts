@@ -20,6 +20,8 @@ import {
   TOKEN_CHARS_BUDGET,
   pd109,
   pd110,
+  cookieChunks,
+  sessionCookieChars,
   tokenChars,
 } from "../../src/cli/doctor/perf-token.ts";
 import { nodeFiles } from "../../src/cli/shared/doctor-files.ts";
@@ -472,6 +474,42 @@ create policy permdock_follow_parts_select on public.parts for select
       expect(
         tokenChars({ memberships: [{ id: "x".repeat(3_000) }] }),
       ).toBeGreaterThan(TOKEN_CHARS_BUDGET);
+    });
+
+    it("counts the claims twice in the session cookie", () => {
+      expect(sessionCookieChars(2_035)).toBe(2_899);
+      expect(cookieChunks(2_035)).toBe(1);
+      expect(cookieChunks(2_400)).toBe(2);
+    });
+
+    it("flags a hook sample whose cookie splits under the token budget", async () => {
+      const claims = { memberships: [{ id: "x".repeat(1_400) }] };
+      const findings = await pd110(
+        {
+          cwd: "/",
+          config: { supabase: { hook: {} } },
+          files: nodeFiles,
+          database: {
+            url: "postgres://x",
+            connect: () =>
+              Promise.resolve({
+                query: (sql: string) =>
+                  Promise.resolve({
+                    rows: sql.includes("custom_access_token_hook")
+                      ? [{ claims }]
+                      : [],
+                  }),
+                end: () => Promise.resolve(),
+              }),
+          },
+        },
+        [{ label: "a member", event: { user_id: "u" } }],
+      );
+      expect(tokenChars(claims)).toBeLessThan(TOKEN_CHARS_BUDGET);
+      expect(findings).toHaveLength(1);
+      expect(findings[0]).toMatchObject({ code: "PD110", severity: "warning" });
+      expect(findings[0]?.message).toContain("splits it into 2 chunks");
+      expect(findings[0]?.fix).toContain("membershipsClaim");
     });
 
     it("flags a hook sample whose token is over the budget", async () => {

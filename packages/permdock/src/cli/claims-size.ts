@@ -2,7 +2,12 @@ import type { CommandResult } from "./core/result.ts";
 
 import { compactMemberships } from "../core/membership-claim.ts";
 import { supabaseMembershipsBudget } from "../supabase/budget.ts";
-import { tokenChars } from "./doctor/perf-token.ts";
+import {
+  COOKIE_CHUNK_CHARS,
+  cookieChunks,
+  sessionCookieChars,
+  tokenChars,
+} from "./doctor/perf-token.ts";
 
 export type ClaimsSizeReport = {
   readonly memberships: number;
@@ -29,6 +34,10 @@ export type ClaimsSizeReport = {
    * claims.
    */
   readonly tokenChars: number;
+  /** Characters of the `tokens-only` session cookie that holds that token. */
+  readonly cookieChars: number;
+  /** The chunks `@supabase/ssr` splits that cookie into. */
+  readonly cookieChunks: number;
 };
 
 function entry(scope: string, index: number, roles: number): string {
@@ -87,9 +96,12 @@ export function claimsSize(input: {
   const fits = fitting(entryBytes, input.budget);
   const kept = Math.min(fits, input.memberships);
   const claim = `[${entries.join(",")}]`;
-  const keptClaims = entries.slice(0, kept).map((text) => {
-    const parsed: unknown = JSON.parse(text);
-    return parsed;
+  const token = tokenChars({
+    memberships: entries.slice(0, kept).map((text) => {
+      const parsed: unknown = JSON.parse(text);
+      return parsed;
+    }),
+    ...(kept < input.memberships ? { memberships_truncated: true } : {}),
   });
   return {
     memberships: input.memberships,
@@ -102,10 +114,9 @@ export function claimsSize(input: {
     fits,
     compactClaimBytes: compactBytes(entries),
     compactFits: compactFitting(entries, input.budget),
-    tokenChars: tokenChars({
-      memberships: keptClaims,
-      ...(kept < input.memberships ? { memberships_truncated: true } : {}),
-    }),
+    tokenChars: token,
+    cookieChars: sessionCookieChars(token),
+    cookieChunks: cookieChunks(token),
   };
 }
 
@@ -127,6 +138,7 @@ export function runClaimsSize(input: {
       : `all fit the ${String(report.budget)} byte budget (at most ${String(report.fits)})`,
     `compact claim: ${String(report.compactClaimBytes)} bytes in all; at most ${String(report.compactFits)} fit`,
     `compact token with the Supabase base claims: ${String(report.tokenChars)} characters`,
+    `tokens-only session cookie: ${String(report.cookieChars)} characters in ${String(report.cookieChunks)} chunk(s) of ${String(COOKIE_CHUNK_CHARS)}`,
   ];
   return {
     code: 0,
