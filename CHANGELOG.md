@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.38.1 (2026-11-28)
+
+- Generated helpers that check one grant key now probe `role_permissions` by its primary key and check the signed-in user's active row once per statement, which makes `permitted_<scope>_ids(p_grant)` and `permdock_has(p_grant)` about 30% faster for users with many memberships. Run `permdock generate` to pick up the new helper bodies.
+
 ## 0.38.0 (2026-11-27)
 
 - `permdock rls generate` writes the helpers without a memo in PL/pgSQL instead of SQL: `member_<scope>_ids`, `member_<scope>_ids_for`, `permitted_<scope>_ids_by_permission`, `permitted_<scope>_permission_keys`, `permdock_has_for`, `permitted_<scope>_ids_for` and the `rls.memo: 'none'` helpers. Postgres never inlines a function with a `set` clause, so it planned a SQL helper again in every statement that called it; a PL/pgSQL helper keeps its plan for the session. Each body starts with `#variable_conflict use_column`, so the answers do not change. Rerun `permdock rls generate` and add a migration for the changed functions. On CentraKit, `member_organization_ids()` alone took a dashboard payload from 137 to 109 ms.

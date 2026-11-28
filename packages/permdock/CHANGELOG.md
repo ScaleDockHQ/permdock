@@ -1,5 +1,11 @@
 # permdock
 
+## 0.38.1
+
+### Patch Changes
+
+- [#395](https://github.com/ScaleDockHQ/permdock/pull/395) [`2069cf4`](https://github.com/ScaleDockHQ/permdock/commit/2069cf4f4dd72f18c5050c1912b8dcadfff3edda) Thanks [@martijn00](https://github.com/martijn00)! - Generated helpers that check one grant key now probe `role_permissions` by its primary key and check the signed-in user's active row once per statement, which makes `permitted_<scope>_ids(p_grant)` and `permdock_has(p_grant)` about 30% faster for users with many memberships. Run `permdock generate` to pick up the new helper bodies.
+
 ## 0.38.0
 
 ### Minor Changes
