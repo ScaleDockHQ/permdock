@@ -147,7 +147,7 @@ export function activeRowSql(row: RlsActiveRow, id: string): string {
  * statement as an init plan. A join on that id would probe again for every
  * membership row, and `id in (select ...)` would read every active row.
  */
-export function activeOnceSql(row: RlsActiveRow, id: string): string {
+function activeOnceSql(row: RlsActiveRow, id: string): string {
   const table = quoteTable(qualifySqlTable(row.table));
   const parts = [`s.${quoteIdent(row.id)} = ${id}`];
   if (row.disabledAt !== undefined) {
