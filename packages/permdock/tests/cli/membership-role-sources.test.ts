@@ -166,7 +166,7 @@ describe("role sources", () => {
     expect(permitted).toContain("select distinct");
     expect(permitted).toContain(lateral);
     expect(permitted).toContain(
-      `permdock_role_grant_keys('organization', "mr".permdock_role)`,
+      `rp.role = "mr".permdock_role and rp.grant_key = p_grant and rp.scope = 'organization'`,
     );
     expect(fn(sql, "member_organization_ids")).toContain(
       '"mr".permdock_role is not null',

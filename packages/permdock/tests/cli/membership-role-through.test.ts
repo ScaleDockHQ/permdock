@@ -271,7 +271,8 @@ describe("rls.memberships through a roles table", () => {
     expect(fn(sql, "permitted_organization_ids"))
       .toContain(`  from "public"."organization_users" m
   join "public"."roles" mk on mk."id" = m."role_id"
-  cross join lateral "permdock".permdock_role_grant_keys('organization', mk."key"::text) rp(grant_key)`);
+  where m."user_id" = (select "permdock".permdock_user_id())
+    and exists (select 1 from "permdock".role_permissions rp where rp.role = mk."key"::text and rp.grant_key = p_grant and rp.scope = 'organization')`);
     expect(fn(sql, "member_organization_ids")).toContain(
       'and mk."key"::text is not null',
     );

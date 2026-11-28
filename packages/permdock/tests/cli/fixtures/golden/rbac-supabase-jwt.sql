@@ -27,7 +27,7 @@ create table if not exists "app"."user_roles" (
 alter table "app"."user_roles" enable row level security;
 revoke all on table "app"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (jwt: reads the role and memberships claims) sha-256:C5DLCrmsxMxePIUdjTmfWE2FIegT1K3ITCRXQHC_U5s
+-- permdock helpers (jwt: reads the role and memberships claims) sha-256:PdpLlcpanrcQzQBGxk0lFmusNdWWfOJ78YG9DohfR04
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "app";
@@ -123,8 +123,7 @@ begin
         else '[]'::jsonb
       end
     ) r(role)
-    cross join lateral "app".permdock_role_grant_keys('global', r.role) rp(grant_key)
-    where rp.grant_key = p_grant
+    where exists (select 1 from "app".role_permissions rp where rp.role = r.role and rp.grant_key = p_grant and rp.scope = 'global')
   )
   ), false)
   );
@@ -176,9 +175,8 @@ begin
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
     ) r(role)
-  cross join lateral "app".permdock_role_grant_keys('tenant', r.role) rp(grant_key)
   where coalesce((select "app".permdock_user_id())::text, '') <> ''
-    and rp.grant_key = p_grant
+    and exists (select 1 from "app".role_permissions rp where rp.role = r.role and rp.grant_key = p_grant and rp.scope = 'tenant')
     and m ->> 'scope' = 'tenant'
     and m ->> 'id' is not null
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
