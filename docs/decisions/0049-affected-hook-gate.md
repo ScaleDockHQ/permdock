@@ -18,6 +18,7 @@ Measured in this repository on an 18-core Mac:
 - `lefthook.yml` calls `node_modules/.bin/<tool>` directly.
 - Pre-commit formats the staged files with Oxfmt, then runs `turbo run lint:root lint typecheck --affected --cache=local:rw,remote:r --output-logs=errors-only --continue=dependencies-successful`. It skips merges and rebases. `pnpm check:affected` is the same command.
 - Pre-push runs the same gate. Tests run in CI only.
+- The gate leaves out `@permdock/example-prisma` and `@permdock/integration` (`--filter=!<name>`). Their `typegen` runs `prisma generate`, which downloads the Prisma engines from `binaries.prisma.sh` and fails where that host is blocked, such as agent sandboxes. CI lints and typechecks both.
 - Hooks print a job's output only when the job fails (`output: [meta, summary, failure]`).
 - `CI` is in `global.passThroughEnv`. Tasks whose output depends on it list it in their own `env`: `permdock#test`, `//#typecheck:perf`, `//#generate:perf` and `//#cli:startup`. `NODE_ENV` is in the `build` task's `env`.
 
