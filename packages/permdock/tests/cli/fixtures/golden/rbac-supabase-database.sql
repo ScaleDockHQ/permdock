@@ -27,7 +27,7 @@ create table if not exists "permdock"."user_roles" (
 alter table "permdock"."user_roles" enable row level security;
 revoke all on table "permdock"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (database: reads the membership and user_roles tables) sha-256:XjHUALb1tvH7ZnC6oBaCqvTGgNh7QNaboWbpMzvOMPk
+-- permdock helpers (database: reads the membership and user_roles tables) sha-256:_oD6lWb-XsYrvROMSUUIms1ylDcFawceSikEjeW2CmI
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "permdock";
@@ -117,9 +117,8 @@ begin
   select exists (
     select 1
     from "permdock".user_roles ur
-    cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
     where ur.user_id = (select "permdock".permdock_user_id())
-      and rp.grant_key = p_grant
+      and exists (select 1 from "permdock".role_permissions rp where rp.role = ur.role::text and rp.grant_key = p_grant and rp.scope = 'global')
   )
   ), false)
   );
@@ -143,9 +142,8 @@ begin
   return query
   select m."organization_id"::uuid
   from "public"."organization_members" m
-  cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
   where m."user_id" = (select "permdock".permdock_user_id())
-    and rp.grant_key = p_grant
+    and exists (select 1 from "permdock".role_permissions rp where rp.role = m."role"::text and rp.grant_key = p_grant and rp.scope = 'tenant')
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''));
 end;
 $$;
@@ -259,9 +257,8 @@ begin
   select exists (
     select 1
     from "permdock".user_roles ur
-    cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
     where ur.user_id = p_user
-      and rp.grant_key = p_grant
+      and exists (select 1 from "permdock".role_permissions rp where rp.role = ur.role::text and rp.grant_key = p_grant and rp.scope = 'global')
   )
   );
 end;
@@ -283,9 +280,8 @@ begin
   return query
   select m."organization_id"::uuid
   from "public"."organization_members" m
-  cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
   where m."user_id" = p_user
-    and rp.grant_key = p_grant;
+    and exists (select 1 from "permdock".role_permissions rp where rp.role = m."role"::text and rp.grant_key = p_grant and rp.scope = 'tenant');
 end;
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_for(uuid, text) from public, anon, authenticated;

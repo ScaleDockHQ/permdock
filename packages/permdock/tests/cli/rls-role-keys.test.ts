@@ -93,7 +93,7 @@ describe("seeds: 'view' reads grant keys from a jsonb map", () => {
     const table = helpersSql(ctx(), rows, { userRoles: true });
     expect(table).not.toContain("permdock_role_keys");
     expect(body(table, "permdock_has")).toContain(
-      `"permdock".permdock_role_grant_keys('global', ur.role::text)`,
+      `exists (select 1 from "permdock".role_permissions rp where rp.role = ur.role::text and rp.grant_key = p_grant and rp.scope = 'global')`,
     );
     expect(body(table, "permdock_role_grant_keys")).toContain(
       '"permdock".role_permissions',

@@ -599,7 +599,7 @@ describe("claims first helper branches", () => {
     expect(body).not.toContain("->> 'tenant_id'");
   });
 
-  it("joins the active user and filters a kept instance in the claim branch", () => {
+  it("checks the active user once and filters a kept instance in the claim branch", () => {
     const body = fnBody(
       helpers({
         claimsFirst: true,
@@ -619,7 +619,9 @@ describe("claims first helper branches", () => {
       }),
       "permitted_org_ids",
     );
-    expect(body).toContain("act_user");
+    expect(body).toContain(
+      `and (select exists (select 1 from "public"."profiles" s where s."id" = (select "permdock".permdock_user_id()) and s."disabled_at" is null))`,
+    );
     expect(body).toContain('from "public"."organizations" s');
     expect(body).toContain(
       "case r.role when 'admin' then coalesce(m ->> 'via', '') = any(array['staff']::text[]) else true end",

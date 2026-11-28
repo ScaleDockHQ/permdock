@@ -141,6 +141,27 @@ export function activeRowSql(row: RlsActiveRow, id: string): string {
   return `coalesce(${id} in (select s.${quoteIdent(row.id)} from ${table} s${where}), false)`;
 }
 
+/**
+ * The active-row check for an id that is the same for every row, such as the
+ * signed-in subject: one primary key probe that Postgres runs once per
+ * statement as an init plan. A join on that id would probe again for every
+ * membership row, and `id in (select ...)` would read every active row.
+ */
+export function activeOnceSql(row: RlsActiveRow, id: string): string {
+  const table = quoteTable(qualifySqlTable(row.table));
+  const parts = [`s.${quoteIdent(row.id)} = ${id}`];
+  if (row.disabledAt !== undefined) {
+    parts.push(`s.${quoteIdent(row.disabledAt)} is null`);
+  }
+  if (row.status !== undefined) {
+    const values = (row.active ?? []).map(quoteLiteral).join(", ");
+    parts.push(
+      `s.${quoteIdent(row.status)}::text = any(array[${values}]::text[])`,
+    );
+  }
+  return `(select exists (select 1 from ${table} s where ${parts.join(" and ")}))`;
+}
+
 export type ActiveChecks = {
   readonly joins: readonly string[];
   readonly filters: readonly string[];
@@ -226,6 +247,12 @@ export function activeUserSql(
 ): string[] {
   const row = ctx.suspension?.users;
   return row === undefined ? [] : [activeRowSql(row, user)];
+}
+
+/** The signed-in subject's active-row check, run once per statement. */
+export function activeSubjectSql(ctx: RlsSqlContext): string[] {
+  const row = ctx.suspension?.users;
+  return row === undefined ? [] : [activeOnceSql(row, subjectIdSql(ctx))];
 }
 
 /**

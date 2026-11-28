@@ -122,7 +122,8 @@ export default {
       const helpers = readFileSync(join(cwd, "helpers.sql"), "utf8");
       expect(helpers).toContain(`from "identity"."user_roles" ur
     join "identity"."roles" urk on urk."id" = ur."role_id"
-    cross join lateral "permdock".permdock_role_grant_keys('global', urk."key"::text) rp(grant_key)`);
+    where ur."user_id" = (select "permdock".permdock_user_id())
+      and exists (select 1 from "permdock".role_permissions rp where rp.role = urk."key"::text and rp.grant_key = p_grant and rp.scope = 'global')`);
       expect(helpers).not.toContain(
         'create table if not exists "permdock".user_roles',
       );
@@ -169,7 +170,8 @@ export default {
       const helpers = readFileSync(join(cwd, "helpers.sql"), "utf8");
       expect(helpers).toContain(`from "identity"."user_roles" ur
     join "identity"."roles" urk on urk."id" = ur."role_id" and urk."organization_id" is null
-    cross join lateral "permdock".permdock_role_grant_keys('global', urk."key"::text) rp(grant_key)`);
+    where ur."user_id" = (select "permdock".permdock_user_id())
+      and exists (select 1 from "permdock".role_permissions rp where rp.role = urk."key"::text and rp.grant_key = p_grant and rp.scope = 'global')`);
       expect(helpers).toContain(
         `where k."key"::text in (select distinct r from unnest(coalesce(p_roles, '{}'::text[])) r where r is not null) and k."organization_id" is null`,
       );

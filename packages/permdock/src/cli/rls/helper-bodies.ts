@@ -7,6 +7,7 @@ import { sqlTextArray } from "../../core/sql.ts";
 import {
   activeInstanceChecks,
   activeMembershipSql,
+  activeSubjectSql,
   activeUserChecks,
   disabledKeep,
   grantPermissionSql,
@@ -49,9 +50,12 @@ function roleKeys(ctx: RlsSqlContext, scope: string, role: string): string {
 }
 
 /**
- * How a body reaches the grant keys of a declared role: a lateral call of
- * `permdock_role_grants(scope, role)`, the one inlinable function over
- * `role_permissions`, or with `rls.seeds: 'view'` the jsonb map
+ * How a body reaches the grant keys of a declared role. A body that lists every
+ * key (`set`) reads them through a lateral call of
+ * `permdock_role_grant_keys(scope, role)`. A body that checks one key probes
+ * `role_permissions` by its whole primary key instead: the lateral call read
+ * every key of the role for each membership row and filtered afterwards, about
+ * 0.05 ms per membership. With `rls.seeds: 'view'` both read the jsonb map
  * `permdock_role_keys(scope, role)`, which a hash lookup answers where the
  * view's `values` list is scanned.
  */
@@ -62,12 +66,13 @@ function rpJoin(
   set: boolean,
   indent: string,
 ): string {
+  if (!set) {
+    return "";
+  }
   if (ctx.seeds !== "view") {
     return `${indent}cross join lateral ${qualified(ctx, HELPERS.roleGrantKeys)}(${quoteLiteral(scope)}, ${role}) rp(grant_key)\n`;
   }
-  return set
-    ? `${indent}cross join lateral jsonb_array_elements_text(coalesce(${roleKeys(ctx, scope, role)}, '[]'::jsonb)) rp(grant_key)\n`
-    : "";
+  return `${indent}cross join lateral jsonb_array_elements_text(coalesce(${roleKeys(ctx, scope, role)}, '[]'::jsonb)) rp(grant_key)\n`;
 }
 
 function rpConds(
@@ -76,10 +81,15 @@ function rpConds(
   role: string,
   set: boolean,
 ): readonly string[] {
-  if (ctx.seeds !== "view") {
-    return set ? [] : ["rp.grant_key = p_grant"];
+  if (set) {
+    return [];
   }
-  return set ? [] : [`jsonb_exists(${roleKeys(ctx, scope, role)}, p_grant)`];
+  if (ctx.seeds !== "view") {
+    return [
+      `exists (select 1 from ${qualified(ctx, "role_permissions")} rp where rp.role = ${role} and rp.grant_key = p_grant and rp.scope = ${quoteLiteral(scope)})`,
+    ];
+  }
+  return [`jsonb_exists(${roleKeys(ctx, scope, role)}, p_grant)`];
 }
 
 function rpWhere(
@@ -547,7 +557,6 @@ function claimDeclaredBody(
   const narrow = narrowsTo(ctx, scope)
     ? `\n    and (${activeTenant(ctx)} is null or ${claimTenant(ctx, scope)} = ${activeTenant(ctx)})`
     : "";
-  const user = activeUserChecks(ctx, subjectIdSql(ctx), "act_user", "  ");
   const instances = activeInstanceChecks(
     ctx,
     scope,
@@ -558,6 +567,7 @@ function claimDeclaredBody(
     grantPermissionSql(grant),
   );
   const filters = [
+    ...activeSubjectSql(ctx).map((part) => `    and ${part}`),
     `    and (select ${qualified(ctx, HELPERS.tokenCurrent)}())`,
     `    and m ->> 'scope' = ${quoteLiteral(scope)}`,
     `    and m ->> 'id' is not null${narrow}${keyTenantLine(ctx, scope, claimTenant(ctx, scope))}`,
@@ -572,7 +582,6 @@ function claimDeclaredBody(
   return [
     `  select (m ->> 'id')::${type}`,
     `  from ${membershipRows(ctx)}`,
-    ...user.joins,
     ...instances.joins,
     ...rpJoin(ctx, scope, "r.role", false, "  ")
       .split("\n")
